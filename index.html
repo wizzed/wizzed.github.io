@@ -10,6 +10,29 @@
             max-width: 200px;
             max-height: 200px;
         }
+
+         /* Add animation to the heading */
+         h1 {
+            font-size: 3rem;
+            text-align: center;
+            background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: colorTransition 5s infinite;
+        }
+
+        @keyframes colorTransition {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+        
     </style>
 </head>
 <body>

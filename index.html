@@ -1,80 +1,98 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Image Gallery</title>
-    <style>
-        img {
-            margin: 10px;
-            max-width: 200px;
-            max-height: 200px;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Image Gallery</title>
+  <!-- Lightbox CSS -->
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/css/lightbox.min.css"
+    rel="stylesheet"
+  />
 
-        /* Heading with individual-character wave and hue-rotation animation */
-        h1 {
-            font-size: 3rem;
-            text-align: center;
-            overflow: hidden;
-            display: inline-block;
-            white-space: nowrap;
-        }
-        h1 span {
-            display: inline-block;
-            /* Wave and color animations */
-            animation: wave 1s ease-in-out infinite, hue 3s linear infinite;
-            -webkit-filter: hue-rotate(0deg);
-            filter: hue-rotate(0deg);
-        }
-        @keyframes wave {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
-        }
-        @-webkit-keyframes hue {
-            from { -webkit-filter: hue-rotate(0deg); filter: hue-rotate(0deg); }
-            to   { -webkit-filter: hue-rotate(360deg); filter: hue-rotate(360deg); }
-        }
-        @keyframes hue {
-            from { -webkit-filter: hue-rotate(0deg); filter: hue-rotate(0deg); }
-            to   { -webkit-filter: hue-rotate(360deg); filter: hue-rotate(360deg); }
-        }
-    </style>
+  <style>
+    /* Base reset */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f7f7f7;
+      color: #333;
+      padding: 30px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 2rem;
+    }
+
+    /* Grid container */
+    #gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+    }
+
+    /* Each item’s wrapper */
+    .gallery-item {
+      overflow: hidden;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .gallery-item img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s;
+    }
+
+    /* Hover effects */
+    .gallery-item:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 12px rgba(0,0,0,0.2);
+    }
+
+    .gallery-item:hover img {
+      transform: scale(1.1);
+    }
+  </style>
 </head>
 <body>
-    <h1 id="heading">Image Gallery</h1>
-    <div id="gallery"></div>
+  <h1>My Portfolio Gallery</h1>
+  <div id="gallery"></div>
 
-    <script>
-        // Wrap each character of the heading in a span, set delays, and assign initial rainbow hues
-        const heading = document.getElementById('heading');
-        const text = heading.textContent;
-        heading.textContent = '';
-        const total = text.length;
-        [...text].forEach((char, i) => {
-            const span = document.createElement('span');
-            span.textContent = char;
-            // Wave and hue delay staggering
-            span.style.animationDelay = `${i * 0.1}s, ${i * 0.05}s`;
-            // Assign base color
-            const hue = Math.round((i / total) * 360);
-            span.style.color = `hsl(${hue}, 100%, 50%)`;
-            heading.appendChild(span);
-        });
+  <!-- Lightbox JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/js/lightbox.min.js"></script>
+  <script>
+    // ============ CONFIGURATION ============
+    const totalImages = 3;            // ← Change this to however many images you have
+    const imageFolder = 'images';      // ← Change if your folder has a different name/path
+    // =======================================
 
-        // List of image filenames
-        const images = [
-            "image.png",
-            "image2.png",
-            "image3.png"
-        ];
+    const gallery = document.getElementById('gallery');
 
-        const gallery = document.getElementById('gallery');
-        images.forEach(image => {
-            const img = document.createElement('img');
-            img.src = `./images/${image}`;
-            img.alt = image;
-            gallery.appendChild(img);
-        });
-    </script>
+    for (let i = 1; i <= totalImages; i++) {
+      const imgPath = `${imageFolder}/image${i}.png`;
+
+      // Create link for Lightbox
+      const link = document.createElement('a');
+      link.href = imgPath;
+      link.setAttribute('data-lightbox', 'gallery');
+      link.setAttribute('data-title', `Image ${i}`);
+
+      // Create image element
+      const img = document.createElement('img');
+      img.src = imgPath;
+      img.alt = `Image ${i}`;
+      img.classList.add('gallery-item');
+
+      link.appendChild(img);
+      gallery.appendChild(link);
+    }
+  </script>
 </body>
 </html>

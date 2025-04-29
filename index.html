@@ -1,97 +1,192 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>My Image Gallery</title>
-  <!-- Lightbox CSS -->
-  <link
-    href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/css/lightbox.min.css"
-    rel="stylesheet"
-  />
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Rubik's Cube</title>
   <style>
-    /* Base reset */
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f7f7f7;
-      color: #333;
-      padding: 30px;
-    }
-
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-      font-size: 2rem;
-    }
-
-    /* Grid container */
-    #gallery {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 15px;
-    }
-
-    /* Each item’s wrapper */
-    .gallery-item {
-      overflow: hidden;
-      border-radius: 10px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      transition: transform 0.3s, box-shadow 0.3s;
-    }
-
-    .gallery-item img {
-      display: block;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transition: transform 0.3s;
-    }
-
-    /* Hover effects */
-    .gallery-item:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 12px rgba(0,0,0,0.2);
-    }
-
-    .gallery-item:hover img {
-      transform: scale(1.1);
-    }
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
   </style>
 </head>
 <body>
-  <h1>My Portfolio Gallery</h1>
-  <div id="gallery"></div>
-
-  <!-- Lightbox JS -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/js/lightbox.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
-    // ============ CONFIGURATION ============
-    const totalImages = 3;            // ← Change this to however many images you have
-    const imageFolder = 'images';      // ← Change if your folder has a different name/path
-    // =======================================
+    let scene, camera, renderer, cameraPivot;
+    const cubies = [];
+    let isRotating = false;
+    let rotationGroup = null;
+    const rotationAxis = new THREE.Vector3();
+    let rotationDirection = 1;
+    let rotationRemaining = 0;
 
-    const gallery = document.getElementById('gallery');
+    // Camera control
+    const keys = { ArrowLeft: false, ArrowRight: false, ArrowUp: false, ArrowDown: false };
+    let snapBack = false;
+    let snapStartQuat, snapElapsed = 0;
+    const snapDuration = 0.5; // seconds
 
-    for (let i = 1; i <= totalImages; i++) {
-      const imgPath = `${imageFolder}/image${i}.png`;
+    const clock = new THREE.Clock();
 
-      // Create link for Lightbox
-      const link = document.createElement('a');
-      link.href = imgPath;
-      link.setAttribute('data-lightbox', 'gallery');
-      link.setAttribute('data-title', `Image ${i}`);
+    init();
+    animate();
 
-      // Create image element
-      const img = document.createElement('img');
-      img.src = imgPath;
-      img.alt = `Image ${i}`;
-      img.classList.add('gallery-item');
+    function init() {
+      scene = new THREE.Scene();
+      // Set a dark gray background instead of pure black
+      scene.background = new THREE.Color(0x222222);
 
-      link.appendChild(img);
-      gallery.appendChild(link);
+      // Pivot for camera
+      cameraPivot = new THREE.Group();
+      scene.add(cameraPivot);
+
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(4, 4, 6);
+      camera.lookAt(0, 0, 0);
+      cameraPivot.add(camera);
+      // Store initial quaternion
+      camera.userData.initialQuat = cameraPivot.quaternion.clone();
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      // Use the same clear color as scene background
+      renderer.setClearColor(0x222222, 1);
+      document.body.appendChild(renderer.domElement);
+
+      scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+      dirLight.position.set(5, 10, 7.5);
+      scene.add(dirLight);
+
+      const geometry = new THREE.BoxGeometry(1, 1, 1);
+      const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
+
+      for (let x = -1; x <= 1; x++) {
+        for (let y = -1; y <= 1; y++) {
+          for (let z = -1; z <= 1; z++) {
+            const materials = [];
+            const faceColors = [
+              { cond: x === 1, color: 0xff0000 },
+              { cond: x === -1, color: 0xffa500 },
+              { cond: y === 1, color: 0xffffff },
+              { cond: y === -1, color: 0xffff00 },
+              { cond: z === 1, color: 0x00ff00 },
+              { cond: z === -1, color: 0x0000ff }
+            ];
+            faceColors.forEach(fc => materials.push(new THREE.MeshBasicMaterial({ color: fc.cond ? fc.color : 0x000000 })));
+
+            const cubie = new THREE.Group();
+            const mesh = new THREE.Mesh(geometry, materials);
+            cubie.add(mesh);
+            const edges = new THREE.EdgesGeometry(geometry);
+            const line = new THREE.LineSegments(edges, edgeMaterial);
+            cubie.add(line);
+            cubie.position.set(x, y, z);
+            cubie.userData.initialPosition = cubie.position.clone();
+            cubie.userData.initialQuaternion = cubie.quaternion.clone();
+            scene.add(cubie);
+            cubies.push(cubie);
+          }
+        }
+      }
+
+      window.addEventListener('resize', onWindowResize);
+      window.addEventListener('keydown', onKeyDown);
+      window.addEventListener('keyup', onKeyUp);
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function onKeyDown(event) {
+      const key = event.key;
+      if (keys.hasOwnProperty(key)) {
+        keys[key] = true;
+        // cancel any snapping back
+        snapBack = false;
+        return;
+      }
+      if (key.toUpperCase() === 'R') {
+        resetCube();
+        return;
+      }
+      if (isRotating) return;
+      const map = { Q: ['y', 1], W: ['z', 1], E: ['y', -1], A: ['x', -1], S: ['z', -1], D: ['x', 1] };
+      const upper = key.toUpperCase();
+      if (!map[upper]) return;
+      const [axis, coord] = map[upper];
+      startRotation(axis, coord, key === upper ? 1 : -1);
+    }
+
+    function onKeyUp(event) {
+      if (keys.hasOwnProperty(event.key)) {
+        keys[event.key] = false;
+        // start snapping back animation
+        snapBack = true;
+        snapElapsed = 0;
+        snapStartQuat = cameraPivot.quaternion.clone();
+      }
+    }
+
+    function resetCube() {
+      isRotating = false;
+      if (rotationGroup) {
+        rotationGroup.children.slice().forEach(c => scene.attach(c));
+        scene.remove(rotationGroup);
+        rotationGroup = null;
+      }
+      cubies.forEach(c => {
+        c.position.copy(c.userData.initialPosition);
+        c.quaternion.copy(c.userData.initialQuaternion);
+      });
+    }
+
+    function startRotation(axisName, coord, direction) {
+      isRotating = true;
+      rotationRemaining = Math.PI / 2;
+      rotationDirection = direction;
+      rotationAxis.set(axisName === 'x' ? 1 : 0, axisName === 'y' ? 1 : 0, axisName === 'z' ? 1 : 0);
+      rotationGroup = new THREE.Group();
+      scene.add(rotationGroup);
+      cubies.forEach(c => { if (Math.round(c.position[axisName]) === coord) rotationGroup.attach(c); });
+    }
+
+    function animate() {
+      const delta = clock.getDelta();
+      requestAnimationFrame(animate);
+
+      // Camera orbit
+      const speed = 0.02;
+      if (keys.ArrowLeft) cameraPivot.rotation.y += speed;
+      if (keys.ArrowRight) cameraPivot.rotation.y -= speed;
+      if (keys.ArrowUp) cameraPivot.rotation.x += speed;
+      if (keys.ArrowDown) cameraPivot.rotation.x -= speed;
+
+      // Snap back animation
+      if (snapBack) {
+        snapElapsed += delta;
+        const t = Math.min(snapElapsed / snapDuration, 1);
+        THREE.Quaternion.slerp(snapStartQuat, camera.userData.initialQuat, cameraPivot.quaternion, t);
+        if (t >= 1) snapBack = false;
+      }
+
+      // Cube face rotations
+      if (isRotating && rotationGroup) {
+        const step = Math.min(rotationRemaining, 0.1);
+        rotationGroup.rotateOnAxis(rotationAxis, step * rotationDirection);
+        rotationRemaining -= step;
+        if (rotationRemaining <= 0) {
+          cubies.forEach(c => scene.attach(c));
+          scene.remove(rotationGroup);
+          rotationGroup = null;
+          isRotating = false;
+        }
+      }
+
+      renderer.render(scene, camera);
     }
   </script>
 </body>

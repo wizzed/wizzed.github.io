@@ -5,8 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Interactive Rubik's Cube</title>
   <style>
-    body { margin: 0; overflow: hidden; }
+    body { margin: 0; overflow: hidden; background: #222222; position: relative; }
     canvas { display: block; }
+    #legend {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      padding: 10px;
+      font-family: sans-serif;
+      font-size: 14px;
+      border-radius: 4px;
+      line-height: 1.4;
+    }
+    #legend ul { list-style: none; margin: 0; padding: 0; }
+    #legend li { margin-bottom: 4px; }
+    #legend li:last-child { margin-bottom: 0; }
   </style>
 </head>
 <body>
@@ -15,28 +30,34 @@
     let scene, camera, renderer, cameraPivot;
     const cubies = [];
     let isRotating = false;
+    let isSolving = false;
     let rotationGroup = null;
     const rotationAxis = new THREE.Vector3();
     let rotationDirection = 1;
     let rotationRemaining = 0;
 
+    // History and solve queue
+    const moveHistory = [];
+    let solveQueue = [];
+
     // Camera control
     const keys = { ArrowLeft: false, ArrowRight: false, ArrowUp: false, ArrowDown: false };
     let snapBack = false;
     let snapStartQuat, snapElapsed = 0;
-    const snapDuration = 0.5; // seconds
-
+    const snapDuration = 0.5;
     const clock = new THREE.Clock();
+
+    // Mapping for moves (Q/W/E/A/S/D)
+    const moveMap = { Q: ['y', 1], W: ['z', 1], E: ['y', -1], A: ['x', -1], S: ['z', -1], D: ['x', 1] };
 
     init();
     animate();
 
     function init() {
       scene = new THREE.Scene();
-      // Set a dark gray background instead of pure black
       scene.background = new THREE.Color(0x222222);
 
-      // Pivot for camera
+      // Pivot for camera rotation
       cameraPivot = new THREE.Group();
       scene.add(cameraPivot);
 
@@ -44,12 +65,10 @@
       camera.position.set(4, 4, 6);
       camera.lookAt(0, 0, 0);
       cameraPivot.add(camera);
-      // Store initial quaternion
       camera.userData.initialQuat = cameraPivot.quaternion.clone();
 
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
-      // Use the same clear color as scene background
       renderer.setClearColor(0x222222, 1);
       document.body.appendChild(renderer.domElement);
 
@@ -59,28 +78,27 @@
       scene.add(dirLight);
 
       const geometry = new THREE.BoxGeometry(1, 1, 1);
-      const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
-
+      const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000 });
       for (let x = -1; x <= 1; x++) {
         for (let y = -1; y <= 1; y++) {
           for (let z = -1; z <= 1; z++) {
             const materials = [];
             const faceColors = [
-              { cond: x === 1, color: 0xff0000 },
-              { cond: x === -1, color: 0xffa500 },
-              { cond: y === 1, color: 0xffffff },
-              { cond: y === -1, color: 0xffff00 },
-              { cond: z === 1, color: 0x00ff00 },
-              { cond: z === -1, color: 0x0000ff }
+              { cond: x === 1, color: 0xff0000 }, // +X red
+              { cond: x === -1, color: 0xffa500 }, // -X orange
+              { cond: y === 1, color: 0xffffff }, // +Y white
+              { cond: y === -1, color: 0xffff00 }, // -Y yellow
+              { cond: z === 1, color: 0x00ff00 }, // +Z green
+              { cond: z === -1, color: 0x0000ff }  // -Z blue
             ];
-            faceColors.forEach(fc => materials.push(new THREE.MeshBasicMaterial({ color: fc.cond ? fc.color : 0x000000 })));
-
+            faceColors.forEach(fc => materials.push(
+              new THREE.MeshBasicMaterial({ color: fc.cond ? fc.color : 0x000000 })
+            ));
             const cubie = new THREE.Group();
             const mesh = new THREE.Mesh(geometry, materials);
             cubie.add(mesh);
             const edges = new THREE.EdgesGeometry(geometry);
-            const line = new THREE.LineSegments(edges, edgeMaterial);
-            cubie.add(line);
+            cubie.add(new THREE.LineSegments(edges, edgeMat));
             cubie.position.set(x, y, z);
             cubie.userData.initialPosition = cubie.position.clone();
             cubie.userData.initialQuaternion = cubie.quaternion.clone();
@@ -102,37 +120,81 @@
     }
 
     function onKeyDown(event) {
+      // Space: random move
+      if (event.code === 'Space') {
+        if (isRotating || isSolving) return;
+        const keysArr = Object.keys(moveMap);
+        const randKey = keysArr[Math.floor(Math.random() * keysArr.length)];
+        const [axis, coord] = moveMap[randKey];
+        const direction = Math.random() < 0.5 ? 1 : -1;
+        startRotation(axis, coord, direction, true);
+        return;
+      }
       const key = event.key;
       if (keys.hasOwnProperty(key)) {
         keys[key] = true;
-        // cancel any snapping back
         snapBack = false;
         return;
       }
-      if (key.toUpperCase() === 'R') {
-        resetCube();
-        return;
-      }
-      if (isRotating) return;
-      const map = { Q: ['y', 1], W: ['z', 1], E: ['y', -1], A: ['x', -1], S: ['z', -1], D: ['x', 1] };
       const upper = key.toUpperCase();
-      if (!map[upper]) return;
-      const [axis, coord] = map[upper];
-      startRotation(axis, coord, key === upper ? 1 : -1);
+      if (upper === 'R') { resetCube(); return; }
+      if (upper === 'F') { startSolve(); return; }
+      if (isRotating || isSolving) return;
+      if (!moveMap[upper]) return;
+      const [axis, coord] = moveMap[upper];
+      const direction = (key === upper) ? 1 : -1;
+      startRotation(axis, coord, direction, true);
     }
 
     function onKeyUp(event) {
       if (keys.hasOwnProperty(event.key)) {
         keys[event.key] = false;
-        // start snapping back animation
         snapBack = true;
         snapElapsed = 0;
         snapStartQuat = cameraPivot.quaternion.clone();
       }
     }
 
+    function startRotation(axisName, coord, direction, record = false) {
+      if (record) moveHistory.push({ axis: axisName, coord, direction });
+      isRotating = true;
+      rotationRemaining = Math.PI / 2;
+      rotationDirection = direction;
+      rotationAxis.set(
+        axisName === 'x' ? 1 : 0,
+        axisName === 'y' ? 1 : 0,
+        axisName === 'z' ? 1 : 0
+      );
+      rotationGroup = new THREE.Group();
+      scene.add(rotationGroup);
+      cubies.forEach(c => {
+        if (Math.round(c.position[axisName]) === coord) rotationGroup.attach(c);
+      });
+    }
+
+    function startSolve() {
+      if (isRotating || isSolving) return;
+      solveQueue = moveHistory
+        .slice()
+        .reverse()
+        .map(m => [m.axis, m.coord, -m.direction]);
+      isSolving = true;
+      moveHistory.length = 0;
+      nextSolve();
+    }
+
+    function nextSolve() {
+      const step = solveQueue.shift();
+      if (!step) { isSolving = false; return; }
+      const [axis, coord, direction] = step;
+      startRotation(axis, coord, direction, false);
+    }
+
     function resetCube() {
       isRotating = false;
+      isSolving = false;
+      solveQueue = [];
+      moveHistory.length = 0;
       if (rotationGroup) {
         rotationGroup.children.slice().forEach(c => scene.attach(c));
         scene.remove(rotationGroup);
@@ -144,36 +206,20 @@
       });
     }
 
-    function startRotation(axisName, coord, direction) {
-      isRotating = true;
-      rotationRemaining = Math.PI / 2;
-      rotationDirection = direction;
-      rotationAxis.set(axisName === 'x' ? 1 : 0, axisName === 'y' ? 1 : 0, axisName === 'z' ? 1 : 0);
-      rotationGroup = new THREE.Group();
-      scene.add(rotationGroup);
-      cubies.forEach(c => { if (Math.round(c.position[axisName]) === coord) rotationGroup.attach(c); });
-    }
-
     function animate() {
       const delta = clock.getDelta();
       requestAnimationFrame(animate);
-
-      // Camera orbit
       const speed = 0.02;
       if (keys.ArrowLeft) cameraPivot.rotation.y += speed;
       if (keys.ArrowRight) cameraPivot.rotation.y -= speed;
       if (keys.ArrowUp) cameraPivot.rotation.x += speed;
       if (keys.ArrowDown) cameraPivot.rotation.x -= speed;
-
-      // Snap back animation
       if (snapBack) {
         snapElapsed += delta;
         const t = Math.min(snapElapsed / snapDuration, 1);
         THREE.Quaternion.slerp(snapStartQuat, camera.userData.initialQuat, cameraPivot.quaternion, t);
         if (t >= 1) snapBack = false;
       }
-
-      // Cube face rotations
       if (isRotating && rotationGroup) {
         const step = Math.min(rotationRemaining, 0.1);
         rotationGroup.rotateOnAxis(rotationAxis, step * rotationDirection);
@@ -183,11 +229,28 @@
           scene.remove(rotationGroup);
           rotationGroup = null;
           isRotating = false;
+          if (isSolving) nextSolve();
         }
       }
-
       renderer.render(scene, camera);
     }
   </script>
+
+  <!-- Legend panel -->
+  <div id="legend">
+    <strong>Controls:</strong>
+    <ul>
+      <li><strong>Q/q</strong>: Up face</li>
+      <li><strong>W/w</strong>: Front face</li>
+      <li><strong>E/e</strong>: Down face</li>
+      <li><strong>A/a</strong>: Left face</li>
+      <li><strong>S/s</strong>: Back face</li>
+      <li><strong>D/d</strong>: Right face</li>
+      <li><strong>Space</strong>: Random move</li>
+      <li><strong>F</strong>: Animate solve</li>
+      <li><strong>R</strong>: Reset cube</li>
+      <li><strong>Arrow Keys</strong>: Orbit camera</li>
+    </ul>
+  </div>
 </body>
 </html>

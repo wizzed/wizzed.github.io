@@ -1,2 +1,2 @@
 # wizzed.github.io
-My site
+[go to link](wizzed.github.io)

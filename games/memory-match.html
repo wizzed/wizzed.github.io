@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memory Match – Wizzed Arcade</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f0f1a;
+      color: #e0e0ff;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    #back-btn {
+      align-self: flex-start;
+      color: #9090b0;
+      text-decoration: none;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+      transition: color 0.2s;
+    }
+    #back-btn:hover { color: #60a5fa; }
+    h1 { font-size: 2rem; font-weight: 800; color: #60a5fa; margin-bottom: 4px; }
+    #top {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .stat {
+      background: #1a1a2e;
+      border-radius: 8px;
+      padding: 6px 16px;
+      text-align: center;
+    }
+    .stat-label { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: #9090b0; }
+    .stat-val { font-size: 1.3rem; font-weight: 700; color: #60a5fa; }
+    #diff-btns {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .diff-btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid #2a2a4a;
+      background: #1a1a2e;
+      color: #9090b0;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .diff-btn.active, .diff-btn:hover {
+      border-color: #60a5fa;
+      color: #60a5fa;
+      background: #141428;
+    }
+    #board {
+      display: grid;
+      gap: 10px;
+      max-width: 500px;
+    }
+    .card {
+      width: 72px; height: 72px;
+      border-radius: 10px;
+      cursor: pointer;
+      position: relative;
+      perspective: 600px;
+      user-select: none;
+    }
+    .card-inner {
+      width: 100%; height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.35s ease;
+      border-radius: inherit;
+    }
+    .card.flipped .card-inner { transform: rotateY(180deg); }
+    .card-front, .card-back {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      backface-visibility: hidden;
+    }
+    .card-front {
+      background: #1a1a2e;
+      border: 2px solid #2a2a4a;
+      color: #2a2a4a;
+      font-size: 1.2rem;
+    }
+    .card-front::after { content: '?'; color: #3a3a6a; font-size: 1.4rem; }
+    .card-back {
+      background: #141428;
+      border: 2px solid #60a5fa;
+      transform: rotateY(180deg);
+    }
+    .card.matched .card-back {
+      border-color: #4ade80;
+      background: #0d1f0d;
+    }
+    #msg { font-size: 1rem; color: #9090b0; margin-top: 14px; min-height: 1.5em; }
+    #restart-btn {
+      margin-top: 10px;
+      padding: 8px 22px;
+      background: #60a5fa;
+      color: #0f0f1a;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    #restart-btn:hover { background: #93c5fd; }
+  </style>
+</head>
+<body>
+  <a id="back-btn" href="../index.html">← Games</a>
+  <h1>🃏 Memory Match</h1>
+  <div id="top">
+    <div class="stat"><div class="stat-label">Flips</div><div class="stat-val" id="flips">0</div></div>
+    <div class="stat"><div class="stat-label">Pairs</div><div class="stat-val" id="pairs">0</div></div>
+    <div class="stat"><div class="stat-label">Time</div><div class="stat-val" id="time">0s</div></div>
+  </div>
+  <div id="diff-btns">
+    <button class="diff-btn active" data-size="4">4×4</button>
+    <button class="diff-btn" data-size="5">5×4</button>
+    <button class="diff-btn" data-size="6">6×6</button>
+  </div>
+  <div id="board"></div>
+  <div id="msg"></div>
+  <button id="restart-btn">Restart</button>
+
+  <script>
+    const EMOJIS = ['🦁','🐯','🦊','🐼','🐨','🐸','🦋','🦄','🐙','🦈','🐬','🦜','🌸','🍕','⚡','🎸','🌈','🔮'];
+
+    let gridSize = 4;
+    let flipped = [], matched = 0, flips = 0, pairs = 0, locked = false;
+    let timerInterval, elapsed = 0, started = false;
+    let totalPairs;
+
+    function init() {
+      clearInterval(timerInterval);
+      elapsed = 0; flips = 0; pairs = 0; matched = 0; locked = false; started = false;
+      document.getElementById('flips').textContent = 0;
+      document.getElementById('pairs').textContent = 0;
+      document.getElementById('time').textContent = '0s';
+      document.getElementById('msg').textContent = '';
+
+      const cols = gridSize === 5 ? 5 : gridSize;
+      const rows = gridSize === 5 ? 4 : gridSize;
+      totalPairs = (cols * rows) / 2;
+
+      const pool = EMOJIS.slice(0, totalPairs);
+      const cards = shuffle([...pool, ...pool]);
+
+      const board = document.getElementById('board');
+      board.style.gridTemplateColumns = `repeat(${cols}, 72px)`;
+      board.innerHTML = '';
+
+      cards.forEach((emoji, i) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.dataset.emoji = emoji;
+        card.dataset.index = i;
+        card.innerHTML = `<div class="card-inner"><div class="card-front"></div><div class="card-back">${emoji}</div></div>`;
+        card.addEventListener('click', () => handleFlip(card));
+        board.appendChild(card);
+      });
+      flipped = [];
+    }
+
+    function shuffle(arr) {
+      for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}
+      return arr;
+    }
+
+    function handleFlip(card) {
+      if(locked||card.classList.contains('flipped')||card.classList.contains('matched')) return;
+      if(!started) {
+        started = true;
+        timerInterval = setInterval(()=>{
+          elapsed++;
+          document.getElementById('time').textContent = elapsed+'s';
+        }, 1000);
+      }
+      card.classList.add('flipped');
+      flipped.push(card);
+      flips++;
+      document.getElementById('flips').textContent = flips;
+
+      if(flipped.length === 2) {
+        locked = true;
+        const [a, b] = flipped;
+        if(a.dataset.emoji === b.dataset.emoji) {
+          a.classList.add('matched'); b.classList.add('matched');
+          pairs++;
+          document.getElementById('pairs').textContent = pairs;
+          flipped = [];
+          locked = false;
+          if(pairs === totalPairs) {
+            clearInterval(timerInterval);
+            document.getElementById('msg').textContent = `🎉 Done in ${flips} flips & ${elapsed}s!`;
+          }
+        } else {
+          setTimeout(()=>{
+            a.classList.remove('flipped');
+            b.classList.remove('flipped');
+            flipped = [];
+            locked = false;
+          }, 900);
+        }
+      }
+    }
+
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        gridSize = parseInt(btn.dataset.size);
+        init();
+      });
+    });
+    document.getElementById('restart-btn').addEventListener('click', init);
+
+    init();
+  </script>
+</body>
+</html>

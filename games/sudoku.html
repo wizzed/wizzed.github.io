@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sudoku – Wizzed Arcade</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f0f1a;
+      color: #e0e0ff;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    #back-btn {
+      align-self: flex-start;
+      color: #9090b0;
+      text-decoration: none;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+      transition: color 0.2s;
+    }
+    #back-btn:hover { color: #e879f9; }
+    h1 { font-size: 2rem; font-weight: 800; color: #e879f9; margin-bottom: 4px; }
+    #controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    select, button {
+      padding: 7px 14px;
+      border-radius: 7px;
+      border: 1px solid #2a2a4a;
+      background: #1a1a2e;
+      color: #e0e0ff;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    button { border-color: #e879f9; color: #e879f9; font-weight: 600; }
+    button:hover { background: #e879f9; color: #0f0f1a; }
+    #timer-box { color: #9090b0; font-size: 0.95rem; }
+    #timer-box span { color: #e879f9; font-weight: 700; }
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(9,44px);
+      grid-template-rows: repeat(9,44px);
+      gap: 0;
+      border: 3px solid #e879f9;
+      border-radius: 4px;
+      background: #e879f9;
+    }
+    .cell {
+      width: 44px; height: 44px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem;
+      font-weight: 600;
+      background: #0a0a18;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      border-right: 1px solid #2a2a4a;
+      border-bottom: 1px solid #2a2a4a;
+      transition: background 0.12s;
+    }
+    /* Bold box borders */
+    .cell:nth-child(3n) { border-right: 2px solid #e879f9; }
+    .cell:nth-child(9n) { border-right: none; }
+    .row3 .cell, .row6 .cell { border-bottom: 2px solid #e879f9; }
+    .cell.given { color: #e0e0ff; cursor: default; }
+    .cell.editable { color: #e879f9; }
+    .cell.selected { background: #1a0a2a !important; }
+    .cell.highlight { background: #120a1e; }
+    .cell.error { color: #f87171; }
+    .cell.correct { color: #4ade80; }
+    #numpad {
+      display: flex;
+      gap: 6px;
+      margin-top: 14px;
+    }
+    .num-btn {
+      width: 40px; height: 40px;
+      background: #1a1a2e;
+      border: 1px solid #e879f9;
+      border-radius: 6px;
+      color: #e879f9;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .num-btn:hover { background: #2a1a3e; }
+    .num-btn.erase { color: #f87171; border-color: #f87171; font-size: 0.9rem; }
+    #msg { font-size: 1rem; color: #9090b0; margin-top: 12px; min-height: 1.5em; text-align: center; }
+  </style>
+</head>
+<body>
+  <a id="back-btn" href="../index.html">← Games</a>
+  <h1>🔷 Sudoku</h1>
+  <div id="controls">
+    <select id="diff">
+      <option value="easy">Easy</option>
+      <option value="medium" selected>Medium</option>
+      <option value="hard">Hard</option>
+    </select>
+    <button id="new-btn">New Game</button>
+    <button id="hint-btn">Hint</button>
+    <button id="solve-btn">Solve</button>
+    <div id="timer-box">⏱ <span id="timer">0:00</span></div>
+  </div>
+  <div id="grid"></div>
+  <div id="numpad"></div>
+  <div id="msg">Select a cell, then tap a number</div>
+
+  <script>
+    // ---- Sudoku generator (backtracking) ----
+    function emptyGrid() { return Array.from({length:9},()=>Array(9).fill(0)); }
+
+    function isValid(g,r,c,n) {
+      for(let i=0;i<9;i++) { if(g[r][i]===n||g[i][c]===n) return false; }
+      const br=Math.floor(r/3)*3, bc=Math.floor(c/3)*3;
+      for(let i=0;i<3;i++) for(let j=0;j<3;j++) if(g[br+i][bc+j]===n) return false;
+      return true;
+    }
+
+    function solve(g) {
+      for(let r=0;r<9;r++) for(let c=0;c<9;c++) {
+        if(g[r][c]!==0) continue;
+        const nums = shuffle([1,2,3,4,5,6,7,8,9]);
+        for(const n of nums) {
+          if(isValid(g,r,c,n)) {
+            g[r][c]=n;
+            if(solve(g)) return true;
+            g[r][c]=0;
+          }
+        }
+        return false;
+      }
+      return true;
+    }
+
+    function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+
+    function generatePuzzle(difficulty) {
+      const REMOVE = {easy:35, medium:50, hard:60};
+      const sol = emptyGrid();
+      solve(sol);
+      const puzzle = sol.map(r=>[...r]);
+      let toRemove = REMOVE[difficulty];
+      const cells = shuffle([...Array(81).keys()]);
+      for(const idx of cells) {
+        if(toRemove<=0) break;
+        const r=Math.floor(idx/9), c=idx%9;
+        const backup=puzzle[r][c];
+        puzzle[r][c]=0;
+        // Quick check: still has unique solution (skip for perf – just remove)
+        toRemove--;
+      }
+      return {puzzle, solution:sol};
+    }
+
+    // ---- UI state ----
+    let puzzle, solution, userGrid, given, selected=null;
+    let timerInterval, elapsed=0;
+
+    function init() {
+      clearInterval(timerInterval);
+      elapsed=0;
+      document.getElementById('timer').textContent='0:00';
+      document.getElementById('msg').textContent='Select a cell, then tap a number';
+      selected=null;
+      const diff = document.getElementById('diff').value;
+      const gen = generatePuzzle(diff);
+      puzzle = gen.puzzle;
+      solution = gen.solution;
+      userGrid = puzzle.map(r=>[...r]);
+      given = puzzle.map(r=>r.map(v=>v!==0));
+      render();
+      timerInterval = setInterval(()=>{
+        elapsed++;
+        const m=Math.floor(elapsed/60), s=elapsed%60;
+        document.getElementById('timer').textContent=`${m}:${s.toString().padStart(2,'0')}`;
+      },1000);
+    }
+
+    function render() {
+      const gridEl = document.getElementById('grid');
+      gridEl.innerHTML='';
+      for(let r=0;r<9;r++) {
+        const rowEl = document.createElement('div');
+        rowEl.style.display='contents';
+        if(r===2||r===5) rowEl.classList.add('row'+( r===2?'3':'6'));
+        for(let c=0;c<9;c++) {
+          const cell = document.createElement('div');
+          cell.className='cell';
+          if(r===2||r===5) cell.style.borderBottom='2px solid #e879f9';
+          const v=userGrid[r][c];
+          if(given[r][c]) {
+            cell.classList.add('given');
+            cell.textContent=v;
+          } else if(v!==0) {
+            cell.classList.add('editable');
+            cell.textContent=v;
+            if(v!==solution[r][c]) cell.classList.add('error');
+            else cell.classList.add('correct');
+          }
+          if(selected&&selected[0]===r&&selected[1]===c) cell.classList.add('selected');
+          else if(selected&&(selected[0]===r||selected[1]===c||
+            (Math.floor(selected[0]/3)===Math.floor(r/3)&&Math.floor(selected[1]/3)===Math.floor(c/3))))
+            cell.classList.add('highlight');
+          cell.dataset.r=r; cell.dataset.c=c;
+          cell.addEventListener('click',()=>selectCell(r,c));
+          gridEl.appendChild(cell);
+        }
+      }
+    }
+
+    function selectCell(r,c) {
+      if(given[r][c]) { selected=[r,c]; render(); return; }
+      selected=[r,c];
+      render();
+    }
+
+    function enterNum(n) {
+      if(!selected) return;
+      const [r,c]=selected;
+      if(given[r][c]) return;
+      userGrid[r][c]=n;
+      render();
+      checkWin();
+    }
+
+    function checkWin() {
+      for(let r=0;r<9;r++) for(let c=0;c<9;c++)
+        if(userGrid[r][c]!==solution[r][c]) return;
+      clearInterval(timerInterval);
+      const m=Math.floor(elapsed/60), s=elapsed%60;
+      document.getElementById('msg').textContent=`🎉 Solved in ${m}:${s.toString().padStart(2,'0')}!`;
+    }
+
+    function giveHint() {
+      const empties=[];
+      for(let r=0;r<9;r++) for(let c=0;c<9;c++)
+        if(!given[r][c]&&userGrid[r][c]!==solution[r][c]) empties.push([r,c]);
+      if(!empties.length) return;
+      const [r,c]=empties[Math.floor(Math.random()*empties.length)];
+      userGrid[r][c]=solution[r][c];
+      given[r][c]=true;
+      selected=[r,c];
+      render();
+      checkWin();
+    }
+
+    function solveAll() {
+      for(let r=0;r<9;r++) for(let c=0;c<9;c++) { userGrid[r][c]=solution[r][c]; given[r][c]=true; }
+      render();
+      clearInterval(timerInterval);
+      document.getElementById('msg').textContent='Puzzle solved!';
+    }
+
+    // Numpad
+    const numpad = document.getElementById('numpad');
+    for(let n=1;n<=9;n++) {
+      const btn=document.createElement('button');
+      btn.className='num-btn'; btn.textContent=n;
+      btn.addEventListener('click',()=>enterNum(n));
+      numpad.appendChild(btn);
+    }
+    const eraseBtn=document.createElement('button');
+    eraseBtn.className='num-btn erase'; eraseBtn.textContent='⌫';
+    eraseBtn.addEventListener('click',()=>enterNum(0));
+    numpad.appendChild(eraseBtn);
+
+    // Keyboard
+    document.addEventListener('keydown',e=>{
+      if(e.key>='1'&&e.key<='9') enterNum(parseInt(e.key));
+      if(e.key==='Backspace'||e.key==='Delete'||e.key==='0') enterNum(0);
+      if(selected){
+        const [r,c]=selected;
+        if(e.key==='ArrowUp'&&r>0) {selected=[r-1,c];render();}
+        if(e.key==='ArrowDown'&&r<8) {selected=[r+1,c];render();}
+        if(e.key==='ArrowLeft'&&c>0) {selected=[r,c-1];render();}
+        if(e.key==='ArrowRight'&&c<8) {selected=[r,c+1];render();}
+      }
+    });
+
+    document.getElementById('new-btn').addEventListener('click',init);
+    document.getElementById('hint-btn').addEventListener('click',giveHint);
+    document.getElementById('solve-btn').addEventListener('click',solveAll);
+
+    init();
+  </script>
+</body>
+</html>

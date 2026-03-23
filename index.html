@@ -3,254 +3,204 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Interactive Rubik's Cube</title>
+  <title>Wizzed – Game Arcade</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #222222; position: relative; }
-    canvas { display: block; }
-    #legend {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: rgba(0, 0, 0, 0.6);
-      color: #fff;
-      padding: 10px;
-      font-family: sans-serif;
-      font-size: 14px;
-      border-radius: 4px;
-      line-height: 1.4;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f0f1a;
+      color: #e0e0ff;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 60px;
     }
-    #legend ul { list-style: none; margin: 0; padding: 0; }
-    #legend li { margin-bottom: 4px; }
-    #legend li:last-child { margin-bottom: 0; }
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    header h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, #a78bfa, #60a5fa, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p {
+      margin-top: 10px;
+      font-size: 1.1rem;
+      color: #9090b0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 16px;
+      padding: 28px 24px 24px;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--card-glow, transparent);
+      opacity: 0;
+      transition: opacity 0.18s ease;
+      border-radius: inherit;
+    }
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+      border-color: var(--card-accent, #60a5fa);
+    }
+    .card:hover::before { opacity: 0.08; }
+    .card-icon {
+      font-size: 3rem;
+      line-height: 1;
+    }
+    .card-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .card-genre {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--card-accent, #60a5fa);
+      background: rgba(96, 165, 250, 0.1);
+      border: 1px solid var(--card-accent, #60a5fa);
+      border-radius: 999px;
+      padding: 2px 10px;
+      display: inline-block;
+      width: fit-content;
+    }
+    .card-desc {
+      font-size: 0.9rem;
+      color: #8080a0;
+      line-height: 1.5;
+      flex: 1;
+    }
+    .card-cta {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--card-accent, #60a5fa);
+      margin-top: 4px;
+    }
+    /* Individual card accent colours */
+    .c1 { --card-accent: #a78bfa; --card-glow: #a78bfa; }
+    .c2 { --card-accent: #34d399; --card-glow: #34d399; }
+    .c3 { --card-accent: #f472b6; --card-glow: #f472b6; }
+    .c4 { --card-accent: #fbbf24; --card-glow: #fbbf24; }
+    .c5 { --card-accent: #f87171; --card-glow: #f87171; }
+    .c6 { --card-accent: #60a5fa; --card-glow: #60a5fa; }
+    .c7 { --card-accent: #fb923c; --card-glow: #fb923c; }
+    .c8 { --card-accent: #4ade80; --card-glow: #4ade80; }
+    .c9 { --card-accent: #e879f9; --card-glow: #e879f9; }
+    footer {
+      text-align: center;
+      margin-top: 60px;
+      font-size: 0.8rem;
+      color: #444466;
+    }
   </style>
 </head>
 <body>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script>
-    let scene, camera, renderer, cameraPivot;
-    const cubies = [];
-    let isRotating = false;
-    let isSolving = false;
-    let rotationGroup = null;
-    const rotationAxis = new THREE.Vector3();
-    let rotationDirection = 1;
-    let rotationRemaining = 0;
+  <header>
+    <h1>🎮 Wizzed Arcade</h1>
+    <p>Pick a game and start playing — all in your browser, no downloads needed.</p>
+  </header>
 
-    // History and solve queue
-    const moveHistory = [];
-    let solveQueue = [];
+  <div class="grid">
+    <a class="card c1" href="games/rubiks-cube.html">
+      <div class="card-icon">🧊</div>
+      <div class="card-title">Rubik's Cube</div>
+      <div class="card-genre">3D Puzzle</div>
+      <div class="card-desc">Rotate the faces of an interactive 3D Rubik's Cube. Shuffle it and challenge yourself to solve it — or let the solver do it for you.</div>
+      <div class="card-cta">Play now →</div>
+    </a>
 
-    // Camera control
-    const keys = { ArrowLeft: false, ArrowRight: false, ArrowUp: false, ArrowDown: false };
-    let snapBack = false;
-    let snapStartQuat, snapElapsed = 0;
-    const snapDuration = 0.5;
-    const clock = new THREE.Clock();
+    <a class="card c2" href="games/snake.html">
+      <div class="card-icon">🐍</div>
+      <div class="card-title">Snake</div>
+      <div class="card-genre">Arcade</div>
+      <div class="card-desc">Classic snake action. Guide your ever-growing snake to eat food without hitting the walls or yourself. How long can you survive?</div>
+      <div class="card-cta">Play now →</div>
+    </a>
 
-    // Mapping for moves (Q/W/E/A/S/D)
-    const moveMap = { Q: ['y', 1], W: ['z', 1], E: ['y', -1], A: ['x', -1], S: ['z', -1], D: ['x', 1] };
+    <a class="card c3" href="games/tetris.html">
+      <div class="card-icon">🟦</div>
+      <div class="card-title">Tetris</div>
+      <div class="card-genre">Puzzle</div>
+      <div class="card-desc">Stack falling tetrominoes to clear lines and rack up points. The pieces fall faster as you level up — stay sharp!</div>
+      <div class="card-cta">Play now →</div>
+    </a>
 
-    init();
-    animate();
+    <a class="card c4" href="games/2048.html">
+      <div class="card-icon">🔢</div>
+      <div class="card-title">2048</div>
+      <div class="card-genre">Sliding Puzzle</div>
+      <div class="card-desc">Swipe tiles to merge matching numbers. Reach the 2048 tile — simple to learn, endlessly addictive to master.</div>
+      <div class="card-cta">Play now →</div>
+    </a>
 
-    function init() {
-      scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x222222);
+    <a class="card c5" href="games/minesweeper.html">
+      <div class="card-icon">💣</div>
+      <div class="card-title">Minesweeper</div>
+      <div class="card-genre">Logic</div>
+      <div class="card-desc">Uncover the grid without triggering a mine. Use number clues to deduce which cells are safe. A timeless exercise in deduction.</div>
+      <div class="card-cta">Play now →</div>
+    </a>
 
-      // Pivot for camera rotation
-      cameraPivot = new THREE.Group();
-      scene.add(cameraPivot);
+    <a class="card c6" href="games/memory-match.html">
+      <div class="card-icon">🃏</div>
+      <div class="card-title">Memory Match</div>
+      <div class="card-genre">Memory</div>
+      <div class="card-desc">Flip cards to find matching pairs. Put your memory to the test and clear the board in as few flips as possible.</div>
+      <div class="card-cta">Play now →</div>
+    </a>
 
-      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-      camera.position.set(4, 4, 6);
-      camera.lookAt(0, 0, 0);
-      cameraPivot.add(camera);
-      camera.userData.initialQuat = cameraPivot.quaternion.clone();
+    <a class="card c7" href="games/breakout.html">
+      <div class="card-icon">🏓</div>
+      <div class="card-title">Breakout</div>
+      <div class="card-genre">Action</div>
+      <div class="card-desc">Control a paddle to bounce a ball and smash all the bricks. Lose the ball and you lose a life. Classic bouncing action!</div>
+      <div class="card-cta">Play now →</div>
+    </a>
 
-      renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setClearColor(0x222222, 1);
-      document.body.appendChild(renderer.domElement);
+    <a class="card c8" href="games/space-invaders.html">
+      <div class="card-icon">👾</div>
+      <div class="card-title">Space Invaders</div>
+      <div class="card-genre">Shooter</div>
+      <div class="card-desc">Defend Earth from waves of descending aliens. Dodge their bombs and shoot them down before they reach the ground!</div>
+      <div class="card-cta">Play now →</div>
+    </a>
 
-      scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-      const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
-      dirLight.position.set(5, 10, 7.5);
-      scene.add(dirLight);
-
-      const geometry = new THREE.BoxGeometry(1, 1, 1);
-      const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000 });
-      for (let x = -1; x <= 1; x++) {
-        for (let y = -1; y <= 1; y++) {
-          for (let z = -1; z <= 1; z++) {
-            const materials = [];
-            const faceColors = [
-              { cond: x === 1, color: 0xff0000 }, // +X red
-              { cond: x === -1, color: 0xffa500 }, // -X orange
-              { cond: y === 1, color: 0xffffff }, // +Y white
-              { cond: y === -1, color: 0xffff00 }, // -Y yellow
-              { cond: z === 1, color: 0x00ff00 }, // +Z green
-              { cond: z === -1, color: 0x0000ff }  // -Z blue
-            ];
-            faceColors.forEach(fc => materials.push(
-              new THREE.MeshBasicMaterial({ color: fc.cond ? fc.color : 0x000000 })
-            ));
-            const cubie = new THREE.Group();
-            const mesh = new THREE.Mesh(geometry, materials);
-            cubie.add(mesh);
-            const edges = new THREE.EdgesGeometry(geometry);
-            cubie.add(new THREE.LineSegments(edges, edgeMat));
-            cubie.position.set(x, y, z);
-            cubie.userData.initialPosition = cubie.position.clone();
-            cubie.userData.initialQuaternion = cubie.quaternion.clone();
-            scene.add(cubie);
-            cubies.push(cubie);
-          }
-        }
-      }
-
-      window.addEventListener('resize', onWindowResize);
-      window.addEventListener('keydown', onKeyDown);
-      window.addEventListener('keyup', onKeyUp);
-    }
-
-    function onWindowResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-
-    function onKeyDown(event) {
-      // Space: random move
-      if (event.code === 'Space') {
-        if (isRotating || isSolving) return;
-        const keysArr = Object.keys(moveMap);
-        const randKey = keysArr[Math.floor(Math.random() * keysArr.length)];
-        const [axis, coord] = moveMap[randKey];
-        const direction = Math.random() < 0.5 ? 1 : -1;
-        startRotation(axis, coord, direction, true);
-        return;
-      }
-      const key = event.key;
-      if (keys.hasOwnProperty(key)) {
-        keys[key] = true;
-        snapBack = false;
-        return;
-      }
-      const upper = key.toUpperCase();
-      if (upper === 'R') { resetCube(); return; }
-      if (upper === 'F') { startSolve(); return; }
-      if (isRotating || isSolving) return;
-      if (!moveMap[upper]) return;
-      const [axis, coord] = moveMap[upper];
-      const direction = (key === upper) ? 1 : -1;
-      startRotation(axis, coord, direction, true);
-    }
-
-    function onKeyUp(event) {
-      if (keys.hasOwnProperty(event.key)) {
-        keys[event.key] = false;
-        snapBack = true;
-        snapElapsed = 0;
-        snapStartQuat = cameraPivot.quaternion.clone();
-      }
-    }
-
-    function startRotation(axisName, coord, direction, record = false) {
-      if (record) moveHistory.push({ axis: axisName, coord, direction });
-      isRotating = true;
-      rotationRemaining = Math.PI / 2;
-      rotationDirection = direction;
-      rotationAxis.set(
-        axisName === 'x' ? 1 : 0,
-        axisName === 'y' ? 1 : 0,
-        axisName === 'z' ? 1 : 0
-      );
-      rotationGroup = new THREE.Group();
-      scene.add(rotationGroup);
-      cubies.forEach(c => {
-        if (Math.round(c.position[axisName]) === coord) rotationGroup.attach(c);
-      });
-    }
-
-    function startSolve() {
-      if (isRotating || isSolving) return;
-      solveQueue = moveHistory
-        .slice()
-        .reverse()
-        .map(m => [m.axis, m.coord, -m.direction]);
-      isSolving = true;
-      moveHistory.length = 0;
-      nextSolve();
-    }
-
-    function nextSolve() {
-      const step = solveQueue.shift();
-      if (!step) { isSolving = false; return; }
-      const [axis, coord, direction] = step;
-      startRotation(axis, coord, direction, false);
-    }
-
-    function resetCube() {
-      isRotating = false;
-      isSolving = false;
-      solveQueue = [];
-      moveHistory.length = 0;
-      if (rotationGroup) {
-        rotationGroup.children.slice().forEach(c => scene.attach(c));
-        scene.remove(rotationGroup);
-        rotationGroup = null;
-      }
-      cubies.forEach(c => {
-        c.position.copy(c.userData.initialPosition);
-        c.quaternion.copy(c.userData.initialQuaternion);
-      });
-    }
-
-    function animate() {
-      const delta = clock.getDelta();
-      requestAnimationFrame(animate);
-      const speed = 0.02;
-      if (keys.ArrowLeft) cameraPivot.rotation.y += speed;
-      if (keys.ArrowRight) cameraPivot.rotation.y -= speed;
-      if (keys.ArrowUp) cameraPivot.rotation.x += speed;
-      if (keys.ArrowDown) cameraPivot.rotation.x -= speed;
-      if (snapBack) {
-        snapElapsed += delta;
-        const t = Math.min(snapElapsed / snapDuration, 1);
-        THREE.Quaternion.slerp(snapStartQuat, camera.userData.initialQuat, cameraPivot.quaternion, t);
-        if (t >= 1) snapBack = false;
-      }
-      if (isRotating && rotationGroup) {
-        const step = Math.min(rotationRemaining, 0.1);
-        rotationGroup.rotateOnAxis(rotationAxis, step * rotationDirection);
-        rotationRemaining -= step;
-        if (rotationRemaining <= 0) {
-          cubies.forEach(c => scene.attach(c));
-          scene.remove(rotationGroup);
-          rotationGroup = null;
-          isRotating = false;
-          if (isSolving) nextSolve();
-        }
-      }
-      renderer.render(scene, camera);
-    }
-  </script>
-
-  <!-- Legend panel -->
-  <div id="legend">
-    <strong>Controls:</strong>
-    <ul>
-      <li><strong>Q/q</strong>: Up face</li>
-      <li><strong>W/w</strong>: Front face</li>
-      <li><strong>E/e</strong>: Down face</li>
-      <li><strong>A/a</strong>: Left face</li>
-      <li><strong>S/s</strong>: Back face</li>
-      <li><strong>D/d</strong>: Right face</li>
-      <li><strong>Space</strong>: Random move</li>
-      <li><strong>F</strong>: Animate solve</li>
-      <li><strong>R</strong>: Reset cube</li>
-      <li><strong>Arrow Keys</strong>: Orbit camera</li>
-    </ul>
+    <a class="card c9" href="games/sudoku.html">
+      <div class="card-icon">🔷</div>
+      <div class="card-title">Sudoku</div>
+      <div class="card-genre">Number Puzzle</div>
+      <div class="card-desc">Fill the 9×9 grid so every row, column, and 3×3 box contains the digits 1–9. Three difficulty levels to challenge your logic.</div>
+      <div class="card-cta">Play now →</div>
+    </a>
   </div>
+
+  <footer>Wizzed Arcade · All games run entirely in your browser</footer>
 </body>
 </html>
+

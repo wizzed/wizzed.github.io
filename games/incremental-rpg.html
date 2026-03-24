@@ -417,12 +417,11 @@
     }
 
     function killEnemy() {
-      const gold = hero.gold + enemy.goldMin + Math.floor(Math.random()*(enemy.goldMax - enemy.goldMin + 1));
-      const xpGain = enemy.xp;
-      hero.gold = gold;
+      const goldGain = enemy.goldMin + Math.floor(Math.random()*(enemy.goldMax - enemy.goldMin + 1));
+      hero.gold += goldGain;
       hero.kills = (hero.kills||0) + 1;
-      gainXP(xpGain);
-      addLog(`🏆 ${enemy.icon} ${enemy.name} defeated! +${xpGain} XP, +${enemy.goldMin}–${enemy.goldMax} 💰`);
+      gainXP(enemy.xp);
+      addLog(`🏆 ${enemy.icon} ${enemy.name} defeated! +${enemy.xp} XP, +${goldGain} 💰`);
       renderShop();
       saveGame();
       spawnEnemy();
@@ -437,7 +436,7 @@
         hero.maxHp += 8;
         hero.hp = hero.maxHp;
         hero.atk += 1;
-        hero.def += 0.5;
+        hero.def = Math.round(hero.def + 0.5);
         addLog(`🌟 Level up! Now level ${hero.level}! HP restored.`);
         renderZones();
       }

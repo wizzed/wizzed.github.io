@@ -28,37 +28,40 @@
     h1 { font-size: 2rem; font-weight: 800; color: #f472b6; margin-bottom: 4px; }
     #ui {
       display: flex;
-      gap: 24px;
+      gap: 16px;
       align-items: flex-start;
       margin-top: 8px;
+      max-width: 100%;
     }
     canvas#board {
       border: 2px solid #f472b6;
       border-radius: 4px;
       background: #050510;
       display: block;
+      max-width: calc(100vw - 160px);
     }
     #side {
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      min-width: 120px;
+      gap: 12px;
+      min-width: 90px;
+      max-width: 100px;
     }
     .side-box {
       background: #1a1a2e;
       border: 1px solid #2a2a4a;
       border-radius: 8px;
-      padding: 12px;
+      padding: 8px;
     }
     .side-label {
-      font-size: 0.7rem;
+      font-size: 0.65rem;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: #9090b0;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .side-val {
-      font-size: 1.4rem;
+      font-size: 1.2rem;
       font-weight: 700;
       color: #f472b6;
     }
@@ -101,6 +104,8 @@
       display: flex;
       gap: 8px;
       margin-top: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
     }
     .mob-btn {
       padding: 10px 16px;
@@ -121,7 +126,7 @@
   <a id="back-btn" href="../index.html">← Games</a>
   <h1>🟦 Tetris</h1>
   <div id="ui">
-    <canvas id="board" width="200" height="400"></canvas>
+    <canvas id="board"></canvas>
     <div id="side">
       <div class="side-box">
         <div class="side-label">Score</div>
@@ -137,7 +142,7 @@
       </div>
       <div class="side-box">
         <div class="side-label">Next</div>
-        <canvas id="next" width="80" height="80"></canvas>
+        <canvas id="next"></canvas>
       </div>
     </div>
   </div>
@@ -158,11 +163,25 @@
   </div>
 
   <script>
-    const COLS = 10, ROWS = 20, CELL = 20;
+    const COLS = 10, ROWS = 20;
+    let CELL;
     const boardEl = document.getElementById('board');
     const ctx = boardEl.getContext('2d');
     const nextEl = document.getElementById('next');
     const nctx = nextEl.getContext('2d');
+
+    function resizeCanvas() {
+      const sideW = 110; // side panel width + gap
+      const maxBoardW = Math.min(200, window.innerWidth - sideW - 40);
+      CELL = Math.max(14, Math.floor(maxBoardW / COLS));
+      boardEl.width = COLS * CELL;
+      boardEl.height = ROWS * CELL;
+      const nextSize = CELL * 4;
+      nextEl.width = nextSize;
+      nextEl.height = nextSize;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', () => { resizeCanvas(); draw(); drawNext(); });
 
     const COLORS = {
       I:'#22d3ee', O:'#fbbf24', T:'#a78bfa', S:'#4ade80',
@@ -318,8 +337,10 @@
     }
 
     function drawNext() {
+      const ns = nextEl.width;
       nctx.fillStyle = '#050510';
-      nctx.fillRect(0,0,80,80);
+      nctx.fillRect(0,0,ns,ns);
+      if (!nextType) return;
       const mat = PIECES[nextType];
       const offX = Math.floor((4-mat[0].length)/2);
       const offY = Math.floor((4-mat.length)/2);

@@ -62,11 +62,11 @@
     }
     #board {
       display: grid;
-      gap: 10px;
-      max-width: 500px;
+      gap: 8px;
+      max-width: min(500px, calc(100vw - 16px));
+      margin: 0 auto;
     }
     .card {
-      width: 72px; height: 72px;
       border-radius: 10px;
       cursor: pointer;
       position: relative;
@@ -158,19 +158,27 @@
       const rows = gridSize === 5 ? 4 : gridSize;
       totalPairs = (cols * rows) / 2;
 
+      // Responsive card size
+      const boardGap = 8;
+      const maxBoardW = Math.min(500, window.innerWidth - 16);
+      const cardSize = Math.max(48, Math.floor((maxBoardW - boardGap * (cols - 1) - 16) / cols));
+      const fontSize = Math.max(1.2, cardSize / 36);
+
       const pool = EMOJIS.slice(0, totalPairs);
       const cards = shuffle([...pool, ...pool]);
 
       const board = document.getElementById('board');
-      board.style.gridTemplateColumns = `repeat(${cols}, 72px)`;
+      board.style.gridTemplateColumns = `repeat(${cols}, ${cardSize}px)`;
       board.innerHTML = '';
 
       cards.forEach((emoji, i) => {
         const card = document.createElement('div');
         card.className = 'card';
+        card.style.width = cardSize + 'px';
+        card.style.height = cardSize + 'px';
         card.dataset.emoji = emoji;
         card.dataset.index = i;
-        card.innerHTML = `<div class="card-inner"><div class="card-front"></div><div class="card-back">${emoji}</div></div>`;
+        card.innerHTML = `<div class="card-inner"><div class="card-front"></div><div class="card-back" style="font-size:${fontSize}rem">${emoji}</div></div>`;
         card.addEventListener('click', () => handleFlip(card));
         board.appendChild(card);
       });

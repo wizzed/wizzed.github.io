@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hero's Quest – Wizzed Arcade</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f0f1a;
+      color: #e0e0ff;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 16px;
+    }
+    #back-btn {
+      color: #9090b0;
+      text-decoration: none;
+      font-size: 0.9rem;
+      display: inline-block;
+      margin-bottom: 12px;
+      transition: color 0.2s;
+    }
+    #back-btn:hover { color: #f59e0b; }
+    h1 { font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 800; color: #f59e0b; margin-bottom: 4px; }
+    #subtitle { font-size: 0.85rem; color: #9090b0; margin-bottom: 14px; }
+
+    /* Layout */
+    #game-wrap {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      max-width: 800px;
+    }
+    @media (max-width: 560px) {
+      #game-wrap { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .panel-title {
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #9090b0;
+      margin-bottom: 10px;
+    }
+
+    /* Hero stats */
+    .stat-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+    }
+    .stat-label { color: #9090b0; width: 48px; flex-shrink: 0; font-size: 0.8rem; }
+    .bar-bg {
+      flex: 1;
+      height: 10px;
+      background: #0a0a18;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 5px;
+      transition: width 0.3s ease;
+    }
+    .bar-hp { background: linear-gradient(90deg, #f87171, #fca5a5); }
+    .bar-xp { background: linear-gradient(90deg, #a78bfa, #c4b5fd); }
+    .stat-text { font-size: 0.75rem; color: #e0e0ff; width: 80px; text-align: right; flex-shrink: 0; }
+    .stat-big { display: flex; gap: 16px; margin-bottom: 10px; }
+    .stat-card { background: #0a0a18; border-radius: 8px; padding: 8px 12px; flex: 1; text-align: center; }
+    .stat-card-label { font-size: 0.65rem; color: #9090b0; text-transform: uppercase; letter-spacing: 0.08em; }
+    .stat-card-val { font-size: 1.2rem; font-weight: 700; color: #f59e0b; }
+
+    /* Battle area */
+    #battle-panel { grid-column: 1 / -1; }
+    @media (max-width: 560px) { #battle-panel { grid-column: 1; } }
+
+    #zone-selector {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .zone-btn {
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid #2a2a4a;
+      background: #0a0a18;
+      color: #9090b0;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .zone-btn.active { border-color: #f59e0b; color: #f59e0b; background: #1a1000; }
+    .zone-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .zone-btn.locked::after { content: ' 🔒'; }
+
+    #battle-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #0a0a18;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 10px;
+      min-height: 110px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.1s;
+    }
+    #battle-area:active { background: #111128; }
+    #enemy-icon { font-size: 3.5rem; line-height: 1; transition: transform 0.1s; flex-shrink: 0; }
+    #enemy-icon.hit { transform: scale(1.25); }
+    #enemy-info { flex: 1; min-width: 0; }
+    #enemy-name { font-size: 1rem; font-weight: 700; color: #e0e0ff; margin-bottom: 6px; }
+    #enemy-hp-bar { background: #1a0a0a; border-radius: 5px; height: 12px; overflow: hidden; margin-bottom: 4px; }
+    #enemy-hp-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #f87171); border-radius: 5px; transition: width 0.2s; }
+    #enemy-hp-text { font-size: 0.75rem; color: #9090b0; }
+    #click-hint { font-size: 0.75rem; color: #555570; margin-top: 6px; }
+    #dmg-flash { font-size: 1.1rem; font-weight: 700; color: #fbbf24; min-width: 50px; text-align: center; transition: opacity 0.3s; }
+
+    #combat-log {
+      height: 80px;
+      overflow-y: auto;
+      background: #0a0a18;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.78rem;
+      color: #9090b0;
+      line-height: 1.6;
+    }
+    #combat-log p { margin: 0; }
+    #combat-log p:last-child { color: #e0e0ff; }
+
+    /* Shop */
+    #shop-list { display: flex; flex-direction: column; gap: 8px; }
+    .shop-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #0a0a18;
+      border: 1px solid #2a2a4a;
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .shop-item:hover { border-color: #f59e0b; }
+    .shop-item:disabled, .shop-item.cant-afford { opacity: 0.5; cursor: not-allowed; }
+    .shop-item:disabled:hover, .shop-item.cant-afford:hover { border-color: #2a2a4a; }
+    .shop-icon { font-size: 1.4rem; }
+    .shop-desc { flex: 1; min-width: 0; }
+    .shop-name { font-size: 0.85rem; font-weight: 600; color: #e0e0ff; }
+    .shop-effect { font-size: 0.72rem; color: #9090b0; }
+    .shop-cost { font-size: 0.85rem; font-weight: 700; color: #f59e0b; flex-shrink: 0; }
+
+    #gold-display { font-size: 1rem; font-weight: 700; color: #f59e0b; margin-bottom: 10px; }
+
+    /* Respawn overlay */
+    #dead-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+    }
+    #dead-overlay.show { display: flex; }
+    #dead-box {
+      background: #1a1a2e;
+      border: 2px solid #f87171;
+      border-radius: 12px;
+      padding: 30px 36px;
+      text-align: center;
+    }
+    #dead-box h2 { color: #f87171; font-size: 1.6rem; margin-bottom: 8px; }
+    #dead-box p { color: #9090b0; margin-bottom: 18px; font-size: 0.9rem; }
+    #dead-box button {
+      padding: 10px 28px;
+      background: #f59e0b;
+      color: #0f0f1a;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <a id="back-btn" href="../index.html">← Games</a>
+  <h1>⚔️ Hero's Quest</h1>
+  <p id="subtitle">Click the enemy to attack · Defeat monsters, earn gold, buy upgrades</p>
+
+  <div id="game-wrap">
+
+    <!-- Battle Panel (full width) -->
+    <div class="panel" id="battle-panel">
+      <div class="panel-title">⚔️ Battle</div>
+      <div id="zone-selector"></div>
+      <div id="battle-area" title="Click to attack!">
+        <div id="enemy-icon">👹</div>
+        <div id="enemy-info">
+          <div id="enemy-name">Goblin</div>
+          <div id="enemy-hp-bar"><div id="enemy-hp-fill" style="width:100%"></div></div>
+          <div id="enemy-hp-text">100 / 100 HP</div>
+          <div id="click-hint">👆 Tap/click here to deal bonus damage!</div>
+        </div>
+        <div id="dmg-flash"></div>
+      </div>
+      <div id="combat-log"><p>⚔️ Adventure begins! Click the enemy to attack.</p></div>
+    </div>
+
+    <!-- Hero Stats -->
+    <div class="panel">
+      <div class="panel-title">🧙 Hero</div>
+      <div class="stat-big">
+        <div class="stat-card">
+          <div class="stat-card-label">Level</div>
+          <div class="stat-card-val" id="hero-level">1</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Attack</div>
+          <div class="stat-card-val" id="hero-atk">5</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Defense</div>
+          <div class="stat-card-val" id="hero-def">2</div>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">HP</div>
+        <div class="bar-bg"><div class="bar-fill bar-hp" id="hp-bar" style="width:100%"></div></div>
+        <div class="stat-text" id="hp-text">50 / 50</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">XP</div>
+        <div class="bar-bg"><div class="bar-fill bar-xp" id="xp-bar" style="width:0%"></div></div>
+        <div class="stat-text" id="xp-text">0 / 100</div>
+      </div>
+    </div>
+
+    <!-- Shop -->
+    <div class="panel">
+      <div class="panel-title">🛒 Shop</div>
+      <div id="gold-display">💰 Gold: <span id="gold-val">0</span></div>
+      <div id="shop-list"></div>
+    </div>
+
+  </div>
+
+  <!-- Death overlay -->
+  <div id="dead-overlay">
+    <div id="dead-box">
+      <h2>💀 Defeated!</h2>
+      <p id="dead-msg">You were slain. You lost some gold, but your upgrades remain.</p>
+      <button id="respawn-btn">Respawn</button>
+    </div>
+  </div>
+
+  <script>
+    // ── ZONES ──────────────────────────────────────────────────────────────────
+    const ZONES = [
+      {
+        id: 'forest', name: '🌲 Forest', unlockLevel: 1,
+        enemies: [
+          {name:'Goblin',     icon:'👺', hp:20,  xp:10,  gold:[1,3],  atk:2},
+          {name:'Wolf',       icon:'🐺', hp:35,  xp:18,  gold:[2,5],  atk:4},
+          {name:'Troll',      icon:'👹', hp:60,  xp:30,  gold:[4,8],  atk:6},
+        ]
+      },
+      {
+        id: 'cave', name: '🪨 Cave', unlockLevel: 5,
+        enemies: [
+          {name:'Bat',        icon:'🦇', hp:50,  xp:25,  gold:[3,7],  atk:5},
+          {name:'Skeleton',   icon:'💀', hp:80,  xp:40,  gold:[6,12], atk:8},
+          {name:'Cave Bear',  icon:'🐻', hp:130, xp:65,  gold:[10,18],atk:12},
+        ]
+      },
+      {
+        id: 'castle', name: '🏰 Castle', unlockLevel: 15,
+        enemies: [
+          {name:'Dark Knight',icon:'🤺', hp:200, xp:100, gold:[15,25],atk:18},
+          {name:'Gargoyle',   icon:'🦅', hp:280, xp:140, gold:[22,35],atk:24},
+          {name:'Necromancer',icon:'🧙', hp:400, xp:200, gold:[35,55],atk:30},
+        ]
+      },
+      {
+        id: 'volcano', name: '🌋 Volcano', unlockLevel: 30,
+        enemies: [
+          {name:'Fire Imp',   icon:'🔥', hp:600, xp:300, gold:[50,80], atk:45},
+          {name:'Lava Golem', icon:'⛰️', hp:900, xp:450, gold:[75,120],atk:60},
+          {name:'Phoenix',    icon:'🦜', hp:1200,xp:600, gold:[100,160],atk:80},
+        ]
+      },
+      {
+        id: 'lair', name: '🐉 Dragon Lair', unlockLevel: 50,
+        enemies: [
+          {name:'Wyrm',       icon:'🐍', hp:2000,xp:1000,gold:[180,280],atk:110},
+          {name:'Dragon',     icon:'🐲', hp:4000,xp:2000,gold:[350,550],atk:160},
+          {name:'Ancient Dragon',icon:'🐉',hp:8000,xp:4000,gold:[700,1100],atk:220},
+        ]
+      },
+    ];
+
+    // ── SHOP ITEMS ─────────────────────────────────────────────────────────────
+    const SHOP_ITEMS = [
+      {id:'sword',   icon:'⚔️',  name:'Sharper Sword',    effect:'+3 ATK',          cost:()=>Math.floor(15 * Math.pow(1.6, (hero.upgrades.sword||0))),     apply:()=>{hero.atk+=3; hero.upgrades.sword=(hero.upgrades.sword||0)+1;}},
+      {id:'armor',   icon:'🛡️',  name:'Sturdier Armor',   effect:'+2 DEF, +10 MaxHP',cost:()=>Math.floor(20 * Math.pow(1.6, (hero.upgrades.armor||0))),     apply:()=>{hero.def+=2; hero.maxHp+=10; hero.hp=Math.min(hero.hp+10,hero.maxHp); hero.upgrades.armor=(hero.upgrades.armor||0)+1;}},
+      {id:'potion',  icon:'🧪',  name:'Health Potion',    effect:'Restore 50% MaxHP',cost:()=>Math.floor(12 * Math.pow(1.4, (hero.upgrades.potion||0))),    apply:()=>{hero.hp=Math.min(hero.maxHp, hero.hp + Math.ceil(hero.maxHp*0.5)); hero.upgrades.potion=(hero.upgrades.potion||0)+1;}},
+      {id:'auto',    icon:'⚡',  name:'Battle Rhythm',    effect:'Faster auto-attack',cost:()=>Math.floor(25 * Math.pow(1.7, (hero.upgrades.auto||0))),     apply:()=>{autoInterval=Math.max(300,autoInterval-150); hero.upgrades.auto=(hero.upgrades.auto||0)+1; restartAutoAttack();}},
+      {id:'crit',    icon:'💥',  name:'Critical Strike',  effect:'+5% crit chance',  cost:()=>Math.floor(30 * Math.pow(1.65,(hero.upgrades.crit||0))),     apply:()=>{hero.crit=Math.min(0.75,(hero.crit||0)+0.05); hero.upgrades.crit=(hero.upgrades.crit||0)+1;}},
+      {id:'regen',   icon:'💚',  name:'Regeneration',     effect:'+1 HP/sec regen',  cost:()=>Math.floor(35 * Math.pow(1.7, (hero.upgrades.regen||0))),    apply:()=>{hero.regen=(hero.regen||0)+1; hero.upgrades.regen=(hero.upgrades.regen||0)+1;}},
+      {id:'multistr',icon:'🌀',  name:'Power Strike',     effect:'+5 click damage',  cost:()=>Math.floor(20 * Math.pow(1.55,(hero.upgrades.multistr||0))), apply:()=>{hero.clickBonus=(hero.clickBonus||0)+5; hero.upgrades.multistr=(hero.upgrades.multistr||0)+1;}},
+    ];
+
+    // ── STATE ─────────────────────────────────────────────────────────────────
+    const SAVE_KEY = 'heroquest_save_v2';
+    const DEFAULT_HERO = {
+      level:1, xp:0, xpNext:100,
+      hp:50, maxHp:50, atk:5, def:2, crit:0.05, regen:0, clickBonus:0,
+      gold:0, kills:0, zone:'forest', upgrades:{}
+    };
+
+    let hero = loadSave();
+    let currentZone = ZONES.find(z=>z.id===hero.zone) || ZONES[0];
+    let enemy = null;
+    let autoInterval = 1200;
+    let autoTimer = null;
+    let regenTimer = null;
+    let dmgFlashTimer = null;
+    let deadPenaltyShown = false;
+
+    // ── PERSISTENCE ────────────────────────────────────────────────────────────
+    function loadSave() {
+      try {
+        const d = JSON.parse(localStorage.getItem(SAVE_KEY));
+        if (d && d.level) return Object.assign({}, DEFAULT_HERO, d);
+      } catch(e) {}
+      return Object.assign({}, DEFAULT_HERO);
+    }
+
+    function saveGame() {
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(hero)); } catch(e) {}
+    }
+
+    setInterval(saveGame, 10000);
+
+    // ── ENEMY ─────────────────────────────────────────────────────────────────
+    function pickEnemy() {
+      const pool = currentZone.enemies;
+      const template = pool[Math.floor(Math.random() * pool.length)];
+      // Scale with hero level
+      const scale = 1 + (hero.level - 1) * 0.12;
+      return {
+        name: template.name,
+        icon: template.icon,
+        maxHp: Math.round(template.hp * scale),
+        hp: Math.round(template.hp * scale),
+        xp: Math.round(template.xp * scale),
+        goldMin: Math.round(template.gold[0] * scale),
+        goldMax: Math.round(template.gold[1] * scale),
+        atk: Math.round(template.atk * scale),
+      };
+    }
+
+    function spawnEnemy() {
+      enemy = pickEnemy();
+      renderEnemy();
+      addLog(`A wild <strong>${enemy.icon} ${enemy.name}</strong> appears!`);
+    }
+
+    // ── COMBAT ────────────────────────────────────────────────────────────────
+    function heroDmg(isClick=false) {
+      const base = hero.atk + (isClick ? (hero.clickBonus||0) : 0);
+      const isCrit = Math.random() < (hero.crit||0.05);
+      const dmg = Math.max(1, Math.round(base * (isCrit ? 2 : 1) * (0.85 + Math.random()*0.3)));
+      return {dmg, isCrit};
+    }
+
+    function attackEnemy(isClick=false) {
+      if (!enemy || hero.hp <= 0) return;
+      const {dmg, isCrit} = heroDmg(isClick);
+      enemy.hp = Math.max(0, enemy.hp - dmg);
+
+      if (isClick) {
+        showDmgFlash((isCrit ? '💥 ' : '') + dmg + (isCrit ? '!' : ''));
+        flashEnemy();
+      } else {
+        if (isCrit) showDmgFlash('💥 ' + dmg + '!');
+      }
+
+      if (enemy.hp <= 0) {
+        killEnemy();
+      } else {
+        enemyAttack();
+        renderEnemy();
+      }
+    }
+
+    function enemyAttack() {
+      const rawDmg = enemy.atk;
+      const dmg = Math.max(0, Math.round(rawDmg * (0.85 + Math.random()*0.3) - hero.def));
+      hero.hp = Math.max(0, hero.hp - dmg);
+      renderHeroStats();
+      if (hero.hp <= 0) {
+        heroDied();
+      }
+    }
+
+    function killEnemy() {
+      const gold = hero.gold + enemy.goldMin + Math.floor(Math.random()*(enemy.goldMax - enemy.goldMin + 1));
+      const xpGain = enemy.xp;
+      hero.gold = gold;
+      hero.kills = (hero.kills||0) + 1;
+      gainXP(xpGain);
+      addLog(`🏆 ${enemy.icon} ${enemy.name} defeated! +${xpGain} XP, +${enemy.goldMin}–${enemy.goldMax} 💰`);
+      renderShop();
+      saveGame();
+      spawnEnemy();
+    }
+
+    function gainXP(amount) {
+      hero.xp += amount;
+      while (hero.xp >= hero.xpNext) {
+        hero.xp -= hero.xpNext;
+        hero.level++;
+        hero.xpNext = Math.round(100 * Math.pow(1.35, hero.level - 1));
+        hero.maxHp += 8;
+        hero.hp = hero.maxHp;
+        hero.atk += 1;
+        hero.def += 0.5;
+        addLog(`🌟 Level up! Now level ${hero.level}! HP restored.`);
+        renderZones();
+      }
+      renderHeroStats();
+    }
+
+    function heroDied() {
+      clearInterval(autoTimer);
+      const lost = Math.floor(hero.gold * 0.25);
+      hero.gold = Math.max(0, hero.gold - lost);
+      deadPenaltyShown = true;
+      document.getElementById('dead-msg').textContent = `You were slain by ${enemy.icon} ${enemy.name}. Lost ${lost} 💰. Your upgrades remain.`;
+      document.getElementById('dead-overlay').classList.add('show');
+    }
+
+    function respawn() {
+      hero.hp = hero.maxHp;
+      document.getElementById('dead-overlay').classList.remove('show');
+      spawnEnemy();
+      restartAutoAttack();
+      renderHeroStats();
+      renderShop();
+    }
+
+    // ── REGEN ─────────────────────────────────────────────────────────────────
+    function startRegen() {
+      clearInterval(regenTimer);
+      regenTimer = setInterval(() => {
+        if (hero.hp > 0 && hero.regen > 0) {
+          hero.hp = Math.min(hero.maxHp, hero.hp + hero.regen);
+          renderHeroStats();
+        }
+      }, 1000);
+    }
+
+    // ── AUTO-ATTACK ───────────────────────────────────────────────────────────
+    function restartAutoAttack() {
+      clearInterval(autoTimer);
+      autoTimer = setInterval(() => {
+        if (enemy && hero.hp > 0) attackEnemy(false);
+      }, autoInterval);
+    }
+
+    // ── UI HELPERS ────────────────────────────────────────────────────────────
+    function showDmgFlash(text) {
+      const el = document.getElementById('dmg-flash');
+      el.textContent = text;
+      el.style.opacity = '1';
+      clearTimeout(dmgFlashTimer);
+      dmgFlashTimer = setTimeout(() => { el.style.opacity = '0'; }, 600);
+    }
+
+    function flashEnemy() {
+      const el = document.getElementById('enemy-icon');
+      el.classList.add('hit');
+      setTimeout(() => el.classList.remove('hit'), 120);
+    }
+
+    function addLog(msg) {
+      const log = document.getElementById('combat-log');
+      const p = document.createElement('p');
+      p.innerHTML = msg;
+      log.appendChild(p);
+      log.scrollTop = log.scrollHeight;
+      while (log.children.length > 30) log.removeChild(log.firstChild);
+    }
+
+    function renderEnemy() {
+      if (!enemy) return;
+      document.getElementById('enemy-icon').textContent = enemy.icon;
+      document.getElementById('enemy-name').textContent = enemy.name;
+      const pct = Math.max(0, (enemy.hp / enemy.maxHp) * 100);
+      document.getElementById('enemy-hp-fill').style.width = pct + '%';
+      document.getElementById('enemy-hp-text').textContent = `${enemy.hp} / ${enemy.maxHp} HP`;
+    }
+
+    function renderHeroStats() {
+      document.getElementById('hero-level').textContent = hero.level;
+      document.getElementById('hero-atk').textContent = Math.round(hero.atk);
+      document.getElementById('hero-def').textContent = Math.round(hero.def);
+      const hpPct = Math.max(0, (hero.hp / hero.maxHp) * 100);
+      document.getElementById('hp-bar').style.width = hpPct + '%';
+      document.getElementById('hp-text').textContent = `${Math.round(hero.hp)} / ${hero.maxHp}`;
+      const xpPct = (hero.xp / hero.xpNext) * 100;
+      document.getElementById('xp-bar').style.width = xpPct + '%';
+      document.getElementById('xp-text').textContent = `${hero.xp} / ${hero.xpNext}`;
+      document.getElementById('gold-val').textContent = hero.gold;
+    }
+
+    function renderShop() {
+      const list = document.getElementById('shop-list');
+      list.innerHTML = '';
+      SHOP_ITEMS.forEach(item => {
+        const cost = item.cost();
+        const div = document.createElement('div');
+        div.className = 'shop-item' + (hero.gold < cost ? ' cant-afford' : '');
+        div.innerHTML = `<div class="shop-icon">${item.icon}</div>
+          <div class="shop-desc">
+            <div class="shop-name">${item.name} <span style="color:#555570;font-size:0.7rem">(×${(hero.upgrades[item.id]||0)+1})</span></div>
+            <div class="shop-effect">${item.effect}</div>
+          </div>
+          <div class="shop-cost">💰${cost}</div>`;
+        div.addEventListener('click', () => {
+          if (hero.gold < cost) return;
+          hero.gold -= cost;
+          item.apply();
+          addLog(`🛒 Purchased <strong>${item.name}</strong>!`);
+          renderHeroStats();
+          renderShop();
+          saveGame();
+        });
+        list.appendChild(div);
+      });
+    }
+
+    function renderZones() {
+      const container = document.getElementById('zone-selector');
+      container.innerHTML = '';
+      ZONES.forEach(zone => {
+        const btn = document.createElement('button');
+        btn.className = 'zone-btn' + (zone.id === currentZone.id ? ' active' : '');
+        const locked = hero.level < zone.unlockLevel;
+        btn.textContent = zone.name + (locked ? '' : '');
+        if (locked) {
+          btn.className += ' locked';
+          btn.title = `Unlocks at level ${zone.unlockLevel}`;
+          btn.disabled = true;
+        }
+        btn.addEventListener('click', () => {
+          if (locked) return;
+          currentZone = zone;
+          hero.zone = zone.id;
+          spawnEnemy();
+          renderZones();
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    // ── INIT ──────────────────────────────────────────────────────────────────
+    document.getElementById('battle-area').addEventListener('click', () => {
+      if (hero.hp <= 0) return;
+      attackEnemy(true);
+    });
+
+    document.getElementById('respawn-btn').addEventListener('click', respawn);
+
+    renderZones();
+    renderHeroStats();
+    renderShop();
+    spawnEnemy();
+    restartAutoAttack();
+    startRegen();
+  </script>
+</body>
+</html>

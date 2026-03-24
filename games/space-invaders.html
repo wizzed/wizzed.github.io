@@ -39,6 +39,7 @@
       border-radius: 6px;
       background: #000010;
       display: block;
+      max-width: 100%;
     }
     #msg { font-size: 1rem; color: #9090b0; margin-top: 10px; min-height: 1.5em; text-align: center; }
     #start-btn {
@@ -81,7 +82,7 @@
     Level: <span id="level">1</span> &nbsp;|&nbsp;
     Lives: <span id="lives">3</span>
   </div>
-  <canvas id="c" width="480" height="400"></canvas>
+  <canvas id="c"></canvas>
   <div id="msg">Press Start or Space to begin</div>
   <button id="start-btn">Start</button>
   <div id="mobile-ctrl">
@@ -94,17 +95,34 @@
   <script>
     const canvas = document.getElementById('c');
     const ctx = canvas.getContext('2d');
-    const W = canvas.width, H = canvas.height;
+    const BASE_W = 480, BASE_H = 400;
+    let W, H, SCALE;
+    let ALIEN_W, ALIEN_H, ALIEN_GAP_X, ALIEN_GAP_Y;
 
+    function resizeCanvas() {
+      W = Math.min(BASE_W, window.innerWidth - 40);
+      SCALE = W / BASE_W;
+      H = Math.round(BASE_H * SCALE);
+      canvas.width = W;
+      canvas.height = H;
+      ALIEN_W = Math.round(32 * SCALE);
+      ALIEN_H = Math.round(24 * SCALE);
+      ALIEN_GAP_X = Math.round(8 * SCALE);
+      ALIEN_GAP_Y = Math.round(10 * SCALE);
+    }
+    resizeCanvas();
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      if (!running) { init(); draw(); }
+    });
+
+    const ALIEN_ROWS = 4, ALIEN_COLS = 10;
     const scoreEl = document.getElementById('score');
     const levelEl = document.getElementById('level');
     const livesEl = document.getElementById('lives');
     const msgEl = document.getElementById('msg');
 
-    const ALIEN_ROWS = 4, ALIEN_COLS = 10;
-    const ALIEN_W = 32, ALIEN_H = 24, ALIEN_GAP_X = 8, ALIEN_GAP_Y = 10;
     const ALIEN_COLORS = ['#f87171','#fb923c','#fbbf24','#4ade80'];
-
     let player, aliens, bullets, bombs, stars;
     let keys = {}, running = false, score, lives, level, animId;
     let alienDir = 1, alienDropPending = false, alienSpeed, alienFireRate;
@@ -116,17 +134,20 @@
 
     function initAliens() {
       aliens = [];
+      const startX = Math.round(30 * SCALE);
+      const startY = Math.round(30 * SCALE);
       for(let r=0;r<ALIEN_ROWS;r++) for(let c=0;c<ALIEN_COLS;c++) {
         aliens.push({
-          x: 30 + c*(ALIEN_W+ALIEN_GAP_X),
-          y: 30 + r*(ALIEN_H+ALIEN_GAP_Y),
+          x: startX + c*(ALIEN_W+ALIEN_GAP_X),
+          y: startY + r*(ALIEN_H+ALIEN_GAP_Y),
           row: r, alive: true, frame: 0
         });
       }
     }
 
     function init() {
-      player = {x:W/2-16,y:H-40,w:32,h:16,speed:3.5};
+      const pw = Math.round(32 * SCALE), ph = Math.round(16 * SCALE);
+      player = {x:W/2-pw/2,y:H-Math.round(40*SCALE),w:pw,h:ph,speed:3.5*SCALE};
       bullets = []; bombs = [];
       score=0; lives=3; level=1;
       alienDir=1; alienDropPending=false;
@@ -167,8 +188,9 @@
 
       // Fire
       const now = Date.now();
+      const bw = Math.round(3*SCALE), bh = Math.round(10*SCALE), bspeed = 7*SCALE;
       if((keys[' ']||mobileFire) && now-lastFire>350) {
-        bullets.push({x:player.x+player.w/2,y:player.y,w:3,h:10,speed:7});
+        bullets.push({x:player.x+player.w/2,y:player.y,w:bw,h:bh,speed:bspeed});
         lastFire=now;
       }
 
@@ -182,7 +204,7 @@
         aliens.forEach(a=>{if(!a.alive)return; if(a.x<=0||a.x+ALIEN_W>=W) hitEdge=true;});
         if(hitEdge) {alienDir*=-1; alienDropPending=true;}
         if(alienDropPending) {
-          aliens.forEach(a=>{if(a.alive) a.y+=12;});
+          aliens.forEach(a=>{if(a.alive) a.y+=Math.round(12*SCALE);});
           alienDropPending=false;
         }
         // Alien reaches player
@@ -195,7 +217,7 @@
       if(bombs.length < MAX_BOMBS) {
         aliveAliens.forEach(a=>{
           if(bombs.length < MAX_BOMBS && Math.random()<alienFireRate)
-            bombs.push({x:a.x+ALIEN_W/2,y:a.y+ALIEN_H,w:3,h:8,speed:3+level*0.3});
+            bombs.push({x:a.x+ALIEN_W/2,y:a.y+ALIEN_H,w:Math.round(3*SCALE),h:Math.round(8*SCALE),speed:(3+level*0.3)*SCALE});
         });
       }
       bombs = bombs.filter(b=>{b.y+=b.speed; return b.y<H;});
@@ -235,7 +257,7 @@
         alienDir=1;
         initAliens();
         bullets=[];bombs=[];
-        player.x=W/2-16;
+        player.x=W/2-player.w/2;
       }
     }
 
@@ -248,42 +270,41 @@
         msgEl.textContent=`Game over! Score: ${score}`;
         document.getElementById('start-btn').textContent='Restart';
       } else {
-        player.x=W/2-16;
+        player.x=W/2-player.w/2;
         bullets=[];bombs=[];
       }
     }
 
     function drawAlien(a) {
       const x=a.x,y=a.y,f=a.frame;
+      const s = SCALE;
       const color = ALIEN_COLORS[a.row] || '#4ade80';
       ctx.fillStyle=color;
-      // Body
-      ctx.fillRect(x+6,y+4,20,14);
-      // Head
-      ctx.fillRect(x+10,y,12,6);
-      // Eyes
+      ctx.fillRect(x+Math.round(6*s),y+Math.round(4*s),Math.round(20*s),Math.round(14*s));
+      ctx.fillRect(x+Math.round(10*s),y,Math.round(12*s),Math.round(6*s));
       ctx.fillStyle='#000010';
-      ctx.fillRect(x+12,y+2,3,3);
-      ctx.fillRect(x+17,y+2,3,3);
-      // Legs
+      ctx.fillRect(x+Math.round(12*s),y+Math.round(2*s),Math.round(3*s),Math.round(3*s));
+      ctx.fillRect(x+Math.round(17*s),y+Math.round(2*s),Math.round(3*s),Math.round(3*s));
       ctx.fillStyle=color;
-      if(f===0){ctx.fillRect(x+4,y+16,4,6);ctx.fillRect(x+24,y+16,4,6);}
-      else{ctx.fillRect(x+8,y+16,4,6);ctx.fillRect(x+20,y+16,4,6);}
-      // Antennas
-      ctx.fillRect(x+10,y-4,2,5);
-      ctx.fillRect(x+20,y-4,2,5);
+      if(f===0){
+        ctx.fillRect(x+Math.round(4*s),y+Math.round(16*s),Math.round(4*s),Math.round(6*s));
+        ctx.fillRect(x+Math.round(24*s),y+Math.round(16*s),Math.round(4*s),Math.round(6*s));
+      } else {
+        ctx.fillRect(x+Math.round(8*s),y+Math.round(16*s),Math.round(4*s),Math.round(6*s));
+        ctx.fillRect(x+Math.round(20*s),y+Math.round(16*s),Math.round(4*s),Math.round(6*s));
+      }
+      ctx.fillRect(x+Math.round(10*s),y-Math.round(4*s),Math.round(2*s),Math.round(5*s));
+      ctx.fillRect(x+Math.round(20*s),y-Math.round(4*s),Math.round(2*s),Math.round(5*s));
     }
 
     function drawPlayer() {
       const x=player.x,y=player.y;
+      const s=SCALE;
       ctx.fillStyle='#4ade80';
-      // Base
-      ctx.fillRect(x,y+6,32,10);
-      // Cannon
-      ctx.fillRect(x+12,y,8,8);
-      // Engine glow
+      ctx.fillRect(x,y+Math.round(6*s),Math.round(32*s),Math.round(10*s));
+      ctx.fillRect(x+Math.round(12*s),y,Math.round(8*s),Math.round(8*s));
       ctx.fillStyle='rgba(74,222,128,0.3)';
-      ctx.beginPath(); ctx.arc(x+16,y+18,8,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x+Math.round(16*s),y+Math.round(18*s),Math.round(8*s),0,Math.PI*2); ctx.fill();
     }
 
     function draw() {

@@ -37,6 +37,7 @@
       border-radius: 8px;
       background: #0d1f0d;
       display: block;
+      max-width: 100%;
     }
     #msg {
       margin-top: 16px;
@@ -83,7 +84,7 @@
   <a id="back-btn" href="../index.html">← Games</a>
   <h1>🐍 Snake</h1>
   <div id="scoreboard">Score: <span id="score">0</span> &nbsp;|&nbsp; Best: <span id="best">0</span></div>
-  <canvas id="c" width="400" height="400"></canvas>
+  <canvas id="c"></canvas>
   <div id="msg">Press an arrow key or tap a direction to start</div>
   <div id="controls">
     <div class="ctrl-empty"></div>
@@ -96,9 +97,19 @@
   <button id="restart-btn">Restart</button>
 
   <script>
-    const COLS = 20, ROWS = 20, CELL = 20;
+    const COLS = 20, ROWS = 20;
+    let CELL;
     const canvas = document.getElementById('c');
     const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const size = Math.min(400, window.innerWidth - 40);
+      CELL = Math.floor(size / COLS);
+      canvas.width = COLS * CELL;
+      canvas.height = ROWS * CELL;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', () => { resizeCanvas(); draw(); });
     const scoreEl = document.getElementById('score');
     const bestEl = document.getElementById('best');
     const msgEl = document.getElementById('msg');

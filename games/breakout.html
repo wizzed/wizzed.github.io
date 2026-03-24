@@ -38,6 +38,7 @@
       display: block;
       background: #050510;
       touch-action: none;
+      max-width: 100%;
     }
     #msg { font-size: 1rem; color: #9090b0; margin-top: 12px; min-height: 1.5em; text-align: center; }
     #start-btn {
@@ -59,7 +60,7 @@
   <a id="back-btn" href="../index.html">← Games</a>
   <h1>🏓 Breakout</h1>
   <div id="scoreboard">Score: <span id="score">0</span> &nbsp;|&nbsp; Lives: <span id="lives">3</span> &nbsp;|&nbsp; Level: <span id="level">1</span></div>
-  <canvas id="c" width="480" height="400"></canvas>
+  <canvas id="c"></canvas>
   <div id="msg">Click "Start" or press Space to launch the ball</div>
   <button id="start-btn">Start</button>
   <div id="hint">Mouse / touch to move paddle · Space to launch</div>
@@ -73,10 +74,31 @@
     const msgEl = document.getElementById('msg');
     const startBtn = document.getElementById('start-btn');
 
-    const W = canvas.width, H = canvas.height;
+    const BASE_W = 480, BASE_H = 400;
+    let W, H, SCALE;
     const BRICK_ROWS = 5, BRICK_COLS = 10;
-    const BRICK_W = 42, BRICK_H = 16, BRICK_GAP = 4;
-    const BRICK_OFFSET_X = 9, BRICK_OFFSET_Y = 40;
+    let BRICK_W, BRICK_H, BRICK_GAP, BRICK_OFFSET_X, BRICK_OFFSET_Y;
+
+    function resizeCanvas() {
+      W = Math.min(BASE_W, window.innerWidth - 40);
+      SCALE = W / BASE_W;
+      H = Math.round(BASE_H * SCALE);
+      canvas.width = W;
+      canvas.height = H;
+      BRICK_GAP = Math.round(4 * SCALE);
+      BRICK_OFFSET_X = Math.round(9 * SCALE);
+      BRICK_OFFSET_Y = Math.round(40 * SCALE);
+      BRICK_W = Math.round((W - BRICK_OFFSET_X * 2 - BRICK_GAP * (BRICK_COLS - 1)) / BRICK_COLS);
+      BRICK_H = Math.round(16 * SCALE);
+    }
+    resizeCanvas();
+    window.addEventListener('resize', () => {
+      const wasRunning = running;
+      if (wasRunning) { running = false; cancelAnimationFrame(animId); }
+      resizeCanvas();
+      init();
+      if (wasRunning) start();
+    });
 
     const COLORS = ['#f87171','#fb923c','#fbbf24','#4ade80','#60a5fa'];
 
@@ -97,9 +119,12 @@
     }
 
     function initLevel() {
-      const speed = 3 + (level-1)*0.5;
-      ball = {x:W/2, y:H-60, r:7, dx:speed*(Math.random()<0.5?1:-1), dy:-speed};
-      paddle = {x:W/2-40, y:H-20, w:80, h:10};
+      const speed = (3 + (level-1)*0.5) * SCALE;
+      const ballR = Math.round(7 * SCALE);
+      const padW = Math.round(80 * SCALE);
+      const padH = Math.round(10 * SCALE);
+      ball = {x:W/2, y:H-Math.round(60*SCALE), r:ballR, dx:speed*(Math.random()<0.5?1:-1), dy:-speed};
+      paddle = {x:W/2-padW/2, y:H-Math.round(20*SCALE), w:padW, h:padH};
       launched = false;
     }
 
@@ -167,7 +192,7 @@
         initLevel();
         launched = false;
         ball.x = paddle.x + paddle.w/2;
-        ball.y = H - 60;
+        ball.y = H - Math.round(60 * SCALE);
         msgEl.textContent = 'Press Space or click to continue';
       }
 

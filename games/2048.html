@@ -59,17 +59,17 @@
       background: #1a1a2e;
       padding: 10px;
       border-radius: 10px;
-      width: 320px;
+      width: min(320px, calc(100vw - 16px));
       touch-action: none;
     }
     .tile {
-      width: 66px; height: 66px;
+      aspect-ratio: 1;
       border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 800;
-      font-size: 1.5rem;
+      font-size: clamp(1rem, 5vw, 1.5rem);
       transition: background 0.1s, color 0.1s;
     }
     #hint { font-size: 0.8rem; color: #555570; margin-top: 12px; }
@@ -244,7 +244,7 @@
         tile.className = 'tile';
         tile.style.background = col.bg;
         tile.style.color = col.fg;
-        tile.style.fontSize = v>=1000 ? '1rem' : v>=100 ? '1.25rem' : '1.5rem';
+        tile.style.fontSize = '';  // rely on CSS clamp
         tile.textContent = v || '';
         gridEl.appendChild(tile);
       }

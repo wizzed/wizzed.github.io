@@ -59,6 +59,8 @@
       padding: 8px;
       border-radius: 8px;
       border: 1px solid #2a2a4a;
+      max-width: calc(100vw - 16px);
+      overflow-x: auto;
     }
     .cell {
       width: 28px; height: 28px;
@@ -71,6 +73,7 @@
       background: #2a2a4a;
       border: 1px solid #3a3a5a;
       transition: background 0.1s;
+      -webkit-tap-highlight-color: transparent;
     }
     .cell:hover { background: #3a3a6a; }
     .cell.revealed {
@@ -100,7 +103,7 @@
   </div>
   <div id="status">Mines: <span id="mine-count">0</span> &nbsp;|&nbsp; ⏱ <span id="timer">0</span>s</div>
   <div id="board"></div>
-  <div id="hint">Left-click to reveal · Right-click to flag</div>
+  <div id="hint">Left-click to reveal · Right-click / long-press to flag</div>
 
   <script>
     const PRESETS = {
@@ -261,6 +264,16 @@
         cell.addEventListener('click',()=>handleClick(r,c));
         cell.addEventListener('contextmenu',e=>handleRightClick(e,r,c));
         cell.addEventListener('dblclick',()=>handleDblClick(r,c));
+        // Long-press to flag on mobile
+        let longPressTimer;
+        cell.addEventListener('touchstart', e => {
+          longPressTimer = setTimeout(() => {
+            e.preventDefault();
+            handleRightClick({preventDefault:()=>{}},r,c);
+          }, 500);
+        }, {passive:true});
+        cell.addEventListener('touchend', () => clearTimeout(longPressTimer));
+        cell.addEventListener('touchmove', () => clearTimeout(longPressTimer));
         board.appendChild(cell);
       }
     }

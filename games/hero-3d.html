@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arcane Realm – Wizzed Arcade</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #050510; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; color: #e0e0ff; }
+    #canvas-wrap { position: fixed; inset: 0; }
+    #canvas-wrap canvas { display: block; width: 100% !important; height: 100% !important; }
+
+    /* ── Navigation ── */
+    #back-btn {
+      position: fixed; top: 12px; left: 12px;
+      color: #9090b0; text-decoration: none; font-size: 0.85rem;
+      background: rgba(10,10,30,0.85); padding: 6px 12px; border-radius: 6px;
+      transition: color 0.2s; z-index: 20; pointer-events: all;
+    }
+    #back-btn:hover { color: #f59e0b; }
+    #title {
+      position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+      color: #f59e0b; font-size: clamp(1rem,3vw,1.5rem); font-weight: 800;
+      text-shadow: 0 0 24px #f59e0b99; pointer-events: none; z-index: 20;
+    }
+
+    /* ── Wave display ── */
+    #wave-display {
+      position: fixed; top: 12px; right: 12px;
+      background: rgba(10,10,30,0.88); border: 1px solid #3322aa;
+      border-radius: 8px; padding: 8px 14px; font-size: 0.82rem;
+      pointer-events: none; z-index: 20; text-align: right;
+    }
+    #wave-display .wnum { font-size: 1.2rem; font-weight: 700; color: #a78bfa; }
+
+    /* ── Panels ── */
+    .panel {
+      background: rgba(10,10,30,0.92); border: 1px solid #222244;
+      border-radius: 12px; padding: 12px 14px;
+    }
+    .ptitle { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: #6060a0; margin-bottom: 8px; }
+
+    /* ── Hero panel (bottom-left) ── */
+    #hero-panel { position: fixed; bottom: 12px; left: 12px; width: 196px; pointer-events: none; z-index: 20; }
+    .stat-cards { display: flex; gap: 5px; margin-bottom: 8px; }
+    .sc { background: #090918; border-radius: 6px; padding: 4px 6px; flex: 1; text-align: center; }
+    .sc-l { font-size: 0.56rem; color: #6060a0; text-transform: uppercase; }
+    .sc-v { font-size: 0.95rem; font-weight: 700; color: #f59e0b; }
+    .bar-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+    .bar-label { color: #6060a0; font-size: 0.7rem; width: 24px; }
+    .bar-bg { flex: 1; height: 7px; background: #090918; border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .bar-hp  { background: linear-gradient(90deg,#f87171,#fca5a5); }
+    .bar-xp  { background: linear-gradient(90deg,#a78bfa,#c4b5fd); }
+    .bar-txt { font-size: 0.65rem; width: 60px; text-align: right; color: #c0c0e0; }
+    #gold-disp { font-size: 0.85rem; font-weight: 700; color: #f59e0b; margin-top: 4px; }
+
+    /* ── Spell bar (bottom-center) ── */
+    #spells-bar {
+      position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 8px; pointer-events: none; z-index: 20;
+    }
+    .spell-slot {
+      width: 54px; height: 54px; border: 2px solid #222244; border-radius: 8px;
+      background: #090918; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; position: relative;
+      transition: border-color 0.2s;
+    }
+    .spell-slot.ready  { border-color: #f59e0b; box-shadow: 0 0 10px #f59e0b55; }
+    .spell-slot.locked { opacity: 0.4; }
+    .sp-icon { font-size: 1.5rem; line-height: 1; }
+    .sp-name { font-size: 0.48rem; color: #8080b0; margin-top: 2px; text-align: center; }
+    .cd-ov {
+      position: absolute; inset: 0; background: rgba(0,0,0,0.72); border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 700; color: #e0e0ff;
+    }
+
+    /* ── Shop panel (bottom-right) ── */
+    #shop-panel {
+      position: fixed; bottom: 12px; right: 12px; width: 196px;
+      max-height: 72vh; overflow-y: auto; pointer-events: all; z-index: 20;
+    }
+    #shop-panel::-webkit-scrollbar { width: 3px; }
+    #shop-panel::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 2px; }
+    .si {
+      display: flex; align-items: center; gap: 7px;
+      background: #090918; border: 1px solid #1e1e40; border-radius: 6px;
+      padding: 6px 8px; margin-bottom: 5px; cursor: pointer; transition: border-color 0.15s;
+    }
+    .si:hover { border-color: #f59e0b; }
+    .si.no-gold { opacity: 0.45; cursor: not-allowed; }
+    .si.no-gold:hover { border-color: #1e1e40; }
+    .si-ico { font-size: 1.1rem; }
+    .si-d { flex: 1; min-width: 0; }
+    .si-n { font-size: 0.73rem; font-weight: 600; color: #e0e0ff; }
+    .si-e { font-size: 0.62rem; color: #6060a0; }
+    .si-c { font-size: 0.75rem; font-weight: 700; color: #f59e0b; white-space: nowrap; }
+
+    /* ── Wave & level messages ── */
+    #wave-msg {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      font-size: clamp(1.4rem,4vw,2.5rem); font-weight: 800; color: #f59e0b;
+      text-shadow: 0 0 36px #f59e0bcc; pointer-events: none; opacity: 0;
+      transition: opacity 0.5s; z-index: 30; text-align: center;
+    }
+
+    /* ── Floating damage numbers ── */
+    .float-txt {
+      position: fixed; font-size: 1rem; font-weight: 700;
+      pointer-events: none; z-index: 25;
+      animation: floatUp 1.1s ease-out forwards;
+      white-space: nowrap;
+    }
+    @keyframes floatUp {
+      0%   { opacity: 1; transform: translateY(0) scale(1); }
+      30%  { transform: translateY(-16px) scale(1.15); }
+      100% { opacity: 0; transform: translateY(-56px) scale(0.8); }
+    }
+
+    /* ── Death overlay ── */
+    #dead-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.82); align-items: center;
+      justify-content: center; z-index: 50;
+    }
+    #dead-overlay.show { display: flex; }
+    #dead-box {
+      background: #10101e; border: 2px solid #f87171; border-radius: 16px;
+      padding: 32px 40px; text-align: center; max-width: 360px;
+    }
+    #dead-box h2 { color: #f87171; font-size: 1.8rem; margin-bottom: 10px; }
+    #dead-box p  { color: #8080a0; margin-bottom: 20px; font-size: 0.9rem; }
+    #dead-box button {
+      padding: 10px 28px; background: #f59e0b; color: #080810;
+      border: none; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer;
+    }
+    #dead-box button:hover { background: #fbbf24; }
+
+    /* ── Kill log ── */
+    #kill-log {
+      position: fixed; top: 54px; right: 12px;
+      width: 180px; font-size: 0.72rem; color: #6060a0;
+      pointer-events: none; z-index: 18;
+    }
+    .kl-entry { margin-bottom: 3px; animation: fadeInRight 0.3s ease; }
+    @keyframes fadeInRight { from { opacity:0; transform: translateX(10px); } to { opacity:1; transform: translateX(0); } }
+  </style>
+</head>
+<body>
+
+<a id="back-btn" href="../index.html">← Games</a>
+<div id="title">🔮 Arcane Realm</div>
+<div id="canvas-wrap"></div>
+
+<!-- Wave info -->
+<div id="wave-display">
+  Wave <span class="wnum" id="wave-num">1</span><br>
+  <span id="enemies-left" style="color:#8080a0;font-size:0.72rem">Preparing…</span>
+</div>
+
+<!-- Kill log -->
+<div id="kill-log"></div>
+
+<!-- Hero stats -->
+<div id="hero-panel" class="panel">
+  <div class="ptitle">🧙 Hero</div>
+  <div class="stat-cards">
+    <div class="sc"><div class="sc-l">Lv</div><div class="sc-v" id="h-lv">1</div></div>
+    <div class="sc"><div class="sc-l">Atk</div><div class="sc-v" id="h-atk">10</div></div>
+    <div class="sc"><div class="sc-l">Def</div><div class="sc-v" id="h-def">5</div></div>
+  </div>
+  <div class="bar-row">
+    <div class="bar-label">HP</div>
+    <div class="bar-bg"><div class="bar-fill bar-hp" id="hp-bar" style="width:100%"></div></div>
+    <div class="bar-txt" id="hp-txt">100/100</div>
+  </div>
+  <div class="bar-row">
+    <div class="bar-label">XP</div>
+    <div class="bar-bg"><div class="bar-fill bar-xp" id="xp-bar" style="width:0%"></div></div>
+    <div class="bar-txt" id="xp-txt">0/100</div>
+  </div>
+  <div id="gold-disp">💰 <span id="gold-val">0</span></div>
+</div>
+
+<!-- Spells -->
+<div id="spells-bar">
+  <div id="slot-fireball" class="spell-slot">
+    <div class="sp-icon">🔥</div><div class="sp-name">Fireball</div>
+  </div>
+  <div id="slot-nova" class="spell-slot locked">
+    <div class="sp-icon">❄️</div><div class="sp-name">Ice Nova</div>
+  </div>
+  <div id="slot-lightning" class="spell-slot locked">
+    <div class="sp-icon">⚡</div><div class="sp-name">Lightning</div>
+  </div>
+  <div id="slot-meteor" class="spell-slot locked">
+    <div class="sp-icon">☄️</div><div class="sp-name">Meteor</div>
+  </div>
+</div>
+
+<!-- Shop -->
+<div id="shop-panel" class="panel">
+  <div class="ptitle">🛒 Shop</div>
+  <div id="shop-items"></div>
+</div>
+
+<!-- Wave message -->
+<div id="wave-msg"></div>
+
+<!-- Death overlay -->
+<div id="dead-overlay">
+  <div id="dead-box">
+    <h2>💀 Defeated!</h2>
+    <p id="dead-msg">The darkness claimed you. Your power lingers…</p>
+    <button id="respawn-btn">⚡ Rise Again</button>
+  </div>
+</div>
+
+<script src="../lib/three.min.js"></script>
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+//  ARCANE REALM – 3D Auto-Battle Incremental RPG
+// ════════════════════════════════════════════════════════════════════════════
+
+const ARENA = 17;           // arena half-size (units)
+const ATTACK_RANGE = 2.4;   // hero melee range
+
+// ── Enemy templates ────────────────────────────────────────────────────────
+const ENEMY_TEMPLATES = [
+  { id:'sprite',   name:'Sprite',      color:0x44ff88, hp:18,   atk:2,  speed:0.065, size:0.38, xp:6,    gold:[1,3],    geo:'sphere',   unlockWave:1  },
+  { id:'goblin',   name:'Goblin',      color:0x77cc33, hp:45,   atk:5,  speed:0.05,  size:0.55, xp:14,   gold:[2,5],    geo:'cone',     unlockWave:1  },
+  { id:'orc',      name:'Orc',         color:0x449944, hp:130,  atk:9,  speed:0.032, size:0.78, xp:32,   gold:[5,10],   geo:'box',      unlockWave:4  },
+  { id:'skeleton', name:'Skeleton',    color:0xddddcc, hp:75,   atk:11, speed:0.055, size:0.62, xp:38,   gold:[6,13],   geo:'cone',     unlockWave:5  },
+  { id:'troll',    name:'Troll',       color:0x664422, hp:310,  atk:14, speed:0.022, size:1.05, xp:85,   gold:[14,22],  geo:'cylinder', unlockWave:7  },
+  { id:'darkMage', name:'Dark Mage',   color:0xaa33ee, hp:65,   atk:20, speed:0.034, size:0.68, xp:55,   gold:[11,20],  geo:'cone',     unlockWave:8  },
+  { id:'golem',    name:'Stone Golem', color:0x887766, hp:620,  atk:22, speed:0.016, size:1.35, xp:210,  gold:[32,55],  geo:'box',      unlockWave:11 },
+  { id:'wyvern',   name:'Wyvern',      color:0xff5500, hp:900,  atk:30, speed:0.04,  size:1.0,  xp:400,  gold:[60,100], geo:'sphere',   unlockWave:14 },
+  { id:'dragon',   name:'Dragon',      color:0xff2200, hp:3000, atk:45, speed:0.028, size:1.7,  xp:1200, gold:[150,250],geo:'sphere',   unlockWave:18 },
+];
+
+// ── Spells ─────────────────────────────────────────────────────────────────
+const SPELLS = [
+  { id:'fireball',  name:'Fireball',       icon:'🔥', unlockLv:1,  cooldown:3500,  baseDmg:28, color:0xff6600 },
+  { id:'nova',      name:'Ice Nova',        icon:'❄️', unlockLv:5,  cooldown:9000,  baseDmg:22, color:0x44aaff, aoe:true,  radius:6   },
+  { id:'lightning', name:'Chain Lightning', icon:'⚡', unlockLv:10, cooldown:6500,  baseDmg:45, color:0xffff44, chain:3               },
+  { id:'meteor',    name:'Meteor',          icon:'☄️', unlockLv:20, cooldown:16000, baseDmg:160,color:0xff4400, aoe:true,  radius:7.5 },
+];
+
+// ── Shop items ─────────────────────────────────────────────────────────────
+const SHOP_ITEMS = [
+  { id:'sword',    ico:'⚔️',  name:'Sharper Sword',   eff:'+8 ATK',            cost:()=>Math.floor(20*Math.pow(1.55, hero.upg.sword||0)),     apply:()=>{ hero.atk+=8;   hero.upg.sword=(hero.upg.sword||0)+1; } },
+  { id:'armor',    ico:'🛡️',  name:'Sturdier Armor',  eff:'+5 DEF, +25 MaxHP', cost:()=>Math.floor(25*Math.pow(1.55, hero.upg.armor||0)),     apply:()=>{ hero.def+=5; hero.maxHp+=25; hero.hp=Math.min(hero.hp+25,hero.maxHp); hero.upg.armor=(hero.upg.armor||0)+1; } },
+  { id:'potion',   ico:'🧪',  name:'Health Potion',   eff:'Restore 65% HP',    cost:()=>Math.floor(15*Math.pow(1.38, hero.upg.potion||0)),    apply:()=>{ hero.hp=Math.min(hero.maxHp,hero.hp+Math.ceil(hero.maxHp*0.65)); hero.upg.potion=(hero.upg.potion||0)+1; } },
+  { id:'speed',    ico:'💨',  name:'Swift Boots',     eff:'+20% Move Speed',   cost:()=>Math.floor(30*Math.pow(1.5,  hero.upg.speed||0)),     apply:()=>{ hero.speed*=1.2; hero.upg.speed=(hero.upg.speed||0)+1; } },
+  { id:'atkspd',   ico:'⚡',  name:'Attack Speed',    eff:'+15% Atk Speed',    cost:()=>Math.floor(35*Math.pow(1.55, hero.upg.atkspd||0)),    apply:()=>{ hero.atkInterval=Math.max(350,hero.atkInterval*0.85); hero.upg.atkspd=(hero.upg.atkspd||0)+1; } },
+  { id:'crit',     ico:'💥',  name:'Critical Strike', eff:'+7% Crit Chance',   cost:()=>Math.floor(40*Math.pow(1.6,  hero.upg.crit||0)),      apply:()=>{ hero.crit=Math.min(0.75,(hero.crit||0.05)+0.07); hero.upg.crit=(hero.upg.crit||0)+1; } },
+  { id:'spellpwr', ico:'✨',  name:'Spell Power',     eff:'+30% Spell Damage', cost:()=>Math.floor(50*Math.pow(1.58, hero.upg.spellpwr||0)),  apply:()=>{ hero.spellPwr=(hero.spellPwr||1)*1.3; hero.upg.spellpwr=(hero.upg.spellpwr||0)+1; } },
+  { id:'lifesteal',ico:'💚',  name:'Life Steal',      eff:'+8% Life Steal',    cost:()=>Math.floor(45*Math.pow(1.58, hero.upg.lifesteal||0)), apply:()=>{ hero.lifeSteal=(hero.lifeSteal||0)+0.08; hero.upg.lifesteal=(hero.upg.lifesteal||0)+1; } },
+];
+
+// ── Hero state ─────────────────────────────────────────────────────────────
+const SAVE_KEY = 'arcane_realm_v1';
+const DEFAULT_HERO = {
+  level:1, xp:0, xpNext:100,
+  hp:100, maxHp:100, atk:10, def:5, crit:0.05,
+  speed:0.09, atkInterval:1100, spellPwr:1, lifeSteal:0,
+  gold:0, kills:0, upg:{}
+};
+
+let hero = loadHero();
+function loadHero() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (d && d.level) return Object.assign({}, DEFAULT_HERO, d);
+  } catch(e) {}
+  return Object.assign({}, DEFAULT_HERO);
+}
+function saveHero() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(hero)); } catch(e) {}
+}
+setInterval(saveHero, 12000);
+
+// ── Runtime state ──────────────────────────────────────────────────────────
+let waveNum    = 1;
+let waveActive = false;
+let nextWaveAt = Date.now() + 2500;
+let enemies    = [];
+let projectiles= [];
+let particles  = [];
+let spellCd    = {};  // spellId → timestamp when ready
+SPELLS.forEach(s => { spellCd[s.id] = 0; });
+
+let heroMesh   = null;
+let heroGlowPt = null;
+let heroAtkCd  = 0;  // ms until next attack
+let lastTs     = 0;
+
+// ── THREE.JS SCENE ─────────────────────────────────────────────────────────
+const scene    = new THREE.Scene();
+scene.background = new THREE.Color(0x050510);
+scene.fog = new THREE.FogExp2(0x070718, 0.02);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.1, 200);
+camera.position.set(0, 30, 23);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.3;
+document.getElementById('canvas-wrap').appendChild(renderer.domElement);
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ── Lights ─────────────────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0x0a0a30, 2.8));
+const dirLight = new THREE.DirectionalLight(0x3355cc, 1.4);
+dirLight.position.set(12, 22, 10);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(1024, 1024);
+dirLight.shadow.camera.near = 0.5;
+dirLight.shadow.camera.far  = 80;
+dirLight.shadow.camera.left   = -25;
+dirLight.shadow.camera.right  =  25;
+dirLight.shadow.camera.top    =  25;
+dirLight.shadow.camera.bottom = -25;
+scene.add(dirLight);
+
+// ── Ground ─────────────────────────────────────────────────────────────────
+const groundMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(ARENA*2, ARENA*2),
+  new THREE.MeshStandardMaterial({ color:0x080818, roughness:0.9, metalness:0.1 })
+);
+groundMesh.rotation.x = -Math.PI/2;
+groundMesh.receiveShadow = true;
+scene.add(groundMesh);
+scene.add(new THREE.GridHelper(ARENA*2, 22, 0x1a1a40, 0x0d0d22));
+
+// ── Arena borders ──────────────────────────────────────────────────────────
+const wallMat = new THREE.MeshStandardMaterial({ color:0x2211aa, emissive:0x1100aa, emissiveIntensity:0.9, transparent:true, opacity:0.8 });
+[
+  {p:[0,1,-ARENA], s:[ARENA*2,2,0.35]},
+  {p:[0,1, ARENA], s:[ARENA*2,2,0.35]},
+  {p:[-ARENA,1,0], s:[0.35,2,ARENA*2]},
+  {p:[ ARENA,1,0], s:[0.35,2,ARENA*2]},
+].forEach(w => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), wallMat);
+  m.position.set(...w.p); m.scale.set(...w.s); scene.add(m);
+});
+
+// Corner pillars with flickering lights
+const cornerLights = [];
+[[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([sx,sz]) => {
+  const mat = new THREE.MeshStandardMaterial({ color:0x4411cc, emissive:0x3300bb, emissiveIntensity:1.3 });
+  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.45,4.5,8), mat);
+  pillar.position.set(sx*ARENA, 2.25, sz*ARENA);
+  pillar.castShadow = true;
+  scene.add(pillar);
+  const pl = new THREE.PointLight(0x5522ff, 3, 14);
+  pl.position.set(sx*ARENA, 5.5, sz*ARENA);
+  pl.userData = { base:3, phase: Math.random()*Math.PI*2 };
+  scene.add(pl);
+  cornerLights.push(pl);
+});
+
+// ── Rune circle on ground ──────────────────────────────────────────────────
+(function buildRuneCircle() {
+  const pts = [];
+  const segs = 64;
+  for (let i=0; i<=segs; i++) {
+    const a = (i/segs)*Math.PI*2;
+    pts.push(new THREE.Vector3(Math.cos(a)*ARENA*0.75, 0.02, Math.sin(a)*ARENA*0.75));
+  }
+  const runeGeo = new THREE.BufferGeometry().setFromPoints(pts);
+  const runeMat = new THREE.LineBasicMaterial({ color:0x4422aa, transparent:true, opacity:0.5 });
+  scene.add(new THREE.Line(runeGeo, runeMat));
+
+  const pts2 = [];
+  for (let i=0; i<=segs; i++) {
+    const a = (i/segs)*Math.PI*2;
+    pts2.push(new THREE.Vector3(Math.cos(a)*ARENA*0.4, 0.02, Math.sin(a)*ARENA*0.4));
+  }
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts2), runeMat));
+})();
+
+// ── Hero mesh ──────────────────────────────────────────────────────────────
+function buildHero() {
+  const g = new THREE.Group();
+
+  const bodyMat = new THREE.MeshStandardMaterial({ color:0x3366cc, emissive:0x1133aa, emissiveIntensity:0.45, metalness:0.75, roughness:0.25 });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.33,0.43,1.3,8), bodyMat);
+  body.position.y = 0.65; body.castShadow = true; g.add(body);
+
+  const headMat = new THREE.MeshStandardMaterial({ color:0xeeccaa, emissive:0x221100, emissiveIntensity:0.2 });
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.27,8,8), headMat);
+  head.position.y = 1.52; head.castShadow = true; g.add(head);
+
+  const helmMat = new THREE.MeshStandardMaterial({ color:0x4488ff, emissive:0x2255dd, emissiveIntensity:0.7, metalness:0.9, roughness:0.1 });
+  const helm = new THREE.Mesh(new THREE.ConeGeometry(0.3,0.42,8), helmMat);
+  helm.position.y = 1.93; g.add(helm);
+
+  const swordMat = new THREE.MeshStandardMaterial({ color:0xddeeff, emissive:0x7799ff, emissiveIntensity:1.1, metalness:1, roughness:0.05 });
+  const sword = new THREE.Mesh(new THREE.BoxGeometry(0.07,1.0,0.05), swordMat);
+  sword.position.set(0.52, 0.9, 0); sword.rotation.z = Math.PI/10;
+  g.add(sword); g.userData.sword = sword;
+
+  const shieldMat = new THREE.MeshStandardMaterial({ color:0xaa2200, emissive:0x771100, emissiveIntensity:0.3, metalness:0.5, roughness:0.4 });
+  const shield = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.65, 0.5), shieldMat);
+  shield.position.set(-0.52, 0.8, 0); g.add(shield);
+
+  // Outer glow shell
+  const glowMat = new THREE.MeshBasicMaterial({ color:0x4488ff, transparent:true, opacity:0.07, side:THREE.BackSide });
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 8), glowMat);
+  glow.position.y = 0.8; g.add(glow); g.userData.glow = glow;
+
+  return g;
+}
+
+heroMesh = buildHero();
+scene.add(heroMesh);
+
+heroGlowPt = new THREE.PointLight(0x4488ff, 2.5, 9);
+heroGlowPt.position.set(0, 2, 0);
+scene.add(heroGlowPt);
+
+// ── Enemy mesh builder ─────────────────────────────────────────────────────
+function buildEnemyMesh(tpl, isBoss) {
+  const g = new THREE.Group();
+  const s = tpl.size * (isBoss ? 1.8 : 1);
+
+  const mat = new THREE.MeshStandardMaterial({
+    color: tpl.color, emissive: tpl.color,
+    emissiveIntensity: 0.45, metalness:0.3, roughness:0.65
+  });
+
+  let geo;
+  switch (tpl.geo) {
+    case 'sphere':   geo = new THREE.SphereGeometry(s*0.5,8,8); break;
+    case 'cone':     geo = new THREE.ConeGeometry(s*0.42,s*1.2,8); break;
+    case 'cylinder': geo = new THREE.CylinderGeometry(s*0.4,s*0.5,s*1.2,8); break;
+    default:         geo = new THREE.BoxGeometry(s*0.9,s*1.1,s*0.9); break;
+  }
+
+  const body = new THREE.Mesh(geo, mat);
+  body.position.y = s * 0.6; body.castShadow = true; g.add(body);
+
+  // Eyes
+  const eyeMat = new THREE.MeshBasicMaterial({ color:0xff0000 });
+  [-0.13, 0.13].forEach(ex => {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6), eyeMat);
+    eye.position.set(ex, s*0.9, s*0.38); g.add(eye);
+  });
+
+  // Aura glow
+  const auraMat = new THREE.MeshBasicMaterial({ color: tpl.color, transparent:true, opacity: isBoss ? 0.14 : 0.08, side:THREE.BackSide });
+  const aura = new THREE.Mesh(new THREE.SphereGeometry(s*0.82,8,8), auraMat);
+  aura.position.y = s*0.5; g.add(aura);
+
+  // Point light
+  const el = new THREE.PointLight(tpl.color, isBoss ? 3 : 1.5, isBoss ? 8 : 4.5);
+  el.position.set(0, s, 0); g.add(el);
+
+  return g;
+}
+
+// ── Wave logic ─────────────────────────────────────────────────────────────
+function startWave() {
+  waveActive = true;
+  document.getElementById('wave-num').textContent = waveNum;
+  showMsg(`⚔️ Wave ${waveNum}!`, waveNum % 5 === 0 ? '#ff6644' : '#f59e0b');
+
+  const avail = ENEMY_TEMPLATES.filter(t => t.unlockWave <= waveNum);
+  const count = 3 + Math.floor(waveNum * 0.9);
+  const scaleMult = 1 + (waveNum - 1) * 0.11;
+
+  for (let i = 0; i < count; i++) {
+    const tpl = avail[Math.floor(Math.random() * avail.length)];
+    setTimeout(() => spawnEnemy(tpl, scaleMult, false), i * 420);
+  }
+
+  // Boss every 5 waves
+  if (waveNum % 5 === 0) {
+    const bossTpl = avail[avail.length - 1];
+    setTimeout(() => spawnEnemy(bossTpl, scaleMult * 2.5, true), count * 420);
+  }
+}
+
+function spawnEnemy(tpl, scaleMult, isBoss) {
+  const angle  = Math.random() * Math.PI * 2;
+  const radius = ARENA * 0.85;
+  const x = Math.cos(angle) * radius;
+  const z = Math.sin(angle) * radius;
+
+  const mesh = buildEnemyMesh(tpl, isBoss);
+  mesh.position.set(x, 0, z);
+  scene.add(mesh);
+
+  const mult = scaleMult;
+  enemies.push({
+    mesh, tpl, isBoss,
+    hp:    Math.round(tpl.hp  * mult * (isBoss ? 3 : 1)),
+    maxHp: Math.round(tpl.hp  * mult * (isBoss ? 3 : 1)),
+    atk:   Math.round(tpl.atk * mult * (isBoss ? 1.4 : 1)),
+    speed: tpl.speed * (isBoss ? 0.65 : 1),
+    atkCd: 0, atkInterval: 1600 + Math.random() * 400,
+    bobPhase: Math.random() * Math.PI * 2,
+    dead: false,
+  });
+  updateEnemyCount();
+}
+
+function updateEnemyCount() {
+  const alive = enemies.filter(e => !e.dead).length;
+  document.getElementById('enemies-left').textContent =
+    alive > 0 ? `${alive} enem${alive===1?'y':'ies'} remaining` : 'Wave cleared!';
+}
+
+// ── Combat ─────────────────────────────────────────────────────────────────
+function heroAttacks(enemy) {
+  const isCrit = Math.random() < (hero.crit || 0.05);
+  let dmg = Math.max(1, Math.round(hero.atk * (isCrit ? 2 : 1) * (0.85 + Math.random()*0.3)));
+  enemy.hp -= dmg;
+
+  // Life steal
+  if (hero.lifeSteal > 0) hero.hp = Math.min(hero.maxHp, hero.hp + dmg * hero.lifeSteal);
+
+  spawnSparks(enemy.mesh.position.clone(), isCrit ? 0xffff00 : 0xffffff, isCrit ? 12 : 6);
+  floatText(enemy.mesh.position, (isCrit ? '💥 ' : '') + dmg, isCrit ? '#ffff44' : '#ffffff');
+
+  if (enemy.hp <= 0 && !enemy.dead) killEnemy(enemy);
+  updateHeroUI();
+}
+
+function enemyAttacks(enemy) {
+  const rawDmg = enemy.atk * (0.85 + Math.random() * 0.3);
+  const defPct = hero.def / (hero.def + 40);
+  const dmg = Math.max(1, Math.round(rawDmg * (1 - defPct)));
+  hero.hp = Math.max(0, hero.hp - dmg);
+
+  // Flash hero red
+  heroMesh.traverse(child => {
+    if (child.isMesh && child.material.color) {
+      const orig = child.material.color.clone();
+      child.material.color.set(0xff2020);
+      setTimeout(() => { if (child.material) child.material.color.copy(orig); }, 140);
+    }
+  });
+
+  updateHeroUI();
+  if (hero.hp <= 0) heroDies();
+}
+
+function killEnemy(enemy) {
+  enemy.dead = true;
+  const g = enemy.isBoss ? 5 : 1;
+  const goldGain = (enemy.tpl.gold[0] + Math.floor(Math.random()*(enemy.tpl.gold[1]-enemy.tpl.gold[0]+1))) * g;
+  const xpGain   = Math.round(enemy.tpl.xp * (enemy.isBoss ? 5 : 1));
+
+  hero.gold += goldGain;
+  hero.kills = (hero.kills||0) + 1;
+  gainXP(xpGain);
+
+  spawnExplosion(enemy.mesh.position.clone(), enemy.tpl.color, enemy.isBoss);
+  floatText(enemy.mesh.position, `+${goldGain}💰 +${xpGain}✨`, '#f59e0b');
+  addKillLog(`${enemy.tpl.name} slain${enemy.isBoss?' 👑':''}! +${goldGain}💰`);
+
+  scene.remove(enemy.mesh);
+  enemies = enemies.filter(e => e !== enemy);
+  updateEnemyCount();
+  updateHeroUI();
+  renderShop();
+  saveHero();
+
+  if (enemies.filter(e => !e.dead).length === 0) {
+    waveActive = false;
+    hero.gold += waveNum * 8; // wave clear bonus
+    updateHeroUI();
+    waveNum++;
+    nextWaveAt = Date.now() + 4000;
+    showMsg('🏆 Wave Cleared!  ⚔️ Next wave soon…', '#4ade80');
+  }
+}
+
+function gainXP(amount) {
+  hero.xp += amount;
+  while (hero.xp >= hero.xpNext) {
+    hero.xp   -= hero.xpNext;
+    hero.level++;
+    hero.xpNext = Math.round(100 * Math.pow(1.3, hero.level - 1));
+    hero.maxHp += 18;
+    hero.hp     = hero.maxHp;
+    hero.atk   += 2;
+    hero.def    = Math.round(hero.def + 0.9);
+    showMsg(`🌟 Level ${hero.level}!`, '#a78bfa');
+  }
+  updateHeroUI();
+}
+
+function heroDies() {
+  const lost = Math.floor(hero.gold * 0.2);
+  hero.gold = Math.max(0, hero.gold - lost);
+  document.getElementById('dead-msg').textContent = `The darkness claimed you. Lost ${lost} 💰. Rise and fight on!`;
+  document.getElementById('dead-overlay').classList.add('show');
+}
+
+function respawn() {
+  hero.hp = hero.maxHp;
+  enemies.forEach(e => scene.remove(e.mesh));
+  enemies = []; projectiles = []; particles = [];
+  waveNum   = Math.max(1, waveNum - 1);
+  waveActive = false;
+  nextWaveAt = Date.now() + 3000;
+  document.getElementById('dead-overlay').classList.remove('show');
+  updateHeroUI(); renderShop();
+}
+
+// ── Spells ─────────────────────────────────────────────────────────────────
+function tryAutoSpells() {
+  const alive = enemies.filter(e => !e.dead);
+  if (!alive.length) return;
+  const now = Date.now();
+
+  SPELLS.forEach(sp => {
+    if (hero.level < sp.unlockLv) return;
+    if (now < (spellCd[sp.id] || 0)) return;
+    if (sp.id === 'lightning' && alive.length < 2) return;
+
+    spellCd[sp.id] = now + sp.cooldown;
+    switch (sp.id) {
+      case 'fireball':  castFireball(alive[Math.floor(Math.random()*alive.length)], sp); break;
+      case 'nova':      castNova(sp); break;
+      case 'lightning': castLightning(alive.slice(0, sp.chain||3), sp); break;
+      case 'meteor':    castMeteor(sp); break;
+    }
+  });
+}
+
+function castFireball(target, sp) {
+  const dmg = Math.round(sp.baseDmg * (hero.spellPwr||1));
+  const mat  = new THREE.MeshStandardMaterial({ color:0xff6600, emissive:0xff4400, emissiveIntensity:2.5, transparent:true, opacity:0.95 });
+  const fb   = new THREE.Mesh(new THREE.SphereGeometry(0.32,8,8), mat);
+  fb.position.copy(heroMesh.position); fb.position.y = 1.2;
+  const outer = new THREE.Mesh(new THREE.SphereGeometry(0.6,8,8), new THREE.MeshBasicMaterial({ color:0xff8800, transparent:true, opacity:0.18, side:THREE.BackSide }));
+  fb.add(outer);
+  const fl = new THREE.PointLight(0xff6600, 4, 7); fb.add(fl);
+  scene.add(fb);
+
+  const dir = target.mesh.position.clone().sub(fb.position).normalize();
+  projectiles.push({ mesh:fb, vel:dir.multiplyScalar(0.32), target, dmg, type:'fireball', life:150 });
+}
+
+function castNova(sp) {
+  const dmg = Math.round(sp.baseDmg * (hero.spellPwr||1));
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.5, 0.14, 8, 32),
+    new THREE.MeshStandardMaterial({ color:0x44aaff, emissive:0x2288ff, emissiveIntensity:2.5, transparent:true, opacity:0.92 })
+  );
+  ring.rotation.x = Math.PI/2; ring.position.copy(heroMesh.position); ring.position.y = 0.3;
+  const rl = new THREE.PointLight(0x44aaff, 5, 12); ring.add(rl);
+  scene.add(ring);
+
+  particles.push({
+    mesh:ring, vel:new THREE.Vector3(), life:45, type:'nova',
+    maxR: sp.radius, dmg, center: heroMesh.position.clone(), hit: new Set()
+  });
+}
+
+function castLightning(targets, sp) {
+  const dmg = Math.round(sp.baseDmg * (hero.spellPwr||1));
+  let prev = heroMesh.position.clone(); prev.y = 1.2;
+  targets.forEach((tgt, i) => {
+    if (tgt.dead) return;
+    setTimeout(() => {
+      const end = tgt.mesh.position.clone(); end.y = 1.0;
+      const pts = []; const segs = 9;
+      for (let j=0; j<=segs; j++) {
+        const t = j/segs;
+        const p = prev.clone().lerp(end, t);
+        if (j>0 && j<segs) { p.x+=(Math.random()-0.5)*1.8; p.z+=(Math.random()-0.5)*1.8; }
+        pts.push(p);
+      }
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color:0xffff88 }));
+      scene.add(line);
+      const ll = new THREE.PointLight(0xffff44, 6, 9); ll.position.copy(end); scene.add(ll);
+      setTimeout(() => { scene.remove(line); scene.remove(ll); }, 280);
+      tgt.hp -= dmg;
+      floatText(tgt.mesh.position, '⚡ '+dmg, '#ffff44');
+      if (tgt.hp<=0 && !tgt.dead) killEnemy(tgt);
+      prev = end.clone();
+    }, i*220);
+  });
+}
+
+function castMeteor(sp) {
+  const dmg = Math.round(sp.baseDmg * (hero.spellPwr||1));
+  const alive = enemies.filter(e => !e.dead);
+  if (!alive.length) return;
+  const tgtPos = alive[Math.floor(Math.random()*alive.length)].mesh.position.clone();
+
+  // Warning circle
+  const warn = new THREE.Mesh(
+    new THREE.RingGeometry(0, sp.radius, 32),
+    new THREE.MeshBasicMaterial({ color:0xff4400, transparent:true, opacity:0.28, side:THREE.DoubleSide })
+  );
+  warn.rotation.x = -Math.PI/2; warn.position.copy(tgtPos); warn.position.y = 0.08;
+  scene.add(warn);
+
+  setTimeout(() => {
+    scene.remove(warn);
+    const met = new THREE.Mesh(new THREE.SphereGeometry(1.4,12,12),
+      new THREE.MeshStandardMaterial({ color:0xff3300, emissive:0xff2200, emissiveIntensity:3.5 }));
+    met.position.copy(tgtPos); met.position.y = 26;
+    const ml = new THREE.PointLight(0xff4400, 10, 22); met.add(ml);
+    scene.add(met);
+    particles.push({ mesh:met, vel:new THREE.Vector3(0,-1.3,0), life:35, type:'meteor', dmg, radius:sp.radius, tgtPos });
+  }, 1600);
+}
+
+// ── Particle helpers ───────────────────────────────────────────────────────
+function spawnSparks(pos, color, count) {
+  for (let i=0; i<count; i++) {
+    const s = 0.07 + Math.random()*0.08;
+    const p = new THREE.Mesh(new THREE.BoxGeometry(s,s,s), new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.9 }));
+    p.position.copy(pos); p.position.y += 0.9;
+    const vel = new THREE.Vector3((Math.random()-0.5)*0.14, Math.random()*0.1+0.05, (Math.random()-0.5)*0.14);
+    scene.add(p);
+    particles.push({ mesh:p, vel, life:18, type:'spark', decay:0.84 });
+  }
+}
+
+function spawnExplosion(pos, color, isBig) {
+  const count = isBig ? 55 : 26;
+  for (let i=0; i<count; i++) {
+    const s = 0.09 + Math.random()*0.22;
+    const p = new THREE.Mesh(new THREE.BoxGeometry(s,s,s), new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.9 }));
+    p.position.copy(pos); p.position.y += 0.5;
+    const spd = 0.1 + Math.random()*0.22;
+    const ang = Math.random()*Math.PI*2;
+    const elev = (Math.random()-0.5)*Math.PI;
+    const vel = new THREE.Vector3(
+      Math.cos(ang)*Math.cos(elev)*spd, Math.sin(elev)*spd+0.1, Math.sin(ang)*Math.cos(elev)*spd
+    );
+    scene.add(p);
+    particles.push({ mesh:p, vel, life: isBig ? 50 : 36, type:'debris', decay:0.91, grav:-0.007 });
+  }
+  // Flash
+  const fl = new THREE.PointLight(color, isBig ? 12 : 7, isBig ? 14 : 9);
+  fl.position.copy(pos); fl.position.y = 1.5; scene.add(fl);
+  setTimeout(() => scene.remove(fl), 220);
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────────────
+function floatText(worldPos, text, color='#ffffff') {
+  const v = worldPos.clone(); v.project(camera);
+  const x = (v.x*0.5+0.5)*innerWidth;
+  const y = (1-(v.y*0.5+0.5))*innerHeight;
+  const el = document.createElement('div');
+  el.className='float-txt'; el.textContent=text; el.style.color=color;
+  el.style.left=x+'px'; el.style.top=y+'px';
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 1200);
+}
+
+let waveMsgTmr = null;
+function showMsg(text, color='#f59e0b') {
+  const el = document.getElementById('wave-msg');
+  el.textContent = text; el.style.color = color; el.style.opacity = '1';
+  clearTimeout(waveMsgTmr);
+  waveMsgTmr = setTimeout(() => { el.style.opacity = '0'; }, 2200);
+}
+
+function addKillLog(msg) {
+  const log = document.getElementById('kill-log');
+  const e = document.createElement('div'); e.className='kl-entry'; e.textContent=msg;
+  log.prepend(e);
+  while (log.children.length > 6) log.lastChild.remove();
+  setTimeout(() => { if (e.parentNode) e.style.opacity='0'; }, 3500);
+}
+
+function updateHeroUI() {
+  document.getElementById('h-lv').textContent  = hero.level;
+  document.getElementById('h-atk').textContent = Math.round(hero.atk);
+  document.getElementById('h-def').textContent = Math.round(hero.def);
+  const hpP = Math.max(0, hero.hp/hero.maxHp*100);
+  document.getElementById('hp-bar').style.width = hpP+'%';
+  document.getElementById('hp-txt').textContent = `${Math.round(hero.hp)}/${hero.maxHp}`;
+  const xpP = (hero.xp/hero.xpNext*100);
+  document.getElementById('xp-bar').style.width = xpP+'%';
+  document.getElementById('xp-txt').textContent = `${hero.xp}/${hero.xpNext}`;
+  document.getElementById('gold-val').textContent = hero.gold;
+}
+
+function renderShop() {
+  const list = document.getElementById('shop-items');
+  list.innerHTML = '';
+  SHOP_ITEMS.forEach(item => {
+    const cost = item.cost();
+    const div  = document.createElement('div');
+    div.className = 'si' + (hero.gold < cost ? ' no-gold' : '');
+    div.innerHTML = `<div class="si-ico">${item.ico}</div><div class="si-d"><div class="si-n">${item.name}</div><div class="si-e">${item.eff}</div></div><div class="si-c">💰${cost}</div>`;
+    div.addEventListener('click', () => {
+      if (hero.gold < cost) return;
+      hero.gold -= cost; item.apply();
+      updateHeroUI(); renderShop(); saveHero();
+    });
+    list.appendChild(div);
+  });
+}
+
+function updateSpellUI() {
+  const now = Date.now();
+  SPELLS.forEach(sp => {
+    const slot = document.getElementById('slot-'+sp.id);
+    if (!slot) return;
+    const unlocked = hero.level >= sp.unlockLv;
+    slot.classList.toggle('locked', !unlocked);
+    const rem = Math.max(0, (spellCd[sp.id]||0) - now);
+    slot.classList.toggle('ready', unlocked && rem === 0);
+    let ov = slot.querySelector('.cd-ov');
+    if (!unlocked) {
+      if (!ov) { ov=document.createElement('div'); ov.className='cd-ov'; slot.appendChild(ov); }
+      ov.textContent = `Lv${sp.unlockLv}`;
+    } else if (rem > 0) {
+      if (!ov) { ov=document.createElement('div'); ov.className='cd-ov'; slot.appendChild(ov); }
+      ov.textContent = (rem/1000).toFixed(1)+'s';
+    } else if (ov) { ov.remove(); }
+  });
+}
+
+// ── GAME LOOP ──────────────────────────────────────────────────────────────
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const dt = Math.min((ts - lastTs) / 1000, 0.1);
+  lastTs = ts;
+
+  // Flicker corner lights
+  cornerLights.forEach(l => {
+    l.userData.phase += dt * 3.5;
+    l.intensity = l.userData.base + Math.sin(l.userData.phase) * 0.6;
+  });
+
+  // Hero glow pulse
+  if (heroMesh.userData.glow) {
+    heroMesh.userData.glow.material.opacity = 0.04 + Math.sin(ts/600) * 0.03;
+  }
+
+  const alive = enemies.filter(e => !e.dead);
+
+  // ── Hero AI ──
+  if (hero.hp > 0 && alive.length > 0) {
+    // Find nearest enemy
+    let nearest = null, nearDist = Infinity;
+    alive.forEach(e => {
+      const d = heroMesh.position.distanceTo(e.mesh.position);
+      if (d < nearDist) { nearDist = d; nearest = e; }
+    });
+
+    if (nearest) {
+      if (nearDist > ATTACK_RANGE) {
+        // Walk toward enemy
+        const dir = nearest.mesh.position.clone().sub(heroMesh.position).normalize();
+        heroMesh.position.x += dir.x * hero.speed;
+        heroMesh.position.z += dir.z * hero.speed;
+        // Clamp to arena
+        heroMesh.position.x = Math.max(-ARENA+1, Math.min(ARENA-1, heroMesh.position.x));
+        heroMesh.position.z = Math.max(-ARENA+1, Math.min(ARENA-1, heroMesh.position.z));
+        heroMesh.rotation.y = Math.atan2(dir.x, dir.z);
+        // Walking bounce
+        heroMesh.position.y = Math.abs(Math.sin(ts/130)) * 0.035;
+      } else {
+        // Attack
+        heroAtkCd -= dt * 1000;
+        if (heroAtkCd <= 0) {
+          heroAttacks(nearest);
+          heroAtkCd = hero.atkInterval;
+          // Sword swing
+          if (heroMesh.userData.sword) {
+            heroMesh.userData.sword.rotation.z = -Math.PI/1.5;
+            setTimeout(() => { if (heroMesh.userData.sword) heroMesh.userData.sword.rotation.z = Math.PI/10; }, 200);
+          }
+        }
+      }
+    }
+
+    // Auto spells
+    tryAutoSpells();
+  }
+
+  // Idle sword sway
+  if (heroMesh.userData.sword && heroAtkCd > hero.atkInterval * 0.5) {
+    heroMesh.userData.sword.rotation.z = Math.PI/10 + Math.sin(ts/800) * 0.06;
+  }
+
+  // Update hero light
+  heroGlowPt.position.copy(heroMesh.position); heroGlowPt.position.y = 2;
+
+  // ── Enemy AI ──
+  alive.forEach(enemy => {
+    if (enemy.dead) return;
+    enemy.bobPhase += dt * 3;
+    enemy.mesh.position.y = Math.sin(enemy.bobPhase) * 0.08;
+
+    const distToHero = enemy.mesh.position.distanceTo(heroMesh.position);
+    if (distToHero > 2.1) {
+      const dir = heroMesh.position.clone().sub(enemy.mesh.position).normalize();
+      enemy.mesh.position.x += dir.x * enemy.speed;
+      enemy.mesh.position.z += dir.z * enemy.speed;
+      enemy.mesh.position.x = Math.max(-ARENA+0.5, Math.min(ARENA-0.5, enemy.mesh.position.x));
+      enemy.mesh.position.z = Math.max(-ARENA+0.5, Math.min(ARENA-0.5, enemy.mesh.position.z));
+      enemy.mesh.rotation.y = Math.atan2(dir.x, dir.z);
+    } else if (hero.hp > 0) {
+      enemy.atkCd -= dt * 1000;
+      if (enemy.atkCd <= 0) {
+        enemyAttacks(enemy);
+        enemy.atkCd = enemy.atkInterval;
+      }
+    }
+  });
+
+  // ── Projectiles ──
+  for (let i = projectiles.length-1; i >= 0; i--) {
+    const p = projectiles[i];
+    p.mesh.position.add(p.vel);
+    p.mesh.rotation.x += 0.1; p.mesh.rotation.y += 0.12;
+    p.life--;
+    let hit = false;
+    if (p.target && !p.target.dead) {
+      if (p.mesh.position.distanceTo(p.target.mesh.position) < 1.6 || p.life <= 0) {
+        if (p.type === 'fireball') {
+          p.target.hp -= p.dmg;
+          spawnExplosion(p.mesh.position.clone(), 0xff6600, false);
+          floatText(p.target.mesh.position, '🔥 '+p.dmg, '#ff8800');
+          if (p.target.hp <= 0 && !p.target.dead) killEnemy(p.target);
+        }
+        hit = true;
+      }
+    } else { hit = true; }
+    if (hit || p.life <= 0) { scene.remove(p.mesh); projectiles.splice(i,1); }
+  }
+
+  // ── Particles ──
+  for (let i = particles.length-1; i >= 0; i--) {
+    const p = particles[i];
+    p.life--;
+
+    if (p.type === 'nova') {
+      const prog = 1 - p.life/45;
+      const r = prog * p.maxR;
+      p.mesh.scale.set(r*2, r*2, r*2);
+      p.mesh.material.opacity = (1-prog) * 0.85;
+      // AoE damage
+      enemies.filter(e => !e.dead).forEach(en => {
+        if (p.hit.has(en)) return;
+        const d = new THREE.Vector3(en.mesh.position.x,0,en.mesh.position.z)
+                    .distanceTo(new THREE.Vector3(p.center.x,0,p.center.z));
+        if (d <= r+0.8) {
+          p.hit.add(en); en.hp -= p.dmg;
+          floatText(en.mesh.position, '❄️ '+p.dmg, '#44aaff');
+          if (en.hp<=0 && !en.dead) killEnemy(en);
+        }
+      });
+    } else if (p.type === 'meteor') {
+      p.mesh.position.add(p.vel);
+      p.mesh.rotation.x += 0.08;
+      if (p.mesh.position.y <= 1.5 || p.life <= 0) {
+        spawnExplosion(p.mesh.position.clone(), 0xff4400, true);
+        enemies.filter(e => !e.dead).forEach(en => {
+          if (en.mesh.position.distanceTo(p.tgtPos) <= p.radius) {
+            en.hp -= p.dmg; floatText(en.mesh.position, '☄️ '+p.dmg, '#ff6622');
+            if (en.hp<=0 && !en.dead) killEnemy(en);
+          }
+        });
+        scene.remove(p.mesh); particles.splice(i,1); continue;
+      }
+    } else {
+      p.vel.multiplyScalar(p.decay || 0.9);
+      if (p.grav) p.vel.y += p.grav;
+      p.mesh.position.add(p.vel);
+      p.mesh.material.opacity = (p.life / 40) * 0.88;
+      if (p.type === 'debris') { p.mesh.rotation.x+=0.1; p.mesh.rotation.y+=0.08; }
+    }
+
+    if (p.life <= 0) { scene.remove(p.mesh); particles.splice(i,1); }
+  }
+
+  // ── Wave timer ──
+  if (!waveActive && enemies.length === 0 && Date.now() >= nextWaveAt && nextWaveAt > 0) {
+    nextWaveAt = 0;
+    startWave();
+  }
+
+  updateSpellUI();
+  renderer.render(scene, camera);
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+document.getElementById('respawn-btn').addEventListener('click', respawn);
+updateHeroUI();
+renderShop();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

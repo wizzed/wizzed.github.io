@@ -229,17 +229,17 @@
         </div>
         <div class="stat-card">
           <div class="stat-card-label">Attack</div>
-          <div class="stat-card-val" id="hero-atk">5</div>
+          <div class="stat-card-val" id="hero-atk">8</div>
         </div>
         <div class="stat-card">
           <div class="stat-card-label">Defense</div>
-          <div class="stat-card-val" id="hero-def">2</div>
+          <div class="stat-card-val" id="hero-def">5</div>
         </div>
       </div>
       <div class="stat-row">
         <div class="stat-label">HP</div>
         <div class="bar-bg"><div class="bar-fill bar-hp" id="hp-bar" style="width:100%"></div></div>
-        <div class="stat-text" id="hp-text">50 / 50</div>
+        <div class="stat-text" id="hp-text">80 / 80</div>
       </div>
       <div class="stat-row">
         <div class="stat-label">XP</div>
@@ -273,60 +273,60 @@
         id: 'forest', name: '🌲 Forest', unlockLevel: 1,
         enemies: [
           {name:'Goblin',     icon:'👺', hp:20,  xp:10,  gold:[1,3],  atk:2},
-          {name:'Wolf',       icon:'🐺', hp:35,  xp:18,  gold:[2,5],  atk:4},
-          {name:'Troll',      icon:'👹', hp:60,  xp:30,  gold:[4,8],  atk:6},
+          {name:'Wolf',       icon:'🐺', hp:35,  xp:18,  gold:[2,5],  atk:3},
+          {name:'Troll',      icon:'👹', hp:60,  xp:30,  gold:[4,8],  atk:5},
         ]
       },
       {
         id: 'cave', name: '🪨 Cave', unlockLevel: 5,
         enemies: [
-          {name:'Bat',        icon:'🦇', hp:50,  xp:25,  gold:[3,7],  atk:5},
-          {name:'Skeleton',   icon:'💀', hp:80,  xp:40,  gold:[6,12], atk:8},
-          {name:'Cave Bear',  icon:'🐻', hp:130, xp:65,  gold:[10,18],atk:12},
+          {name:'Bat',        icon:'🦇', hp:50,  xp:25,  gold:[3,7],  atk:4},
+          {name:'Skeleton',   icon:'💀', hp:80,  xp:40,  gold:[6,12], atk:6},
+          {name:'Cave Bear',  icon:'🐻', hp:130, xp:65,  gold:[10,18],atk:9},
         ]
       },
       {
         id: 'castle', name: '🏰 Castle', unlockLevel: 15,
         enemies: [
-          {name:'Dark Knight',icon:'🤺', hp:200, xp:100, gold:[15,25],atk:18},
-          {name:'Gargoyle',   icon:'🦅', hp:280, xp:140, gold:[22,35],atk:24},
-          {name:'Necromancer',icon:'🧙', hp:400, xp:200, gold:[35,55],atk:30},
+          {name:'Dark Knight',icon:'🤺', hp:200, xp:100, gold:[15,25],atk:12},
+          {name:'Gargoyle',   icon:'🦅', hp:280, xp:140, gold:[22,35],atk:16},
+          {name:'Necromancer',icon:'🧙', hp:400, xp:200, gold:[35,55],atk:20},
         ]
       },
       {
         id: 'volcano', name: '🌋 Volcano', unlockLevel: 30,
         enemies: [
-          {name:'Fire Imp',   icon:'🔥', hp:600, xp:300, gold:[50,80], atk:45},
-          {name:'Lava Golem', icon:'⛰️', hp:900, xp:450, gold:[75,120],atk:60},
-          {name:'Phoenix',    icon:'🦜', hp:1200,xp:600, gold:[100,160],atk:80},
+          {name:'Fire Imp',   icon:'🔥', hp:600, xp:300, gold:[50,80], atk:28},
+          {name:'Lava Golem', icon:'⛰️', hp:900, xp:450, gold:[75,120],atk:38},
+          {name:'Phoenix',    icon:'🦜', hp:1200,xp:600, gold:[100,160],atk:50},
         ]
       },
       {
         id: 'lair', name: '🐉 Dragon Lair', unlockLevel: 50,
         enemies: [
-          {name:'Wyrm',       icon:'🐍', hp:2000,xp:1000,gold:[180,280],atk:110},
-          {name:'Dragon',     icon:'🐲', hp:4000,xp:2000,gold:[350,550],atk:160},
-          {name:'Ancient Dragon',icon:'🐉',hp:8000,xp:4000,gold:[700,1100],atk:220},
+          {name:'Wyrm',       icon:'🐍', hp:2000,xp:1000,gold:[180,280],atk:65},
+          {name:'Dragon',     icon:'🐲', hp:4000,xp:2000,gold:[350,550],atk:95},
+          {name:'Ancient Dragon',icon:'🐉',hp:8000,xp:4000,gold:[700,1100],atk:130},
         ]
       },
     ];
 
     // ── SHOP ITEMS ─────────────────────────────────────────────────────────────
     const SHOP_ITEMS = [
-      {id:'sword',   icon:'⚔️',  name:'Sharper Sword',    effect:'+3 ATK',          cost:()=>Math.floor(15 * Math.pow(1.6, (hero.upgrades.sword||0))),     apply:()=>{hero.atk+=3; hero.upgrades.sword=(hero.upgrades.sword||0)+1;}},
-      {id:'armor',   icon:'🛡️',  name:'Sturdier Armor',   effect:'+2 DEF, +10 MaxHP',cost:()=>Math.floor(20 * Math.pow(1.6, (hero.upgrades.armor||0))),     apply:()=>{hero.def+=2; hero.maxHp+=10; hero.hp=Math.min(hero.hp+10,hero.maxHp); hero.upgrades.armor=(hero.upgrades.armor||0)+1;}},
-      {id:'potion',  icon:'🧪',  name:'Health Potion',    effect:'Restore 50% MaxHP',cost:()=>Math.floor(12 * Math.pow(1.4, (hero.upgrades.potion||0))),    apply:()=>{hero.hp=Math.min(hero.maxHp, hero.hp + Math.ceil(hero.maxHp*0.5)); hero.upgrades.potion=(hero.upgrades.potion||0)+1;}},
-      {id:'auto',    icon:'⚡',  name:'Battle Rhythm',    effect:'Faster auto-attack',cost:()=>Math.floor(25 * Math.pow(1.7, (hero.upgrades.auto||0))),     apply:()=>{autoInterval=Math.max(300,autoInterval-150); hero.upgrades.auto=(hero.upgrades.auto||0)+1; restartAutoAttack();}},
-      {id:'crit',    icon:'💥',  name:'Critical Strike',  effect:'+5% crit chance',  cost:()=>Math.floor(30 * Math.pow(1.65,(hero.upgrades.crit||0))),     apply:()=>{hero.crit=Math.min(0.75,(hero.crit||0)+0.05); hero.upgrades.crit=(hero.upgrades.crit||0)+1;}},
-      {id:'regen',   icon:'💚',  name:'Regeneration',     effect:'+1 HP/sec regen',  cost:()=>Math.floor(35 * Math.pow(1.7, (hero.upgrades.regen||0))),    apply:()=>{hero.regen=(hero.regen||0)+1; hero.upgrades.regen=(hero.upgrades.regen||0)+1;}},
-      {id:'multistr',icon:'🌀',  name:'Power Strike',     effect:'+5 click damage',  cost:()=>Math.floor(20 * Math.pow(1.55,(hero.upgrades.multistr||0))), apply:()=>{hero.clickBonus=(hero.clickBonus||0)+5; hero.upgrades.multistr=(hero.upgrades.multistr||0)+1;}},
+      {id:'sword',   icon:'⚔️',  name:'Sharper Sword',    effect:'+5 ATK',           cost:()=>Math.floor(15 * Math.pow(1.55, (hero.upgrades.sword||0))),    apply:()=>{hero.atk+=5; hero.upgrades.sword=(hero.upgrades.sword||0)+1;}},
+      {id:'armor',   icon:'🛡️',  name:'Sturdier Armor',   effect:'+4 DEF, +20 MaxHP',cost:()=>Math.floor(20 * Math.pow(1.55, (hero.upgrades.armor||0))),    apply:()=>{hero.def+=4; hero.maxHp+=20; hero.hp=Math.min(hero.hp+20,hero.maxHp); hero.upgrades.armor=(hero.upgrades.armor||0)+1;}},
+      {id:'potion',  icon:'🧪',  name:'Health Potion',    effect:'Restore 60% MaxHP',cost:()=>Math.floor(12 * Math.pow(1.35, (hero.upgrades.potion||0))),   apply:()=>{hero.hp=Math.min(hero.maxHp, hero.hp + Math.ceil(hero.maxHp*0.6)); hero.upgrades.potion=(hero.upgrades.potion||0)+1;}},
+      {id:'auto',    icon:'⚡',  name:'Battle Rhythm',    effect:'Faster auto-attack',cost:()=>Math.floor(25 * Math.pow(1.6, (hero.upgrades.auto||0))),     apply:()=>{autoInterval=Math.max(300,autoInterval-200); hero.upgrades.auto=(hero.upgrades.auto||0)+1; restartAutoAttack();}},
+      {id:'crit',    icon:'💥',  name:'Critical Strike',  effect:'+6% crit chance',  cost:()=>Math.floor(30 * Math.pow(1.6, (hero.upgrades.crit||0))),     apply:()=>{hero.crit=Math.min(0.75,(hero.crit||0)+0.06); hero.upgrades.crit=(hero.upgrades.crit||0)+1;}},
+      {id:'regen',   icon:'💚',  name:'Regeneration',     effect:'+2 HP/sec regen',  cost:()=>Math.floor(35 * Math.pow(1.65, (hero.upgrades.regen||0))),   apply:()=>{hero.regen=(hero.regen||0)+2; hero.upgrades.regen=(hero.upgrades.regen||0)+1;}},
+      {id:'multistr',icon:'🌀',  name:'Power Strike',     effect:'+8 click damage',  cost:()=>Math.floor(20 * Math.pow(1.5, (hero.upgrades.multistr||0))),  apply:()=>{hero.clickBonus=(hero.clickBonus||0)+8; hero.upgrades.multistr=(hero.upgrades.multistr||0)+1;}},
     ];
 
     // ── STATE ─────────────────────────────────────────────────────────────────
-    const SAVE_KEY = 'heroquest_save_v2';
+    const SAVE_KEY = 'heroquest_save_v3';
     const DEFAULT_HERO = {
       level:1, xp:0, xpNext:100,
-      hp:50, maxHp:50, atk:5, def:2, crit:0.05, regen:0, clickBonus:0,
+      hp:80, maxHp:80, atk:8, def:5, crit:0.05, regen:0, clickBonus:0,
       gold:0, kills:0, zone:'forest', upgrades:{}
     };
 
@@ -358,8 +358,8 @@
     function pickEnemy() {
       const pool = currentZone.enemies;
       const template = pool[Math.floor(Math.random() * pool.length)];
-      // Scale with hero level
-      const scale = 1 + (hero.level - 1) * 0.12;
+      // Scale with hero level — gentler multiplier to keep enemies manageable
+      const scale = 1 + (hero.level - 1) * 0.08;
       return {
         name: template.name,
         icon: template.icon,
@@ -407,8 +407,10 @@
     }
 
     function enemyAttack() {
-      const rawDmg = enemy.atk;
-      const dmg = Math.max(0, Math.round(rawDmg * (0.85 + Math.random()*0.3) - hero.def));
+      const rawDmg = enemy.atk * (0.85 + Math.random()*0.3);
+      // Percentage-based defence: each point of DEF reduces damage by def/(def+40)
+      const defPct = hero.def / (hero.def + 40);
+      const dmg = Math.max(1, Math.round(rawDmg * (1 - defPct)));
       hero.hp = Math.max(0, hero.hp - dmg);
       renderHeroStats();
       if (hero.hp <= 0) {
@@ -432,11 +434,11 @@
       while (hero.xp >= hero.xpNext) {
         hero.xp -= hero.xpNext;
         hero.level++;
-        hero.xpNext = Math.round(100 * Math.pow(1.35, hero.level - 1));
-        hero.maxHp += 8;
+        hero.xpNext = Math.round(100 * Math.pow(1.30, hero.level - 1));
+        hero.maxHp += 15;
         hero.hp = hero.maxHp;
-        hero.atk += 1;
-        hero.def = Math.round(hero.def + 0.5);
+        hero.atk += 2;
+        hero.def = Math.round(hero.def + 0.8);
         addLog(`🌟 Level up! Now level ${hero.level}! HP restored.`);
         renderZones();
       }

@@ -271,8 +271,9 @@ function drawHoleFront(h){
   cx.beginPath();cx.ellipse(h.x,h.y+3,70,24,0,0,Math.PI);cx.stroke();
 }
 function drawHammer(){
+  const hx=hammerT>0?hammerX:mouse.x,hy=hammerT>0?hammerY:mouse.y;
   cx.save();
-  cx.translate(mouse.x+14,mouse.y-10);
+  cx.translate(hx+14,hy-10);
   cx.rotate(hammerT>0?-1.15:-0.35);
   cx.font='44px serif';
   cx.textAlign='center';cx.textBaseline='middle';

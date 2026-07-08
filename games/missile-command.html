@@ -107,7 +107,7 @@ function fire(x,y){
 function killEnemy(i){
   const e=enemies[i];
   enemies.splice(i,1);
-  score+=25;
+  if(state==='play')score+=25;
   boom(e.x,e.y,26);
   sfx(220,0.22,'square',0.06,-150);
 }

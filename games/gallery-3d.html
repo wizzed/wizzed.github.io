@@ -503,8 +503,9 @@ function startGame() {
   // reset any tipped targets
   targets.forEach(g => {
     const u = g.userData;
-    if (u.kind === 'slide') { u.tipping = false; g.rotation.set(0, 0, 0); u.alive = true; }
-    else { u.tipping = false; g.rotation.set(0, 0, 0); }
+    g.rotation.set(0, 0, 0);
+    u.tipping = false; u.tvy = 0;
+    if (u.kind === 'slide') { u.alive = true; g.position.y = u.baseY; }
   });
   updateHUD();
 }

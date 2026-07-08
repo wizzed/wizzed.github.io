@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tunnel Rush 3D – Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #0f0f1a; overflow: hidden; color: #cfe9ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+  }
+  canvas { display: block; }
+  a.back {
+    position: fixed; top: 12px; left: 12px; z-index: 30;
+    color: #7f8fc0; text-decoration: none; font-size: 13px;
+    background: rgba(12,12,32,0.7); border: 1px solid #26264d;
+    padding: 5px 10px; border-radius: 6px;
+  }
+  a.back:hover { color: #4ff3ff; border-color: #4ff3ff; }
+  #title {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 20; font-size: 15px; letter-spacing: 3px; color: #4ff3ff;
+    text-shadow: 0 0 14px #00c8ff; pointer-events: none; white-space: nowrap;
+  }
+  #hud {
+    position: fixed; top: 12px; right: 12px; z-index: 20; text-align: right;
+    font-size: 13px; color: #9fd8ff; text-shadow: 0 0 8px #2288ff;
+    background: rgba(10,10,28,0.66); border: 1px solid #23234a;
+    padding: 8px 12px; border-radius: 8px; pointer-events: none; line-height: 1.5;
+  }
+  #hud .b { color: #ffd34f; text-shadow: 0 0 10px #ff9a00; }
+  #msg {
+    position: fixed; left: 50%; top: 34%; transform: translate(-50%,-50%);
+    z-index: 22; font-size: 20px; letter-spacing: 2px; color: #ffe14f;
+    text-shadow: 0 0 16px #ff9a00; pointer-events: none; opacity: 0;
+    transition: opacity 0.35s; white-space: nowrap;
+  }
+  #msg.show { opacity: 1; }
+  #flash {
+    position: fixed; inset: 0; z-index: 24; pointer-events: none;
+    background: #ff3355; opacity: 0; transition: opacity 0.5s;
+  }
+  #overlay {
+    position: fixed; inset: 0; z-index: 26; display: flex;
+    align-items: center; justify-content: center; flex-direction: column;
+    background: rgba(8,8,22,0.42); backdrop-filter: blur(2px);
+    text-align: center; cursor: pointer;
+  }
+  #overlay.hidden { display: none; }
+  #overlay .panel {
+    background: rgba(10,10,30,0.72); border: 1px solid #2c2c5e;
+    border-radius: 14px; padding: 26px 40px; box-shadow: 0 0 40px #0033aa55;
+  }
+  #ov-title {
+    font-size: clamp(24px, 5vw, 40px); letter-spacing: 5px; color: #4ff3ff;
+    text-shadow: 0 0 22px #00c8ff, 0 0 60px #0055ff;
+  }
+  #ov-sub { margin-top: 12px; font-size: 14px; color: #9fd8ff; text-shadow: 0 0 8px #2288ff; line-height: 1.7; }
+  #ov-hint { margin-top: 18px; font-size: 13px; color: #ffe14f; text-shadow: 0 0 10px #ff9a00; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<div id="title">✦ TUNNEL RUSH 3D ✦</div>
+<div id="hud">
+  DIST <span class="b" id="dist">0</span>m<br>
+  GATES <span id="gates">0</span> · SPD <span id="spd">0</span><br>
+  BEST <span class="b" id="best">0</span>m
+</div>
+<div id="msg"></div>
+<div id="flash"></div>
+<div id="overlay">
+  <div class="panel">
+    <div id="ov-title">TUNNEL RUSH 3D</div>
+    <div id="ov-sub">Fly through the neon tube.<br>← → / A D or DRAG to slide around the wall.<br>Slip through the gaps — graze edges for bonus sparks.</div>
+    <div id="ov-hint">CLICK or ENTER / SPACE to launch</div>
+  </div>
+</div>
+<script src="../lib/three.min.js"></script>
+<script>
+'use strict';
+// ── Tunnel Rush 3D ─────────────────────────────────────────────────────────
+const SLUG = 'wizzed-tunnel-run-3d';
+let best = parseInt(localStorage.getItem(SLUG) || '0', 10) || 0;
+document.getElementById('best').textContent = best;
+
+const R = 3;                 // tube radius
+const SEG = 3;               // ring spacing
+const NRINGS = 64;
+const TUBELEN = NRINGS * SEG;
+const PLAYER_R = R - 0.55;   // radius the pod rides at
+
+function pathX(z) { return Math.sin(z * 0.045) * 2.2 + Math.sin(z * 0.019 + 2.1) * 3.0; }
+function pathY(z) { return Math.cos(z * 0.038) * 2.0 + Math.sin(z * 0.016 + 4.2) * 2.5; }
+
+function wrapPi(a) {
+  a = (a + Math.PI) % (Math.PI * 2);
+  if (a < 0) a += Math.PI * 2;
+  return a - Math.PI;
+}
+
+// ── Audio (lazy, gesture-gated) ────────────────────────────────────────────
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+}
+function blip(freq, dur, type, vol) {
+  if (!audioCtx) return;
+  try {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = type || 'square'; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol || 0.08, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + dur);
+  } catch (e) {}
+}
+
+// ── Scene ──────────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f0f1a);
+scene.fog = new THREE.Fog(0x0f0f1a, 6, 85);
+
+const camera = new THREE.PerspectiveCamera(80, innerWidth / innerHeight, 0.1, 200);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+scene.add(new THREE.AmbientLight(0x223355, 1.4));
+const camLight = new THREE.PointLight(0x66aaff, 10, 26, 1.6);
+scene.add(camLight);
+
+// ── Themes ─────────────────────────────────────────────────────────────────
+const THEMES = [
+  { grid: 0x1de9ff, ring: 0x0090ff, bar: 0xff2d78, wire: 0xffe14f },
+  { grid: 0xb14bff, ring: 0x7a2bff, bar: 0x2dffb5, wire: 0xff9d2d },
+  { grid: 0x2dff6b, ring: 0x00c060, bar: 0xff7a2d, wire: 0x4fd9ff },
+  { grid: 0xffd12d, ring: 0xff8800, bar: 0x2d9bff, wire: 0xff4fd8 },
+  { grid: 0xff4f6b, ring: 0xd12dff, bar: 0x3fffd9, wire: 0xf0ffff },
+];
+let themeIdx = 0;
+const gridMat = new THREE.LineBasicMaterial({ color: THEMES[0].grid, transparent: true, opacity: 0.8 });
+const ringMat = new THREE.MeshBasicMaterial({ color: THEMES[0].ring });
+const barMat = new THREE.MeshStandardMaterial({
+  color: 0x180a22, emissive: new THREE.Color(THEMES[0].bar), emissiveIntensity: 1.2,
+  side: THREE.DoubleSide, roughness: 0.5, metalness: 0.1
+});
+const barWireMat = new THREE.MeshBasicMaterial({ color: THEMES[0].wire, wireframe: true, transparent: true, opacity: 0.45 });
+const rimMat = new THREE.MeshBasicMaterial({ color: THEMES[0].bar });
+const dotMat = new THREE.PointsMaterial({ color: 0xaaeeff, size: 0.09, sizeAttenuation: true, transparent: true, opacity: 0.85 });
+const themeTargets = {
+  grid: new THREE.Color(THEMES[0].grid), ring: new THREE.Color(THEMES[0].ring),
+  bar: new THREE.Color(THEMES[0].bar), wire: new THREE.Color(THEMES[0].wire)
+};
+function setTheme(i) {
+  themeIdx = i % THEMES.length;
+  const t = THEMES[themeIdx];
+  themeTargets.grid.setHex(t.grid); themeTargets.ring.setHex(t.ring);
+  themeTargets.bar.setHex(t.bar); themeTargets.wire.setHex(t.wire);
+}
+
+// ── Tube rings (recycled) ──────────────────────────────────────────────────
+const ringGeo = new THREE.TorusGeometry(R, 0.035, 6, 40);
+const rings = [];
+for (let i = 0; i < NRINGS; i++) {
+  const m = new THREE.Mesh(ringGeo, ringMat);
+  m.frustumCulled = false;
+  const lg = new THREE.BufferGeometry();
+  lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(24 * 3), 3));
+  const ls = new THREE.LineSegments(lg, gridMat);
+  ls.frustumCulled = false;
+  scene.add(m); scene.add(ls);
+  rings.push({ m, ls, z: 0 });
+}
+function placeRing(r, z) {
+  r.z = z;
+  const cx = pathX(z), cy = pathY(z), cx2 = pathX(z - SEG), cy2 = pathY(z - SEG);
+  r.m.position.set(cx, cy, z);
+  const a = r.ls.geometry.attributes.position.array;
+  let p = 0;
+  for (let k = 0; k < 12; k++) {
+    const an = k / 12 * Math.PI * 2, ca = Math.cos(an) * R, sa = Math.sin(an) * R;
+    a[p++] = cx + ca; a[p++] = cy + sa; a[p++] = z;
+    a[p++] = cx2 + ca; a[p++] = cy2 + sa; a[p++] = z - SEG;
+  }
+  r.ls.geometry.attributes.position.needsUpdate = true;
+}
+
+// ── Speed dots ─────────────────────────────────────────────────────────────
+const NDOTS = 170;
+const dotGeo = new THREE.BufferGeometry();
+const dotPos = new Float32Array(NDOTS * 3);
+dotGeo.setAttribute('position', new THREE.BufferAttribute(dotPos, 3));
+const dots = new THREE.Points(dotGeo, dotMat);
+dots.frustumCulled = false;
+scene.add(dots);
+function placeDot(i, z) {
+  const an = Math.random() * Math.PI * 2, rr = R * (0.55 + Math.random() * 0.4);
+  dotPos[i * 3] = pathX(z) + Math.cos(an) * rr;
+  dotPos[i * 3 + 1] = pathY(z) + Math.sin(an) * rr;
+  dotPos[i * 3 + 2] = z;
+}
+
+// ── Player pod + trail ─────────────────────────────────────────────────────
+const pod = new THREE.Group();
+const podCore = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+const podGlow = new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 12),
+  new THREE.MeshBasicMaterial({ color: 0x55eaff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
+const podLight = new THREE.PointLight(0x88eaff, 9, 12, 1.6);
+pod.add(podCore); pod.add(podGlow); pod.add(podLight);
+scene.add(pod);
+const TRAIL_N = 10;
+const trail = [];
+for (let i = 0; i < TRAIL_N; i++) {
+  const s = 0.13 * (1 - i / TRAIL_N);
+  const t = new THREE.Mesh(new THREE.SphereGeometry(Math.max(s, 0.03), 8, 6),
+    new THREE.MeshBasicMaterial({ color: 0x4fd9ff, transparent: true, opacity: 0.5 * (1 - i / TRAIL_N), depthWrite: false }));
+  scene.add(t);
+  trail.push(t);
+}
+
+// ── Sparks pool ────────────────────────────────────────────────────────────
+const sparks = [];
+const sparkGeo = new THREE.BoxGeometry(0.09, 0.09, 0.09);
+for (let i = 0; i < 60; i++) {
+  const m = new THREE.Mesh(sparkGeo, new THREE.MeshBasicMaterial({ color: 0xffe14f, transparent: true, opacity: 1 }));
+  m.visible = false;
+  scene.add(m);
+  sparks.push({ m, vel: new THREE.Vector3(), life: 0 });
+}
+function burst(pos, color, n, spd) {
+  let c = 0;
+  for (const s of sparks) {
+    if (s.life > 0) continue;
+    s.life = 0.5 + Math.random() * 0.4;
+    s.m.visible = true;
+    s.m.material.color.setHex(color);
+    s.m.material.opacity = 1;
+    s.m.position.copy(pos);
+    s.vel.set((Math.random() - 0.5) * spd, (Math.random() - 0.5) * spd, (Math.random() - 0.5) * spd + 4);
+    if (++c >= n) break;
+  }
+}
+
+// ── Barriers ───────────────────────────────────────────────────────────────
+const rimGeo = new THREE.TorusGeometry(R - 0.05, 0.06, 6, 44);
+let barriers = [];
+let nextBarZ = -55;
+let spawned = 0;
+function spawnBarrier(z) {
+  const gap = Math.max(0.78, 1.62 - spawned * 0.022);
+  const geo = new THREE.RingGeometry(1.0, R - 0.08, 48, 1, gap / 2, Math.PI * 2 - gap);
+  const g = new THREE.Group();
+  const solid = new THREE.Mesh(geo, barMat);
+  const wire = new THREE.Mesh(geo, barWireMat);
+  wire.position.z = 0.01;
+  const rim = new THREE.Mesh(rimGeo, rimMat);
+  g.add(solid); g.add(wire); g.add(rim);
+  g.position.set(pathX(z), pathY(z), z);
+  g.rotation.z = Math.random() * Math.PI * 2;
+  let spin = 0;
+  if (spawned > 11 && Math.random() < Math.min(0.7, (spawned - 11) * 0.06)) {
+    spin = (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.min(0.85, spawned * 0.012));
+  }
+  scene.add(g);
+  barriers.push({ z, gap, spin, group: g, geo, passed: false });
+  spawned++;
+}
+
+// ── Game state ─────────────────────────────────────────────────────────────
+let state = 'menu';       // menu | play | over
+let camZ = 0, dist = 0, gatesPassed = 0, bonus = 0;
+let theta = -Math.PI / 2, thetaCam = -Math.PI / 2;
+let speed = 12;
+let shake = 0;
+const keys = {};
+
+function reset() {
+  camZ = 0; dist = 0; gatesPassed = 0; bonus = 0; spawned = 0;
+  theta = -Math.PI / 2; thetaCam = theta;
+  setTheme(0);
+  for (const b of barriers) { scene.remove(b.group); b.geo.dispose(); }
+  barriers = [];
+  nextBarZ = -55;
+  for (let i = 0; i < NRINGS; i++) placeRing(rings[i], -i * SEG + 6);
+  for (let i = 0; i < NDOTS; i++) placeDot(i, 6 - Math.random() * TUBELEN);
+  dotGeo.attributes.position.needsUpdate = true;
+  for (const t of trail) t.position.set(pathX(-6) + Math.cos(theta) * PLAYER_R, pathY(-6) + Math.sin(theta) * PLAYER_R, -6);
+}
+reset();
+
+const overlay = document.getElementById('overlay');
+const msgEl = document.getElementById('msg');
+let msgTimer = null;
+function showMsg(txt) {
+  msgEl.textContent = txt;
+  msgEl.classList.add('show');
+  clearTimeout(msgTimer);
+  msgTimer = setTimeout(() => msgEl.classList.remove('show'), 900);
+}
+
+function startGame() {
+  reset();
+  state = 'play';
+  overlay.classList.add('hidden');
+  blip(660, 0.12, 'square', 0.06);
+}
+
+function gameOver() {
+  state = 'over';
+  const score = Math.floor(dist) + bonus;
+  if (score > best) {
+    best = score;
+    localStorage.setItem(SLUG, String(best));
+    document.getElementById('best').textContent = best;
+  }
+  document.getElementById('flash').style.opacity = '0.55';
+  setTimeout(() => { document.getElementById('flash').style.opacity = '0'; }, 90);
+  burst(pod.position, 0xff3355, 30, 14);
+  shake = 1;
+  blip(120, 0.5, 'sawtooth', 0.12);
+  document.getElementById('ov-title').textContent = 'CRASHED!';
+  document.getElementById('ov-sub').innerHTML =
+    'Distance <b style="color:#ffe14f">' + Math.floor(dist) + 'm</b> + bonus ' + bonus +
+    ' &nbsp;→&nbsp; score <b style="color:#ffe14f">' + score + '</b><br>Gates cleared: ' + gatesPassed + ' · Best: ' + best;
+  document.getElementById('ov-hint').textContent = 'R / CLICK / ENTER to fly again';
+  setTimeout(() => overlay.classList.remove('hidden'), 550);
+}
+
+// ── Input ──────────────────────────────────────────────────────────────────
+addEventListener('keydown', e => {
+  initAudio();
+  keys[e.code] = true;
+  if (e.code === 'Space' || e.code === 'Enter') {
+    e.preventDefault();
+    if (state !== 'play') startGame();
+  }
+  if (e.code === 'KeyR' && state === 'over') startGame();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+
+let dragging = false, lastPX = 0;
+renderer.domElement.addEventListener('pointerdown', e => {
+  initAudio();
+  dragging = true; lastPX = e.clientX;
+});
+addEventListener('pointermove', e => {
+  if (dragging && state === 'play') {
+    theta += (e.clientX - lastPX) * 0.0085;
+  }
+  lastPX = e.clientX;
+});
+addEventListener('pointerup', () => { dragging = false; });
+overlay.addEventListener('pointerdown', e => {
+  initAudio();
+  e.stopPropagation();
+  startGame();
+});
+
+// ── Loop ───────────────────────────────────────────────────────────────────
+const _v = new THREE.Vector3();
+let lastT = 0;
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const t = ts / 1000;
+  const dt = Math.min((ts - lastT) / 1000, 0.05);
+  lastT = ts;
+
+  // speed / motion
+  if (state === 'play') {
+    speed = Math.min(40, 13 + gatesPassed * 0.55 + dist * 0.004);
+  } else {
+    speed = state === 'menu' ? 11 : Math.max(0, speed - 30 * dt);
+  }
+  camZ -= speed * dt;
+  if (state === 'play') dist += speed * dt;
+
+  // steering
+  if (state === 'play') {
+    const sSpd = 3.4;
+    if (keys['ArrowLeft'] || keys['KeyA']) theta -= sSpd * dt;
+    if (keys['ArrowRight'] || keys['KeyD']) theta += sSpd * dt;
+  } else if (state === 'menu') {
+    // autopilot: aim at next gap
+    let target = null;
+    for (const b of barriers) { if (!b.passed && b.z < camZ - 6) { target = b; break; } }
+    if (target) {
+      const d = wrapPi(target.group.rotation.z - theta);
+      theta += Math.max(-2.6 * dt, Math.min(2.6 * dt, d * 3 * dt + Math.sign(d) * 1.4 * dt));
+    }
+  }
+
+  // recycle rings + dots
+  for (const r of rings) if (r.z > camZ + 8) placeRing(r, r.z - TUBELEN);
+  let dotsDirty = false;
+  for (let i = 0; i < NDOTS; i++) {
+    if (dotPos[i * 3 + 2] > camZ + 3) { placeDot(i, dotPos[i * 3 + 2] - TUBELEN); dotsDirty = true; }
+  }
+  if (dotsDirty) dotGeo.attributes.position.needsUpdate = true;
+
+  // barriers: spawn / update / cull
+  const interval = Math.max(17, 26 - spawned * 0.22);
+  while (nextBarZ > camZ - 150) { spawnBarrier(nextBarZ); nextBarZ -= interval; }
+  const playerZ = camZ - 6;
+  for (let i = barriers.length - 1; i >= 0; i--) {
+    const b = barriers[i];
+    if (b.spin) b.group.rotation.z += b.spin * dt;
+    if (!b.passed && b.z > playerZ) {
+      b.passed = true;
+      const diff = wrapPi(theta - b.group.rotation.z);
+      const half = b.gap / 2;
+      if (state === 'play') {
+        if (Math.abs(diff) < half - 0.13) {
+          gatesPassed++;
+          blip(440 + gatesPassed * 8, 0.07, 'square', 0.045);
+          if (Math.abs(diff) > half - 0.36) {
+            bonus += 25;
+            burst(pod.position, 0xffe14f, 12, 9);
+            showMsg('NEAR MISS +25');
+            shake = 0.5;
+            blip(980, 0.12, 'triangle', 0.07);
+          }
+          if (gatesPassed % 10 === 0) {
+            setTheme(themeIdx + 1);
+            showMsg('SECTOR ' + (Math.floor(gatesPassed / 10) + 1));
+            blip(760, 0.2, 'triangle', 0.06);
+          }
+        } else {
+          gameOver();
+        }
+      } else if (state === 'menu') {
+        b.passed = true;
+      }
+    }
+    if (b.z > camZ + 8) {
+      scene.remove(b.group); b.geo.dispose();
+      barriers.splice(i, 1);
+    }
+  }
+
+  // theme color lerp
+  const lerpK = 1 - Math.exp(-3.5 * dt);
+  gridMat.color.lerp(themeTargets.grid, lerpK);
+  ringMat.color.lerp(themeTargets.ring, lerpK);
+  barMat.emissive.lerp(themeTargets.bar, lerpK);
+  rimMat.color.lerp(themeTargets.bar, lerpK);
+  barWireMat.color.lerp(themeTargets.wire, lerpK);
+  camLight.color.copy(gridMat.color);
+
+  // player pod position
+  thetaCam += wrapPi(theta - thetaCam) * (1 - Math.exp(-10 * dt));
+  const px = pathX(playerZ) + Math.cos(theta) * PLAYER_R;
+  const py = pathY(playerZ) + Math.sin(theta) * PLAYER_R;
+  pod.position.set(px, py, playerZ);
+  podGlow.scale.setScalar(1 + Math.sin(t * 9) * 0.15);
+  // trail follows
+  _v.copy(pod.position);
+  for (const tr of trail) {
+    tr.position.lerp(_v, 1 - Math.exp(-16 * dt));
+    _v.copy(tr.position);
+  }
+
+  // sparks
+  for (const s of sparks) {
+    if (s.life <= 0) continue;
+    s.life -= dt;
+    s.m.position.addScaledVector(s.vel, dt);
+    s.m.rotation.x += 7 * dt; s.m.rotation.y += 9 * dt;
+    s.m.material.opacity = Math.max(0, s.life * 2);
+    if (s.life <= 0) s.m.visible = false;
+  }
+
+  // camera
+  shake = Math.max(0, shake - 3 * dt);
+  const shx = (Math.random() - 0.5) * shake * 0.4, shy = (Math.random() - 0.5) * shake * 0.4;
+  camera.up.set(-Math.cos(thetaCam), -Math.sin(thetaCam), 0);
+  camera.position.set(pathX(camZ) + shx, pathY(camZ) + shy, camZ);
+  camera.lookAt(pathX(camZ - 12), pathY(camZ - 12), camZ - 12);
+  camLight.position.set(pathX(camZ - 2), pathY(camZ - 2), camZ - 2);
+
+  // HUD
+  document.getElementById('dist').textContent = Math.floor(dist);
+  document.getElementById('gates').textContent = gatesPassed;
+  document.getElementById('spd').textContent = Math.round(speed);
+
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

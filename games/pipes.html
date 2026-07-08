@@ -36,7 +36,6 @@ function beep(f,d,type,v,f2){if(!actx)return;try{const t=actx.currentTime,o=actx
 /* ---- directions: N=1 E=2 S=4 W=8 (bit i = 1<<i) ---- */
 const DX=[0,1,0,-1],DY=[-1,0,1,0];
 const bit=d=>1<<d,opp=d=>(d+2)%4;
-const rotMask=(m,r)=>(((m<<r)|(m>>(4-r)))&15)||m&&(((m<<r)|(m>>(4-r)))&15);
 function rmask(m,r){r&=3;if(r===0)return m;return ((m<<r)|(m>>(4-r)))&15;}
 const bits=m=>((m&1)?1:0)+((m&2)?1:0)+((m&4)?1:0)+((m&8)?1:0);
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=ri(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;}
@@ -49,8 +48,8 @@ const step=(i,d)=>{const c=i%cols,r=(i/cols)|0,nc=c+DX[d],nr=r+DY[d];return(nc<0
 /* ---- generation (always solvable: carve real path, add loops, scramble) ---- */
 function genLevel(ln){
  const c=Math.min(12,5+Math.floor((ln-1)*0.9)),r=Math.min(8,4+Math.floor((ln-1)*0.55));
- for(let att=0;att<80;att++){const g=carve(c,r,ln);if(g)return g;}
- return carve(5,4,1); // ultra fallback
+ for(let att=0;att<120;att++){const g=carve(c,r,ln);if(g)return g;}
+ for(;;){const g=carve(5,4,1);if(g)return g;} // fallback: tiny grid always carvable
 }
 function carve(c,r,ln){
  const N=c*r,mask=new Array(N).fill(0),bridge=new Array(N).fill(false);
@@ -116,8 +115,8 @@ function carve(c,r,ln){
 function loadLevel(ln){
  const g=genLevel(ln);cols=g.cols;rows=g.rows;tiles=g.tiles;src=g.src;drain=g.drain;
  ts=Math.min(58,Math.floor(720/cols),Math.floor(396/rows));
- ox=Math.floor((W-cols*ts)/2);oy=54+Math.floor((H-54-cols>0?H-60-rows*ts:0)/2);
- oy=54+Math.max(6,Math.floor((H-60-rows*ts)/2));
+ ox=Math.floor((W-cols*ts)/2);
+ oy=54+Math.max(6,Math.floor((H-78-rows*ts)/2));
  timerMax=Math.round(18+cols*rows*0.75);timer=timerMax;
  state='edit';flowFront=0;lives=3;parts=[];
  for(const tl of tiles){tl.vr=tl.rot*90;tl.fill=null;}
@@ -149,7 +148,7 @@ function simulate(){
    q.push({cell:n,dirIn:e,depth:depth+1});}}
  return{events,leaks,drainDepth:dReach,maxDepth:mx};
 }
-function startFlow(bonusTime){
+function startFlow(){
  const sim=simulate();
  flowEvents=sim.events;flowLeaks=sim.leaks;drainDepth=sim.drainDepth;maxDepth=sim.maxDepth;
  for(const t of tiles)t.fill=null;

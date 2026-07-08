@@ -174,7 +174,7 @@ const BODIES = [
 const bodies = [];      // {data, mesh, pivot, angle, labelSprite}
 const clickable = [];
 
-function labelSprite(text) {
+function labelSprite(text, width) {
   const c = document.createElement('canvas');
   c.width = 256; c.height = 64;
   const g = c.getContext('2d');
@@ -186,7 +186,7 @@ function labelSprite(text) {
   const t = new THREE.CanvasTexture(c);
   const m = new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false });
   const sp = new THREE.Sprite(m);
-  sp.scale.set(7, 1.75, 1);
+  sp.scale.set(width, width / 4, 1);
   return sp;
 }
 
@@ -238,9 +238,9 @@ BODIES.forEach((d, bi) => {
     mesh.add(ring);
   }
 
-  // label
-  const lab = labelSprite(d.name);
-  lab.position.y = d.size + 1.6;
+  // label (scaled to the body so it doesn't dwarf small planets when focused)
+  const lab = labelSprite(d.name, Math.min(7, 3.0 + d.size * 1.0));
+  lab.position.y = d.size + 1.4;
   mesh.add(lab);
 
   // moons
@@ -421,7 +421,8 @@ function loop(ts) {
     }
     b.mesh.rotation.y += b.spinRate * dt * (0.4 + timeScale * 0.25);
     b.moons.forEach(mo => {
-      mo.angle += (Math.PI * 2 / mo.data.period) * simDays * 0.35 + dt * 0.25;
+      // clamp per-frame step so fast moons don't strobe at high time-scale
+      mo.angle += Math.min(0.6, (Math.PI * 2 / mo.data.period) * simDays * 0.35) + dt * 0.25;
       mo.mesh.position.set(
         b.mesh.position.x + Math.cos(mo.angle) * mo.data.dist,
         b.mesh.position.y + Math.sin(mo.angle * 0.7) * 0.3,

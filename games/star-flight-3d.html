@@ -143,7 +143,7 @@ const nebulae = [];
 [['#7722ff', -60, 25, -180, 190], ['#2266ff', 70, -20, -200, 230], ['#ff2299', 10, 45, -220, 170], ['#00ccaa', -80, -35, -210, 150]]
   .forEach(([col, x, y, z, s]) => {
     const mat = new THREE.SpriteMaterial({
-      map: nebulaTexture(col), transparent: true, opacity: 0.5, depthWrite: false
+      map: nebulaTexture(col), transparent: true, opacity: 0.5, depthWrite: false, fog: false
     });
     const sp = new THREE.Sprite(mat);
     sp.position.set(x, y, z);
@@ -163,7 +163,7 @@ for (let i = 0; i < STARS; i++) {
 }
 starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
 const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
-  color: 0xbaccff, size: 0.35, sizeAttenuation: true, transparent: true, opacity: 0.9
+  color: 0xbaccff, size: 0.35, sizeAttenuation: true, transparent: true, opacity: 0.9, fog: false
 }));
 scene.add(stars);
 

@@ -351,8 +351,7 @@ function draw(){
   }
   ctx.globalAlpha=1;
 
-  if(state!=='gameover')drawShip(ship.x,ship.y,state==='title'?0:1);
-  if(state==='title')drawShip(ship.x,ship.y,1);
+  if(state!=='gameover')drawShip(ship.x,ship.y,1);
 
   for(const p of popups){
     ctx.fillStyle=p.color;

@@ -174,7 +174,6 @@ function update(dt){
       arrow.trail.push({x:arrow.x,y:arrow.y,t:0.5});
       /* target plane crossing */
       if(px<target.x&&arrow.x>=target.x&&arrow.vx>0){
-        const f=(target.x-px)/(arrow.x-px);
         const yAt=arrow.y-(arrow.x-target.x)*(arrow.vy/arrow.vx);
         const dy=yAt-target.cy;
         if(Math.abs(dy)<=target.R){
@@ -185,12 +184,13 @@ function update(dt){
         }
       }
       if(arrow&&arrow.y>=GROUND){
-        groundArrows.push({x:arrow.x,y:GROUND,a:Math.atan2(arrow.vy,arrow.vx)});
+        const ax=arrow.x;
+        groundArrows.push({x:ax,y:GROUND,a:Math.atan2(arrow.vy,arrow.vx)});
         if(groundArrows.length>14)groundArrows.shift();
         arrow=null;
         streak=0;
         lastResult='MISS';
-        popups.push({x:clamp(arrow===null?target.x:arrow.x,60,W-60),y:GROUND-24,text:'MISS',t:1.2,color:'#94a3b8'});
+        popups.push({x:clamp(ax,60,W-60),y:GROUND-24,text:'MISS',t:1.2,color:'#94a3b8'});
         sfx(120,0.15,'sine',0.1,-40);
         endShot();
         break;
@@ -398,7 +398,7 @@ function draw(){
 
   /* aiming */
   let aimAngle=-0.5,pull=0;
-  const av=(state==='aim')?aimVector():null;
+  const av=(state==='aim'&&(drag||kb.active))?aimVector():null;
   if(av){
     aimAngle=Math.atan2(av.vy,av.vx);
     pull=av.p;

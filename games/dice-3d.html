@@ -308,7 +308,7 @@ function restDice() {
     d.settled = true; d.settling = false;
     d.value = topValue(d.mesh.quaternion);
   });
-  showTotal();
+  showTotal(false); // arranged, not rolled — don't record a best
 }
 
 function roll() {
@@ -333,14 +333,14 @@ function roll() {
   });
 }
 
-function showTotal() {
+function showTotal(recordBest = true) {
   const vals = dice.map(d => d.value);
   const total = vals.reduce((a, b) => a + b, 0);
   document.getElementById('total-main').textContent = 'TOTAL  ' + total;
   document.getElementById('total-sub').textContent =
     vals.length > 1 ? vals.join(' + ') + ' = ' + total : '';
   document.getElementById('total').classList.add('show');
-  if (total > best) {
+  if (recordBest && total > best) {
     best = total;
     localStorage.setItem(SLUG, String(best));
     document.getElementById('best').textContent = best;

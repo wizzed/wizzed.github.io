@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bridges — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --neon: #38bdf8; --gold: #ffd166; --bad: #ff3d68; --good: #4dff9e; }
+  html, body { height: 100%; }
+  body {
+    background: #0f0f1a;
+    background-image: radial-gradient(ellipse at 50% -10%, rgba(56,189,248,.10), transparent 60%);
+    color: #d6f0ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 6px 10px 18px;
+    user-select: none; -webkit-user-select: none; overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px; z-index: 60;
+    color: #8a8ab5; text-decoration: none; font-size: 13px;
+    padding: 4px 9px; border: 1px solid #2a2a4a; border-radius: 6px;
+    background: rgba(15,15,26,.8);
+  }
+  a.back:hover { color: var(--neon); border-color: var(--neon); }
+  h1 {
+    margin: 6px 0 0; font-size: clamp(18px, 4.6vmin, 28px); letter-spacing: 6px;
+    color: var(--neon); text-shadow: 0 0 8px var(--neon), 0 0 26px rgba(56,189,248,.45);
+  }
+  .sub { color: #5b9ec0; font-size: 10px; letter-spacing: 3px; margin: 2px 0 6px; }
+  .hud { display: flex; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; justify-content: center; align-items: center; }
+  .stat {
+    background: #0e2231; border: 2px solid #234a5e; border-radius: 8px;
+    padding: 3px 12px; min-width: 78px; text-align: center;
+  }
+  .stat .lbl { display: block; font-size: 9px; letter-spacing: 2px; color: #5b9ec0; }
+  .stat .val { display: block; font-size: 16px; font-weight: bold; color: var(--neon); text-shadow: 0 0 6px rgba(56,189,248,.7); }
+  .stat.gold .val { color: var(--gold); }
+  #wrap { position: relative; width: min(94vw, 560px); }
+  canvas {
+    display: block; width: 100%; height: auto;
+    background: radial-gradient(circle at 50% 40%, #0d1826 0%, #0a0d15 82%);
+    border: 3px solid var(--neon); border-radius: 12px;
+    box-shadow: 0 0 18px rgba(56,189,248,.32), 0 0 60px rgba(56,189,248,.08), inset 0 0 30px rgba(0,0,0,.7);
+    touch-action: none; cursor: pointer;
+  }
+  .controls { display: flex; gap: 8px; margin-top: 9px; flex-wrap: wrap; justify-content: center; }
+  button.act {
+    font-family: inherit; font-size: 12px; font-weight: bold; letter-spacing: 1px;
+    color: var(--neon); background: #0e2231; border: 2px solid var(--neon); border-radius: 8px;
+    padding: 7px 13px; cursor: pointer; box-shadow: 0 0 10px rgba(56,189,248,.22);
+  }
+  button.act:hover { background: #143246; }
+  button.act:active { transform: translateY(1px); }
+  button.act.on { background: var(--neon); color: #04121c; }
+  .tip { margin-top: 9px; color: #4d7a8a; font-size: 11px; letter-spacing: 1px; text-align: center; max-width: 480px; }
+  .overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(8,8,16,.86); backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .overlay.hidden { display: none; }
+  .panel {
+    background: #0e2231; border: 3px solid var(--neon); border-radius: 14px;
+    padding: 24px 32px; text-align: center; max-width: 90vw;
+    box-shadow: 0 0 30px rgba(56,189,248,.5), 0 0 90px rgba(56,189,248,.16);
+    animation: pop .3s cubic-bezier(.3,1.5,.5,1);
+  }
+  @keyframes pop { from { transform: scale(.7); opacity: 0; } }
+  .panel h2 { color: var(--good); letter-spacing: 4px; font-size: 24px; text-shadow: 0 0 12px var(--good); margin-bottom: 8px; }
+  .panel p { color: #cfeeff; margin: 5px 0; font-size: 14px; }
+  .panel button {
+    font-family: inherit; font-size: 13px; font-weight: bold; letter-spacing: 2px;
+    color: #04121c; background: var(--neon); border: none; border-radius: 8px;
+    padding: 9px 20px; cursor: pointer; margin: 14px 4px 0;
+    box-shadow: 0 0 16px rgba(56,189,248,.5);
+  }
+  .panel button.ghost { background: #0e2231; color: var(--neon); border: 2px solid var(--neon); }
+  .panel button:hover { filter: brightness(1.1); }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>BRIDGES</h1>
+<div class="sub">CONNECT THE ISLANDS · HASHIWOKAKERO</div>
+<div class="hud">
+  <div class="stat"><span class="lbl">PUZZLE</span><span class="val" id="hPuz">1/17</span></div>
+  <div class="stat"><span class="lbl">LEVEL</span><span class="val" id="hDiff">EASY</span></div>
+  <div class="stat gold"><span class="lbl">SOLVED</span><span class="val" id="hSolved">0</span></div>
+</div>
+<div id="wrap"><canvas id="cv" width="560" height="480"></canvas></div>
+<div class="controls">
+  <button class="act" id="btnPrev">◀ PREV</button>
+  <button class="act" id="btnErr">ERRORS: OFF</button>
+  <button class="act" id="btnClear">CLEAR</button>
+  <button class="act" id="btnNext">NEXT ▶</button>
+</div>
+<div class="tip">Drag (or click) between two islands to lay a bridge. Click again for a double bridge, once more to remove. Each island's number = bridges touching it. Bridges never cross; all islands must join into one network.</div>
+<div class="overlay hidden" id="ovl">
+  <div class="panel">
+    <h2>SOLVED!</h2>
+    <p id="ovlInfo"></p>
+    <button class="ghost" id="btnReplay">REPLAY</button>
+    <button id="btnAdvance">NEXT PUZZLE →</button>
+  </div>
+</div>
+<script>
+(function(){
+'use strict';
+var LS_KEY = 'wizzed-bridges';
+var PUZZLES = [{"d":"easy","w":6,"h":7,"i":[[3,2,7],[3,0,2],[3,6,2],[1,2,4],[5,2,2],[1,6,3]],"s":[[0,1,2],[0,2,1],[0,3,2],[0,4,2],[2,5,1],[3,5,2]]},{"d":"easy","w":6,"h":6,"i":[[1,2,4],[1,4,2],[5,2,2],[1,0,1],[5,5,1]],"s":[[0,1,2],[0,2,1],[0,3,1],[2,4,1]]},{"d":"easy","w":7,"h":7,"i":[[0,1,2],[2,1,4],[0,6,2],[4,1,1],[2,4,4],[3,6,2],[3,4,3]],"s":[[0,1,1],[0,2,1],[1,3,1],[1,4,2],[2,5,1],[5,6,1],[4,6,2]]},{"d":"easy","w":7,"h":7,"i":[[3,4,3],[0,4,2],[5,4,4],[5,1,1],[3,2,1],[5,6,4],[0,6,3]],"s":[[0,1,1],[0,2,1],[2,3,1],[0,4,1],[2,5,2],[5,6,2],[1,6,1]]},{"d":"easy","w":6,"h":7,"i":[[0,2,3],[2,2,5],[2,6,6],[0,6,4],[4,6,4],[4,3,4],[4,2,4]],"s":[[0,1,1],[1,2,2],[0,3,2],[2,4,2],[4,5,2],[1,6,2],[2,3,2],[5,6,2]]},{"d":"easy","w":7,"h":7,"i":[[2,2,3],[6,2,4],[6,0,2],[0,2,2],[6,4,4],[1,0,1],[3,4,2]],"s":[[0,1,1],[1,2,1],[0,3,2],[1,4,2],[2,5,1],[4,6,2]]},{"d":"medium","w":9,"h":7,"i":[[1,1,3],[1,5,3],[5,1,4],[5,5,5],[2,5,5],[2,2,2],[7,5,3],[7,2,3],[7,0,2],[4,2,1],[4,0,1]],"s":[[0,1,1],[0,2,2],[2,3,2],[3,4,2],[4,5,1],[3,6,1],[6,7,2],[7,8,1],[5,9,1],[8,10,1],[1,4,2]]},{"d":"medium","w":8,"h":7,"i":[[6,4,5],[6,0,3],[1,0,3],[1,4,4],[1,1,4],[4,1,2],[6,6,4],[3,6,4],[4,3,1],[0,6,3],[0,4,3]],"s":[[0,1,2],[1,2,1],[0,3,1],[3,4,1],[4,5,1],[0,6,2],[6,7,2],[5,8,1],[7,9,2],[9,10,1],[3,10,2],[2,4,2]]},{"d":"medium","w":9,"h":7,"i":[[3,0,3],[8,0,2],[8,3,2],[5,3,3],[0,3,2],[0,0,2],[2,0,5],[2,2,3],[7,2,1],[5,6,1]],"s":[[0,1,1],[1,2,1],[2,3,1],[3,4,1],[4,5,1],[5,6,1],[6,7,2],[7,8,1],[3,9,1],[0,6,2]]},{"d":"medium","w":8,"h":7,"i":[[4,5,5],[4,0,3],[6,5,3],[6,0,2],[1,5,5],[2,0,3],[1,2,3],[2,2,4],[0,0,2],[0,5,3],[2,4,1]],"s":[[0,1,1],[0,2,2],[2,3,1],[0,4,2],[1,5,1],[4,6,1],[5,7,1],[5,8,1],[8,9,1],[7,10,1],[1,3,1],[6,7,2],[4,9,2]]},{"d":"medium","w":8,"h":8,"i":[[4,0,4],[7,0,3],[7,4,3],[0,0,3],[4,4,7],[0,4,2],[5,4,3],[3,4,3],[4,7,2]],"s":[[0,1,1],[1,2,2],[0,3,2],[0,4,1],[3,5,1],[2,6,1],[5,7,1],[4,8,2],[4,7,2],[4,6,2]]},{"d":"medium","w":8,"h":7,"i":[[3,4,4],[3,1,3],[0,1,2],[0,3,1],[1,4,2],[6,1,1],[7,4,2],[7,0,1]],"s":[[0,1,1],[1,2,1],[2,3,1],[0,4,2],[1,5,1],[0,6,1],[6,7,1]]},{"d":"hard","w":11,"h":9,"i":[[6,6,3],[8,6,3],[6,3,3],[6,0,2],[2,3,5],[2,6,5],[8,8,3],[0,3,2],[1,0,1],[4,6,3],[10,6,1],[2,8,3]],"s":[[0,1,1],[0,2,1],[2,3,1],[2,4,1],[4,5,2],[1,6,1],[4,7,2],[3,8,1],[0,9,1],[1,10,1],[5,11,1],[5,9,2],[6,11,2]]},{"d":"hard","w":11,"h":8,"i":[[10,4,5],[10,1,3],[5,1,3],[0,1,2],[10,7,4],[5,5,5],[0,5,4],[7,5,4],[0,4,5],[8,4,3],[7,3,2],[6,7,4],[8,2,2],[3,7,3],[1,7,1],[3,4,2]],"s":[[0,1,2],[1,2,1],[2,3,1],[0,4,2],[2,5,1],[5,6,2],[5,7,2],[3,8,1],[0,9,1],[7,10,2],[4,11,2],[9,12,2],[11,13,2],[13,14,1],[8,15,2],[6,8,2]]},{"d":"hard","w":11,"h":8,"i":[[4,0,4],[7,0,4],[0,0,3],[0,3,4],[7,5,3],[0,5,4],[10,0,1],[4,3,4],[3,5,2],[5,5,4],[0,7,1],[5,3,4]],"s":[[0,1,1],[0,2,2],[2,3,1],[1,4,2],[3,5,2],[1,6,1],[3,7,1],[5,8,1],[4,9,1],[5,10,1],[9,11,2],[0,7,1],[7,11,2],[8,9,1]]},{"d":"hard","w":9,"h":8,"i":[[2,5,4],[2,2,4],[4,5,5],[0,2,4],[7,5,4],[4,0,5],[6,0,4],[0,7,2],[2,7,3],[5,7,2],[7,1,1],[7,7,3],[8,0,1],[2,0,3],[0,0,2],[6,2,1]],"s":[[0,1,1],[0,2,2],[1,3,2],[2,4,1],[2,5,2],[5,6,2],[3,7,1],[0,8,1],[8,9,1],[4,10,1],[4,11,2],[6,12,1],[5,13,1],[13,14,1],[6,15,1],[9,11,1],[1,13,1],[7,8,1],[3,14,1]]},{"d":"hard","w":10,"h":8,"i":[[8,2,4],[8,7,3],[5,7,5],[5,2,6],[2,7,2],[2,3,5],[2,2,5],[5,0,3],[3,0,1],[8,0,2],[0,2,4],[0,3,4]],"s":[[0,1,1],[1,2,2],[2,3,2],[2,4,1],[4,5,1],[3,6,1],[3,7,1],[7,8,1],[0,9,1],[6,10,2],[5,11,2],[5,6,2],[10,11,2],[7,9,1],[0,3,2]]}];
+
+var canvas=document.getElementById('cv');
+var ctx=canvas.getContext('2d');
+var PAD=34, CELL=48;
+
+var store=loadStore();
+var idx=0;
+var puz, islands, edges, sel, dragFrom, dragPos, cols, rows, cell, ox, oy, W, H, solved;
+var showErr=false;
+
+function loadStore(){
+  try{ var v=JSON.parse(localStorage.getItem(LS_KEY)); if(v&&v.solved) return {solved:v.solved, last:v.last||0}; }catch(e){}
+  return {solved:{}, last:0};
+}
+function saveStore(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){} }
+
+function ekey(a,b){ return Math.min(a,b)+'-'+Math.max(a,b); }
+
+function loadPuzzle(k){
+  idx=(k+PUZZLES.length)%PUZZLES.length;
+  store.last=idx; saveStore();
+  puz=PUZZLES[idx];
+  cols=puz.w; rows=puz.h;
+  islands=puz.i.map(function(a){ return {c:a[0], r:a[1], n:a[2]}; });
+  edges={};
+  sel=-1; dragFrom=-1; dragPos=null; solved=false;
+  // fit cell so board <= ~500px wide
+  cell = Math.min(56, Math.floor(480/Math.max(cols,rows)));
+  cell = Math.max(cell, 34);
+  W = (cols-1)*cell + PAD*2;
+  H = (rows-1)*cell + PAD*2;
+  canvas.width=W; canvas.height=H;
+  var wrap=document.getElementById('wrap');
+  wrap.style.width='min(94vw, '+Math.min(W,560)+'px)';
+  updateHud();
+  hideOverlay();
+  draw();
+}
+function updateHud(){
+  document.getElementById('hPuz').textContent=(idx+1)+'/'+PUZZLES.length;
+  document.getElementById('hDiff').textContent=puz.d.toUpperCase();
+  document.getElementById('hSolved').textContent=Object.keys(store.solved).length;
+}
+
+/* ---------- geometry ---------- */
+function ix(i){ return ox + islands[i].c*cell; }
+function iy(i){ return oy + islands[i].r*cell; }
+function computeOffset(){ ox=PAD; oy=PAD; }
+
+function islandAtPix(px,py){
+  computeOffset();
+  var rad=cell*0.36;
+  for(var i=0;i<islands.length;i++){
+    var dx=px-ix(i), dy=py-iy(i);
+    if(dx*dx+dy*dy <= (rad+6)*(rad+6)) return i;
+  }
+  return -1;
+}
+// neighbor in the direction from a toward b if aligned & b is first island
+function isNeighbor(a,b){
+  var A=islands[a], B=islands[b];
+  if(A.c===B.c){
+    var step=B.r>A.r?1:-1;
+    for(var r=A.r+step; r!==B.r; r+=step){
+      for(var k=0;k<islands.length;k++){ if(islands[k].c===A.c && islands[k].r===r) return false; }
+    }
+    return true;
+  } else if(A.r===B.r){
+    var step2=B.c>A.c?1:-1;
+    for(var c=A.c+step2; c!==B.c; c+=step2){
+      for(var k2=0;k2<islands.length;k2++){ if(islands[k2].r===A.r && islands[k2].c===c) return false; }
+    }
+    return true;
+  }
+  return false;
+}
+function segOf(a,b){
+  var A=islands[a], B=islands[b];
+  if(A.r===B.r) return {horiz:true, y:A.r, x1:Math.min(A.c,B.c), x2:Math.max(A.c,B.c)};
+  return {horiz:false, x:A.c, y1:Math.min(A.r,B.r), y2:Math.max(A.r,B.r)};
+}
+// would new bridge a-b cross an existing perpendicular bridge?
+function wouldCross(a,b){
+  var s=segOf(a,b);
+  var keys=Object.keys(edges);
+  for(var i=0;i<keys.length;i++){
+    if(edges[keys[i]]<=0) continue;
+    var p=keys[i].split('-'); var ea=+p[0], eb=+p[1];
+    if(ea===a||ea===b||eb===a||eb===b) continue;
+    var t=segOf(ea,eb);
+    if(s.horiz && !t.horiz){
+      if(t.x>s.x1 && t.x<s.x2 && s.y>t.y1 && s.y<t.y2) return true;
+    } else if(!s.horiz && t.horiz){
+      if(s.x>t.x1 && s.x<t.x2 && t.y>s.y1 && t.y<s.y2) return true;
+    }
+  }
+  return false;
+}
+function connectable(a,b){
+  if(a===b) return false;
+  var A=islands[a], B=islands[b];
+  if(A.c!==B.c && A.r!==B.r) return false;
+  if(!isNeighbor(a,b)) return false;
+  return true;
+}
+
+function applyBridge(a,b){
+  if(!connectable(a,b)){ beep(140,.08,'sawtooth',.03); return; }
+  var k=ekey(a,b);
+  var cur=edges[k]||0;
+  if(cur===0 && wouldCross(a,b)){ beep(140,.1,'sawtooth',.04); flashBad=8; return; }
+  var next=(cur+1)%3;
+  if(next===0) delete edges[k]; else edges[k]=next;
+  beep(next===0?260:(420+next*90),.06,'square',.035);
+  checkWin();
+  draw();
+}
+
+/* ---------- validate / win ---------- */
+function counts(){
+  var c=new Array(islands.length).fill(0);
+  Object.keys(edges).forEach(function(k){
+    var v=edges[k]; if(v<=0) return;
+    var p=k.split('-'); c[+p[0]]+=v; c[+p[1]]+=v;
+  });
+  return c;
+}
+function isConnected(){
+  var n=islands.length;
+  var adj=[]; for(var i=0;i<n;i++) adj.push([]);
+  Object.keys(edges).forEach(function(k){ if(edges[k]<=0) return; var p=k.split('-'); adj[+p[0]].push(+p[1]); adj[+p[1]].push(+p[0]); });
+  var seen=new Array(n).fill(false), st=[0], cnt=0; seen[0]=true;
+  while(st.length){ var v=st.pop(); cnt++; adj[v].forEach(function(w){ if(!seen[w]){seen[w]=true; st.push(w);} }); }
+  return cnt===n;
+}
+function checkWin(){
+  var c=counts();
+  for(var i=0;i<islands.length;i++){ if(c[i]!==islands[i].n) return; }
+  if(!isConnected()) return;
+  solved=true;
+  if(!store.solved[idx]){ store.solved[idx]=1; saveStore(); }
+  updateHud();
+  [523,659,784,1047].forEach(function(f,i){ setTimeout(function(){ beep(f,.2,'triangle',.06); }, i*110); });
+  document.getElementById('ovlInfo').textContent = puz.d.toUpperCase()+' puzzle '+(idx+1)+' complete — '+islands.length+' islands linked!';
+  setTimeout(function(){ document.getElementById('ovl').classList.remove('hidden'); }, 350);
+}
+
+/* ---------- draw ---------- */
+var flashBad=0;
+function draw(){
+  computeOffset();
+  ctx.clearRect(0,0,W,H);
+  // grid dots
+  ctx.fillStyle='rgba(56,189,248,.07)';
+  for(var r=0;r<rows;r++) for(var c=0;c<cols;c++){ ctx.beginPath(); ctx.arc(ox+c*cell, oy+r*cell, 1.5, 0, Math.PI*2); ctx.fill(); }
+  var cnt=counts();
+  // bridges
+  Object.keys(edges).forEach(function(k){
+    var v=edges[k]; if(v<=0) return;
+    var p=k.split('-'); var a=+p[0], b=+p[1];
+    drawBridge(a,b,v);
+  });
+  // drag preview
+  if(dragFrom>=0 && dragPos){
+    var j=islandAtPix(dragPos.x, dragPos.y);
+    ctx.save();
+    ctx.strokeStyle= (j>=0 && connectable(dragFrom,j) && !(( (edges[ekey(dragFrom,j)]||0)===0) && wouldCross(dragFrom,j)) ) ? 'rgba(77,255,158,.8)' : 'rgba(255,61,104,.7)';
+    ctx.lineWidth=4; ctx.setLineDash([7,6]);
+    ctx.beginPath(); ctx.moveTo(ix(dragFrom), iy(dragFrom)); ctx.lineTo(dragPos.x, dragPos.y); ctx.stroke();
+    ctx.restore();
+  }
+  // islands
+  var rad=cell*0.36;
+  for(var i=0;i<islands.length;i++){
+    var x=ix(i), y=iy(i);
+    var col='#38bdf8', ring='rgba(56,189,248,.9)';
+    if(showErr || solved){
+      if(cnt[i]===islands[i].n){ col='#4dff9e'; ring='rgba(77,255,158,.95)'; }
+      else if(cnt[i]>islands[i].n){ col='#ff3d68'; ring='rgba(255,61,104,.95)'; }
+    }
+    if(i===sel){ ctx.save(); ctx.strokeStyle='#ffd166'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(x,y,rad+5,0,Math.PI*2); ctx.stroke(); ctx.restore(); }
+    ctx.save();
+    var g=ctx.createRadialGradient(x-rad*0.3,y-rad*0.3,rad*0.2,x,y,rad);
+    g.addColorStop(0,'#12324a'); g.addColorStop(1,'#0a1a28');
+    ctx.fillStyle=g; ctx.shadowColor=ring; ctx.shadowBlur=12;
+    ctx.beginPath(); ctx.arc(x,y,rad,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0; ctx.lineWidth=3; ctx.strokeStyle=ring;
+    ctx.beginPath(); ctx.arc(x,y,rad,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle=col; ctx.font='bold '+Math.round(rad*1.05)+'px "Courier New",monospace';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(islands[i].n, x, y+1);
+    ctx.restore();
+  }
+  if(flashBad>0){ flashBad--; requestAnimationFrame(draw); }
+}
+function drawBridge(a,b,v){
+  var x1=ix(a), y1=iy(a), x2=ix(b), y2=iy(b);
+  var rad=cell*0.36;
+  // shorten to circle edges
+  var ang=Math.atan2(y2-y1,x2-x1);
+  var sx=x1+Math.cos(ang)*rad, sy=y1+Math.sin(ang)*rad;
+  var ex=x2-Math.cos(ang)*rad, ey=y2-Math.sin(ang)*rad;
+  var perp=ang+Math.PI/2;
+  var off = v===2 ? 3.5 : 0;
+  ctx.save();
+  ctx.strokeStyle='rgba(120,220,255,.9)'; ctx.lineWidth=3; ctx.lineCap='round';
+  ctx.shadowColor='rgba(56,189,248,.7)'; ctx.shadowBlur=8;
+  for(var s=(v===2?-1:0); s<=(v===2?1:0); s+=2){
+    var dx=Math.cos(perp)*off*s, dy=Math.sin(perp)*off*s;
+    ctx.beginPath(); ctx.moveTo(sx+dx,sy+dy); ctx.lineTo(ex+dx,ey+dy); ctx.stroke();
+    if(v!==2) break;
+  }
+  ctx.restore();
+}
+
+/* ---------- input ---------- */
+function evtPos(e){
+  var rect=canvas.getBoundingClientRect();
+  var cx=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+  var cy=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;
+  return { x:cx*(W/rect.width), y:cy*(H/rect.height) };
+}
+canvas.addEventListener('pointerdown', function(e){
+  ensureAudio();
+  if(solved) return;
+  var pos=evtPos(e);
+  var i=islandAtPix(pos.x,pos.y);
+  if(i<0){ sel=-1; dragFrom=-1; draw(); return; }
+  if(sel>=0 && sel!==i && connectable(sel,i)){
+    applyBridge(sel,i); sel=-1; dragFrom=-1;
+  } else {
+    sel=i; dragFrom=i; dragPos=pos; draw();
+  }
+});
+canvas.addEventListener('pointermove', function(e){
+  if(dragFrom<0) return;
+  dragPos=evtPos(e); draw();
+});
+canvas.addEventListener('pointerup', function(e){
+  if(dragFrom<0) return;
+  var pos=evtPos(e);
+  var j=islandAtPix(pos.x,pos.y);
+  if(j>=0 && j!==dragFrom && connectable(dragFrom,j)){
+    applyBridge(dragFrom,j); sel=-1;
+  }
+  dragFrom=-1; dragPos=null; draw();
+});
+canvas.addEventListener('pointercancel', function(){ dragFrom=-1; dragPos=null; draw(); });
+
+/* ---------- controls ---------- */
+document.getElementById('btnPrev').addEventListener('click', function(){ loadPuzzle(idx-1); });
+document.getElementById('btnNext').addEventListener('click', function(){ loadPuzzle(idx+1); });
+document.getElementById('btnClear').addEventListener('click', function(){ edges={}; sel=-1; solved=false; draw(); beep(200,.06,'square',.03); });
+document.getElementById('btnErr').addEventListener('click', function(){
+  showErr=!showErr;
+  this.textContent='ERRORS: '+(showErr?'ON':'OFF');
+  this.classList.toggle('on', showErr);
+  draw();
+});
+document.getElementById('btnReplay').addEventListener('click', function(){ loadPuzzle(idx); });
+document.getElementById('btnAdvance').addEventListener('click', function(){ loadPuzzle(idx+1); });
+function hideOverlay(){ document.getElementById('ovl').classList.add('hidden'); }
+
+/* ---------- audio ---------- */
+var actx=null;
+function ensureAudio(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(actx&&actx.state==='suspended') actx.resume(); }
+function beep(freq,dur,type,vol){
+  if(!actx) return;
+  var o=actx.createOscillator(), g=actx.createGain();
+  o.type=type||'square'; o.frequency.value=freq; g.gain.value=vol||.04;
+  o.connect(g); g.connect(actx.destination);
+  o.start(); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+dur);
+  o.stop(actx.currentTime+dur);
+}
+window.addEventListener('pointerdown', ensureAudio, { once:true });
+
+loadPuzzle(store.last||0);
+})();
+</script>
+</body>
+</html>

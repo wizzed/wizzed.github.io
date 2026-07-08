@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Melon Merge — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --neon: #ff8a3c; --gold: #ffd166; --bad: #ff3d68; }
+  html, body { height: 100%; }
+  body {
+    background: #0f0f1a;
+    background-image: radial-gradient(ellipse at 50% -10%, rgba(255,138,60,.10), transparent 60%);
+    color: #ffe8d6;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 6px 10px 18px;
+    user-select: none; -webkit-user-select: none; overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px; z-index: 60;
+    color: #8a8ab5; text-decoration: none; font-size: 13px;
+    padding: 4px 9px; border: 1px solid #2a2a4a; border-radius: 6px;
+    background: rgba(15,15,26,.8);
+  }
+  a.back:hover { color: var(--neon); border-color: var(--neon); }
+  h1 {
+    margin: 6px 0 0; font-size: clamp(18px, 4.6vmin, 28px); letter-spacing: 5px;
+    color: var(--neon); text-shadow: 0 0 8px var(--neon), 0 0 26px rgba(255,138,60,.45);
+  }
+  .sub { color: #c58048; font-size: 10px; letter-spacing: 3px; margin: 2px 0 6px; }
+  .hud { display: flex; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; justify-content: center; align-items: center; }
+  .stat {
+    background: #2a1810; border: 2px solid #5a3a22; border-radius: 8px;
+    padding: 3px 12px; min-width: 78px; text-align: center;
+  }
+  .stat .lbl { display: block; font-size: 9px; letter-spacing: 2px; color: #c58048; }
+  .stat .val { display: block; font-size: 18px; font-weight: bold; color: var(--neon); text-shadow: 0 0 6px rgba(255,138,60,.7); }
+  .stat.gold .val { color: var(--gold); text-shadow: 0 0 6px rgba(255,209,102,.7); }
+  #wrap { position: relative; width: min(78vw, 380px); }
+  canvas {
+    display: block; width: 100%; height: auto;
+    background: linear-gradient(180deg, #14101c 0%, #0c0c16 100%);
+    border: 3px solid var(--neon); border-radius: 12px;
+    box-shadow: 0 0 18px rgba(255,138,60,.32), 0 0 60px rgba(255,138,60,.08), inset 0 0 30px rgba(0,0,0,.7);
+    touch-action: none; cursor: crosshair;
+  }
+  .controls { display: flex; gap: 10px; margin-top: 9px; }
+  button.act {
+    font-family: inherit; font-size: 12px; font-weight: bold; letter-spacing: 2px;
+    color: var(--neon); background: #2a1810; border: 2px solid var(--neon); border-radius: 8px;
+    padding: 7px 15px; cursor: pointer; box-shadow: 0 0 10px rgba(255,138,60,.22);
+  }
+  button.act:hover { background: #3a2418; }
+  button.act:active { transform: translateY(1px); }
+  .tip { margin-top: 9px; color: #a06a44; font-size: 11px; letter-spacing: 1px; text-align: center; max-width: 380px; }
+  .chain { margin-top: 6px; font-size: 11px; color: #7a5a3a; letter-spacing: 1px; }
+  .overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(8,8,16,.86); backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .overlay.hidden { display: none; }
+  .panel {
+    background: #2a1810; border: 3px solid var(--neon); border-radius: 14px;
+    padding: 24px 32px; text-align: center; max-width: 90vw;
+    box-shadow: 0 0 30px rgba(255,138,60,.5), 0 0 90px rgba(255,138,60,.16);
+    animation: pop .3s cubic-bezier(.3,1.5,.5,1);
+  }
+  @keyframes pop { from { transform: scale(.7); opacity: 0; } }
+  .panel h2 { color: var(--bad); letter-spacing: 4px; font-size: 24px; text-shadow: 0 0 12px var(--bad); margin-bottom: 8px; }
+  .panel p { color: #ffdcc4; margin: 5px 0; font-size: 14px; }
+  .panel .rec { color: var(--gold); text-shadow: 0 0 10px rgba(255,209,102,.8); font-weight: bold; }
+  .panel button {
+    font-family: inherit; font-size: 13px; font-weight: bold; letter-spacing: 2px;
+    color: #200f04; background: var(--neon); border: none; border-radius: 8px;
+    padding: 9px 20px; cursor: pointer; margin: 14px 4px 0;
+    box-shadow: 0 0 16px rgba(255,138,60,.5);
+  }
+  .panel button:hover { filter: brightness(1.1); }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>MELON MERGE</h1>
+<div class="sub">DROP · MERGE · GROW THE WATERMELON</div>
+<div class="hud">
+  <div class="stat"><span class="lbl">SCORE</span><span class="val" id="hScore">0</span></div>
+  <div class="stat gold"><span class="lbl">BEST</span><span class="val" id="hBest">0</span></div>
+  <div class="stat"><span class="lbl">NEXT</span><span class="val" id="hNext">🍒</span></div>
+</div>
+<div id="wrap"><canvas id="cv" width="380" height="520"></canvas></div>
+<div class="chain" id="chain">Move to aim · release to drop</div>
+<div class="controls">
+  <button class="act" id="btnNew">NEW GAME</button>
+</div>
+<div class="tip">Drop fruit into the jar. Two matching fruit merge into the next size with a pop. Don't let the pile spill over the top line!</div>
+<div class="overlay hidden" id="ovl">
+  <div class="panel">
+    <h2>SPILLED OVER!</h2>
+    <p id="ovlInfo"></p>
+    <p id="ovlBest" class="rec"></p>
+    <button id="btnAgain">PLAY AGAIN</button>
+  </div>
+</div>
+<script>
+(function(){
+'use strict';
+var LS_KEY = 'wizzed-merge-drop';
+var W=380, H=520;
+var LEFT=22, RIGHT=358, FLOOR=502, TOPWALL=8;
+var DROP_Y=52, LOSE_Y=100;
+var canvas=document.getElementById('cv');
+var ctx=canvas.getContext('2d');
+
+// fruit definitions: cherry, strawberry, grape, orange, apple, melon, watermelon
+var R = [15,21,28,36,45,55,66];
+var FCOL = ['#ff4d5e','#ff5ea0','#a06bff','#ff9a3c','#7cd94a','#5fd86b','#3aa84a'];
+var FCOL2= ['#c22030','#c72a66','#6a3ac0','#c76512','#4a9a24','#2f9a3c','#1f7a2c'];
+var EMOJI = ['🍒','🍓','🍇','🍊','🍎','🍈','🍉'];
+var DROP_POOL = [0,0,0,1,1,2,3];
+
+var fruits=[], particles=[], floaters=[];
+var curType, nextType, curX, cooldown, score, best, over, combo, comboTimer;
+var accum=0, lastT=0;
+
+function loadBest(){ try{ var v=JSON.parse(localStorage.getItem(LS_KEY)); if(v&&typeof v.best==='number') return v.best; }catch(e){} return 0; }
+function saveBest(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({best:best})); }catch(e){} }
+
+function pickDrop(){ return DROP_POOL[(Math.random()*DROP_POOL.length)|0]; }
+
+function newGame(){
+  fruits=[]; particles=[]; floaters=[];
+  score=0; over=false; combo=0; comboTimer=0;
+  curType=pickDrop(); nextType=pickDrop();
+  curX=W/2; cooldown=0;
+  updateHud(); hideOverlay();
+}
+
+function updateHud(){
+  document.getElementById('hScore').textContent=score;
+  document.getElementById('hBest').textContent=best;
+  document.getElementById('hNext').textContent=EMOJI[nextType];
+}
+
+function addFruit(type,x,y,vx,vy){
+  var r=R[type];
+  var f={ type:type, r:r, x:x, y:y, px:x-(vx||0), py:y-(vy||0), age:0, danger:0, merged:false };
+  fruits.push(f);
+  return f;
+}
+
+function drop(){
+  if(over||cooldown>0) return;
+  ensureAudio();
+  var r=R[curType];
+  var x=Math.max(LEFT+r, Math.min(RIGHT-r, curX));
+  addFruit(curType, x, DROP_Y, 0, 1.5);
+  beep(240+curType*30,.06,'square',.035);
+  curType=nextType; nextType=pickDrop();
+  cooldown=22;
+  updateHud();
+}
+
+/* ---------- physics (Verlet) ---------- */
+var GRAV=0.55, FRICT=0.99, ITER=8, WALL_REST=0.35, GROUND_FRICT=0.86;
+function step(){
+  var i,j,f;
+  // integrate
+  for(i=0;i<fruits.length;i++){
+    f=fruits[i]; f.age++;
+    var vx=(f.x-f.px)*FRICT, vy=(f.y-f.py)*FRICT;
+    // clamp speed
+    var sp=Math.hypot(vx,vy);
+    if(sp>28){ vx*=28/sp; vy*=28/sp; }
+    f.px=f.x; f.py=f.y;
+    f.x+=vx; f.y+=vy+GRAV;
+  }
+  // constraints (several relaxation passes)
+  for(var it=0;it<ITER;it++){
+    // pair collisions
+    for(i=0;i<fruits.length;i++){
+      var a=fruits[i];
+      for(j=i+1;j<fruits.length;j++){
+        var b=fruits[j];
+        var dx=b.x-a.x, dy=b.y-a.y;
+        var dist=Math.hypot(dx,dy);
+        var mind=a.r+b.r;
+        if(dist>0 && dist<mind){
+          var overlap=(mind-dist);
+          var nx=dx/dist, ny=dy/dist;
+          var push=overlap*0.5;
+          a.x-=nx*push; a.y-=ny*push;
+          b.x+=nx*push; b.y+=ny*push;
+        } else if(dist===0){
+          a.x-=0.5; b.x+=0.5;
+        }
+      }
+      // walls
+      clampWalls(a);
+    }
+  }
+  // merges (one scan; each fruit merges at most once/frame)
+  for(i=0;i<fruits.length;i++){
+    var A=fruits[i]; if(A.merged) continue;
+    for(j=i+1;j<fruits.length;j++){
+      var B=fruits[j]; if(B.merged) continue;
+      if(A.type!==B.type) continue;
+      var ddx=B.x-A.x, ddy=B.y-A.y, dd=Math.hypot(ddx,ddy);
+      if(dd < (A.r+B.r)*0.9){
+        mergePair(A,B);
+        break;
+      }
+    }
+  }
+  if(fruits.some(function(f){return f.merged;})){
+    fruits=fruits.filter(function(f){ return !f.merged; });
+  }
+  // lose check
+  var danger=false;
+  for(i=0;i<fruits.length;i++){
+    f=fruits[i];
+    var speed=Math.hypot(f.x-f.px, f.y-f.py);
+    if(f.age>25 && speed<0.9 && (f.y - f.r) < LOSE_Y){
+      f.danger += 1; danger=true;
+      if(f.danger>82 && !over){ endGame(); }
+    } else { f.danger=0; }
+  }
+  window._danger = danger;
+  // combo decay
+  if(comboTimer>0){ comboTimer--; if(comboTimer===0) combo=0; }
+  if(cooldown>0) cooldown--;
+}
+function clampWalls(a){
+  var vx=a.x-a.px, vy=a.y-a.py;
+  if(a.x-a.r<LEFT){ a.x=LEFT+a.r; a.px=a.x+vx*WALL_REST; }
+  else if(a.x+a.r>RIGHT){ a.x=RIGHT-a.r; a.px=a.x+vx*WALL_REST; }
+  if(a.y+a.r>FLOOR){ a.y=FLOOR-a.r; a.py=a.y+vy*WALL_REST; a.px=a.x-vx*GROUND_FRICT; }
+  if(a.y-a.r<TOPWALL){ a.y=TOPWALL+a.r; a.py=a.y+vy*WALL_REST; }
+}
+function mergePair(A,B){
+  A.merged=true; B.merged=true;
+  var mx=(A.x+B.x)/2, my=(A.y+B.y)/2;
+  var nt=A.type+1;
+  combo++; comboTimer=90;
+  if(A.type>=R.length-1){
+    // two watermelons -> pop both, big bonus
+    var bonus=200*combo;
+    score+=bonus;
+    burst(mx,my,FCOL[A.type],26);
+    floaters.push({x:mx,y:my,txt:'+'+bonus,life:1,col:'#ffd166'});
+    beep(120,.5,'sawtooth',.06);
+  } else {
+    var pts=Math.round(((nt+1)*(nt+2)/2) * (combo>1?combo:1));
+    score+=pts;
+    var nf=addFruit(nt, mx, my, (A.x-A.px+B.x-B.px)/2, (A.y-A.py+B.y-B.py)/2 - 1);
+    nf.pop=1;
+    burst(mx,my,FCOL[nt],12+nt*2);
+    floaters.push({x:mx,y:my,txt:'+'+pts+(combo>1?(' x'+combo):''),life:1,col:combo>1?'#ffd166':'#fff'});
+    beep(420+nt*70,.14,'triangle',.05);
+  }
+  if(score>best){ best=score; saveBest(); }
+  updateHud();
+}
+function endGame(){
+  over=true;
+  if(score>best){ best=score; saveBest(); }
+  document.getElementById('ovlInfo').textContent='You scored '+score+' points.';
+  document.getElementById('ovlBest').textContent=(score>=best?'★ NEW BEST ★':'best: '+best);
+  beep(90,.6,'sawtooth',.06);
+  setTimeout(function(){ document.getElementById('ovl').classList.remove('hidden'); }, 600);
+}
+function hideOverlay(){ document.getElementById('ovl').classList.add('hidden'); }
+
+/* ---------- particles ---------- */
+function burst(x,y,col,n){
+  for(var i=0;i<n;i++){
+    var a=Math.random()*Math.PI*2, sp=1+Math.random()*4;
+    particles.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,col:col,sz:2+Math.random()*3});
+  }
+}
+function updateFX(){
+  for(var i=particles.length-1;i>=0;i--){
+    var p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.15; p.vx*=0.96; p.life-=0.03;
+    if(p.life<=0) particles.splice(i,1);
+  }
+  for(var j=floaters.length-1;j>=0;j--){
+    var f=floaters[j]; f.y-=0.8; f.life-=0.02; if(f.life<=0) floaters.splice(j,1);
+  }
+  for(var k=0;k<fruits.length;k++){ if(fruits[k].pop){ fruits[k].pop*=0.85; if(fruits[k].pop<0.02) fruits[k].pop=0; } }
+}
+
+/* ---------- draw ---------- */
+function drawFruit(f){
+  var s = f.pop ? (1+f.pop*0.3) : 1;
+  var r=f.r*s;
+  ctx.save();
+  // body radial
+  var g=ctx.createRadialGradient(f.x-r*0.3,f.y-r*0.35,r*0.15,f.x,f.y,r);
+  g.addColorStop(0, lighten(FCOL[f.type]));
+  g.addColorStop(0.6, FCOL[f.type]);
+  g.addColorStop(1, FCOL2[f.type]);
+  ctx.fillStyle=g;
+  ctx.shadowColor=FCOL[f.type]; ctx.shadowBlur=10;
+  ctx.beginPath(); ctx.arc(f.x,f.y,r,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+  // gloss highlight
+  ctx.fillStyle='rgba(255,255,255,.4)';
+  ctx.beginPath(); ctx.ellipse(f.x-r*0.32,f.y-r*0.4,r*0.28,r*0.18,-0.5,0,Math.PI*2); ctx.fill();
+  // face
+  var eo=r*0.34, ey=f.y-r*0.05, es=Math.max(1.6,r*0.11);
+  ctx.fillStyle='#1a1020';
+  ctx.beginPath(); ctx.arc(f.x-eo,ey,es,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(f.x+eo,ey,es,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.85)';
+  ctx.beginPath(); ctx.arc(f.x-eo+es*0.3,ey-es*0.3,es*0.4,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(f.x+eo+es*0.3,ey-es*0.3,es*0.4,0,Math.PI*2); ctx.fill();
+  // smile
+  ctx.strokeStyle='#1a1020'; ctx.lineWidth=Math.max(1.5,r*0.06); ctx.lineCap='round';
+  ctx.beginPath(); ctx.arc(f.x,ey+r*0.12,r*0.28,0.15*Math.PI,0.85*Math.PI); ctx.stroke();
+  ctx.restore();
+}
+function lighten(hex){
+  var n=parseInt(hex.slice(1),16), r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  r=Math.min(255,r+70); g=Math.min(255,g+70); b=Math.min(255,b+70);
+  return 'rgb('+r+','+g+','+b+')';
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // jar walls
+  ctx.save();
+  ctx.strokeStyle='rgba(255,138,60,.5)'; ctx.lineWidth=4; ctx.lineCap='round';
+  ctx.beginPath();
+  ctx.moveTo(LEFT-2, TOPWALL); ctx.lineTo(LEFT-2, FLOOR+2);
+  ctx.lineTo(RIGHT+2, FLOOR+2); ctx.lineTo(RIGHT+2, TOPWALL);
+  ctx.stroke();
+  ctx.restore();
+  // lose line
+  var danger=window._danger;
+  ctx.save();
+  ctx.setLineDash([8,7]);
+  ctx.strokeStyle= danger ? 'rgba(255,61,104,.95)' : 'rgba(255,209,102,.55)';
+  ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(LEFT,LOSE_Y); ctx.lineTo(RIGHT,LOSE_Y); ctx.stroke();
+  ctx.restore();
+  // fruits
+  for(var i=0;i<fruits.length;i++) drawFruit(fruits[i]);
+  // current fruit + aim guide
+  if(!over){
+    var r=R[curType];
+    var x=Math.max(LEFT+r, Math.min(RIGHT-r, curX));
+    if(cooldown<=0){
+      ctx.save(); ctx.strokeStyle='rgba(255,255,255,.14)'; ctx.setLineDash([4,6]); ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(x, DROP_Y+r); ctx.lineTo(x, FLOOR); ctx.stroke(); ctx.restore();
+      drawFruit({type:curType,r:r,x:x,y:DROP_Y,pop:0});
+    }
+  }
+  // particles
+  particles.forEach(function(p){
+    ctx.save(); ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=p.col;
+    ctx.shadowColor=p.col; ctx.shadowBlur=6;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.sz,0,Math.PI*2); ctx.fill(); ctx.restore();
+  });
+  floaters.forEach(function(f){
+    ctx.save(); ctx.globalAlpha=Math.max(0,f.life); ctx.fillStyle=f.col;
+    ctx.font='bold 20px "Courier New",monospace'; ctx.textAlign='center';
+    ctx.shadowColor=f.col; ctx.shadowBlur=10; ctx.fillText(f.txt,f.x,f.y); ctx.restore();
+  });
+}
+
+/* ---------- loop ---------- */
+function loop(t){
+  if(!lastT) lastT=t;
+  var dt=t-lastT; lastT=t;
+  accum += Math.min(dt, 50);
+  var steps=0;
+  while(accum>=16 && steps<4){ if(!over) step(); accum-=16; steps++; }
+  updateFX();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- input ---------- */
+function evtX(e){
+  var rect=canvas.getBoundingClientRect();
+  var cx=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+  return cx*(W/rect.width);
+}
+canvas.addEventListener('pointermove', function(e){ curX=evtX(e); });
+canvas.addEventListener('pointerdown', function(e){ curX=evtX(e); });
+canvas.addEventListener('pointerup', function(e){ e.preventDefault(); curX=evtX(e); drop(); });
+
+/* ---------- audio ---------- */
+var actx=null;
+function ensureAudio(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(actx&&actx.state==='suspended') actx.resume(); }
+function beep(freq,dur,type,vol){
+  if(!actx) return;
+  var o=actx.createOscillator(), g=actx.createGain();
+  o.type=type||'sine'; o.frequency.value=freq; g.gain.value=vol||.04;
+  o.connect(g); g.connect(actx.destination);
+  o.start(); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+dur);
+  o.stop(actx.currentTime+dur);
+}
+window.addEventListener('pointerdown', ensureAudio, { once:true });
+
+document.getElementById('btnNew').addEventListener('click', function(){ newGame(); });
+document.getElementById('btnAgain').addEventListener('click', function(){ newGame(); });
+
+best=loadBest();
+newGame();
+draw();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

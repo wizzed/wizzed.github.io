@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Target Gallery 3D – Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #0f0f1a; overflow: hidden; color: #cfe9ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    cursor: none;
+  }
+  canvas { display: block; }
+  a.back {
+    position: fixed; top: 12px; left: 12px; z-index: 40; cursor: pointer;
+    color: #7f8fc0; text-decoration: none; font-size: 13px;
+    background: rgba(12,12,32,0.7); border: 1px solid #26264d;
+    padding: 5px 10px; border-radius: 6px;
+  }
+  a.back:hover { color: #4ff3ff; border-color: #4ff3ff; }
+  #hud {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 30; display: flex; gap: 20px; pointer-events: none;
+    font-size: 14px; color: #9fd8ff; text-shadow: 0 0 8px #2288ff; white-space: nowrap;
+  }
+  #hud b { color: #ffd34f; text-shadow: 0 0 10px #ff9a00; font-weight: normal; }
+  #hud .time { color: #7dffd8; text-shadow: 0 0 10px #0aa877; }
+  #hud .time.low { color: #ff5577; text-shadow: 0 0 12px #ff2255; }
+  #ammo {
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+    z-index: 30; pointer-events: none; font-size: 15px; letter-spacing: 3px;
+    color: #ffd34f; text-shadow: 0 0 10px #ff9a00;
+  }
+  #ammo .bullets { color: #ffcf3a; }
+  #ammo .reloading { color: #ff7a5a; text-shadow: 0 0 10px #ff3311; }
+  #combo {
+    position: fixed; top: 22%; left: 50%; transform: translateX(-50%);
+    z-index: 30; font-size: 20px; color: #29e6a7; pointer-events: none;
+    text-shadow: 0 0 14px #0aa877; opacity: 0; transition: opacity 0.2s; white-space: nowrap;
+  }
+  #hint {
+    position: fixed; bottom: 42px; left: 50%; transform: translateX(-50%);
+    z-index: 25; font-size: 11px; color: #56628f; pointer-events: none;
+    text-shadow: 0 0 6px #101040; white-space: nowrap;
+  }
+  #cross {
+    position: fixed; z-index: 34; width: 40px; height: 40px; margin: -20px 0 0 -20px;
+    pointer-events: none; border: 2px solid #4ff3ff; border-radius: 50%;
+    box-shadow: 0 0 10px #00c8ff, inset 0 0 7px #00c8ff; transition: transform 0.08s;
+  }
+  #cross::before { content: ''; position: absolute; left: 50%; top: -9px; width: 2px; height: 9px;
+    margin-left: -1px; background: #4ff3ff; box-shadow: 0 0 6px #00c8ff; }
+  #cross::after { content: ''; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px;
+    margin: -3px 0 0 -3px; border-radius: 50%; background: #4ff3ff; box-shadow: 0 0 6px #00c8ff; }
+  #cross.fire { transform: scale(1.5); }
+  .fscore {
+    position: fixed; z-index: 35; pointer-events: none; font-size: 18px; font-weight: bold;
+    color: #ffd34f; text-shadow: 0 0 10px #ff9a00; transform: translate(-50%, -50%);
+    transition: transform 0.6s ease-out, opacity 0.6s ease-out;
+  }
+  .overlay {
+    position: fixed; inset: 0; z-index: 50; display: flex;
+    align-items: center; justify-content: center; pointer-events: none;
+  }
+  .overlay .panel {
+    pointer-events: all; text-align: center; max-width: 440px; cursor: default;
+    background: rgba(10,10,30,0.82); border: 1px solid #3a2a7a;
+    border-radius: 14px; padding: 26px 34px;
+    box-shadow: 0 0 40px rgba(80,40,255,0.25);
+  }
+  .overlay h1 { font-size: 26px; letter-spacing: 4px; color: #4ff3ff; text-shadow: 0 0 18px #00c8ff; margin-bottom: 10px; }
+  .overlay h1.gold { color: #ffd34f; text-shadow: 0 0 18px #ff9a00; }
+  .overlay p { font-size: 13px; color: #8fa2d8; line-height: 1.7; margin-bottom: 14px; }
+  .overlay .big { font-size: 17px; color: #eafcff; text-shadow: 0 0 12px #00c8ff; }
+  .overlay button {
+    font-family: inherit; font-size: 15px; font-weight: bold; letter-spacing: 2px;
+    padding: 10px 30px; border: none; border-radius: 8px; cursor: pointer;
+    background: #29e6a7; color: #0a0a18; box-shadow: 0 0 18px #29e6a788;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<div id="hud">
+  <span class="time" id="timew">TIME <b class="time" id="time">60</b></span>
+  <span>SCORE <b id="score">0</b></span>
+  <span>BEST <b id="best2">0</b></span>
+  <span>MULT <b id="mult">x1</b></span>
+</div>
+<div id="combo"></div>
+<div id="hint">move to aim · click / SPACE to shoot · R to reload</div>
+<div id="ammo"></div>
+<div id="cross"></div>
+<div class="overlay" id="start-ov">
+  <div class="panel">
+    <h1>TARGET GALLERY 3D</h1>
+    <p>Step up to the carnival booth!<br>
+    Ducks, bottles and bullseyes slide by — <b style="color:#4ff3ff">click to shoot</b>.<br>
+    Pop-up targets flash for big bonus points.<br>
+    Chain hits to raise your multiplier. 60 seconds — reload with <b>R</b>.</p>
+    <button id="start-btn">START ROUND</button>
+  </div>
+</div>
+<div class="overlay" id="over-ov" style="display:none">
+  <div class="panel">
+    <h1 class="gold">ROUND OVER</h1>
+    <p class="big" id="over-stats"></p>
+    <p id="over-sub"></p>
+    <button id="restart-btn">PLAY AGAIN (R)</button>
+  </div>
+</div>
+<script src="../lib/three.min.js"></script>
+<script>
+'use strict';
+// ── Target Gallery 3D ──────────────────────────────────────────────────────
+const SLUG = 'wizzed-gallery-3d';
+let best = parseInt(localStorage.getItem(SLUG) || '0', 10) || 0;
+
+const CLIP = 6;
+const RELOAD_TIME = 1.1;
+const ROUND = 60;
+const BOUND = 9.6;                  // x wrap edge for sliding targets
+
+// ── Scene ──────────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f0f1a);
+scene.fog = new THREE.Fog(0x0f0f1a, 16, 40);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 120);
+camera.position.set(0, 1.7, 7.6);
+camera.lookAt(0, 1.4, -8);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ── Lights ─────────────────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0x556699, 1.05));
+scene.add(new THREE.HemisphereLight(0x99aaff, 0x1a0f26, 0.8));
+const key = new THREE.DirectionalLight(0xfff2e0, 1.5);
+key.position.set(4, 9, 9);
+scene.add(key);
+const warmPt = new THREE.PointLight(0xffaa55, 4, 40, 1.4);
+warmPt.position.set(-6, 5, 2);
+scene.add(warmPt);
+const coolPt = new THREE.PointLight(0x55aaff, 4, 40, 1.4);
+coolPt.position.set(6, 5, 2);
+scene.add(coolPt);
+
+// ── Booth structure ────────────────────────────────────────────────────────
+function stripeTexture(a, b) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+  const g = c.getContext('2d');
+  for (let i = 0; i < 8; i++) {
+    g.fillStyle = i % 2 ? a : b;
+    g.fillRect(i * 32, 0, 32, 256);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+const backTex = stripeTexture('#2a1550', '#3a1f66');
+backTex.repeat.set(4, 1);
+const backWall = new THREE.Mesh(
+  new THREE.PlaneGeometry(26, 16),
+  new THREE.MeshStandardMaterial({ map: backTex, color: 0x8877cc, roughness: 0.9, emissive: 0x160a2c, emissiveIntensity: 0.5 })
+);
+backWall.position.set(0, 3, -14);
+scene.add(backWall);
+
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(30, 30),
+  new THREE.MeshStandardMaterial({ color: 0x141026, roughness: 1 })
+);
+floor.rotation.x = -Math.PI / 2; floor.position.set(0, -3, -4);
+scene.add(floor);
+
+// side walls
+const sideMat = new THREE.MeshStandardMaterial({ color: 0x201642, roughness: 0.9, emissive: 0x0e0722, emissiveIntensity: 0.6 });
+[-13, 13].forEach(x => {
+  const w = new THREE.Mesh(new THREE.PlaneGeometry(22, 16), sideMat);
+  w.position.set(x, 3, -6); w.rotation.y = x < 0 ? Math.PI / 2 : -Math.PI / 2;
+  scene.add(w);
+});
+
+// counter (hides popups when down)
+const counterTex = stripeTexture('#5a2a10', '#40200c');
+counterTex.repeat.set(8, 1);
+const counter = new THREE.Mesh(
+  new THREE.BoxGeometry(24, 3.4, 1.2),
+  new THREE.MeshStandardMaterial({ map: counterTex, color: 0xaa8866, roughness: 0.85, emissive: 0x1a0e04, emissiveIntensity: 0.5 })
+);
+counter.position.set(0, -1.3, -3.9);
+scene.add(counter);
+// counter neon lip
+const lip = new THREE.Mesh(
+  new THREE.BoxGeometry(24, 0.22, 1.4),
+  new THREE.MeshStandardMaterial({ color: 0x102040, emissive: 0x22ccff, emissiveIntensity: 1.2 })
+);
+lip.position.set(0, 0.45, -3.9);
+scene.add(lip);
+
+// marquee sign
+const sign = new THREE.Mesh(
+  new THREE.BoxGeometry(11, 1.5, 0.4),
+  new THREE.MeshStandardMaterial({ color: 0x3a1466, emissive: 0xff44aa, emissiveIntensity: 0.7, roughness: 0.5 })
+);
+sign.position.set(0, 7.2, -13.4);
+scene.add(sign);
+
+// ── Festive lightbulbs ─────────────────────────────────────────────────────
+const bulbs = [];
+const bulbGeo = new THREE.SphereGeometry(0.22, 12, 10);
+function addBulb(x, y, z, phase) {
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffee88, emissiveIntensity: 1.4, roughness: 0.3 });
+  const m = new THREE.Mesh(bulbGeo, mat);
+  m.position.set(x, y, z);
+  scene.add(m);
+  bulbs.push({ mesh: m, mat, phase });
+}
+// arch: top row + two sides framing the booth
+let bi = 0;
+for (let x = -11.5; x <= 11.5; x += 1.15) { addBulb(x, 8.0, -13.2, bi++ * 0.5); }
+for (let y = 7.6; y >= -1.4; y -= 1.1) { addBulb(-11.6, y, -13.0, bi++ * 0.5); addBulb(11.6, y, -13.0, bi++ * 0.5); }
+const bulbColors = [0xff4466, 0xffcc33, 0x44ff88, 0x44aaff, 0xcc66ff];
+
+// ── Target factories ───────────────────────────────────────────────────────
+function mat(color, emi) {
+  return new THREE.MeshStandardMaterial({ color, emissive: emi === undefined ? color : emi, emissiveIntensity: 0.45, roughness: 0.5, metalness: 0.15 });
+}
+function buildDuck() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.55, 18, 14), mat(0xffd23a, 0x9a7000));
+  body.scale.set(1.3, 1.0, 1.0);
+  g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 12), mat(0xffd23a, 0x9a7000));
+  head.position.set(0.55, 0.5, 0); g.add(head);
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.34, 10), mat(0xff7a1a, 0x803300));
+  beak.rotation.z = -Math.PI / 2; beak.position.set(0.95, 0.5, 0); g.add(beak);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), mat(0x111122, 0x000000));
+  eye.position.set(0.68, 0.6, 0.22); g.add(eye);
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.4, 8), mat(0xffb020, 0x805000));
+  tail.rotation.z = Math.PI / 2; tail.position.set(-0.75, 0.15, 0); g.add(tail);
+  return g;
+}
+function buildBottle() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, 1.1, 16), mat(0x33dd88, 0x0a5533));
+  g.add(body);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.24, 0.5, 12), mat(0x33dd88, 0x0a5533));
+  neck.position.y = 0.7; g.add(neck);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.16, 12), mat(0xff4455, 0x882222));
+  cap.position.y = 1.0; g.add(cap);
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.3, 16), mat(0xeef7ff, 0x334455));
+  band.position.y = -0.1; g.add(band);
+  return g;
+}
+function buildBullseye() {
+  const g = new THREE.Group();
+  const back = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.66, 0.16, 20), mat(0x223055, 0x101a33));
+  back.rotation.x = Math.PI / 2; g.add(back);
+  const rings = [[0.62, 0xff3355], [0.46, 0xffffff], [0.32, 0xff3355], [0.18, 0xffd23a], [0.08, 0xff3355]];
+  rings.forEach((r, i) => {
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(r[0], 28), mat(r[1], new THREE.Color(r[1]).multiplyScalar(0.3).getHex()));
+    disc.position.z = 0.09 + i * 0.012; g.add(disc);
+  });
+  return g;
+}
+function buildTarget(type) {
+  let g;
+  if (type === 'duck') g = buildDuck();
+  else if (type === 'bottle') g = buildBottle();
+  else g = buildBullseye();
+  return g;
+}
+
+// ── Targets ────────────────────────────────────────────────────────────────
+const targetsGroup = new THREE.Group();
+scene.add(targetsGroup);
+const targets = [];
+
+const lanes = [
+  { y: 4.4, z: -11, speed: 2.3, dir: 1, type: 'bottle', count: 4, scale: 1.15 },
+  { y: 2.7, z: -8, speed: 3.0, dir: -1, type: 'duck', count: 4, scale: 1.0 },
+  { y: 1.2, z: -5.5, speed: 3.7, dir: 1, type: 'bullseye', count: 4, scale: 0.95 }
+];
+const POINTS = { bottle: 10, duck: 15, bullseye: 25, popup: 45 };
+
+function makeSlideTarget(lane, i) {
+  const g = buildTarget(lane.type);
+  g.scale.setScalar(lane.scale);
+  const spacing = (BOUND * 2) / lane.count;
+  const x = -BOUND + i * spacing + Math.random() * 0.6;
+  g.position.set(x, lane.y, lane.z);
+  g.userData = {
+    kind: 'slide', type: lane.type, alive: true, tipping: false,
+    vx: lane.speed * lane.dir, baseY: lane.y, phase: Math.random() * 6.28,
+    points: POINTS[lane.type], tvy: 0, tomega: 0
+  };
+  targetsGroup.add(g);
+  targets.push(g);
+}
+
+function makePopup() {
+  const type = ['duck', 'bottle', 'bullseye'][Math.floor(Math.random() * 3)];
+  const g = buildTarget(type);
+  g.scale.setScalar(1.05);
+  const upY = 1.5, downY = -1.6;
+  g.position.set((Math.random() * 2 - 1) * 7, downY, -4.7);
+  g.userData = {
+    kind: 'popup', type: 'popup', dispType: type, alive: false, tipping: false,
+    upY, downY, popState: 'hidden', popTimer: 0.8 + Math.random() * 2.5,
+    points: POINTS.popup, tvy: 0, tomega: 0
+  };
+  // gold ring aura so pop-ups read as bonus
+  const aura = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.06, 8, 24),
+    new THREE.MeshStandardMaterial({ color: 0xffd23a, emissive: 0xffaa00, emissiveIntensity: 1.1 }));
+  aura.position.y = 0.2; g.add(aura);
+  targetsGroup.add(g);
+  targets.push(g);
+}
+
+function buildTargets() {
+  lanes.forEach(lane => { for (let i = 0; i < lane.count; i++) makeSlideTarget(lane, i); });
+  makePopup(); makePopup();
+}
+buildTargets();
+
+function respawnSlide(g) {
+  const u = g.userData;
+  g.rotation.set(0, 0, 0);
+  g.position.set(u.vx > 0 ? -BOUND : BOUND, u.baseY, g.position.z);
+  u.alive = true; u.tipping = false; u.tvy = 0;
+}
+
+// ── Game state ─────────────────────────────────────────────────────────────
+let playing = false, over = false;
+let score = 0, combo = 0, mult = 1;
+let ammo = CLIP, reloading = false, reloadTimer = 0;
+let shotsFired = 0, shotsHit = 0;
+let roundTime = ROUND;
+let perfTime = 0;
+
+const raycaster = new THREE.Raycaster();
+
+function updateHUD() {
+  const tEl = document.getElementById('time');
+  tEl.textContent = Math.max(0, Math.ceil(roundTime));
+  const low = roundTime <= 10;
+  tEl.classList.toggle('low', low);
+  document.getElementById('timew').classList.toggle('low', low);
+  document.getElementById('score').textContent = score;
+  document.getElementById('best2').textContent = best;
+  document.getElementById('mult').textContent = 'x' + mult;
+  let s = '';
+  for (let i = 0; i < CLIP; i++) s += i < ammo ? '▮' : '▯';
+  document.getElementById('ammo').innerHTML = reloading
+    ? '<span class="reloading">RELOADING…</span>'
+    : '<span class="bullets">' + s + '</span>';
+}
+
+let comboTmr = null;
+function flashCombo(txt) {
+  const el = document.getElementById('combo');
+  el.textContent = txt;
+  el.style.opacity = '1';
+  clearTimeout(comboTmr);
+  comboTmr = setTimeout(() => { el.style.opacity = '0'; }, 800);
+}
+
+function popScore(x, y, txt, color) {
+  const d = document.createElement('div');
+  d.className = 'fscore'; d.textContent = txt;
+  d.style.left = x + 'px'; d.style.top = y + 'px';
+  if (color) d.style.color = color;
+  document.body.appendChild(d);
+  requestAnimationFrame(() => { d.style.transform = 'translate(-50%,-150%)'; d.style.opacity = '0'; });
+  setTimeout(() => d.remove(), 650);
+}
+
+function tipOver(g) {
+  const u = g.userData;
+  u.alive = false; u.tipping = true;
+  u.tvy = 2.5 + Math.random() * 2;
+  u.tomega = (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 4);
+}
+
+// ── Shooting ───────────────────────────────────────────────────────────────
+function hitTest(nx, ny) {
+  raycaster.setFromCamera({ x: nx, y: ny }, camera);
+  const hits = raycaster.intersectObjects(targetsGroup.children, true);
+  for (const h of hits) {
+    let o = h.object;
+    while (o.parent && o.parent !== targetsGroup) o = o.parent;
+    if (o.parent === targetsGroup && o.userData && o.userData.alive && !o.userData.tipping) return o;
+  }
+  return null;
+}
+
+function startReload() {
+  if (reloading || ammo >= CLIP) return;
+  reloading = true; reloadTimer = RELOAD_TIME;
+  updateHUD();
+}
+
+function shoot(clientX, clientY) {
+  if (!playing || over) return;
+  const cross = document.getElementById('cross');
+  cross.classList.add('fire');
+  setTimeout(() => cross.classList.remove('fire'), 90);
+  if (reloading) return;
+  if (ammo <= 0) { startReload(); return; }
+  ammo--;
+  shotsFired++;
+  const nx = (clientX / innerWidth) * 2 - 1;
+  const ny = -(clientY / innerHeight) * 2 + 1;
+  const g = hitTest(nx, ny);
+  if (g) {
+    shotsHit++;
+    combo++;
+    mult = Math.min(5, 1 + Math.floor(combo / 2));
+    const pts = Math.round(g.userData.points * mult);
+    score += pts;
+    tipOver(g);
+    const bonus = g.userData.kind === 'popup';
+    popScore(clientX, clientY, '+' + pts, bonus ? '#ffd23a' : '#7dffd8');
+    if (mult >= 2) flashCombo((bonus ? 'BONUS! ' : 'HIT! ') + 'x' + mult + ' combo');
+  } else {
+    combo = 0; mult = 1;
+  }
+  if (ammo <= 0) startReload();
+  updateHUD();
+}
+
+// ── Update targets ─────────────────────────────────────────────────────────
+function updateTarget(g, dt) {
+  const u = g.userData;
+  if (u.tipping) {
+    u.tvy -= 12 * dt;
+    g.position.y += u.tvy * dt;
+    g.rotation.z += u.tomega * dt;
+    g.rotation.x += u.tomega * 0.4 * dt;
+    if (g.position.y < u.baseY - 5 || g.position.y < -6) {
+      if (u.kind === 'slide') respawnSlide(g);
+      else { u.tipping = false; g.rotation.set(0, 0, 0); u.popState = 'hidden'; u.popTimer = 1.2 + Math.random() * 2.4; g.position.set((Math.random() * 2 - 1) * 7, u.downY, -4.7); }
+    }
+    return;
+  }
+  if (u.kind === 'slide') {
+    g.position.x += u.vx * dt;
+    if (u.vx > 0 && g.position.x > BOUND) g.position.x = -BOUND;
+    if (u.vx < 0 && g.position.x < -BOUND) g.position.x = BOUND;
+    g.rotation.z = Math.sin(perfTime * 2 + u.phase) * 0.08;
+  } else {
+    u.popTimer -= dt;
+    if (u.popState === 'hidden') {
+      g.position.y = u.downY; u.alive = false;
+      if (u.popTimer <= 0) { u.popState = 'rising'; u.popTimer = 0.5; }
+    } else if (u.popState === 'rising') {
+      g.position.y += (u.upY - g.position.y) * Math.min(1, dt * 9); u.alive = true;
+      if (u.popTimer <= 0) { u.popState = 'up'; u.popTimer = 1.4 + Math.random() * 1.3; }
+    } else if (u.popState === 'up') {
+      g.position.y = u.upY + Math.sin(perfTime * 5) * 0.05; u.alive = true;
+      if (u.popTimer <= 0) { u.popState = 'lowering'; u.popTimer = 0.5; }
+    } else {
+      u.alive = false;
+      g.position.y += (u.downY - g.position.y) * Math.min(1, dt * 9);
+      if (u.popTimer <= 0) { u.popState = 'hidden'; u.popTimer = 1.0 + Math.random() * 2.4; g.position.x = (Math.random() * 2 - 1) * 7; }
+    }
+  }
+}
+
+// ── Round flow ─────────────────────────────────────────────────────────────
+function endRound() {
+  over = true; playing = false;
+  const acc = shotsFired ? Math.round((shotsHit / shotsFired) * 100) : 0;
+  if (score > best) { best = score; localStorage.setItem(SLUG, String(best)); }
+  updateHUD();
+  document.getElementById('over-stats').textContent = 'SCORE ' + score + '  ·  BEST ' + best;
+  document.getElementById('over-sub').textContent = 'Accuracy ' + acc + '%  ·  ' + shotsHit + '/' + shotsFired + ' hits' +
+    (score >= best && score > 0 ? '   ★ New record! ★' : '');
+  setTimeout(() => { document.getElementById('over-ov').style.display = 'flex'; }, 500);
+}
+
+function startGame() {
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  document.getElementById('start-ov').style.display = 'none';
+  document.getElementById('over-ov').style.display = 'none';
+  score = 0; combo = 0; mult = 1;
+  ammo = CLIP; reloading = false; reloadTimer = 0;
+  shotsFired = 0; shotsHit = 0; roundTime = ROUND;
+  over = false; playing = true;
+  // reset any tipped targets
+  targets.forEach(g => {
+    const u = g.userData;
+    if (u.kind === 'slide') { u.tipping = false; g.rotation.set(0, 0, 0); u.alive = true; }
+    else { u.tipping = false; g.rotation.set(0, 0, 0); }
+  });
+  updateHUD();
+}
+
+// ── Input ──────────────────────────────────────────────────────────────────
+let mouseX = innerWidth / 2, mouseY = innerHeight / 2;
+const crossEl = document.getElementById('cross');
+crossEl.style.left = mouseX + 'px'; crossEl.style.top = mouseY + 'px';
+addEventListener('pointermove', e => {
+  mouseX = e.clientX; mouseY = e.clientY;
+  crossEl.style.left = mouseX + 'px'; crossEl.style.top = mouseY + 'px';
+});
+addEventListener('pointerdown', e => {
+  if (e.target.closest('.panel') || e.target.closest('a')) return;
+  mouseX = e.clientX; mouseY = e.clientY;
+  crossEl.style.left = mouseX + 'px'; crossEl.style.top = mouseY + 'px';
+  if (!playing || over) { startGame(); return; }
+  shoot(e.clientX, e.clientY);
+});
+addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'Enter') {
+    e.preventDefault();
+    if (!playing || over) startGame();
+    else shoot(mouseX, mouseY);
+  }
+  if (e.code === 'KeyR') {
+    e.preventDefault();
+    if (over) startGame();
+    else startReload();
+  }
+});
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('restart-btn').addEventListener('click', startGame);
+
+// ── Loop ───────────────────────────────────────────────────────────────────
+updateHUD();
+let lastT = 0;
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const t = ts / 1000;
+  const dt = Math.min((ts - lastT) / 1000, 0.05);
+  lastT = ts;
+  perfTime = t;
+
+  // timer
+  if (playing && !over) {
+    roundTime -= dt;
+    if (roundTime <= 0) { roundTime = 0; endRound(); }
+    if (playing) updateHUD();
+  }
+
+  // reload
+  if (reloading) {
+    reloadTimer -= dt;
+    if (reloadTimer <= 0) { reloading = false; ammo = CLIP; updateHUD(); }
+  }
+
+  // targets always animate (idle + play)
+  for (const g of targets) updateTarget(g, dt);
+
+  // blinking bulbs (chase pattern + color cycle)
+  for (let i = 0; i < bulbs.length; i++) {
+    const b = bulbs[i];
+    const pulse = 0.5 + 0.5 * Math.sin(t * 4 - i * 0.6);
+    b.mat.emissiveIntensity = 0.35 + pulse * 1.5;
+    const col = bulbColors[(i + Math.floor(t * 2)) % bulbColors.length];
+    b.mat.emissive.setHex(col);
+    b.mat.color.setHex(col);
+  }
+  sign.material.emissiveIntensity = 0.5 + 0.4 * Math.sin(t * 3);
+  warmPt.intensity = 4 + Math.sin(t * 2) * 1.2;
+  coolPt.intensity = 4 + Math.cos(t * 1.7) * 1.2;
+
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

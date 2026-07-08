@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Helix Drop – Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #0f0f1a; overflow: hidden; color: #cfe9ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  canvas { display: block; }
+  a.back {
+    position: fixed; top: 12px; left: 12px; z-index: 40;
+    color: #7f8fc0; text-decoration: none; font-size: 13px;
+    background: rgba(12,12,32,0.7); border: 1px solid #26264d;
+    padding: 5px 10px; border-radius: 6px;
+  }
+  a.back:hover { color: #4ff3ff; border-color: #4ff3ff; }
+  #depth-big {
+    position: fixed; top: 44px; left: 50%; transform: translateX(-50%);
+    z-index: 30; font-size: clamp(30px, 6vw, 50px); pointer-events: none;
+    color: #eafcff; text-shadow: 0 0 22px #00c8ff, 0 0 60px #0055ff; white-space: nowrap;
+  }
+  #depth-big small { display:block; font-size: 12px; letter-spacing:3px; color:#7fb8d8; text-shadow:0 0 8px #004a88; }
+  #hud {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 30; display: flex; gap: 18px; pointer-events: none;
+    font-size: 13px; color: #9fd8ff; text-shadow: 0 0 8px #2288ff; white-space: nowrap;
+  }
+  #hud b { color: #ffd34f; text-shadow: 0 0 10px #ff9a00; font-weight: normal; }
+  #smash {
+    position: fixed; top: 30%; left: 50%; transform: translateX(-50%);
+    z-index: 30; font-size: 20px; color: #ffb03a; pointer-events: none;
+    text-shadow: 0 0 16px #ff7a00; opacity: 0; transition: opacity 0.2s; white-space: nowrap;
+    letter-spacing: 2px;
+  }
+  #hint {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 25; font-size: 11px; color: #56628f; pointer-events: none;
+    text-shadow: 0 0 6px #101040; white-space: nowrap;
+  }
+  .overlay {
+    position: fixed; inset: 0; z-index: 50; display: flex;
+    align-items: center; justify-content: center; pointer-events: none;
+  }
+  .overlay .panel {
+    pointer-events: all; text-align: center; max-width: 430px;
+    background: rgba(10,10,30,0.82); border: 1px solid #3a2a7a;
+    border-radius: 14px; padding: 26px 34px;
+    box-shadow: 0 0 40px rgba(80,40,255,0.25);
+  }
+  .overlay h1 { font-size: 26px; letter-spacing: 4px; color: #4ff3ff; text-shadow: 0 0 18px #00c8ff; margin-bottom: 10px; }
+  .overlay h1.red { color: #ff5577; text-shadow: 0 0 18px #ff2255; }
+  .overlay p { font-size: 13px; color: #8fa2d8; line-height: 1.7; margin-bottom: 14px; }
+  .overlay .big { font-size: 17px; color: #eafcff; text-shadow: 0 0 12px #00c8ff; }
+  .overlay button {
+    font-family: inherit; font-size: 15px; font-weight: bold; letter-spacing: 2px;
+    padding: 10px 30px; border: none; border-radius: 8px; cursor: pointer;
+    background: #29e6a7; color: #0a0a18; box-shadow: 0 0 18px #29e6a788;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<div id="hud"><span>BEST <b id="best">0</b></span><span>STREAK <b id="streak">0</b></span></div>
+<div id="depth-big">0<small>DEPTH</small></div>
+<div id="smash">⚡ SMASH READY ⚡</div>
+<div id="hint">drag left / right or ← → to spin the tower · line the ball up with a gap</div>
+<div class="overlay" id="start-ov">
+  <div class="panel">
+    <h1>HELIX DROP</h1>
+    <p>A neon ball bounces atop a spinning tower.<br>
+    Drag or use ← → to rotate the rings — drop the ball through the <b style="color:#4ff3ff">gaps</b>.<br>
+    Dodge the <b style="color:#ff5577">red death segments</b>.<br>
+    Fall through 3+ floors at once to charge a <b style="color:#ffb03a">smash</b> and crash through!</p>
+    <button id="start-btn">START DROP</button>
+  </div>
+</div>
+<div class="overlay" id="over-ov" style="display:none">
+  <div class="panel">
+    <h1 class="red">SPLAT!</h1>
+    <p class="big" id="over-stats"></p>
+    <p id="over-sub"></p>
+    <button id="restart-btn">DROP AGAIN (R)</button>
+  </div>
+</div>
+<script src="../lib/three.min.js"></script>
+<script>
+'use strict';
+// ── Helix Drop ─────────────────────────────────────────────────────────────
+const SLUG = 'wizzed-helix-drop-3d';
+let best = parseInt(localStorage.getItem(SLUG) || '0', 10) || 0;
+document.getElementById('best').textContent = best;
+
+const N = 8;                       // sectors per ring
+const SECTOR = Math.PI * 2 / N;
+const PAD = 0.05;                  // angular gap between tiles
+const OUTER = 3.2;                 // ring outer radius
+const THK = 0.42;                  // ring thickness
+const LEVEL_GAP = 2.35;            // vertical spacing
+const BALL_R = 0.5;
+const BALL_POS = 2.15;             // ball distance from axis (rests near outer edge)
+const G = 30;                      // gravity
+const BOUNCE = 9.4;                // bounce velocity
+const STREAK = 3;                  // floors to charge smash
+const AHEAD = 10;                  // levels generated below
+
+// ── Scene ──────────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f0f1a);
+scene.fog = new THREE.Fog(0x0f0f1a, 12, 34);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 120);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ── Lights ─────────────────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0x445577, 1.15));
+scene.add(new THREE.HemisphereLight(0x8899ff, 0x140a26, 0.85));
+const key = new THREE.DirectionalLight(0xfff0dd, 1.7);
+key.position.set(5, 10, 8);
+scene.add(key);
+const pinkPt = new THREE.PointLight(0xff44cc, 5, 30, 1.5);
+scene.add(pinkPt);
+const cyanPt = new THREE.PointLight(0x22ccff, 5, 30, 1.5);
+scene.add(cyanPt);
+
+// ── Background stars ───────────────────────────────────────────────────────
+{
+  const pts = [];
+  for (let i = 0; i < 500; i++) {
+    const a = Math.random() * Math.PI * 2, r = 22 + Math.random() * 55;
+    pts.push(Math.cos(a) * r, 40 - Math.random() * 200, Math.sin(a) * r);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8899ee, size: 0.4 })));
+}
+
+// ── Central pole ───────────────────────────────────────────────────────────
+const pole = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.5, 0.5, 80, 20, 1, true),
+  new THREE.MeshStandardMaterial({
+    color: 0x181838, emissive: 0x3322aa, emissiveIntensity: 0.5,
+    roughness: 0.5, metalness: 0.3, side: THREE.DoubleSide
+  })
+);
+scene.add(pole);
+
+// ── Tower (rotating group of rings) ────────────────────────────────────────
+const tower = new THREE.Group();
+scene.add(tower);
+let towerAngle = 0;
+let spinVel = 0;                   // arrow-key / inertia angular velocity
+
+const levelMap = {};               // gi -> { gi, y, sectors, group }
+function levelY(gi) { return -gi * LEVEL_GAP; }
+
+function safeMat(gi) {
+  const hue = (200 + gi * 11) % 360;
+  return new THREE.MeshStandardMaterial({
+    color: new THREE.Color().setHSL(hue / 360, 0.7, 0.55),
+    emissive: new THREE.Color().setHSL(hue / 360, 0.9, 0.32),
+    emissiveIntensity: 0.55, roughness: 0.4, metalness: 0.2
+  });
+}
+function deathMat() {
+  return new THREE.MeshStandardMaterial({
+    color: 0xff3355, emissive: 0xff1133, emissiveIntensity: 0.9,
+    roughness: 0.35, metalness: 0.2
+  });
+}
+
+function genSectors(gi) {
+  const t = new Array(N).fill('safe');
+  const idx = [];
+  for (let i = 0; i < N; i++) idx.push(i);
+  for (let i = idx.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = idx[i]; idx[i] = idx[j]; idx[j] = tmp;
+  }
+  let p = 0;
+  let gaps = gi === 0 ? 3 : (1 + (Math.random() < 0.4 ? 1 : 0));
+  for (let k = 0; k < gaps; k++) t[idx[p++]] = 'gap';
+  let deaths = gi < 2 ? 0 : Math.min(N - gaps - 1, Math.floor(gi / 3) + (Math.random() < 0.4 ? 1 : 0));
+  for (let k = 0; k < deaths; k++) t[idx[p++]] = 'death';
+  return t;
+}
+
+function buildLevel(gi) {
+  const sectors = genSectors(gi);
+  const group = new THREE.Group();
+  group.position.y = levelY(gi);
+  sectors.forEach((type, i) => {
+    if (type === 'gap') return;
+    const geo = new THREE.CylinderGeometry(
+      OUTER, OUTER, THK, 8, 1, false, i * SECTOR + PAD, SECTOR - 2 * PAD
+    );
+    const m = new THREE.Mesh(geo, type === 'death' ? deathMat() : safeMat(gi));
+    group.add(m);
+  });
+  tower.add(group);
+  const L = { gi, y: levelY(gi), sectors, group };
+  levelMap[gi] = L;
+  return L;
+}
+
+function disposeGroup(group) {
+  group.traverse(o => { if (o.isMesh) { o.geometry.dispose(); if (o.material.dispose) o.material.dispose(); } });
+}
+
+function ensureLevels() {
+  // build only current level and below, so a smashed level is never recreated
+  for (let gi = Math.max(0, restLevel); gi <= restLevel + AHEAD; gi++) {
+    if (!levelMap[gi]) buildLevel(gi);
+  }
+  for (const k in levelMap) {
+    if (+k < restLevel - 2) {
+      tower.remove(levelMap[k].group);
+      disposeGroup(levelMap[k].group);
+      delete levelMap[k];
+    }
+  }
+}
+
+function clearLevels() {
+  for (const k in levelMap) {
+    tower.remove(levelMap[k].group);
+    disposeGroup(levelMap[k].group);
+    delete levelMap[k];
+  }
+}
+
+// ── Ball ───────────────────────────────────────────────────────────────────
+const ballMat = new THREE.MeshStandardMaterial({
+  color: 0x4ff3ff, emissive: 0x1188cc, emissiveIntensity: 0.7,
+  roughness: 0.25, metalness: 0.35
+});
+const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 28, 20), ballMat);
+scene.add(ballMesh);
+const ballGlow = new THREE.PointLight(0x4ff3ff, 3, 8, 2);
+scene.add(ballGlow);
+
+let ballY = BALL_R + THK / 2;
+let ballVy = 0;
+let squashT = 0;
+
+// ── Game state ─────────────────────────────────────────────────────────────
+let restLevel = 0;
+let depth = 0, floors = 0, smashArmed = false;
+let playing = false, over = false;
+
+// debris
+const debris = [];
+function addDebris(x, y, z, color) {
+  const geo = new THREE.BoxGeometry(0.4 + Math.random() * 0.4, 0.2, 0.4 + Math.random() * 0.4);
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+    color: color, emissive: color, emissiveIntensity: 0.6, roughness: 0.5
+  }));
+  m.position.set(x, y, z);
+  scene.add(m);
+  debris.push({
+    mesh: m,
+    vel: new THREE.Vector3((Math.random() - 0.5) * 6, 1 + Math.random() * 3, (Math.random() - 0.5) * 6),
+    angVel: new THREE.Vector3((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8),
+    life: 1.4
+  });
+}
+
+function norm(a) { a %= Math.PI * 2; if (a < 0) a += Math.PI * 2; return a; }
+function ballSector() { return Math.floor(norm(-towerAngle) / SECTOR) % N; }
+
+function updateHUD() {
+  document.getElementById('depth-big').innerHTML = depth + '<small>DEPTH</small>';
+  document.getElementById('best').textContent = best;
+  document.getElementById('streak').textContent = floors;
+  document.getElementById('smash').style.opacity = smashArmed ? '1' : '0';
+}
+
+function squashBall() { squashT = 1; }
+
+function smashLevel(L) {
+  const col = new THREE.Color(0xffb03a);
+  L.sectors.forEach((type, i) => {
+    if (type === 'gap') return;
+    const a = i * SECTOR + SECTOR / 2 + towerAngle;
+    addDebris(Math.sin(a) * BALL_POS, L.y, Math.cos(a) * BALL_POS, type === 'death' ? 0xff3355 : col);
+  });
+  tower.remove(L.group);
+  disposeGroup(L.group);
+  delete levelMap[L.gi];
+}
+
+function descend(broke) {
+  restLevel++;
+  if (restLevel > depth) depth = restLevel;
+  ensureLevels();
+  if (broke) { floors = 0; smashArmed = false; }
+  else {
+    floors++;
+    if (floors >= STREAK) smashArmed = true;
+  }
+  updateHUD();
+}
+
+function die(L) {
+  over = true; playing = false;
+  squashT = 0;
+  ballMesh.scale.set(1.8, 0.2, 1.8);
+  ballY = L.y + THK / 2 + BALL_R * 0.2;
+  const sec = ballSector();
+  const a = sec * SECTOR + SECTOR / 2 + towerAngle;
+  for (let i = 0; i < 10; i++) addDebris(Math.sin(a) * BALL_POS, L.y, Math.cos(a) * BALL_POS, 0xff3355);
+  if (depth > best) { best = depth; localStorage.setItem(SLUG, String(best)); }
+  updateHUD();
+  document.getElementById('over-stats').textContent = 'DEPTH ' + depth + '  ·  BEST ' + best;
+  document.getElementById('over-sub').textContent =
+    depth >= best && depth > 0 ? '★ New record! ★' : 'The ball hit a red segment.';
+  setTimeout(() => { document.getElementById('over-ov').style.display = 'flex'; }, 650);
+}
+
+function stepBall(dt) {
+  if (!playing || over) return;
+  ballVy -= G * dt;
+  ballY += ballVy * dt;
+  let guard = 0;
+  while (guard++ < N + 2) {
+    const L = levelMap[restLevel];
+    if (!L) break;
+    const surfaceY = L.y + THK / 2 + BALL_R;
+    if (ballVy < 0 && ballY <= surfaceY) {
+      const type = L.sectors[ballSector()];
+      if (type === 'gap') {
+        descend(false);
+        continue;                     // re-check against next level below
+      }
+      if (smashArmed) { smashLevel(L); descend(true); continue; }
+      if (type === 'death') { die(L); return; }
+      // bounce on safe tile
+      ballY = surfaceY;
+      ballVy = BOUNCE;
+      squashBall();
+      floors = 0;
+      updateHUD();
+    }
+    break;
+  }
+}
+
+// ── Start / reset ──────────────────────────────────────────────────────────
+function startGame() {
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  document.getElementById('start-ov').style.display = 'none';
+  document.getElementById('over-ov').style.display = 'none';
+  // clear debris
+  for (const d of debris) scene.remove(d.mesh);
+  debris.length = 0;
+  clearLevels();
+  restLevel = 0; depth = 0; floors = 0; smashArmed = false;
+  over = false; playing = true;
+  ensureLevels();
+  ballMesh.scale.set(1, 1, 1);
+  ballY = levelMap[0].y + THK / 2 + BALL_R + 0.4;
+  ballVy = 0;
+  squashT = 0;
+  updateHUD();
+}
+
+// ── Input ──────────────────────────────────────────────────────────────────
+let dragging = false, lastX = 0;
+renderer.domElement.addEventListener('pointerdown', e => {
+  dragging = true; lastX = e.clientX;
+});
+addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - lastX;
+  lastX = e.clientX;
+  towerAngle += dx * 0.012;
+  spinVel = 0;
+});
+addEventListener('pointerup', () => { dragging = false; });
+
+addEventListener('pointerdown', e => {
+  if (e.target.closest('.panel') || e.target.closest('a')) return;
+  if (!playing || over) startGame();
+});
+addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'Enter') {
+    e.preventDefault();
+    if (!playing || over) startGame();
+  }
+  if (e.code === 'KeyR') { e.preventDefault(); startGame(); }
+  if (e.code === 'ArrowLeft') spinVel = -3.2;
+  if (e.code === 'ArrowRight') spinVel = 3.2;
+});
+addEventListener('keyup', e => {
+  if (e.code === 'ArrowLeft' && spinVel < 0) spinVel = 0;
+  if (e.code === 'ArrowRight' && spinVel > 0) spinVel = 0;
+});
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('restart-btn').addEventListener('click', startGame);
+
+// ── Loop ───────────────────────────────────────────────────────────────────
+ensureLevels();     // attract-mode tower behind the start panel
+updateHUD();
+
+let lastT = 0;
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const t = ts / 1000;
+  const dt = Math.min((ts - lastT) / 1000, 0.033);
+  lastT = ts;
+
+  // rotation: arrow keys + idle drift
+  if (spinVel !== 0) towerAngle += spinVel * dt;
+  if (!playing && !over) towerAngle += dt * 0.35;    // idle slow spin
+  tower.rotation.y = towerAngle;
+
+  // ball physics or idle bob
+  if (playing && !over) {
+    stepBall(dt);
+  } else if (!over) {
+    const surfaceY = (levelMap[0] ? levelMap[0].y : 0) + THK / 2 + BALL_R;
+    ballY = surfaceY + Math.abs(Math.sin(t * 2.2)) * 0.55;
+  }
+  ballMesh.position.set(0, ballY, BALL_POS);
+  ballGlow.position.set(0, ballY, BALL_POS + 0.3);
+
+  // squash / stretch
+  if (squashT > 0) {
+    squashT -= dt * 4;
+    const s = Math.max(0, Math.sin(squashT * Math.PI));
+    ballMesh.scale.set(1 + s * 0.45, 1 - s * 0.5, 1 + s * 0.45);
+  } else if (!over) {
+    const st = Math.min(0.4, Math.max(0, -ballVy * 0.018));
+    ballMesh.scale.set(1 - st * 0.5, 1 + st, 1 - st * 0.5);
+  }
+
+  // smash-charged ball glows orange
+  const armedCol = smashArmed && playing;
+  ballMat.emissive.setHex(armedCol ? 0xff7a00 : 0x1188cc);
+  ballMat.color.setHex(armedCol ? 0xffb03a : 0x4ff3ff);
+  ballGlow.color.setHex(armedCol ? 0xffb03a : 0x4ff3ff);
+
+  // debris
+  for (let i = debris.length - 1; i >= 0; i--) {
+    const d = debris[i];
+    d.vel.y -= 18 * dt;
+    d.mesh.position.addScaledVector(d.vel, dt);
+    d.mesh.rotation.x += d.angVel.x * dt;
+    d.mesh.rotation.y += d.angVel.y * dt;
+    d.mesh.rotation.z += d.angVel.z * dt;
+    d.life -= dt;
+    if (d.life <= 0) { scene.remove(d.mesh); d.mesh.geometry.dispose(); debris.splice(i, 1); }
+  }
+
+  // camera follows ball down
+  const camY = ballY + 3.4;
+  camera.position.set(0, camY, 9.2);
+  camera.lookAt(0, ballY - 2.4, 0);
+  pole.position.y = ballY - 6;
+  pinkPt.position.set(-6, ballY + 3, 5);
+  cyanPt.position.set(6, ballY + 3, 5);
+  pinkPt.intensity = 5 + Math.sin(t * 1.3) * 1.5;
+  cyanPt.intensity = 5 + Math.cos(t * 1.1) * 1.5;
+
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -289,8 +289,7 @@
     document.getElementById("h-mult").textContent = "x" + currentMult();
     document.getElementById("h-best").textContent = store.best;
     var tier = currentTier();
-    document.getElementById("h-tier").textContent = tier;
-    document.getElementById("tierlabel").innerHTML = "TIER <b>" + tier + "</b> — " + TIER_NAMES[tier - 1];
+    document.getElementById("tierlabel").innerHTML = 'TIER <b id="h-tier">' + tier + "</b> — " + TIER_NAMES[tier - 1];
   }
 
   function renderAnswer() {

@@ -176,6 +176,11 @@
 <script>
 (function () {
   "use strict";
+  // keep physical Enter/Space from re-triggering the last clicked button
+  document.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("button") : null;
+    if (b) b.blur();
+  });
   // ---------- audio ----------
   var actx = null;
   function initAudio() {
@@ -470,19 +475,20 @@
       for (var i = 0; i < 3; i++) if (topDisc(i) === d) { pIdx = i; break; }
       if (pIdx === -1) return;
       e.preventDefault();
-      // cancel click-selection
+      // remember whether this disc was already lifted via click-selection
+      var wasSelected = (selectedPeg === pIdx);
+      // cancel any click-selection on another peg (lower that disc back down)
       if (selectedPeg !== -1 && selectedPeg !== pIdx) {
         var od = topDisc(selectedPeg);
+        selectedPeg = -1;
         if (od !== null) {
           discEls[od].classList.remove("sel");
-          var opos0 = discXY(od);
-          // temporarily unselect for position calc
-          var sp = selectedPeg; selectedPeg = -1;
           var opos = discXY(od);
           setDisc(od, opos.x, opos.y);
         }
       }
       selectedPeg = -1;
+      discEls[d].classList.remove("sel");
       var rect = board.getBoundingClientRect();
       var startX = e.clientX, startY = e.clientY;
       var isDrag = false;
@@ -507,8 +513,15 @@
         el.removeEventListener("pointercancel", onUp);
         el.classList.remove("drag");
         if (!isDrag) {
-          // treat as a click on the peg
           el.classList.remove("sel");
+          if (wasSelected) {
+            // it was lifted and tapped again: drop it back down
+            var rpos = discXY(d);
+            setDisc(d, rpos.x, rpos.y);
+            beep(300, 0.05, "square", 0.03);
+            return;
+          }
+          // treat as a click on the peg (lift this disc)
           clickPeg(pIdx);
           return;
         }

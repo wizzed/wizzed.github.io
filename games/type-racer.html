@@ -168,6 +168,11 @@
 <script>
 (function () {
   "use strict";
+  // keep physical Enter/Space from re-triggering the last clicked button
+  document.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("button") : null;
+    if (b) b.blur();
+  });
   var PARAGRAPHS = [
     "The neon sign flickered over the empty arcade as the last player chased one final high score before closing time. Every coin counted now.",
     "Typing fast is a skill built from rhythm and patience. Keep your eyes on the words, trust your fingers, and let each sentence flow like water.",
@@ -461,9 +466,7 @@
     mobileInput.value = "";
     for (var i = 0; i < v.length; i++) typeChar(v[i]);
   });
-  mobileInput.addEventListener("keydown", function (e) {
-    if (e.key === "Backspace") { backspace(); e.preventDefault(); }
-  });
+  // Backspace (even while mobileInput is focused) bubbles to the window keydown handler.
 
   // on-screen keyboard
   (function buildKb() {

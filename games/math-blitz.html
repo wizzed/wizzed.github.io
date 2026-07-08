@@ -200,6 +200,11 @@
 <script>
 (function () {
   "use strict";
+  // keep physical Enter/Space from re-triggering the last clicked button
+  document.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("button") : null;
+    if (b) b.blur();
+  });
   // ---------- audio ----------
   var actx = null;
   function initAudio() {

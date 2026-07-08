@@ -177,6 +177,11 @@
 <script>
 (function () {
   "use strict";
+  // keep physical Enter/Space from re-triggering the last clicked button
+  document.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("button") : null;
+    if (b) b.blur();
+  });
   var WORDS = {
     "Animals": ["ELEPHANT","GIRAFFE","PENGUIN","DOLPHIN","KANGAROO","OCTOPUS","CHEETAH","LEOPARD","RACCOON","SQUIRREL","HEDGEHOG","FLAMINGO","OSTRICH","PANTHER","GORILLA","HAMSTER","RABBIT","TURTLE","MONKEY","JAGUAR","FALCON","BEAVER","WALRUS","TOUCAN","IGUANA","LOBSTER","PELICAN","BUFFALO","GAZELLE","MEERKAT","PLATYPUS","ARMADILLO","CHAMELEON","BUTTERFLY","SCORPION"],
     "Food": ["SPAGHETTI","PANCAKE","BURRITO","LASAGNA","AVOCADO","BROCCOLI","PRETZEL","WAFFLE","MUFFIN","NOODLES","KETCHUP","MUSTARD","CUPCAKE","POPCORN","SANDWICH","COCONUT","PINEAPPLE","CHOCOLATE","STRAWBERRY","DUMPLING","OMELETTE","CROISSANT","MEATBALL","SUSHI","RAMEN","BAGEL","DONUT","CHEESE","YOGURT","GARLIC","GINGER","PEPPER","CINNAMON","OATMEAL","GUACAMOLE"],

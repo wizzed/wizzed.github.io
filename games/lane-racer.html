@@ -35,11 +35,11 @@ const CARW=46,CARH=82,PY=360;
 const CARCOLS=['#ff4d6d','#3fb9ff','#ffd23f','#c05cff','#ff9330','#7dd8ff'];
 /* ---- state ---- */
 let state='title',stateT=0,gt=0;
-let lane,px,dist,traffic,nitros,scenery,parts,floaters,stripeOff,nitroT,combo,comboT,nextTraffic,nextNitro,nextScene,shake;
+let lane,px,dist,traffic,nitros,scenery,parts,floaters,stripeOff,roadDist,nitroT,combo,comboT,nextTraffic,nextNitro,nextScene,shake;
 function reset(){
   lane=1;px=LANES[1];dist=0;
   traffic=[];nitros=[];parts=[];floaters=[];
-  stripeOff=0;nitroT=0;combo=0;comboT=0;shake=0;
+  stripeOff=0;roadDist=0;nitroT=0;combo=0;comboT=0;shake=0;
   nextTraffic=0.4;nextNitro=6;nextScene=0;
   seedScenery();
   state='play';stateT=0;
@@ -125,6 +125,7 @@ function update(dt){
   }
   const spd=state==='play'?speedNow():(state==='title'?300:0);
   stripeOff=(stripeOff+spd*dt)%80;
+  roadDist+=spd*dt;
   /* scenery always moves for title flair */
   for(let i=scenery.length-1;i>=0;i--){
     scenery[i].y+=spd*dt;
@@ -149,9 +150,13 @@ function update(dt){
     for(let l=0;l<3;l++)if(!busy[l])options.push(l);
     if(options.length>1){
       const l=options[Math.floor(Math.random()*options.length)];
-      let ok=true;
-      for(const t of traffic)if(t.lane===l&&t.y<-40)ok=false;
-      if(ok)traffic.push({lane:l,x:LANES[l],y:-CARH-30,spd:rand(120,spd*0.55),col:CARCOLS[Math.floor(Math.random()*CARCOLS.length)],passed:false,truck:Math.random()<0.2});
+      let ok=true,minSpd=0;
+      for(const t of traffic)if(t.lane===l){
+        if(t.y<-40)ok=false;
+        if(t.spd>minSpd)minSpd=t.spd;
+      }
+      /* never faster down-screen than the car ahead in this lane (no rear-ending) */
+      if(ok)traffic.push({lane:l,x:LANES[l],y:-CARH-30,spd:Math.max(minSpd,rand(120,spd*0.55)),col:CARCOLS[Math.floor(Math.random()*CARCOLS.length)],passed:false,truck:Math.random()<0.2});
     }
   }
   for(let i=traffic.length-1;i>=0;i--){
@@ -261,7 +266,7 @@ function draw(){
   ctx.fillStyle='#101322';ctx.fillRect(-10,-10,W+20,H+20);
   /* grass texture dots */
   for(let i=0;i<50;i++){
-    const x=(i*167)%W,y=((i*211)+stripeOff*1.5)%H;
+    const x=(i*167)%W,y=((i*211)+roadDist*1.5)%H;
     if(x>ROADX-24&&x<ROADX+ROADW+24)continue;
     ctx.fillStyle='rgba(57,255,20,0.05)';
     ctx.fillRect(x,y,3,3);
@@ -370,7 +375,7 @@ function draw(){
   }
 }
 /* ---- boot ---- */
-lane=1;px=LANES[1];dist=0;traffic=[];nitros=[];parts=[];floaters=[];stripeOff=0;nitroT=0;combo=0;comboT=0;nextTraffic=1;nextNitro=6;nextScene=0;shake=0;
+lane=1;px=LANES[1];dist=0;traffic=[];nitros=[];parts=[];floaters=[];stripeOff=0;roadDist=0;nitroT=0;combo=0;comboT=0;nextTraffic=1;nextNitro=6;nextScene=0;shake=0;
 seedScenery();
 let last=0;
 function loop(ts){

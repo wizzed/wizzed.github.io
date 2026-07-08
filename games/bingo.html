@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bingo Hall — Wizzed Arcade</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--acc:#ffa62b}
+  html,body{min-height:100%}
+  body{
+    background:#0f0f1a;
+    background-image:radial-gradient(ellipse 110% 70% at 50% -12%, rgba(255,166,43,.13), transparent 60%),
+      radial-gradient(ellipse 90% 60% at 50% 118%, rgba(80,40,90,.35), transparent 70%);
+    color:#ffe8c9;font-family:'Courier New',ui-monospace,Menlo,monospace;
+    min-height:100vh;overflow-x:hidden;user-select:none;-webkit-user-select:none;
+  }
+  a.back{position:fixed;top:8px;left:10px;z-index:60;color:#ffc46b;text-decoration:none;
+    font-size:12px;letter-spacing:1px;opacity:.75;border:1px solid rgba(255,166,43,.35);
+    padding:3px 8px;border-radius:6px;background:rgba(15,15,26,.85)}
+  a.back:hover{opacity:1;box-shadow:0 0 10px rgba(255,166,43,.5)}
+  header{text-align:center;padding:6px 90px 0}
+  h1{font-size:clamp(14px,2.4vw,22px);letter-spacing:5px;color:var(--acc);
+    text-shadow:0 0 10px rgba(255,166,43,.9),0 0 28px rgba(255,166,43,.45)}
+  .sub{font-size:10px;letter-spacing:2px;color:#a8823f;margin-top:1px}
+  #tally{position:fixed;top:8px;right:10px;z-index:60;font-size:12px;color:#ffc46b;
+    border:1px solid rgba(255,166,43,.4);border-radius:8px;padding:3px 10px;background:rgba(15,15,26,.85)}
+
+  #wrap{display:flex;gap:10px;max-width:960px;margin:4px auto 0;padding:0 10px 12px;align-items:flex-start;justify-content:center}
+
+  /* player card */
+  #mine{flex:0 0 auto}
+  .bcard{background:rgba(15,15,26,.8);border:2px solid rgba(255,166,43,.5);border-radius:12px;
+    padding:6px;box-shadow:0 0 16px rgba(255,166,43,.18)}
+  .bhead{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-bottom:3px}
+  .bhead span{text-align:center;font-weight:bold;font-size:15px;padding:1px 0;border-radius:5px}
+  .bhead span:nth-child(1){color:#ff5c8a}.bhead span:nth-child(2){color:#ffd166}
+  .bhead span:nth-child(3){color:#39ffa0}.bhead span:nth-child(4){color:#22e5ee}
+  .bhead span:nth-child(5){color:#b14dff}
+  .bgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}
+  #mine .cell{width:46px;height:42px;font-size:14px;cursor:pointer}
+  .cell{display:flex;align-items:center;justify-content:center;border-radius:6px;position:relative;
+    background:rgba(255,232,201,.07);border:1px solid rgba(255,166,43,.25);color:#ffe8c9;
+    transition:background .12s}
+  #mine .cell:hover{background:rgba(255,166,43,.18)}
+  .cell.free{color:#39ffa0;font-size:9px !important;letter-spacing:1px}
+  .cell.daub::after{content:'';position:absolute;inset:3px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, rgba(255,92,138,.95), rgba(200,30,80,.9));
+    box-shadow:0 0 8px rgba(255,92,138,.8);animation:dpop .25s}
+  .cell.daub{color:#fff}
+  .cell.daub span{position:relative;z-index:2}
+  @keyframes dpop{from{transform:scale(.2)}to{transform:scale(1)}}
+  .cell.missed{animation:missFlash 1.4s}
+  @keyframes missFlash{0%,70%{background:rgba(255,80,80,.55);box-shadow:0 0 12px rgba(255,80,80,.9)}100%{background:rgba(255,232,201,.07)}}
+  .cell.shake{animation:shk .3s}
+  @keyframes shk{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+  #myBtns{display:flex;gap:6px;margin-top:6px}
+  #bingoBtn{flex:1;font-family:inherit;font-size:16px;letter-spacing:4px;padding:9px 0;border-radius:10px;
+    background:linear-gradient(180deg,#5a2a08,#331704);color:#ffd9a8;border:2px solid rgba(255,166,43,.5);
+    cursor:pointer;transition:box-shadow .2s}
+  #bingoBtn.ready{border-color:#39ffa0;color:#c8ffe4;background:linear-gradient(180deg,#0b4a2c,#062a19);
+    box-shadow:0 0 18px rgba(57,255,160,.8);animation:pulse 1s infinite}
+  @keyframes pulse{50%{box-shadow:0 0 30px rgba(57,255,160,1)}}
+  #bingoBtn:disabled{opacity:.4;cursor:default;animation:none}
+  #auditBtn{font-family:inherit;font-size:10px;letter-spacing:1px;padding:6px 8px;border-radius:8px;
+    background:transparent;border:1px solid rgba(34,229,238,.5);color:#7deff5;cursor:pointer}
+  #auditBtn:hover:not(:disabled){box-shadow:0 0 8px rgba(34,229,238,.5)}
+  #auditBtn:disabled{opacity:.4;cursor:default}
+
+  /* caller column */
+  #caller{flex:0 0 240px;display:flex;flex-direction:column;gap:7px;text-align:center}
+  #ballBox{background:rgba(15,15,26,.8);border:1px solid rgba(255,166,43,.4);border-radius:12px;padding:8px}
+  #ball{width:84px;height:84px;margin:2px auto;border-radius:50%;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;font-weight:bold;color:#1c1c2e;
+    background:radial-gradient(circle at 35% 30%, #fff, #ffd166 55%, #b8912f);
+    box-shadow:0 0 22px rgba(255,209,102,.8)}
+  #ball .L{font-size:22px;line-height:1}
+  #ball .N{font-size:28px;line-height:1}
+  #ball.pop{animation:bpop .5s}
+  @keyframes bpop{0%{transform:scale(.3) rotate(-160deg)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+  #recent{display:flex;gap:3px;justify-content:center;margin-top:6px;min-height:20px;flex-wrap:wrap}
+  #recent span{font-size:10px;padding:1px 5px;border-radius:8px;border:1px solid rgba(255,166,43,.4);color:#ffc46b}
+  #callCount{font-size:10px;color:#a8823f;letter-spacing:1px;margin-top:3px}
+  #ctl{background:rgba(15,15,26,.8);border:1px solid rgba(255,166,43,.3);border-radius:12px;padding:7px}
+  .crow{display:flex;gap:4px;justify-content:center;margin-bottom:5px;flex-wrap:wrap}
+  .crow:last-child{margin-bottom:0}
+  .lbl{font-size:9px;letter-spacing:2px;color:#a8823f;width:100%;text-align:center;margin-bottom:2px}
+  .opt{font-family:inherit;font-size:10px;padding:4px 8px;border-radius:7px;cursor:pointer;
+    background:transparent;border:1px solid rgba(255,166,43,.4);color:#ffc46b}
+  .opt.sel{background:rgba(255,166,43,.25);color:#fff2dd;box-shadow:0 0 8px rgba(255,166,43,.6)}
+  .opt:disabled{opacity:.4;cursor:default}
+  #startBtn{width:100%;font-family:inherit;font-size:14px;letter-spacing:3px;padding:8px 0;border-radius:10px;
+    background:linear-gradient(180deg,#5a3a08,#332004);color:#ffe8c9;border:1px solid var(--acc);
+    cursor:pointer;box-shadow:0 0 12px rgba(255,166,43,.5)}
+  #startBtn:hover{box-shadow:0 0 22px rgba(255,166,43,.9)}
+  #msg{font-size:11px;letter-spacing:1px;color:#ffd166;min-height:30px;text-shadow:0 0 8px rgba(255,209,102,.6)}
+
+  /* AI column */
+  #rivals{flex:0 0 auto;display:flex;flex-direction:column;gap:6px}
+  .ai .nm{font-size:9px;letter-spacing:2px;color:#b98cf5;text-align:center;margin-bottom:2px}
+  .ai .bcard{padding:4px;border-color:rgba(177,77,255,.4);box-shadow:0 0 10px rgba(177,77,255,.12)}
+  .ai .bgrid{gap:2px}
+  .ai .cell{width:22px;height:19px;font-size:8px;border-radius:3px}
+  .ai .cell.daub::after{inset:2px;box-shadow:none}
+  .ai.won .bcard{border-color:#39ffa0;box-shadow:0 0 16px rgba(57,255,160,.7)}
+
+  #banner{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;
+    background:rgba(8,8,16,.8)}
+  #banner.on{display:flex}
+  #bInner{background:#141426;border:2px solid var(--acc);border-radius:14px;padding:20px 34px;text-align:center;
+    box-shadow:0 0 40px rgba(255,166,43,.5)}
+  #bTitle{font-size:22px;letter-spacing:5px;color:var(--acc);text-shadow:0 0 14px rgba(255,166,43,.9);margin-bottom:6px}
+  #bSub{font-size:11px;color:#ffe8c9;margin-bottom:12px;letter-spacing:1px}
+  #bInner button{font-family:inherit;font-size:13px;letter-spacing:2px;padding:7px 20px;border-radius:10px;
+    background:linear-gradient(180deg,#5a3a08,#332004);color:#ffe8c9;border:1px solid var(--acc);cursor:pointer}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>▣ BINGO HALL ▣</h1>
+  <div class="sub">YOU VS 3 RIVALS · DAUB FAST · DON'T MISS A CALL</div>
+</header>
+<div id="tally">YOU 0 · RIVALS 0</div>
+
+<div id="wrap">
+  <div id="mine">
+    <div class="bcard">
+      <div class="bhead"><span>B</span><span>I</span><span>N</span><span>G</span><span>O</span></div>
+      <div class="bgrid" id="myGrid"></div>
+    </div>
+    <div id="myBtns">
+      <button id="bingoBtn">BINGO!</button>
+      <button id="auditBtn">AUDIT</button>
+    </div>
+  </div>
+
+  <div id="caller">
+    <div id="ballBox">
+      <div id="ball"><span class="L">★</span><span class="N">GO</span></div>
+      <div id="recent"></div>
+      <div id="callCount">0 / 75 CALLED</div>
+    </div>
+    <div id="ctl">
+      <div class="crow"><span class="lbl">PATTERN</span>
+        <button class="opt sel" data-m="line">LINE</button>
+        <button class="opt" data-m="corners">4 CORNERS</button>
+        <button class="opt" data-m="blackout">BLACKOUT</button>
+      </div>
+      <div class="crow"><span class="lbl">CALLER SPEED</span>
+        <button class="opt" data-s="4000">CHILL</button>
+        <button class="opt sel" data-s="2500">NORMAL</button>
+        <button class="opt" data-s="1500">TURBO</button>
+      </div>
+      <div class="crow"><button id="startBtn">▶ START ROUND</button></div>
+    </div>
+    <div id="msg">Pick a pattern and start the round. Click your card to daub called numbers.</div>
+  </div>
+
+  <div id="rivals">
+    <div class="ai" id="ai1"><div class="nm">MABEL</div><div class="bcard"><div class="bgrid"></div></div></div>
+    <div class="ai" id="ai2"><div class="nm">GUS</div><div class="bcard"><div class="bgrid"></div></div></div>
+    <div class="ai" id="ai3"><div class="nm">RUTH</div><div class="bcard"><div class="bgrid"></div></div></div>
+  </div>
+</div>
+
+<div id="banner"><div id="bInner">
+  <div id="bTitle">BINGO!</div>
+  <div id="bSub"></div>
+  <button id="nextBtn">NEW ROUND</button>
+</div></div>
+
+<script>
+'use strict';
+(function(){
+const LSK='wizzed-bingo';
+const $=id=>document.getElementById(id);
+const LETTERS=['B','I','N','G','O'];
+const AINAMES=['MABEL','GUS','RUTH'];
+
+/* ---------- audio ---------- */
+let AC=null;
+function ensureAC(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+  if(AC&&AC.state==='suspended')AC.resume(); }
+document.addEventListener('pointerdown',ensureAC);
+function beep(f,dur,type,g){ if(!AC)return; try{
+  const o=AC.createOscillator(),ga=AC.createGain();
+  o.type=type||'square';o.frequency.value=f;
+  ga.gain.setValueAtTime(g||0.04,AC.currentTime);
+  ga.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+(dur||0.07));
+  o.connect(ga);ga.connect(AC.destination);o.start();o.stop(AC.currentTime+(dur||0.07)+0.02);
+}catch(e){} }
+const sCall=()=>{beep(700,0.05,'triangle',0.04);setTimeout(()=>beep(560,0.05,'triangle',0.03),60);};
+const sDaub=()=>beep(880,0.05,'square',0.05);
+const sBad=()=>beep(140,0.14,'sawtooth',0.05);
+const sWin=()=>{[523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.12,'square',0.05),i*110));};
+
+/* ---------- persistence ---------- */
+let tally={you:0,ai:0,rounds:0};
+try{const j=JSON.parse(localStorage.getItem(LSK));if(j&&typeof j==='object')tally=Object.assign(tally,j);}catch(e){}
+function saveTally(){try{localStorage.setItem(LSK,JSON.stringify(tally));}catch(e){}}
+function renderTally(){$('tally').textContent='YOU '+tally.you+' · RIVALS '+tally.ai;}
+
+/* ---------- cards ---------- */
+function makeCard(){
+  const grid=[]; // grid[r][c]
+  const cols=[];
+  for(let c=0;c<5;c++){
+    const lo=c*15+1,pool=[];
+    for(let n=lo;n<lo+15;n++)pool.push(n);
+    for(let i=0;i<5;i++){const j=i+Math.floor(Math.random()*(pool.length-i));[pool[i],pool[j]]=[pool[j],pool[i]];}
+    cols.push(pool.slice(0,5));
+  }
+  for(let r=0;r<5;r++){grid.push([]);for(let c=0;c<5;c++)grid[r].push(cols[c][r]);}
+  grid[2][2]=0; // FREE
+  const daub=grid.map(row=>row.map(v=>v===0));
+  return {grid,daub,els:null};
+}
+function buildGrid(container,card,mine){
+  container.innerHTML='';
+  card.els=[];
+  for(let r=0;r<5;r++){card.els.push([]);
+    for(let c=0;c<5;c++){
+      const d=document.createElement('div');
+      const v=card.grid[r][c];
+      d.className='cell'+(v===0?' free daub':'');
+      d.innerHTML='<span>'+(v===0?'FREE':v)+'</span>';
+      if(mine&&v!==0)d.addEventListener('click',()=>tryDaub(r,c));
+      container.appendChild(d);card.els[r].push(d);
+    }
+  }
+}
+
+/* ---------- patterns ---------- */
+function hasPattern(daub,mode){
+  if(mode==='blackout'){
+    for(let r=0;r<5;r++)for(let c=0;c<5;c++)if(!daub[r][c])return false;
+    return true;
+  }
+  if(mode==='corners')return daub[0][0]&&daub[0][4]&&daub[4][0]&&daub[4][4];
+  for(let r=0;r<5;r++)if(daub[r].every(Boolean))return true;
+  for(let c=0;c<5;c++){let ok=true;for(let r=0;r<5;r++)if(!daub[r][c])ok=false;if(ok)return true;}
+  if([0,1,2,3,4].every(i=>daub[i][i]))return true;
+  if([0,1,2,3,4].every(i=>daub[i][4-i]))return true;
+  return false;
+}
+
+/* ---------- state ---------- */
+let cards=[],called=new Set(),callOrder=[],callIdx=0;
+let running=false,roundOver=true,mode='line',speed=2500;
+let callTimer=null,aiTimers=[];
+
+function newRound(){
+  clearTimeout(callTimer);aiTimers.forEach(clearTimeout);aiTimers=[];
+  cards=[makeCard(),makeCard(),makeCard(),makeCard()];
+  buildGrid($('myGrid'),cards[0],true);
+  for(let i=1;i<4;i++){buildGrid(document.querySelector('#ai'+i+' .bgrid'),cards[i],false);
+    $('ai'+i).classList.remove('won');}
+  called=new Set();callOrder=[];callIdx=0;
+  for(let n=1;n<=75;n++)callOrder.push(n);
+  for(let i=callOrder.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[callOrder[i],callOrder[j]]=[callOrder[j],callOrder[i]];}
+  running=false;roundOver=false;
+  $('ball').innerHTML='<span class="L">★</span><span class="N">GO</span>';
+  $('recent').innerHTML='';$('callCount').textContent='0 / 75 CALLED';
+  $('bingoBtn').disabled=false;$('bingoBtn').classList.remove('ready');
+  $('startBtn').textContent='▶ START ROUND';
+  document.querySelectorAll('[data-m]').forEach(b=>b.disabled=false);
+  msg('Pattern: '+mode.toUpperCase()+'. Press START — daub your card as numbers are called.');
+}
+function msg(t){$('msg').textContent=t;}
+
+/* ---------- caller ---------- */
+function scheduleCall(){
+  clearTimeout(callTimer);
+  if(!running||roundOver)return;
+  callTimer=setTimeout(doCall,speed);
+}
+function doCall(){
+  if(!running||roundOver)return;
+  if(callIdx>=75){running=false;msg('All 75 balls called — no winner. House keeps the round.');endRound(-1,'NOBODY');return;}
+  const n=callOrder[callIdx++];
+  called.add(n);
+  const L=LETTERS[Math.floor((n-1)/15)];
+  const ball=$('ball');
+  ball.innerHTML='<span class="L">'+L+'</span><span class="N">'+n+'</span>';
+  ball.classList.remove('pop');void ball.offsetWidth;ball.classList.add('pop');
+  const rec=$('recent');
+  const sp=document.createElement('span');sp.textContent=L+n;rec.prepend(sp);
+  while(rec.children.length>6)rec.lastChild.remove();
+  $('callCount').textContent=callIdx+' / 75 CALLED';
+  sCall();
+  // rivals auto-daub
+  for(let i=1;i<4;i++){
+    const card=cards[i];
+    for(let r=0;r<5;r++)for(let c=0;c<5;c++){
+      if(card.grid[r][c]===n&&!card.daub[r][c]){
+        card.daub[r][c]=true;
+        const el=card.els[r][c];
+        setTimeout(()=>el.classList.add('daub'),300+Math.random()*700);
+      }
+    }
+    if(hasPattern(card.daub,mode)&&!card.won){
+      card.won=true;
+      const delay=900+Math.random()*1300;
+      aiTimers.push(setTimeout(()=>{ if(!roundOver)aiBingo(i); },delay));
+    }
+  }
+  updateBingoBtn();
+  scheduleCall();
+}
+
+/* ---------- player actions ---------- */
+function tryDaub(r,c){
+  if(roundOver)return;
+  const card=cards[0],v=card.grid[r][c],el=card.els[r][c];
+  if(card.daub[r][c])return;
+  if(called.has(v)){
+    card.daub[r][c]=true;el.classList.add('daub');sDaub();
+    updateBingoBtn();
+  }else{
+    el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake');sBad();
+    msg(LETTERS[Math.floor((v-1)/15)]+v+' has not been called!');
+  }
+}
+function playerValid(){return hasPattern(cards[0].daub,mode);}
+function updateBingoBtn(){$('bingoBtn').classList.toggle('ready',running&&!roundOver&&playerValid());}
+
+$('bingoBtn').addEventListener('click',()=>{
+  if(roundOver||!running)return;
+  if(playerValid()){
+    endRound(0,'YOU');
+  }else{
+    sBad();
+    msg('FALSE CALL! The caller glares at you. Button locked 6 seconds.');
+    const b=$('bingoBtn');b.disabled=true;
+    setTimeout(()=>{if(!roundOver)b.disabled=false;},6000);
+  }
+});
+let auditCd=false;
+$('auditBtn').addEventListener('click',()=>{
+  if(roundOver||auditCd)return;
+  const card=cards[0];let missed=0;
+  for(let r=0;r<5;r++)for(let c=0;c<5;c++){
+    const v=card.grid[r][c];
+    if(v!==0&&called.has(v)&&!card.daub[r][c]){
+      missed++;
+      const el=card.els[r][c];
+      el.classList.remove('missed');void el.offsetWidth;el.classList.add('missed');
+    }
+  }
+  msg(missed?('Audit: '+missed+' called number'+(missed>1?'s':'')+' not daubed — flashing red!'):'Audit: clean card, nothing missed.');
+  beep(500,0.08,'triangle',0.04);
+  auditCd=true;$('auditBtn').disabled=true;
+  setTimeout(()=>{auditCd=false;if(!roundOver)$('auditBtn').disabled=false;},5000);
+});
+
+function aiBingo(i){
+  if(roundOver)return;
+  // player gets sniped only if they truly hadn't called it
+  $('ai'+i).classList.add('won');
+  endRound(i,AINAMES[i-1]);
+}
+function endRound(winner,name){
+  roundOver=true;running=false;
+  clearTimeout(callTimer);aiTimers.forEach(clearTimeout);aiTimers=[];
+  $('bingoBtn').classList.remove('ready');
+  tally.rounds++;
+  if(winner===0){tally.you++;sWin();
+    $('bTitle').textContent='★ BINGO! YOU WIN ★';
+    $('bSub').textContent='Pattern: '+mode.toUpperCase()+' in '+callIdx+' calls.';
+  }else if(winner>0){tally.ai++;sBad();
+    $('bTitle').textContent=name+' CALLS BINGO';
+    $('bSub').textContent='Beaten on '+mode.toUpperCase()+' after '+callIdx+' calls. Daub faster!';
+  }else{
+    $('bTitle').textContent='NO WINNER';
+    $('bSub').textContent='75 calls and nothing — a strange night in the hall.';
+  }
+  saveTally();renderTally();
+  setTimeout(()=>$('banner').classList.add('on'),winner===0?300:900);
+}
+$('nextBtn').addEventListener('click',()=>{$('banner').classList.remove('on');newRound();});
+
+/* ---------- controls ---------- */
+document.querySelectorAll('[data-m]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    if(running)return;
+    mode=b.dataset.m;
+    document.querySelectorAll('[data-m]').forEach(x=>x.classList.toggle('sel',x===b));
+    beep(560,0.04,'triangle',0.04);
+    msg('Pattern: '+mode.toUpperCase()+'. Press START when ready.');
+    if(!roundOver)updateBingoBtn();
+  });
+});
+document.querySelectorAll('[data-s]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    speed=+b.dataset.s;
+    document.querySelectorAll('[data-s]').forEach(x=>x.classList.toggle('sel',x===b));
+    beep(560,0.04,'triangle',0.04);
+    if(running)scheduleCall();
+  });
+});
+$('startBtn').addEventListener('click',()=>{
+  if(roundOver){newRound();}
+  if(running){ // pause
+    running=false;clearTimeout(callTimer);
+    $('startBtn').textContent='▶ RESUME';msg('Caller paused.');
+    return;
+  }
+  running=true;
+  document.querySelectorAll('[data-m]').forEach(b=>b.disabled=true);
+  $('startBtn').textContent='❚❚ PAUSE';
+  msg('Round live! Daub called numbers on YOUR card.');
+  beep(660,0.08,'triangle',0.05);
+  clearTimeout(callTimer);
+  callTimer=setTimeout(doCall,700);
+});
+
+/* ---------- boot ---------- */
+renderTally();
+newRound();
+})();
+</script>
+</body>
+</html>

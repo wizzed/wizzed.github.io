@@ -176,7 +176,8 @@ function bestStreak(h){
   var best=0, run=0, prev=null;
   keys.forEach(function(k){
     var t=new Date(k+'T12:00:00').getTime();
-    run=(prev!==null && t-prev===86400000)? run+1 : 1;
+    var gap=prev===null?0:t-prev;
+    run=(gap>=82800000 && gap<=90000000)? run+1 : 1;   /* 24h ± DST hour */
     prev=t;
     if(run>best) best=run;
   });

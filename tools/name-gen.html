@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Name Forge · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#b388ff; --accent-soft:rgba(179,136,255,.4);
+  --panel:#161623; --line:#2c2c46; --text:#f0eaff; --dim:#9a8fb0; --gold:#ffe066;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:18px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:8px 8px 2px; }
+h1{
+  display:inline-block; font-size:clamp(15px,2.8vw,23px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 24px var(--accent-soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; }
+#tabs{ display:flex; flex-wrap:wrap; justify-content:center; gap:5px; margin:8px auto 4px; max-width:760px; padding:0 8px; }
+#tabs button{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:5px 10px;
+}
+#tabs button.on{ color:#fff; border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); text-shadow:0 0 6px var(--accent); }
+main{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; align-items:flex-start; max-width:900px; margin:4px auto 0; padding:0 10px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:10px 12px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(179,136,255,.08);
+}
+#genPanel{ width:min(96vw,430px); }
+#seedRow{ display:flex; gap:6px; margin-bottom:8px; }
+#seed{
+  flex:1; background:#0c0c16; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:12px; padding:6px 8px; outline:none;
+}
+#seed:focus{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+#rollBtn{
+  font-family:inherit; font-size:12px; letter-spacing:2px; cursor:pointer; font-weight:bold;
+  color:#160b26; background:var(--accent); border:0; padding:6px 16px;
+  box-shadow:0 0 14px var(--accent-soft);
+}
+#rollBtn:active{ transform:translateY(1px); }
+#seedNote{ font-size:9px; color:var(--dim); letter-spacing:1px; margin-bottom:6px; }
+#names{ display:flex; flex-direction:column; gap:4px; }
+.name{
+  display:flex; align-items:center; gap:8px; padding:6px 9px; cursor:pointer;
+  background:#10101c; border:1px solid var(--line); font-size:14px;
+  transition:border-color .15s;
+  animation:pop .25s backwards;
+}
+@keyframes pop{ from{ opacity:0; transform:translateY(4px);} }
+.name:hover{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+.name .star{ flex:none; color:#4a4a64; font-size:14px; }
+.name.faved .star{ color:var(--gold); text-shadow:0 0 8px var(--gold); }
+.name .txt{ flex:1; }
+.hint{ font-size:9px; color:var(--dim); letter-spacing:1px; text-align:center; margin-top:7px; }
+#favPanel{ width:min(96vw,300px); }
+#favPanel h2{
+  font-size:11px; letter-spacing:2px; color:var(--gold); border-bottom:1px solid var(--line);
+  padding-bottom:4px; margin-bottom:6px; text-shadow:0 0 8px rgba(255,224,102,.5);
+}
+#favs{ max-height:330px; overflow-y:auto; }
+#favs::-webkit-scrollbar{ width:8px; } #favs::-webkit-scrollbar-thumb{ background:var(--line); }
+.fav{ display:flex; align-items:center; gap:6px; padding:4px 2px; border-bottom:1px solid #1e1e30; font-size:12px; }
+.fav .txt{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fav button{
+  flex:none; font-family:inherit; font-size:9px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--accent); border:1px solid var(--line); padding:2px 6px;
+}
+.fav button:hover{ border-color:var(--accent); }
+.fav button.rm{ color:#5a5a74; }
+.fav button.rm:hover{ color:#ff4560; border-color:#ff4560; }
+.fav button.ok{ color:#3ddc84; border-color:#3ddc84; }
+#noFav{ color:var(--dim); font-size:10px; text-align:center; padding:14px 4px; letter-spacing:1px; }
+#copyAll{
+  width:100%; margin-top:8px; font-family:inherit; font-size:10px; letter-spacing:2px; cursor:pointer;
+  background:#121220; color:var(--gold); border:1px solid var(--line); padding:6px 0;
+}
+#copyAll:hover{ border-color:var(--gold); box-shadow:0 0 8px rgba(255,224,102,.4); }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>NAME FORGE</h1>
+  <div class="sub">HAMMER OUT A LEGEND</div>
+</header>
+<div id="tabs"></div>
+<main>
+  <section class="panel" id="genPanel">
+    <div id="seedRow">
+      <input id="seed" type="text" placeholder="seed (optional — same seed, same names)" maxlength="32">
+      <button id="rollBtn">⚒ FORGE 10</button>
+    </div>
+    <div id="seedNote">seed: random</div>
+    <div id="names"></div>
+    <div class="hint">click a name to ★ favorite it · [SPACE] reroll</div>
+  </section>
+  <section class="panel" id="favPanel">
+    <h2>★ FAVORITES</h2>
+    <div id="favs"></div>
+    <button id="copyAll">COPY ALL</button>
+  </section>
+</main>
+
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-name-gen';
+var $=function(id){ return document.getElementById(id); };
+
+/* ---------- seeded RNG ---------- */
+function hashStr(s){
+  var h=2166136261;
+  for(var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); }
+  return h>>>0;
+}
+function mulberry32(a){
+  return function(){
+    a|=0; a=(a+0x6D2B79F5)|0;
+    var t=Math.imul(a^(a>>>15),1|a);
+    t=(t+Math.imul(t^(t>>>7),61|t))^t;
+    return ((t^(t>>>14))>>>0)/4294967296;
+  };
+}
+var rng=Math.random;
+function pick(arr){ return arr[Math.floor(rng()*arr.length)]; }
+function chance(p){ return rng()<p; }
+function cap(s){ return s[0].toUpperCase()+s.slice(1); }
+
+/* ---------- style tables ---------- */
+var STYLES=[
+{ key:'hero', label:'⚔ FANTASY HERO', gen:function(){
+  var first=['Al','Ar','Bran','Cael','Dar','El','Fen','Gal','Kael','Lor','Mer','Ol','Per','Ser','Tav','Theo','Vael','Isol','Ron','Syl'];
+  var mid=['ad','an','ar','en','ien','il','ion','ir','or','us','wyn','ric','mir','dan','dor','ys'];
+  var sur1=['Storm','Iron','Bright','Oak','Dawn','Swift','True','Light','Wolf','Sun','Ember','Winter','Raven','Silver'];
+  var sur2=['blade','shield','heart','song','rider','bane','born','ward','mane','strider','fall','brook'];
+  var epi=['the Bold','the Brave','the Radiant','the Unbroken','the Swift','of the North','the Stalwart','Dawnbringer','the Golden','of the Vale'];
+  var name=pick(first)+pick(mid);
+  if(chance(0.65)) return name+' '+pick(sur1)+pick(sur2);
+  return name+' '+pick(epi);
+}},
+{ key:'villain', label:'💀 DARK VILLAIN', gen:function(){
+  var pre=['Mal','Vex','Mor','Dra','Neth','Zar','Kor','Bel','Sar','Ur','Vor','Xal','Grim','Naz','Thul','Az'];
+  var mid=['ak','eth','goth','gul','mar','oth','rax','uz','ath','ur','ith','moth'];
+  var title=['the Undying','the Defiler','the Hollow','of the Void','the Pale','the Whisperer','Flayer of Hope','the Endless','the Forsaken','Eater of Suns','the Unclean','of the Black Mire'];
+  var rank=['Lord','Lady','Baron','Archon','Dread-King','High Cultist'];
+  var name=pick(pre)+pick(mid);
+  if(chance(0.5)) name=pick(pre)+pick(mid)+pick(['os','ar','is','eth','or']);
+  if(chance(0.35)) return pick(rank)+' '+name;
+  return name+' '+pick(title);
+}},
+{ key:'tavern', label:'🍺 TAVERN', gen:function(){
+  var adj=['Prancing','Rusty','Gilded','Drunken','Salty','Wandering','Sleeping','Crooked','Laughing','Broken','Thirsty','Velvet','Copper','Howling','Bearded','Wicked'];
+  var noun=['Pony','Flagon','Goblin','Anchor','Griffin','Kettle','Boar','Lantern','Maiden','Tankard','Dragon','Barrel','Stag','Crow','Badger','Minstrel'];
+  var thing=['Rest','Folly','Respite','Secret','Draught','Den','Last Coin','Promise'];
+  var r=rng();
+  if(r<0.55) return 'The '+pick(adj)+' '+pick(noun);
+  if(r<0.8) return 'The '+pick(noun)+" & "+pick(noun);
+  return "The "+pick(noun)+"'s "+pick(thing);
+}},
+{ key:'town', label:'🏘 TOWN', gen:function(){
+  var pre=['Ash','Bar','Cold','Dun','Elm','Fair','Glen','Haver','Iron','Lark','Mill','North','Oak','Raven','Stone','Thorn','Wester','Winter','Bram','Foss'];
+  var suf=['brook','burgh','dale','ferry','ford','gate','ham','haven','hollow','marsh','mere','moor','shire','stead','vale','wick','bridge','field'];
+  var extra=['Cross','Falls','Hollow','Reach','End','Gate'];
+  var name=pick(pre).toLowerCase();
+  name=cap(name)+pick(suf);
+  var r=rng();
+  if(r<0.15) return 'Port '+name;
+  if(r<0.3) return name+' '+pick(extra);
+  if(r<0.4) return 'Upper '+name;
+  return name;
+}},
+{ key:'planet', label:'🪐 SCI-FI PLANET', gen:function(){
+  var a=['Xe','Ke','Ta','Vor','Ny','Ze','Al','Cry','Ori','Pra','Quel','Ryn','Sol','Ux','Ve','Zho'];
+  var b=['ri','lo','tha','xa','ne','dro','va','mi','ka','ru','sio','pha'];
+  var c=['on','ia','us','ar','is','ex','os','ion','ara','eth','une','is'];
+  var tag=['Prime','Minor','Major','Alpha','Beta','Gamma','Secundus','IX','VII','XI'];
+  var name=pick(a)+(chance(0.6)?pick(b):'')+pick(c);
+  var r=rng();
+  if(r<0.3) return name+'-'+(Math.floor(rng()*9)+2);
+  if(r<0.55) return name+' '+pick(tag);
+  return name;
+}},
+{ key:'robot', label:'🤖 ROBOT', gen:function(){
+  var pfx=['RX','KX','ZED','VOX','MK','TK','QB','AXM','NN','DV8','OMN','GR'];
+  var nick=['Sprocket','Widget','Crash','Bolt','Fuse','Gizmo','Rusty','Torque','Patch','Zapp','Servo','Clank'];
+  var unit=['CALLIOPE','ORION','VESPER','ATLAS','NOVA','ECHO','TALOS','MERIDIAN'];
+  var r=rng();
+  var num=Math.floor(rng()*99)+1;
+  if(r<0.4) return pick(pfx)+'-'+num+" '"+pick(nick)+"'";
+  if(r<0.7) return 'UNIT-'+num+' '+pick(unit);
+  return pick(unit)+' v'+(Math.floor(rng()*8)+1)+'.'+Math.floor(rng()*10);
+}}
+];
+
+/* ---------- state ---------- */
+var styleIdx=0, batch=0, favs=[], hadSaved=false;
+try{
+  var raw=localStorage.getItem(LS_KEY);
+  if(raw){ var d=JSON.parse(raw); if(Array.isArray(d.favs)){ favs=d.favs; hadSaved=true; } }
+}catch(e){}
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({favs:favs})); }catch(e){} }
+
+/* ---------- tabs ---------- */
+var tabsBox=$('tabs');
+STYLES.forEach(function(s,i){
+  var b=document.createElement('button');
+  b.textContent=s.label;
+  b.addEventListener('click',function(){
+    styleIdx=i; batch=0;
+    Array.prototype.forEach.call(tabsBox.children,function(el,j){ el.classList.toggle('on',j===i); });
+    forge();
+  });
+  tabsBox.appendChild(b);
+});
+tabsBox.children[0].classList.add('on');
+
+/* ---------- generation ---------- */
+function forge(){
+  var seedTxt=$('seed').value.trim();
+  if(seedTxt){
+    rng=mulberry32(hashStr(seedTxt+'#'+STYLES[styleIdx].key+'#'+batch));
+    $('seedNote').textContent='seed: "'+seedTxt+'" · batch '+(batch+1)+' · '+STYLES[styleIdx].label.replace(/^\S+\s/,'');
+  }else{
+    rng=Math.random;
+    $('seedNote').textContent='seed: random';
+  }
+  var box=$('names'); box.innerHTML='';
+  var seen={};
+  for(var i=0;i<10;i++){
+    var n, guard=0;
+    do{ n=STYLES[styleIdx].gen(); guard++; }while(seen[n] && guard<25);
+    seen[n]=true;
+    var div=document.createElement('div');
+    div.className='name'+(favs.indexOf(n)>-1?' faved':'');
+    div.style.animationDelay=(i*35)+'ms';
+    div.innerHTML='<span class="star">★</span><span class="txt"></span>';
+    div.querySelector('.txt').textContent=n;
+    (function(name,el){
+      el.addEventListener('click',function(){
+        var at=favs.indexOf(name);
+        if(at>-1){ favs.splice(at,1); el.classList.remove('faved'); }
+        else{ favs.unshift(name); el.classList.add('faved'); }
+        save(); renderFavs();
+      });
+    })(n,div);
+    box.appendChild(div);
+  }
+  batch++;
+}
+$('rollBtn').addEventListener('click',forge);
+$('seed').addEventListener('change',function(){ batch=0; forge(); });
+$('seed').addEventListener('keydown',function(e){ if(e.key==='Enter'){ batch=0; forge(); } });
+document.addEventListener('keydown',function(e){
+  var tag=(e.target&&e.target.tagName)||'';
+  if(tag==='INPUT'||tag==='TEXTAREA') return;
+  if(e.code==='Space'){ e.preventDefault(); forge(); }
+});
+
+/* ---------- favorites ---------- */
+function copyText(txt,btn,label){
+  function ok(){
+    var old=label||'COPY';
+    btn.textContent='✓'; btn.classList.add('ok');
+    setTimeout(function(){ btn.textContent=old; btn.classList.remove('ok'); },1100);
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(ok,function(){ fb(); });
+  }else fb();
+  function fb(){
+    var ta=document.createElement('textarea');
+    ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); ok(); }catch(e){}
+    ta.remove();
+  }
+}
+function renderFavs(){
+  var box=$('favs'); box.innerHTML='';
+  if(!favs.length){
+    box.innerHTML='<div id="noFav">empty — click names to collect them</div>';
+    return;
+  }
+  favs.forEach(function(n){
+    var div=document.createElement('div'); div.className='fav';
+    div.innerHTML='<span class="txt"></span>';
+    div.querySelector('.txt').textContent='★ '+n;
+    var cp=document.createElement('button'); cp.textContent='COPY';
+    cp.addEventListener('click',function(){ copyText(n,cp); });
+    var rm=document.createElement('button'); rm.textContent='✕'; rm.className='rm'; rm.title='remove';
+    rm.addEventListener('click',function(){
+      favs=favs.filter(function(x){ return x!==n; });
+      save(); renderFavs();
+      Array.prototype.forEach.call(document.querySelectorAll('#names .name'),function(el){
+        if(el.querySelector('.txt').textContent===n) el.classList.remove('faved');
+      });
+    });
+    div.appendChild(cp); div.appendChild(rm);
+    box.appendChild(div);
+  });
+}
+$('copyAll').addEventListener('click',function(){
+  if(favs.length) copyText(favs.join('\n'),$('copyAll'),'COPY ALL');
+});
+
+/* ---------- boot ---------- */
+if(!hadSaved && !favs.length) favs=['Kaelor Stormblade','The Gilded Griffin','Vexeth the Hollow'];
+renderFavs(); save();
+forge();
+})();
+</script>
+</body>
+</html>

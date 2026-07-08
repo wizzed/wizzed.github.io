@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Character Map · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ffe14d; --accent-soft:rgba(255,225,77,.4);
+  --panel:#161623; --line:#2c2c46; --text:#f8f4e6; --dim:#9c9782;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:20px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:8px 8px 2px; }
+h1{
+  display:inline-block; font-size:clamp(16px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:1px; }
+#wrap{ max-width:960px; margin:6px auto 0; padding:0 12px; }
+#topBar{
+  display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  background:var(--panel); border:2px solid var(--line); padding:8px 10px;
+  box-shadow:0 0 0 1px #000;
+}
+#search{
+  flex:1; min-width:150px; font-family:inherit; font-size:13px; padding:6px 9px;
+  background:#0c0c16; color:var(--text); border:1px solid var(--line); outline:none;
+}
+#search:focus{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+#recentRow{ display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+#recentRow .lbl{ font-size:9px; color:var(--dim); letter-spacing:1px; }
+.recent{
+  width:26px; height:26px; display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--line); cursor:pointer; font-size:14px; background:#111120;
+}
+.recent:hover{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+#tabs{ display:flex; flex-wrap:wrap; gap:5px; margin-top:9px; }
+#tabs button{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:5px 9px;
+}
+#tabs button.on{
+  color:#0f0f1a; background:var(--accent); border-color:var(--accent); font-weight:bold;
+  box-shadow:0 0 12px var(--accent-soft);
+}
+#grid{
+  margin-top:9px; display:grid; gap:5px;
+  grid-template-columns:repeat(auto-fill,minmax(58px,1fr));
+  background:var(--panel); border:2px solid var(--line); padding:9px;
+  box-shadow:0 0 0 1px #000, 0 0 24px rgba(255,225,77,.06);
+  min-height:220px; align-content:start;
+}
+.cell{
+  border:1px solid var(--line); background:#111120; cursor:pointer; text-align:center;
+  padding:6px 2px 4px; user-select:none;
+}
+.cell .g{ font-size:21px; line-height:1.25; display:block; }
+.cell .cp{ font-size:8px; color:var(--dim); letter-spacing:0; display:block; margin-top:2px; }
+.cell:hover{
+  border-color:var(--accent); background:#1c1c2e;
+  box-shadow:0 0 10px var(--accent-soft);
+}
+.cell:hover .cp{ color:var(--accent); }
+.cell:active{ transform:scale(.93); }
+#empty{ grid-column:1/-1; text-align:center; color:var(--dim); font-size:11px;
+  letter-spacing:2px; padding:30px 0; }
+#toast{
+  position:fixed; left:50%; bottom:18px; transform:translateX(-50%) translateY(60px);
+  background:#000; color:var(--accent); border:1px solid var(--accent); padding:6px 14px;
+  font-size:11px; letter-spacing:1px; transition:transform .25s; z-index:99;
+  text-shadow:0 0 8px var(--accent); box-shadow:0 0 14px var(--accent-soft); pointer-events:none;
+}
+#toast.show{ transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>❖ CHARACTER MAP ❖</h1>
+  <div class="sub">CLICK ANY GLYPH TO COPY</div>
+</header>
+<div id="wrap">
+  <div id="topBar">
+    <input id="search" type="search" placeholder="search by name… (e.g. arrow, heart, yen)" spellcheck="false">
+    <div id="recentRow"><span class="lbl">RECENT:</span></div>
+  </div>
+  <div id="tabs"></div>
+  <div id="grid"></div>
+</div>
+<div id="toast">COPIED!</div>
+<script>
+(function(){
+"use strict";
+var LS_KEY="wizzed-char-map";
+var $=function(id){return document.getElementById(id);};
+
+var CATS=[
+["Arrows",[
+["←","leftwards arrow"],["↑","upwards arrow"],["→","rightwards arrow"],["↓","downwards arrow"],
+["↔","left right arrow"],["↕","up down arrow"],["↖","north west arrow"],["↗","north east arrow"],
+["↘","south east arrow"],["↙","south west arrow"],["↩","leftwards arrow with hook return"],
+["↪","rightwards arrow with hook"],["↰","up then left arrow"],["↱","up then right arrow"],
+["↲","down then left arrow"],["↳","down then right arrow"],["↺","anticlockwise circle arrow undo"],
+["↻","clockwise circle arrow redo refresh"],["⇄","right left arrows swap"],["⇅","up down arrows swap"],
+["⇆","left right arrows swap"],["⇇","paired left arrows"],["⇈","paired up arrows"],
+["⇉","paired right arrows"],["⇊","paired down arrows"],["⇐","leftwards double arrow"],
+["⇑","upwards double arrow"],["⇒","rightwards double arrow implies"],["⇓","downwards double arrow"],
+["⇔","left right double arrow iff"],["⇖","north west double arrow"],["⇗","north east double arrow"],
+["⇘","south east double arrow"],["⇙","south west double arrow"],["⇦","white left arrow"],
+["⇧","white up arrow shift"],["⇨","white right arrow"],["⇩","white down arrow"],
+["➜","heavy round rightwards arrow"],["➤","black rightwards arrowhead"],["⤴","arrow curving up"],
+["⤵","arrow curving down"],["⟵","long leftwards arrow"],["⟶","long rightwards arrow"],
+["⟲","anticlockwise gapped circle arrow"],["⟳","clockwise gapped circle arrow"]
+]],
+["Math",[
+["±","plus minus"],["×","multiplication times"],["÷","division"],["≠","not equal"],
+["≈","almost equal approximately"],["≡","identical equivalent"],["≤","less than or equal"],
+["≥","greater than or equal"],["∞","infinity"],["√","square root radical"],["∛","cube root"],
+["∑","n-ary summation sigma"],["∏","n-ary product pi"],["∫","integral"],["∂","partial differential"],
+["∆","increment delta"],["∇","nabla gradient"],["∈","element of"],["∉","not element of"],
+["∩","intersection"],["∪","union"],["⊂","subset of"],["⊃","superset of"],["⊆","subset or equal"],
+["⊇","superset or equal"],["∧","logical and"],["∨","logical or"],["¬","not sign negation"],
+["∀","for all"],["∃","there exists"],["∅","empty set"],["∝","proportional to"],
+["∴","therefore"],["∵","because"],["⊕","circled plus xor"],["⊗","circled times tensor"],
+["⊥","perpendicular up tack"],["∠","angle"],["°","degree"],["µ","micro mu"],["π","pi"],
+["ƒ","function florin"],["²","superscript two squared"],["³","superscript three cubed"],
+["ⁿ","superscript n"],["½","one half fraction"],["⅓","one third fraction"],["⅔","two thirds fraction"],
+["¼","one quarter fraction"],["¾","three quarters fraction"],["‰","per mille"]
+]],
+["Currency",[
+["$","dollar"],["¢","cent"],["£","pound sterling"],["¥","yen yuan"],["€","euro"],
+["₹","indian rupee"],["₽","russian ruble"],["₩","korean won"],["₪","israeli new shekel"],
+["₫","vietnamese dong"],["₴","ukrainian hryvnia"],["₦","nigerian naira"],["₱","philippine peso"],
+["฿","thai baht"],["₿","bitcoin"],["¤","generic currency sign"],["₡","costa rican colon"],
+["₲","paraguayan guarani"],["₵","ghanaian cedi"],["₺","turkish lira"],["₼","azerbaijani manat"],
+["₾","georgian lari"],["₨","rupee sign"],["₸","kazakhstani tenge"],["₮","mongolian tugrik"],
+["₭","lao kip"],["﷼","rial sign"]
+]],
+["Punctuation",[
+["–","en dash"],["—","em dash"],["‘","left single quote"],["’","right single quote apostrophe"],
+["“","left double quote"],["”","right double quote"],["„","double low quote german"],
+["‚","single low quote"],["«","left guillemet double angle quote"],["»","right guillemet double angle quote"],
+["‹","single left angle quote"],["›","single right angle quote"],["¡","inverted exclamation spanish"],
+["¿","inverted question spanish"],["§","section sign"],["¶","pilcrow paragraph"],
+["†","dagger"],["‡","double dagger"],["•","bullet"],["‣","triangular bullet"],["·","middle dot interpunct"],
+["…","horizontal ellipsis"],["′","prime minutes feet"],["″","double prime seconds inches"],
+["‴","triple prime"],["※","reference mark japanese"],["⁂","asterism"],["‽","interrobang"],
+["⸮","reversed question irony mark"],["№","numero sign"],["℗","sound recording copyright"],
+["©","copyright"],["®","registered trademark"],["™","trademark"],["℠","service mark"],
+["ª","feminine ordinal"],["º","masculine ordinal"],["‾","overline"],["‿","undertie"],["⁀","character tie"]
+]],
+["Box drawing",[
+["─","light horizontal line"],["━","heavy horizontal line"],["│","light vertical line"],
+["┃","heavy vertical line"],["┄","triple dash horizontal"],["┆","triple dash vertical"],
+["┌","light down and right corner"],["┐","light down and left corner"],["└","light up and right corner"],
+["┘","light up and left corner"],["├","light vertical and right tee"],["┤","light vertical and left tee"],
+["┬","light down and horizontal tee"],["┴","light up and horizontal tee"],["┼","light cross"],
+["╭","light arc down right rounded corner"],["╮","light arc down left rounded corner"],
+["╯","light arc up left rounded corner"],["╰","light arc up right rounded corner"],
+["═","double horizontal"],["║","double vertical"],["╔","double down and right"],["╗","double down and left"],
+["╚","double up and right"],["╝","double up and left"],["╠","double vertical and right"],
+["╣","double vertical and left"],["╦","double down and horizontal"],["╩","double up and horizontal"],
+["╬","double cross"],["╱","diagonal upper right to lower left"],["╲","diagonal upper left to lower right"],
+["╳","diagonal cross"],["▀","upper half block"],["▄","lower half block"],["█","full block"],
+["▌","left half block"],["▐","right half block"],["░","light shade"],["▒","medium shade"],
+["▓","dark shade"],["▖","quadrant lower left"],["▗","quadrant lower right"],["▘","quadrant upper left"],
+["▝","quadrant upper right"],["▚","quadrant diagonal"]
+]],
+["Stars & misc",[
+["★","black star filled"],["☆","white star outline"],["✦","black four pointed star sparkle"],
+["✧","white four pointed star sparkle"],["✩","stress outlined star"],["✪","circled white star"],
+["✫","open centre star"],["✯","pinwheel star"],["✵","eight pointed pinwheel star"],
+["❋","heavy eight teardrop propeller asterisk flower"],["❄","snowflake"],["☀","sun rays"],
+["☁","cloud"],["☂","umbrella rain"],["☃","snowman"],["☽","first quarter moon"],["☾","last quarter moon"],
+["♠","spade suit card"],["♣","club suit card"],["♥","heart suit card love"],["♦","diamond suit card"],
+["♩","quarter note music"],["♪","eighth note music"],["♫","beamed eighth notes music"],
+["♬","beamed sixteenth notes music"],["☑","ballot box with check"],["☒","ballot box with x"],
+["✓","check mark tick"],["✔","heavy check mark tick"],["✗","ballot x cross"],["✘","heavy ballot x cross"],
+["☠","skull and crossbones death"],["☢","radioactive nuclear"],["☣","biohazard"],["☮","peace symbol"],
+["☯","yin yang taoism"],["⚡","lightning high voltage zap"],["⚠","warning sign caution"],
+["⚙","gear settings cog"],["⚛","atom symbol science"],["♻","recycling symbol"],["⚓","anchor"],
+["⚔","crossed swords battle"],["⚖","scales of justice balance"],["⚗","alembic chemistry"],
+["⌘","command key mac"],["⌥","option key mac"],["⌫","backspace delete key"],["⏎","return enter key"],
+["⌚","watch time"],["♛","black chess queen"],["♞","black chess knight"],["☎","telephone"]
+]],
+["Emoji faces",[
+["😀","grinning face happy smile"],["😁","beaming face grin teeth"],["😂","tears of joy laughing"],
+["🤣","rolling on floor laughing"],["😃","smiley big eyes happy"],["😄","grinning smiling eyes"],
+["😅","sweat smile nervous laugh"],["😆","squinting laugh"],["😉","winking face"],
+["😊","smiling eyes blush"],["😋","savoring yummy tongue"],["😎","sunglasses cool"],
+["😍","heart eyes love"],["😘","blowing kiss"],["🥰","smiling with hearts love"],
+["🙂","slightly smiling"],["🤗","hugging face"],["🤩","star struck excited"],
+["🤔","thinking face hmm"],["🤨","raised eyebrow skeptical"],["😐","neutral face"],
+["😑","expressionless"],["🙄","rolling eyes"],["😏","smirking face"],["😴","sleeping face zzz"],
+["😌","relieved face"],["😛","tongue out"],["😜","winking tongue crazy"],["🤪","zany goofy wild"],
+["🤤","drooling face"],["😒","unamused meh"],["😔","pensive sad"],["🙃","upside down silly"],
+["🤑","money mouth rich"],["😲","astonished shocked"],["😖","confounded frustrated"],
+["😞","disappointed sad"],["😤","steam from nose triumph angry"],["😢","crying tear sad"],
+["😭","loudly crying sobbing"],["😱","screaming in fear scared"],["🤯","exploding head mind blown"],
+["😬","grimacing awkward"],["🥵","hot face sweating"],["🥶","cold face freezing"],
+["😳","flushed embarrassed"],["😡","pouting angry red"],["🤬","cursing angry swearing"],
+["😷","medical mask sick"],["🤒","thermometer sick fever"],["🤢","nauseated green sick"],
+["🤮","vomiting sick"],["😇","halo innocent angel"],["🥳","partying celebration"],
+["🥺","pleading puppy eyes"],["🤠","cowboy hat"],["🤡","clown face"],["🤫","shushing quiet"],
+["🧐","monocle fancy"],["🤓","nerd glasses"],["😈","smiling devil imp"],["💀","skull dead"],
+["👻","ghost boo"],["👽","alien ufo"],["🤖","robot face"],["💩","pile of poo"]
+]],
+["Emoji objects",[
+["🔥","fire flame lit hot"],["💧","droplet water"],["🌈","rainbow"],["⭐","star"],
+["🌙","crescent moon night"],["⚽","soccer football"],["🏀","basketball"],["🎮","video game controller"],
+["🎲","game die dice"],["🎯","bullseye dart target"],["🎸","guitar rock"],["🎧","headphones music"],
+["🎤","microphone sing"],["🎹","musical keyboard piano"],["📱","mobile phone"],["💻","laptop computer"],
+["💾","floppy disk save"],["📷","camera photo"],["🔋","battery power"],["💡","light bulb idea"],
+["🔦","flashlight torch"],["💰","money bag"],["💎","gem diamond jewel"],["🔧","wrench tool"],
+["🔨","hammer tool"],["🛠","hammer and wrench tools"],["⛏","pick mining"],["🧲","magnet"],
+["💣","bomb explosive"],["🔪","kitchen knife"],["🛡","shield defense"],["🔮","crystal ball fortune"],
+["⏰","alarm clock time"],["⌛","hourglass done time"],["⏳","hourglass flowing time"],
+["📡","satellite antenna signal"],["💉","syringe injection"],["💊","pill medicine"],
+["🚀","rocket launch space"],["🛸","flying saucer ufo"],["🚗","car automobile"],["🚲","bicycle bike"],
+["⛵","sailboat"],["🍕","pizza slice"],["🍔","hamburger"],["🍟","french fries"],["🌮","taco"],
+["🍩","doughnut donut"],["🍪","cookie"],["🎂","birthday cake"],["🍺","beer mug"],["☕","hot beverage coffee"],
+["🎁","gift present wrapped"],["🎈","balloon party"],["🎉","party popper tada confetti"],
+["🏆","trophy winner"],["🥇","gold medal first"],["🎵","musical note"],["📚","books stack"],
+["✏","pencil"],["📌","pushpin pin"],["📎","paperclip"],["✂","scissors cut"],["🔒","locked padlock"],
+["🔑","key"],["❤","red heart love"],["💛","yellow heart"],["💚","green heart"],["💙","blue heart"],
+["💜","purple heart"],["🖤","black heart"],["💯","hundred points perfect score"],
+["✅","check mark button done"],["❌","cross mark x no"],["❓","question mark"],["❗","exclamation mark"],
+["💬","speech balloon chat"]
+]]
+];
+
+var state={ cat:0, recent:[] };
+
+function codepoints(ch){
+  return Array.from(ch).map(function(c){
+    return "U+"+c.codePointAt(0).toString(16).toUpperCase().padStart(4,"0");
+  }).join(" ");
+}
+
+var toastTimer=null;
+function toast(msg){
+  var t=$("toast"); t.textContent=msg; t.classList.add("show");
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.classList.remove("show");},1200);
+}
+function copyChar(ch){
+  function ok(){
+    toast("COPIED  "+ch+"  "+codepoints(ch));
+    addRecent(ch);
+  }
+  function fallback(){
+    try{
+      var ta=document.createElement("textarea");
+      ta.value=ch;ta.style.position="fixed";ta.style.opacity="0";
+      document.body.appendChild(ta);ta.select();
+      document.execCommand("copy");document.body.removeChild(ta);ok();
+    }catch(e){toast("COPY FAILED");}
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(ch).then(ok,fallback);
+  else fallback();
+}
+
+function addRecent(ch){
+  var i=state.recent.indexOf(ch);
+  if(i>=0)state.recent.splice(i,1);
+  state.recent.unshift(ch);
+  if(state.recent.length>14)state.recent.length=14;
+  renderRecent();
+  save();
+}
+function renderRecent(){
+  var row=$("recentRow");
+  row.innerHTML='<span class="lbl">RECENT:</span>';
+  if(!state.recent.length){
+    var s=document.createElement("span"); s.className="lbl"; s.textContent="—";
+    row.appendChild(s); return;
+  }
+  state.recent.forEach(function(ch){
+    var d=document.createElement("div"); d.className="recent"; d.textContent=ch;
+    d.title="copy "+ch+" again";
+    d.addEventListener("click",function(){copyChar(ch);});
+    row.appendChild(d);
+  });
+}
+
+function makeCell(ch,name){
+  var c=document.createElement("div"); c.className="cell";
+  c.title=name+"\n"+codepoints(ch)+"\nclick to copy";
+  var g=document.createElement("span"); g.className="g"; g.textContent=ch;
+  var cp=document.createElement("span"); cp.className="cp"; cp.textContent=codepoints(ch).split(" ")[0];
+  c.appendChild(g); c.appendChild(cp);
+  c.addEventListener("click",function(){copyChar(ch);});
+  return c;
+}
+
+function renderGrid(){
+  var grid=$("grid"); grid.innerHTML="";
+  var q=$("search").value.trim().toLowerCase();
+  var shown=0;
+  if(q){
+    CATS.forEach(function(cat){
+      cat[1].forEach(function(item){
+        if(item[1].indexOf(q)>=0||item[0]===q){ grid.appendChild(makeCell(item[0],item[1])); shown++; }
+      });
+    });
+  }else{
+    CATS[state.cat][1].forEach(function(item){
+      grid.appendChild(makeCell(item[0],item[1])); shown++;
+    });
+  }
+  if(!shown){
+    var em=document.createElement("div"); em.id="empty";
+    em.textContent="NO GLYPHS MATCH “"+q.toUpperCase()+"”";
+    grid.appendChild(em);
+  }
+  renderTabs(!!q);
+}
+
+function renderTabs(searching){
+  Array.prototype.forEach.call($("tabs").children,function(b,i){
+    b.classList.toggle("on",!searching&&i===state.cat);
+  });
+}
+
+(function buildTabs(){
+  var tabs=$("tabs");
+  CATS.forEach(function(cat,i){
+    var b=document.createElement("button");
+    b.textContent=cat[0].toUpperCase();
+    b.addEventListener("click",function(){
+      state.cat=i; $("search").value=""; renderGrid(); save();
+    });
+    tabs.appendChild(b);
+  });
+})();
+
+$("search").addEventListener("input",renderGrid);
+
+function save(){
+  try{ localStorage.setItem(LS_KEY,JSON.stringify({cat:state.cat,recent:state.recent})); }catch(e){}
+}
+function load(){
+  try{
+    var d=JSON.parse(localStorage.getItem(LS_KEY));
+    if(d){
+      if(typeof d.cat==="number"&&d.cat>=0&&d.cat<CATS.length)state.cat=d.cat;
+      if(Array.isArray(d.recent))state.recent=d.recent.filter(function(x){return typeof x==="string";}).slice(0,14);
+    }
+  }catch(e){}
+}
+load();
+renderRecent();
+renderGrid();
+})();
+</script>
+</body>
+</html>

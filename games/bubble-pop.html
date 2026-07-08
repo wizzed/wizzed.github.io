@@ -175,10 +175,11 @@ function aimAt(x,y){
   aim=clamp(a,-Math.PI+0.15,-0.15);
   if(a>0)aim=x<SX?-Math.PI+0.15:-0.15;
 }
+let justStarted=false;
 function startOrShoot(x,y){
   audio();
-  if(state==='title'){reset();return;}
-  if(state==='over'){if(stateT>0.5)reset();return;}
+  if(state==='title'){reset();justStarted=true;return;}
+  if(state==='over'){if(stateT>0.5){reset();justStarted=true;}return;}
   if(x!==undefined)aimAt(x,y);
   shoot();
 }
@@ -186,7 +187,7 @@ cvs.addEventListener('mousemove',e=>{const p=ptXY(e);aimAt(p.x,p.y);});
 cvs.addEventListener('mousedown',e=>{const p=ptXY(e);startOrShoot(p.x,p.y);});
 cvs.addEventListener('touchstart',e=>{e.preventDefault();audio();const p=ptXY(e);if(state!=='play'){startOrShoot();return;}aimAt(p.x,p.y);},{passive:false});
 cvs.addEventListener('touchmove',e=>{e.preventDefault();const p=ptXY(e);aimAt(p.x,p.y);},{passive:false});
-cvs.addEventListener('touchend',e=>{e.preventDefault();if(state==='play')shoot();},{passive:false});
+cvs.addEventListener('touchend',e=>{e.preventDefault();if(justStarted){justStarted=false;return;}if(state==='play')shoot();},{passive:false});
 addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();
   keys[k]=true;

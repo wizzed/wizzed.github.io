@@ -271,8 +271,16 @@ function cardRow(d,card,ci){
   var row=document.createElement('div'); row.className='crow';
   var f=document.createElement('input'); f.value=card.f; f.maxLength=120; f.title='front';
   var b=document.createElement('input'); b.value=card.b; b.maxLength=120; b.title='back';
-  f.addEventListener('change',function(){ card.f=f.value.trim()||card.f; save(); });
-  b.addEventListener('change',function(){ card.b=b.value.trim()||card.b; save(); });
+  f.addEventListener('change',function(){
+    var v=f.value.trim();
+    if(v) card.f=v; else f.value=card.f;
+    save();
+  });
+  b.addEventListener('change',function(){
+    var v=b.value.trim();
+    if(v) card.b=v; else b.value=card.b;
+    save();
+  });
   var x=document.createElement('button'); x.className='x'; x.textContent='✕'; x.title='delete card';
   x.addEventListener('click',function(){ d.cards.splice(ci,1); render(); });
   row.appendChild(f); row.appendChild(b); row.appendChild(x);

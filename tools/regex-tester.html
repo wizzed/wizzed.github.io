@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Regex Tester · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ff8c42; --accent-soft:rgba(255,140,66,.45);
+  --panel:#161623; --line:#2c2c46; --text:#f8f0e8; --dim:#a89484;
+  --err:#ff5470;
+  --g1:rgba(0,229,255,.45); --g2:rgba(61,220,132,.45); --g3:rgba(255,110,199,.45);
+  --g4:rgba(179,136,255,.5); --g5:rgba(255,217,74,.45);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:24px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{
+  display:grid; grid-template-columns:minmax(320px,1.5fr) minmax(260px,1fr);
+  gap:14px; max-width:1160px; margin:8px auto 0; padding:0 14px; align-items:start;
+}
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:10px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(255,140,66,.08);
+  margin-bottom:12px;
+}
+.panel h2{
+  font-size:11px; letter-spacing:3px; color:var(--accent);
+  text-shadow:0 0 8px var(--accent-soft); margin-bottom:8px;
+}
+.patRow{ display:flex; align-items:center; gap:4px; }
+.patRow .slash{ color:var(--accent); font-size:16px; text-shadow:0 0 8px var(--accent-soft); }
+#pat{
+  flex:1; min-width:0; font-family:inherit; font-size:13px;
+  background:#0b0b14; color:var(--text); border:1px solid var(--line);
+  padding:7px 8px; outline:none;
+}
+#pat:focus{ border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+#pat.bad{ border-color:var(--err); box-shadow:0 0 10px rgba(255,84,112,.5); }
+.flags{ display:flex; gap:4px; margin-left:4px; }
+.flags button{
+  width:26px; font-family:inherit; font-size:12px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:5px 0;
+}
+.flags button.on{
+  color:#0f0f1a; background:var(--accent); border-color:var(--accent);
+  box-shadow:0 0 10px var(--accent); font-weight:bold;
+}
+#reErr{ color:var(--err); font-size:11px; min-height:15px; margin-top:5px; }
+#matchCount{ color:var(--dim); font-size:11px; letter-spacing:1px; margin-top:2px; }
+#matchCount b{ color:var(--accent); text-shadow:0 0 8px var(--accent-soft); }
+.hlwrap{
+  position:relative; border:1px solid var(--line); background:#0b0b14;
+  height:190px; margin-top:8px;
+}
+.hlwrap pre, .hlwrap textarea{
+  position:absolute; inset:0; padding:9px; margin:0; border:0;
+  font-family:inherit; font-size:12.5px; line-height:1.55;
+  white-space:pre-wrap; word-break:break-word; overflow-y:auto;
+}
+.hlwrap pre{ color:#b9b0c8; pointer-events:none; overflow-y:auto; overflow-x:hidden; }
+.hlwrap textarea{
+  background:transparent; color:transparent; caret-color:var(--accent);
+  resize:none; outline:none; width:100%; height:100%;
+}
+.hlwrap textarea::selection{ background:rgba(255,140,66,.25); }
+mark.mk{ background:rgba(255,140,66,.32); color:#fff; border-radius:2px; box-shadow:0 0 6px rgba(255,140,66,.35); }
+mark.mk.zero{ padding-left:2px; margin-right:-2px; background:var(--accent); }
+mark.g{ color:#fff; border-radius:2px; }
+mark.g1{ background:var(--g1); } mark.g2{ background:var(--g2); }
+mark.g3{ background:var(--g3); } mark.g4{ background:var(--g4); }
+mark.g5{ background:var(--g5); }
+.repRow{ display:flex; align-items:center; gap:6px; margin-top:8px; }
+.repRow label{ font-size:10px; letter-spacing:1px; color:var(--dim); white-space:nowrap; }
+#rep{
+  flex:1; min-width:0; font-family:inherit; font-size:12px;
+  background:#0b0b14; color:var(--text); border:1px solid var(--line);
+  padding:6px 8px; outline:none;
+}
+#rep:focus{ border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+#repOut{
+  margin-top:6px; background:#0b0b14; border:1px solid var(--line); padding:8px 9px;
+  font-size:12px; line-height:1.5; white-space:pre-wrap; word-break:break-word;
+  max-height:110px; overflow-y:auto; color:#cfe8cf;
+}
+#matches{ max-height:230px; overflow-y:auto; }
+.mItem{ border:1px solid var(--line); background:#101020; padding:6px 8px; margin-bottom:6px; }
+.mItem .mHead{ font-size:11px; color:var(--accent); }
+.mItem .mHead .rng{ color:var(--dim); }
+.mItem .mVal{ font-size:12px; color:#fff; word-break:break-word; white-space:pre-wrap; }
+.mItem table{ width:100%; border-collapse:collapse; margin-top:4px; }
+.mItem td{ font-size:11px; padding:1px 4px; vertical-align:top; word-break:break-word; }
+.mItem td.gn{ color:var(--dim); white-space:nowrap; width:1%; }
+.mItem td.gv{ color:#d8f4ff; }
+.gdot{ display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:4px; vertical-align:baseline; }
+.none{ color:var(--dim); font-size:11px; }
+.presets{ display:flex; flex-wrap:wrap; gap:5px; }
+.presets button{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:4px 8px;
+}
+.presets button:hover{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+#qref{ font-size:11px; line-height:1.6; max-height:220px; overflow-y:auto; }
+#qref .tok{ color:var(--accent); display:inline-block; min-width:64px; }
+@media (max-width:760px){ main{ grid-template-columns:1fr; } }
+footer{ text-align:center; margin-top:10px; font-size:10px; color:var(--dim); letter-spacing:2px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>REGEX TESTER</h1>
+  <div class="sub">LIVE MATCHES · GROUPS · REPLACE</div>
+</header>
+<main>
+  <div>
+    <section class="panel">
+      <h2>&#9646; PATTERN</h2>
+      <div class="patRow">
+        <span class="slash">/</span>
+        <input id="pat" spellcheck="false" autocomplete="off" aria-label="Regex pattern">
+        <span class="slash">/</span>
+        <span class="flags" id="flags">
+          <button type="button" data-f="g" class="on" title="global">g</button>
+          <button type="button" data-f="i" title="ignore case">i</button>
+          <button type="button" data-f="m" title="multiline ^$">m</button>
+          <button type="button" data-f="s" title="dotall">s</button>
+        </span>
+      </div>
+      <div id="reErr"></div>
+      <div id="matchCount"></div>
+      <div class="hlwrap">
+        <pre id="hl" aria-hidden="true"></pre>
+        <textarea id="txt" spellcheck="false" aria-label="Test text"></textarea>
+      </div>
+      <div class="repRow">
+        <label>REPLACE &rarr;</label>
+        <input id="rep" spellcheck="false" autocomplete="off" aria-label="Replacement">
+      </div>
+      <div id="repOut"></div>
+    </section>
+  </div>
+  <div>
+    <section class="panel">
+      <h2>&#9646; MATCHES</h2>
+      <div id="matches"></div>
+    </section>
+    <section class="panel">
+      <h2>&#9646; PRESET PATTERNS</h2>
+      <div class="presets" id="presets"></div>
+    </section>
+    <section class="panel">
+      <h2>&#9646; QUICK REFERENCE</h2>
+      <div id="qref"></div>
+    </section>
+  </div>
+</main>
+<footer>WIZZED ARCADE // TOOL 07</footer>
+<script>
+"use strict";
+var MATCH_CAP = 2000;
+function compilePattern(src, flags){
+  if(src === "") return {err:"Pattern is empty"};
+  try{
+    return {re:new RegExp(src, flags.indexOf("d") < 0 ? flags + "d" : flags)};
+  }catch(e1){
+    try{ return {re:new RegExp(src, flags)}; }
+    catch(e2){ return {err:String(e2.message || e2)}; }
+  }
+}
+function collectMatches(re, text){
+  var out = [];
+  if(!re.global){
+    var single = re.exec(text);
+    if(single) out.push(single);
+    return out;
+  }
+  re.lastIndex = 0;
+  var m, guard = 0;
+  while((m = re.exec(text)) !== null){
+    out.push(m);
+    if(m[0].length === 0) re.lastIndex++;      // avoid infinite loop on zero-length matches
+    if(++guard >= MATCH_CAP) break;            // catastrophic-input cap
+  }
+  return out;
+}
+function groupRanges(m){
+  var ranges = [];
+  if(!m.indices) return ranges;
+  var start = m.index, end = m.index + m[0].length;
+  for(var g = 1; g < m.indices.length; g++){
+    var r = m.indices[g];
+    if(!r) continue;
+    if(r[0] >= start && r[1] <= end && r[1] > r[0]) ranges.push({s:r[0], e:r[1], g:g});
+  }
+  ranges.sort(function(a,b){ return a.s - b.s || b.e - a.e; });
+  var flat = [], lastEnd = -1;
+  for(var k = 0; k < ranges.length; k++){
+    if(ranges[k].s >= lastEnd){ flat.push(ranges[k]); lastEnd = ranges[k].e; }
+  }
+  return flat;
+}
+// ---- DOM ----
+var LS_KEY = "wizzed-regex-tester";
+var DEMO_P = "(?<user>[\\w.+-]+)@(?<host>[\\w-]+(?:\\.[\\w-]+)+)";
+var DEMO_T = "Contact us at support@wizzed.io or ops@arcade-hq.net for repairs.\nDocs: https://wizzed.github.io/tools and http://example.com/play?id=42\nServer 192.168.0.1 went down on 2026-07-08 at 23:59 — ping admin@backup.example.org.\nHex colors: #0ff and #ff00aa. Call +1 (555) 010-9999.\nThe quick brown fox jumps over the the lazy dog.";
+var DEMO_R = "$<user> [at] $<host>";
+var PRESETS = [
+  {n:"EMAIL", p:"[\\w.+-]+@[\\w-]+(?:\\.[\\w-]+)+", f:"g"},
+  {n:"URL", p:"https?:\\/\\/[^\\s<>\"']+", f:"g"},
+  {n:"IPV4", p:"\\b(?:(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.){3}(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\b", f:"g"},
+  {n:"ISO DATE", p:"\\b(\\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])\\b", f:"g"},
+  {n:"TIME 24H", p:"\\b([01]\\d|2[0-3]):([0-5]\\d)\\b", f:"g"},
+  {n:"HEX COLOR", p:"#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})\\b", f:"g"},
+  {n:"PHONE", p:"\\+?\\d[\\d\\s().-]{7,}\\d", f:"g"},
+  {n:"DOUBLED WORD", p:"\\b(\\w+)\\s+\\1\\b", f:"gi"},
+  {n:"NUMBER", p:"-?\\d+(?:\\.\\d+)?", f:"g"}
+];
+var QREF = [
+  ["\\d  \\D","digit / non-digit"],
+  ["\\w  \\W","word char / non-word"],
+  ["\\s  \\S","whitespace / non-space"],
+  [".","any char (not \\n unless s)"],
+  ["^  $","start / end of line (m)"],
+  ["\\b","word boundary"],
+  ["[abc]","char class"],
+  ["[^abc]","negated class"],
+  ["a*  a+  a?","0+, 1+, optional"],
+  ["a{2,5}","2 to 5 repeats"],
+  ["a+?","lazy quantifier"],
+  ["(x)","capture group $1"],
+  ["(?:x)","non-capturing group"],
+  ["(?<name>x)","named group"],
+  ["\\1","backreference"],
+  ["x|y","alternation"],
+  ["(?=x) (?!x)","lookahead +/-"],
+  ["(?<=x) (?<!x)","lookbehind +/-"]
+];
+var pat = document.getElementById("pat");
+var txt = document.getElementById("txt");
+var rep = document.getElementById("rep");
+var hl = document.getElementById("hl");
+var reErr = document.getElementById("reErr");
+var matchCount = document.getElementById("matchCount");
+var matchesEl = document.getElementById("matches");
+var repOut = document.getElementById("repOut");
+var flagsEl = document.getElementById("flags");
+var flags = "g";
+
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({p:pat.value, f:flags, t:txt.value, r:rep.value})); }catch(e){}
+}
+function gCls(g){ return "g" + (((g - 1) % 5) + 1); }
+
+function renderHighlight(text, matches){
+  var html = "", pos = 0;
+  for(var i = 0; i < matches.length; i++){
+    var m = matches[i];
+    var s = m.index, e = m.index + m[0].length;
+    if(s < pos) continue;
+    html += esc(text.slice(pos, s));
+    if(e === s){
+      html += '<mark class="mk zero"></mark>';
+    } else {
+      var inner = "", ip = s;
+      var gr = groupRanges(m);
+      for(var k = 0; k < gr.length; k++){
+        inner += esc(text.slice(ip, gr[k].s));
+        inner += '<mark class="g ' + gCls(gr[k].g) + '">' + esc(text.slice(gr[k].s, gr[k].e)) + "</mark>";
+        ip = gr[k].e;
+      }
+      inner += esc(text.slice(ip, e));
+      html += '<mark class="mk">' + inner + "</mark>";
+    }
+    pos = e;
+  }
+  html += esc(text.slice(pos));
+  hl.innerHTML = html + "\n";
+}
+function renderMatches(matches, text){
+  if(!matches.length){
+    matchesEl.innerHTML = '<div class="none">No matches. Adjust the pattern or the test text.</div>';
+    return;
+  }
+  var shown = Math.min(matches.length, 150);
+  var html = "";
+  for(var i = 0; i < shown; i++){
+    var m = matches[i];
+    var val = m[0].length > 120 ? m[0].slice(0,120) + "…" : m[0];
+    html += '<div class="mItem"><div class="mHead">#' + (i+1) +
+      ' <span class="rng">[' + m.index + "–" + (m.index + m[0].length) + "]</span></div>" +
+      '<div class="mVal">' + (m[0].length ? esc(val) : '<span class="none">(empty match)</span>') + "</div>";
+    var rows = "";
+    for(var g = 1; g < m.length; g++){
+      var v = m[g];
+      rows += '<tr><td class="gn"><span class="gdot" style="background:var(--' + gCls(g) + ')"></span>$' + g + "</td>" +
+        '<td class="gv">' + (v === undefined ? '<span class="none">—</span>' : esc(v.length > 80 ? v.slice(0,80) + "…" : v)) + "</td></tr>";
+    }
+    if(m.groups){
+      for(var name in m.groups){
+        var nv = m.groups[name];
+        rows += '<tr><td class="gn">&lt;' + esc(name) + "&gt;</td>" +
+          '<td class="gv">' + (nv === undefined ? '<span class="none">—</span>' : esc(nv.length > 80 ? nv.slice(0,80) + "…" : nv)) + "</td></tr>";
+      }
+    }
+    if(rows) html += "<table>" + rows + "</table>";
+    html += "</div>";
+  }
+  if(matches.length > shown){
+    html += '<div class="none">… ' + (matches.length - shown) + " more matches not listed</div>";
+  }
+  matchesEl.innerHTML = html;
+}
+function update(){
+  var text = txt.value;
+  var c = compilePattern(pat.value, flags);
+  if(c.err){
+    pat.classList.add("bad");
+    reErr.textContent = "✖ " + c.err;
+    matchCount.innerHTML = "";
+    hl.innerHTML = esc(text) + "\n";
+    matchesEl.innerHTML = '<div class="none">Pattern is invalid.</div>';
+    repOut.textContent = text;
+    save();
+    return;
+  }
+  pat.classList.remove("bad");
+  reErr.textContent = "";
+  var matches = collectMatches(c.re, text);
+  matchCount.innerHTML = "<b>" + matches.length + "</b> match" + (matches.length === 1 ? "" : "es") +
+    (matches.length >= MATCH_CAP ? " (capped at " + MATCH_CAP + ")" : "") +
+    " · flags: /" + (flags || "none") + "/";
+  renderHighlight(text, matches);
+  renderMatches(matches, text);
+  try{
+    var replaced = text.replace(c.re, rep.value);
+    repOut.textContent = replaced.length > 20000 ? replaced.slice(0, 20000) + "…" : replaced;
+  }catch(e){
+    repOut.textContent = "✖ replace failed: " + e.message;
+  }
+  save();
+}
+flagsEl.addEventListener("click", function(ev){
+  var b = ev.target.closest("button");
+  if(!b) return;
+  var f = b.dataset.f;
+  if(flags.indexOf(f) >= 0){ flags = flags.replace(f, ""); b.classList.remove("on"); }
+  else { flags += f; b.classList.add("on"); }
+  update();
+});
+pat.addEventListener("input", update);
+rep.addEventListener("input", update);
+txt.addEventListener("input", update);
+txt.addEventListener("scroll", function(){
+  hl.scrollTop = txt.scrollTop;
+  hl.scrollLeft = txt.scrollLeft;
+});
+var presetsEl = document.getElementById("presets");
+PRESETS.forEach(function(p){
+  var b = document.createElement("button");
+  b.type = "button";
+  b.textContent = p.n;
+  b.title = "/" + p.p + "/" + p.f;
+  b.addEventListener("click", function(){
+    pat.value = p.p;
+    flags = p.f;
+    Array.prototype.forEach.call(flagsEl.children, function(fb){
+      fb.classList.toggle("on", flags.indexOf(fb.dataset.f) >= 0);
+    });
+    update();
+  });
+  presetsEl.appendChild(b);
+});
+document.getElementById("qref").innerHTML = QREF.map(function(r){
+  return '<div><span class="tok">' + esc(r[0]) + "</span> " + esc(r[1]) + "</div>";
+}).join("");
+(function init(){
+  var p = DEMO_P, f = "g", t = DEMO_T, r = DEMO_R;
+  try{
+    var saved = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if(saved && typeof saved === "object" && typeof saved.p === "string" && saved.p){
+      p = saved.p;
+      if(typeof saved.f === "string" && /^[gims]{0,4}$/.test(saved.f)) f = saved.f;
+      if(typeof saved.t === "string") t = saved.t;
+      if(typeof saved.r === "string") r = saved.r;
+    }
+  }catch(e){}
+  pat.value = p; flags = f; txt.value = t; rep.value = r;
+  Array.prototype.forEach.call(flagsEl.children, function(fb){
+    fb.classList.toggle("on", flags.indexOf(fb.dataset.f) >= 0);
+  });
+  update();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kaleidoscope · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ff4fd8; --accent-soft:rgba(255,79,216,.5);
+  --panel:#161623; --line:#2c2c46; --text:#fae6f5; --dim:#a284a0;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%; overflow:hidden;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+}
+canvas{ position:fixed; inset:0; display:block; }
+#art{ z-index:1; }
+#overlay{ z-index:2; pointer-events:none; }
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+#title{
+  position:fixed; top:10px; left:50%; transform:translateX(-50%); z-index:50;
+  font-size:15px; letter-spacing:5px; color:var(--accent); pointer-events:none;
+  text-shadow:0 0 8px var(--accent), 0 0 26px var(--accent-soft);
+}
+#panel{
+  position:fixed; top:40px; right:10px; z-index:55;
+  background:rgba(22,22,35,.92); border:2px solid var(--line);
+  box-shadow:0 0 0 1px #000, 0 0 22px rgba(255,79,216,.12);
+  padding:10px 12px; width:210px;
+  display:flex; flex-direction:column; gap:8px;
+}
+.row{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.lbl{ font-size:9px; letter-spacing:1px; color:var(--dim); width:100%; }
+button{
+  font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--text); border:2px solid var(--line); padding:5px 8px;
+  text-transform:uppercase;
+}
+button:hover{ border-color:var(--accent); text-shadow:0 0 6px var(--accent); }
+button:active{ transform:translateY(1px); }
+button.on{
+  color:#000; background:var(--accent); border-color:var(--accent);
+  box-shadow:0 0 12px var(--accent); text-shadow:none;
+}
+input[type=range]{
+  flex:1; -webkit-appearance:none; appearance:none; height:9px; min-width:60px;
+  background:#0c0c16; border:1px solid var(--line); outline:none; cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:16px; height:20px;
+  background:var(--accent); border:2px solid #000; box-shadow:0 0 10px var(--accent); cursor:pointer;
+}
+input[type=range]::-moz-range-thumb{
+  width:14px; height:18px; border-radius:0;
+  background:var(--accent); border:2px solid #000; box-shadow:0 0 10px var(--accent); cursor:pointer;
+}
+input[type=color]{
+  width:34px; height:26px; padding:0; border:2px solid var(--line);
+  background:#121220; cursor:pointer;
+}
+#hint{
+  position:fixed; bottom:10px; left:50%; transform:translateX(-50%); z-index:50;
+  font-size:10px; letter-spacing:2px; color:var(--dim); pointer-events:none;
+  background:rgba(15,15,26,.7); padding:3px 10px; border:1px solid var(--line);
+}
+#panelToggle{ display:none; position:fixed; top:40px; right:10px; z-index:56; }
+@media (max-width:640px){
+  #panelToggle{ display:block; }
+  #panel{ display:none; }
+  #panel.open{ display:flex; top:76px; }
+}
+</style>
+</head>
+<body>
+<canvas id="art"></canvas>
+<canvas id="overlay"></canvas>
+<a class="back" href="../index.html">← Arcade</a>
+<div id="title">KALEIDOSCOPE</div>
+<button id="panelToggle">☰ TOOLS</button>
+<div id="panel">
+  <div class="row"><span class="lbl">SYMMETRY SEGMENTS</span>
+    <button data-seg="4">4</button><button data-seg="6">6</button>
+    <button data-seg="8" class="on">8</button><button data-seg="12">12</button>
+  </div>
+  <div class="row">
+    <button id="mirrorBtn" class="on">MIRROR</button>
+    <button id="fadeBtn">FADE TRAIL</button>
+  </div>
+  <div class="row"><span class="lbl">BRUSH SIZE <span id="brushVal">4</span></span>
+    <input type="range" id="brushSlider" min="1" max="24" value="4" aria-label="Brush size">
+  </div>
+  <div class="row"><span class="lbl">COLOR</span>
+    <button id="rainbowBtn" class="on">RAINBOW</button>
+    <input type="color" id="colorPick" value="#ff4fd8" aria-label="Fixed color">
+  </div>
+  <div class="row">
+    <button id="clearBtn">✕ CLEAR</button>
+    <button id="saveBtn">↓ SAVE PNG</button>
+  </div>
+</div>
+<div id="hint">DRAG TO DRAW · SYMMETRY DOES THE REST</div>
+<script>
+'use strict';
+(function(){
+  var LS_KEY='wizzed-kaleidoscope';
+  var state={ seg:8, mirror:true, fade:false, brush:4, rainbow:true, color:'#ff4fd8' };
+  try{
+    var s=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
+    if([4,6,8,12].indexOf(s.seg)>=0) state.seg=s.seg;
+    if(typeof s.mirror==='boolean') state.mirror=s.mirror;
+    if(typeof s.fade==='boolean') state.fade=s.fade;
+    if(typeof s.brush==='number') state.brush=Math.min(24,Math.max(1,s.brush));
+    if(typeof s.rainbow==='boolean') state.rainbow=s.rainbow;
+    if(typeof s.color==='string' && /^#[0-9a-fA-F]{6}$/.test(s.color)) state.color=s.color;
+  }catch(e){}
+  function save(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){} }
+
+  var art=document.getElementById('art'), actx=art.getContext('2d');
+  var ovl=document.getElementById('overlay'), octx=ovl.getContext('2d');
+  var W=0,H=0,CX=0,CY=0,dpr=1;
+
+  function resize(){
+    var oldW=art.width, oldH=art.height, snap=null;
+    if(oldW>0 && oldH>0){
+      snap=document.createElement('canvas');
+      snap.width=oldW; snap.height=oldH;
+      snap.getContext('2d').drawImage(art,0,0);
+    }
+    dpr=Math.min(2,window.devicePixelRatio||1);
+    W=window.innerWidth; H=window.innerHeight; CX=W/2; CY=H/2;
+    art.width=Math.round(W*dpr); art.height=Math.round(H*dpr);
+    ovl.width=art.width; ovl.height=art.height;
+    art.style.width=ovl.style.width=W+'px';
+    art.style.height=ovl.style.height=H+'px';
+    actx.setTransform(dpr,0,0,dpr,0,0);
+    octx.setTransform(dpr,0,0,dpr,0,0);
+    actx.fillStyle='#0f0f1a'; actx.fillRect(0,0,W,H);
+    if(snap){
+      actx.drawImage(snap,
+        (W-snap.width/dpr)/2,(H-snap.height/dpr)/2,
+        snap.width/dpr,snap.height/dpr);
+    }
+    actx.lineCap='round'; actx.lineJoin='round';
+    drawGuides();
+  }
+  window.addEventListener('resize',resize);
+
+  /* ---------- guide lines on overlay ---------- */
+  function drawGuides(){
+    octx.clearRect(0,0,W,H);
+    var R=Math.hypot(W,H);
+    octx.strokeStyle='rgba(255,79,216,0.07)';
+    octx.lineWidth=1;
+    for(var k=0;k<state.seg;k++){
+      var a=k*2*Math.PI/state.seg - Math.PI/2;
+      octx.beginPath();
+      octx.moveTo(CX,CY);
+      octx.lineTo(CX+Math.cos(a)*R, CY+Math.sin(a)*R);
+      octx.stroke();
+    }
+    octx.fillStyle='rgba(255,79,216,0.25)';
+    octx.beginPath(); octx.arc(CX,CY,3,0,Math.PI*2); octx.fill();
+  }
+
+  /* ---------- symmetric stroke ---------- */
+  var hue=200;
+  function xform(x,y,cos,sin,flip){
+    var dx=x-CX, dy=y-CY;
+    if(flip) dy=-dy;
+    return [CX+dx*cos-dy*sin, CY+dx*sin+dy*cos];
+  }
+  function strokeSeg(x0,y0,x1,y1,width,color){
+    actx.strokeStyle=color;
+    actx.lineWidth=width;
+    actx.shadowColor=color;
+    actx.shadowBlur=Math.min(14,width*1.6);
+    actx.beginPath();
+    for(var k=0;k<state.seg;k++){
+      var a=k*2*Math.PI/state.seg, c=Math.cos(a), sn=Math.sin(a);
+      var p0=xform(x0,y0,c,sn,false), p1=xform(x1,y1,c,sn,false);
+      actx.moveTo(p0[0],p0[1]); actx.lineTo(p1[0],p1[1]);
+      if(state.mirror){
+        var q0=xform(x0,y0,c,sn,true), q1=xform(x1,y1,c,sn,true);
+        actx.moveTo(q0[0],q0[1]); actx.lineTo(q1[0],q1[1]);
+      }
+    }
+    actx.stroke();
+    actx.shadowBlur=0;
+  }
+  function brushColor(){
+    if(state.rainbow){ hue=(hue+1.6)%360; return 'hsl('+hue.toFixed(0)+',100%,62%)'; }
+    return state.color;
+  }
+
+  /* ---------- pointer drawing ---------- */
+  var drawing=false, last=null, idle=true;
+  function pos(e){ return [e.clientX,e.clientY]; }
+  art.style.touchAction='none';
+  document.body.style.touchAction='none';
+  art.addEventListener('pointerdown',function(e){
+    if(e.button!==undefined && e.button!==0) return;
+    idle=false;
+    drawing=true; last=pos(e);
+    try{ art.setPointerCapture(e.pointerId); }catch(err){}
+    strokeSeg(last[0],last[1],last[0]+0.01,last[1]+0.01,state.brush,brushColor());
+  });
+  art.addEventListener('pointermove',function(e){
+    if(!drawing||!last) return;
+    var p=pos(e);
+    strokeSeg(last[0],last[1],p[0],p[1],state.brush,brushColor());
+    last=p;
+  });
+  function endStroke(){ drawing=false; last=null; }
+  art.addEventListener('pointerup',endStroke);
+  art.addEventListener('pointercancel',endStroke);
+
+  /* ---------- idle demo spiral ---------- */
+  var demoT=0, demoPrev=null;
+  function demoStep(){
+    var maxR=Math.min(W,H)/2-40;
+    demoT+=0.045;
+    var r=25+((demoT*10)%Math.max(60,maxR-25));
+    var wob=1+0.18*Math.sin(demoT*2.7);
+    var x=CX+Math.cos(demoT*1.9)*r*wob;
+    var y=CY+Math.sin(demoT*1.9)*r*wob;
+    if(demoPrev && Math.hypot(x-demoPrev[0],y-demoPrev[1])<80){
+      hue=(hue+0.9)%360;
+      strokeSeg(demoPrev[0],demoPrev[1],x,y,3,'hsl('+hue.toFixed(0)+',100%,62%)');
+    }
+    demoPrev=[x,y];
+  }
+
+  /* ---------- main loop ---------- */
+  function frame(){
+    if(state.fade){
+      actx.fillStyle='rgba(15,15,26,0.025)';
+      actx.fillRect(0,0,W,H);
+    }
+    if(idle) demoStep();
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- controls ---------- */
+  var segBtns=document.querySelectorAll('[data-seg]');
+  for(var i=0;i<segBtns.length;i++){
+    segBtns[i].addEventListener('click',function(){
+      state.seg=+this.dataset.seg;
+      for(var j=0;j<segBtns.length;j++)
+        segBtns[j].classList.toggle('on',+segBtns[j].dataset.seg===state.seg);
+      drawGuides(); save();
+    });
+  }
+  var mirrorBtn=document.getElementById('mirrorBtn');
+  mirrorBtn.addEventListener('click',function(){
+    state.mirror=!state.mirror;
+    this.classList.toggle('on',state.mirror); save();
+  });
+  var fadeBtn=document.getElementById('fadeBtn');
+  fadeBtn.addEventListener('click',function(){
+    state.fade=!state.fade;
+    this.classList.toggle('on',state.fade); save();
+  });
+  var brushSlider=document.getElementById('brushSlider'),
+      brushVal=document.getElementById('brushVal');
+  brushSlider.addEventListener('input',function(){
+    state.brush=+this.value; brushVal.textContent=state.brush; save();
+  });
+  var rainbowBtn=document.getElementById('rainbowBtn'),
+      colorPick=document.getElementById('colorPick');
+  rainbowBtn.addEventListener('click',function(){
+    state.rainbow=!state.rainbow;
+    this.classList.toggle('on',state.rainbow); save();
+  });
+  colorPick.addEventListener('input',function(){
+    state.color=this.value; state.rainbow=false;
+    rainbowBtn.classList.remove('on'); save();
+  });
+  document.getElementById('clearBtn').addEventListener('click',function(){
+    actx.fillStyle='#0f0f1a'; actx.fillRect(0,0,W,H);
+    demoPrev=null;
+  });
+  document.getElementById('saveBtn').addEventListener('click',function(){
+    var tmp=document.createElement('canvas');
+    tmp.width=art.width; tmp.height=art.height;
+    var t=tmp.getContext('2d');
+    t.fillStyle='#0f0f1a'; t.fillRect(0,0,tmp.width,tmp.height);
+    t.drawImage(art,0,0);
+    var a=document.createElement('a');
+    a.download='kaleidoscope.png';
+    a.href=tmp.toDataURL('image/png');
+    a.click();
+  });
+  document.getElementById('panelToggle').addEventListener('click',function(){
+    document.getElementById('panel').classList.toggle('open');
+  });
+
+  /* ---------- init from state ---------- */
+  for(var k=0;k<segBtns.length;k++)
+    segBtns[k].classList.toggle('on',+segBtns[k].dataset.seg===state.seg);
+  mirrorBtn.classList.toggle('on',state.mirror);
+  fadeBtn.classList.toggle('on',state.fade);
+  brushSlider.value=state.brush; brushVal.textContent=state.brush;
+  rainbowBtn.classList.toggle('on',state.rainbow);
+  colorPick.value=state.color;
+
+  resize();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

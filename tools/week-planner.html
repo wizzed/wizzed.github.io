@@ -58,12 +58,12 @@ main{ max-width:1020px; margin:6px auto 0; padding:0 12px; }
   position:relative; border-left:1px solid #1d1d31; border-top:1px solid #1d1d31;
   cursor:pointer;
 }
-.cell:nth-child(16n+2){ }
 .cell.today{ background:rgba(255,179,0,.045); }
 .cell:hover{ background:rgba(255,179,0,.10); }
 .cell.target{ background:rgba(255,179,0,.25); box-shadow:inset 0 0 0 1px var(--accent); }
 .blk{
   position:absolute; inset:1px 2px; z-index:5; overflow:hidden;
+  background:#1b1b30;
   background:color-mix(in srgb, var(--bc) 22%, #10101e);
   border:1px solid var(--bc); border-left:4px solid var(--bc);
   box-shadow:0 0 8px color-mix(in srgb, var(--bc) 45%, transparent);
@@ -294,7 +294,9 @@ function commitPop(){
   if(popState.block){
     popState.block.title=t; popState.block.color=pickedColor;
   }else{
-    state.blocks.push({id:uid(),day:popState.day,hour:popState.hour,title:t,color:pickedColor});
+    var occ=blockAt(popState.day,popState.hour);   /* cell filled since pop opened */
+    if(occ){ occ.title=t; occ.color=pickedColor; }
+    else state.blocks.push({id:uid(),day:popState.day,hour:popState.hour,title:t,color:pickedColor});
   }
   closePop(); render();
 }

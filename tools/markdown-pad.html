@@ -208,11 +208,14 @@ function render(md){
   var lines=md.replace(/\r\n?/g,'\n').split('\n');
   var html='', i=0, m;
   function listBlock(){
-    var items=[];
+    var items=[], firstOrd=null;
     while(i<lines.length){
       var lm=lines[i].match(/^(\s*)([-*]|\d+\.)\s+(.*)$/);
       if(!lm) break;
-      items.push({ind:lm[1].length>=2?1:0, ord:/^\d/.test(lm[2]), text:lm[3]});
+      var ind=lm[1].length>=2?1:0, ord=/^\d/.test(lm[2]);
+      if(firstOrd===null) firstOrd=ord;
+      else if(ind===0 && ord!==firstOrd) break;
+      items.push({ind:ind, ord:ord, text:lm[3]});
       i++;
     }
     var tag=items[0].ord?'ol':'ul';

@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Binary Grid — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --neon: #4dd7ff; --one: #ffb64d; }
+  body {
+    background: #0f0f1a;
+    background-image: radial-gradient(ellipse at 50% -20%, rgba(77,215,255,.07), transparent 60%);
+    color: #d8f4ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 8px 12px 20px;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+    overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px; z-index: 60;
+    color: #7a7a9a; text-decoration: none; font-size: 13px;
+    padding: 4px 8px; border: 1px solid #2a2a4a; border-radius: 6px;
+    background: rgba(15,15,26,.8);
+  }
+  a.back:hover { color: var(--neon); border-color: var(--neon); }
+  h1 {
+    margin: 8px 0 2px; font-size: clamp(20px, 5vmin, 30px); letter-spacing: 6px;
+    color: var(--neon);
+    text-shadow: 0 0 8px var(--neon), 0 0 28px rgba(77,215,255,.45);
+  }
+  .sub { color: #5b93ae; font-size: 11px; letter-spacing: 3px; margin-bottom: 8px; }
+  .hud { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; justify-content: center; }
+  .stat {
+    background: #10202b; border: 2px solid #275a75; border-radius: 8px;
+    padding: 3px 10px; min-width: 80px; text-align: center;
+  }
+  .stat .lbl { display: block; font-size: 10px; letter-spacing: 2px; color: #5b93ae; }
+  .stat .val { display: block; font-size: 18px; font-weight: bold; color: var(--neon); text-shadow: 0 0 6px rgba(77,215,255,.7); }
+  .diffs { display: flex; gap: 6px; margin-bottom: 8px; }
+  .diffs button {
+    font-family: inherit; font-size: 11px; font-weight: bold; letter-spacing: 1px;
+    color: #6d9db8; background: #10202b; border: 2px solid #234a60; border-radius: 7px;
+    padding: 5px 10px; cursor: pointer;
+  }
+  .diffs button.cur { color: var(--neon); border-color: var(--neon); box-shadow: 0 0 10px rgba(77,215,255,.5); }
+  #board {
+    display: grid; gap: 3px;
+    width: min(66vmin, 430px, calc(100vw - 28px));
+    aspect-ratio: 1;
+    padding: 8px;
+    background: #0c1620;
+    border: 3px solid var(--neon); border-radius: 12px;
+    box-shadow: 0 0 18px rgba(77,215,255,.32), 0 0 60px rgba(77,215,255,.1), inset 0 0 26px rgba(0,0,0,.7);
+  }
+  .cell {
+    border-radius: 6px;
+    background: #14222e;
+    border: 1px solid #1f3a4d;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold;
+    font-size: calc(var(--cellpx) * .52);
+    transition: background .1s, box-shadow .1s;
+    color: transparent;
+  }
+  .cell:hover { background: #1c3242; }
+  .cell.v0 { color: var(--neon); text-shadow: 0 0 8px rgba(77,215,255,.8); background: #102a3a; }
+  .cell.v1 { color: var(--one); text-shadow: 0 0 8px rgba(255,182,77,.8); background: #2c2214; }
+  .cell.given { cursor: default; border-color: #3d6a86; }
+  .cell.given.v0 { background: #16374b; box-shadow: inset 0 0 8px rgba(77,215,255,.25); }
+  .cell.given.v1 { background: #3b2d17; box-shadow: inset 0 0 8px rgba(255,182,77,.25); }
+  .cell.err {
+    background: #3d1020 !important; border-color: #ff3d68 !important;
+    box-shadow: 0 0 12px rgba(255,61,104,.65) !important;
+    animation: errShake .3s;
+  }
+  @keyframes errShake { 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+  .cell.cursor { outline: 2px solid #fff; outline-offset: -2px; }
+  .controls { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+  .controls button {
+    font-family: inherit; font-size: 12px; font-weight: bold; letter-spacing: 2px;
+    color: var(--neon); background: #10202b;
+    border: 2px solid var(--neon); border-radius: 8px;
+    padding: 7px 14px; cursor: pointer;
+    box-shadow: 0 0 10px rgba(77,215,255,.22);
+    text-shadow: 0 0 6px rgba(77,215,255,.6);
+  }
+  .controls button:hover { background: #16303f; box-shadow: 0 0 18px rgba(77,215,255,.45); }
+  .controls button:active { transform: translateY(1px); }
+  #msg { min-height: 16px; margin-top: 6px; font-size: 12px; letter-spacing: 1px; color: #7fc7e8; text-align: center; }
+  .tip { margin-top: 8px; color: #44708a; font-size: 11px; letter-spacing: 1px; text-align: center; max-width: 560px; }
+  .overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(8,8,16,.85); backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .overlay.hidden { display: none; }
+  .panel {
+    background: #10202b; border: 3px solid var(--neon); border-radius: 14px;
+    padding: 26px 34px; text-align: center; max-width: 90vw;
+    box-shadow: 0 0 30px rgba(77,215,255,.5), 0 0 90px rgba(77,215,255,.18);
+    animation: pop .3s cubic-bezier(.3,1.5,.5,1);
+  }
+  @keyframes pop { from { transform: scale(.7); opacity: 0; } }
+  .panel h2 { color: var(--neon); letter-spacing: 5px; font-size: 24px; text-shadow: 0 0 12px var(--neon); margin-bottom: 10px; }
+  .panel p { color: #bfe6f7; margin: 5px 0; font-size: 14px; }
+  .panel .rec { color: #ffb64d; text-shadow: 0 0 10px rgba(255,182,77,.8); font-weight: bold; }
+  .panel button {
+    font-family: inherit; font-size: 13px; font-weight: bold; letter-spacing: 2px;
+    color: var(--neon); background: #10202b; border: 2px solid var(--neon); border-radius: 8px;
+    padding: 8px 16px; cursor: pointer; margin: 14px 5px 0;
+    box-shadow: 0 0 10px rgba(77,215,255,.25);
+  }
+  .panel button:hover { background: #16303f; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>BINARY GRID</h1>
+<div class="sub">FILL WITH 0 &amp; 1 · NO TRIPLES · BALANCED LINES · NO TWIN LINES</div>
+<div class="hud">
+  <div class="stat"><span class="lbl">SIZE</span><span class="val" id="hSize">6×6</span></div>
+  <div class="stat"><span class="lbl">FILLED</span><span class="val" id="hFill">0%</span></div>
+  <div class="stat"><span class="lbl">TIME</span><span class="val" id="hTime">0:00</span></div>
+  <div class="stat"><span class="lbl">BEST</span><span class="val" id="hBest">—</span></div>
+</div>
+<div class="diffs">
+  <button data-n="6">EASY 6×6</button>
+  <button data-n="8">MEDIUM 8×8</button>
+  <button data-n="10">HARD 10×10</button>
+</div>
+<div id="board"></div>
+<div id="msg"></div>
+<div class="controls">
+  <button id="btnCheck">CHECK ERRORS</button>
+  <button id="btnClear">RESET</button>
+  <button id="btnNew">NEW PUZZLE</button>
+</div>
+<div class="tip">CLICK / TAP cycles empty → 0 → 1 · no three identical in a row · every row &amp; column half 0s, half 1s · no two identical rows or columns · keys: arrows, 0, 1, backspace</div>
+<div class="overlay hidden" id="winOverlay">
+  <div class="panel">
+    <h2>GRID SOLVED!</h2>
+    <p id="winInfo"></p>
+    <p id="winBest" class="rec"></p>
+    <button id="btnAgain">NEW PUZZLE</button>
+    <button id="btnHarder">BIGGER GRID →</button>
+  </div>
+</div>
+<script>
+(function(){
+'use strict';
+/* ===== core (node-verified): generation with unique-solution digging ===== */
+function takuzuCore() {
+  function rowOk(arr, n) {
+    let c0 = 0, c1 = 0;
+    for (let i = 0; i < n; i++) {
+      const v = arr[i];
+      if (v === 0) c0++; else if (v === 1) c1++;
+      if (i >= 2 && arr[i] !== -1 && arr[i] === arr[i - 1] && arr[i] === arr[i - 2]) return false;
+    }
+    return c0 <= n / 2 && c1 <= n / 2;
+  }
+  function lineOf(grid, n, isRow, idx) {
+    const out = new Array(n);
+    for (let k = 0; k < n; k++) out[k] = isRow ? grid[idx * n + k] : grid[k * n + idx];
+    return out;
+  }
+  function fullLineDupCheck(grid, n) {
+    const rows = new Set(), cols = new Set();
+    for (let i = 0; i < n; i++) {
+      const r = lineOf(grid, n, true, i);
+      if (r.every(v => v !== -1)) {
+        const key = r.join('');
+        if (rows.has(key)) return false;
+        rows.add(key);
+      }
+      const c = lineOf(grid, n, false, i);
+      if (c.every(v => v !== -1)) {
+        const key = c.join('');
+        if (cols.has(key)) return false;
+        cols.add(key);
+      }
+    }
+    return true;
+  }
+  function cellOk(grid, n, pos) {
+    const r = Math.floor(pos / n), c = pos % n;
+    if (!rowOk(lineOf(grid, n, true, r), n)) return false;
+    if (!rowOk(lineOf(grid, n, false, c), n)) return false;
+    return fullLineDupCheck(grid, n);
+  }
+  function genFull(n, rnd) {
+    const grid = new Array(n * n).fill(-1);
+    function bt(pos) {
+      if (pos === n * n) return true;
+      const first = rnd() < 0.5 ? 0 : 1;
+      for (const v of [first, 1 - first]) {
+        grid[pos] = v;
+        if (cellOk(grid, n, pos) && bt(pos + 1)) return true;
+      }
+      grid[pos] = -1;
+      return false;
+    }
+    return bt(0) ? grid : null;
+  }
+  function countSolutions(grid, n, limit) {
+    const g = grid.slice();
+    let count = 0;
+    function propagate() {
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (let i = 0; i < n; i++) {
+          for (const isRow of [true, false]) {
+            const line = lineOf(g, n, isRow, i);
+            for (let k = 0; k < n; k++) {
+              if (line[k] !== -1) continue;
+              let forced = -1;
+              if (k >= 2 && line[k - 1] !== -1 && line[k - 1] === line[k - 2]) forced = 1 - line[k - 1];
+              if (k <= n - 3 && line[k + 1] !== -1 && line[k + 1] === line[k + 2]) {
+                const f = 1 - line[k + 1];
+                if (forced !== -1 && forced !== f) return false;
+                forced = f;
+              }
+              if (k >= 1 && k <= n - 2 && line[k - 1] !== -1 && line[k - 1] === line[k + 1]) {
+                const f = 1 - line[k - 1];
+                if (forced !== -1 && forced !== f) return false;
+                forced = f;
+              }
+              if (forced !== -1) {
+                const pos = isRow ? i * n + k : k * n + i;
+                g[pos] = forced;
+                if (!cellOk(g, n, pos)) return false;
+                changed = true;
+              }
+            }
+            let c0 = 0, c1 = 0, em = 0;
+            const cur = lineOf(g, n, isRow, i);
+            for (const v of cur) { if (v === 0) c0++; else if (v === 1) c1++; else em++; }
+            if (c0 > n / 2 || c1 > n / 2) return false;
+            if (em > 0 && (c0 === n / 2 || c1 === n / 2)) {
+              const fill = c0 === n / 2 ? 1 : 0;
+              for (let k = 0; k < n; k++) {
+                if (cur[k] === -1) {
+                  const pos = isRow ? i * n + k : k * n + i;
+                  g[pos] = fill;
+                  if (!cellOk(g, n, pos)) return false;
+                  changed = true;
+                }
+              }
+            }
+          }
+        }
+      }
+      return true;
+    }
+    function bt() {
+      if (count >= limit) return;
+      const snapshot = g.slice();
+      if (!propagate()) { for (let i = 0; i < g.length; i++) g[i] = snapshot[i]; return; }
+      let pos = g.indexOf(-1);
+      if (pos === -1) {
+        count++;
+        for (let i = 0; i < g.length; i++) g[i] = snapshot[i];
+        return;
+      }
+      for (const v of [0, 1]) {
+        const snap2 = g.slice();
+        g[pos] = v;
+        if (cellOk(g, n, pos)) bt();
+        for (let i = 0; i < g.length; i++) g[i] = snap2[i];
+        if (count >= limit) break;
+      }
+      for (let i = 0; i < g.length; i++) g[i] = snapshot[i];
+    }
+    bt();
+    return count;
+  }
+  function genPuzzle(n, rnd) {
+    const full = genFull(n, rnd);
+    if (!full) return null;
+    const puzzle = full.slice();
+    const order = [];
+    for (let i = 0; i < n * n; i++) order.push(i);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    for (const pos of order) {
+      const saved = puzzle[pos];
+      puzzle[pos] = -1;
+      if (countSolutions(puzzle, n, 2) !== 1) puzzle[pos] = saved;
+    }
+    return { puzzle, solution: full };
+  }
+  function findErrors(grid, n) {
+    const bad = new Set();
+    for (let i = 0; i < n; i++) {
+      for (const isRow of [true, false]) {
+        const line = lineOf(grid, n, isRow, i);
+        const posOf = k => isRow ? i * n + k : k * n + i;
+        for (let k = 2; k < n; k++) {
+          if (line[k] !== -1 && line[k] === line[k - 1] && line[k] === line[k - 2]) {
+            bad.add(posOf(k)); bad.add(posOf(k - 1)); bad.add(posOf(k - 2));
+          }
+        }
+        let c0 = 0, c1 = 0;
+        for (const v of line) { if (v === 0) c0++; else if (v === 1) c1++; }
+        if (c0 > n / 2 || c1 > n / 2) {
+          const over = c0 > n / 2 ? 0 : 1;
+          for (let k = 0; k < n; k++) if (line[k] === over) bad.add(posOf(k));
+        }
+      }
+    }
+    for (const isRow of [true, false]) {
+      const seen = new Map();
+      for (let i = 0; i < n; i++) {
+        const line = lineOf(grid, n, isRow, i);
+        if (line.some(v => v === -1)) continue;
+        const key = line.join('');
+        if (seen.has(key)) {
+          for (const idx of [seen.get(key), i]) {
+            for (let k = 0; k < n; k++) bad.add(isRow ? idx * n + k : k * n + idx);
+          }
+        } else seen.set(key, i);
+      }
+    }
+    return bad;
+  }
+  function isSolved(grid, n) {
+    if (grid.some(v => v === -1)) return false;
+    return findErrors(grid, n).size === 0;
+  }
+  return { genFull, genPuzzle, countSolutions, findErrors, isSolved };
+}
+/* ===== game ===== */
+var core = takuzuCore();
+var LS_KEY = 'wizzed-binary-grid';
+var store;
+try { store = JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch (e) { store = {}; }
+if (!store.best) store.best = {};
+
+var n = 6;
+var puzzle = null, solution = null, grid = null;
+var startTime = Date.now(), pausedElapsed = 0, finalTime = null;
+var solvedFlag = false;
+var cursor = 0;
+
+var board = document.getElementById('board');
+var msgEl = document.getElementById('msg');
+var hSize = document.getElementById('hSize');
+var hFill = document.getElementById('hFill');
+var hTime = document.getElementById('hTime');
+var hBest = document.getElementById('hBest');
+var winOverlay = document.getElementById('winOverlay');
+
+var AC = null;
+function beep(freq, dur, type, gain) {
+  try {
+    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    var o = AC.createOscillator(), g = AC.createGain();
+    o.type = type || 'square';
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(gain || 0.05, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
+    o.connect(g); g.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + dur);
+  } catch (e) {}
+}
+
+function saveProgress() {
+  store.game = solvedFlag ? null : {
+    n: n, puzzle: puzzle, solution: solution, grid: grid,
+    elapsed: (Date.now() - startTime) / 1000
+  };
+  try { localStorage.setItem(LS_KEY, JSON.stringify(store)); } catch (e) {}
+}
+
+function newPuzzle(size, restore) {
+  n = size;
+  if (restore && store.game && store.game.n === size) {
+    puzzle = store.game.puzzle;
+    solution = store.game.solution;
+    grid = store.game.grid;
+    startTime = Date.now() - (store.game.elapsed || 0) * 1000;
+  } else {
+    var gen = core.genPuzzle(n, Math.random);
+    puzzle = gen.puzzle;
+    solution = gen.solution;
+    grid = puzzle.slice();
+    startTime = Date.now();
+  }
+  finalTime = null;
+  solvedFlag = false;
+  cursor = 0;
+  winOverlay.classList.add('hidden');
+  msgEl.textContent = '';
+  buildBoard();
+  updateDiffs();
+  saveProgress();
+}
+
+function buildBoard() {
+  board.innerHTML = '';
+  board.style.gridTemplateColumns = 'repeat(' + n + ', 1fr)';
+  board.style.setProperty('--cellpx', (board.clientWidth / n) + 'px');
+  for (var i = 0; i < n * n; i++) {
+    var cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.i = i;
+    board.appendChild(cell);
+  }
+  render();
+}
+function render() {
+  for (var i = 0; i < n * n; i++) {
+    var cell = board.children[i];
+    cell.classList.remove('v0', 'v1', 'given', 'cursor');
+    if (puzzle[i] !== -1) cell.classList.add('given');
+    if (grid[i] === 0) { cell.classList.add('v0'); cell.textContent = '0'; }
+    else if (grid[i] === 1) { cell.classList.add('v1'); cell.textContent = '1'; }
+    else cell.textContent = '·';
+  }
+  if (!solvedFlag) board.children[cursor].classList.add('cursor');
+  var filled = grid.filter(function(v) { return v !== -1; }).length;
+  hFill.textContent = Math.round(filled / (n * n) * 100) + '%';
+  hSize.textContent = n + '×' + n;
+  hBest.textContent = store.best[n] ? fmtTime(store.best[n]) : '—';
+}
+function updateDiffs() {
+  document.querySelectorAll('.diffs button').forEach(function(b) {
+    b.classList.toggle('cur', +b.dataset.n === n);
+  });
+}
+function fmtTime(sec) {
+  var m = Math.floor(sec / 60), s = Math.floor(sec - m * 60);
+  return m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function cycle(i) {
+  if (solvedFlag || puzzle[i] !== -1) { if (puzzle[i] !== -1) beep(150, .06, 'sawtooth', .03); return; }
+  cursor = i;
+  grid[i] = grid[i] === -1 ? 0 : (grid[i] === 0 ? 1 : -1);
+  beep(grid[i] === 0 ? 520 : grid[i] === 1 ? 660 : 300, .05, 'square', .035);
+  render();
+  saveProgress();
+  checkWin();
+}
+function setVal(i, v) {
+  if (solvedFlag || puzzle[i] !== -1) return;
+  grid[i] = v;
+  beep(v === 0 ? 520 : v === 1 ? 660 : 300, .05, 'square', .035);
+  render();
+  saveProgress();
+  checkWin();
+}
+function checkWin() {
+  if (core.isSolved(grid, n)) {
+    solvedFlag = true;
+    finalTime = (Date.now() - startTime) / 1000;
+    var t = Math.round(finalTime * 10) / 10;
+    var isRecord = !store.best[n] || t < store.best[n];
+    if (isRecord) store.best[n] = t;
+    store.game = null;
+    try { localStorage.setItem(LS_KEY, JSON.stringify(store)); } catch (e) {}
+    document.getElementById('winInfo').textContent = n + '×' + n + ' solved in ' + fmtTime(t);
+    document.getElementById('winBest').textContent = isRecord ? '★ NEW BEST TIME ★' : 'best: ' + fmtTime(store.best[n]);
+    document.getElementById('btnHarder').style.display = n < 10 ? '' : 'none';
+    [523, 659, 784, 1047].forEach(function(f, i) {
+      setTimeout(function() { beep(f, .22, 'triangle', .06); }, i * 110);
+    });
+    render();
+    setTimeout(function() { winOverlay.classList.remove('hidden'); }, 400);
+  }
+}
+function checkErrors() {
+  var bad = core.findErrors(grid, n);
+  // also flag cells contradicting the unique solution
+  for (var i = 0; i < n * n; i++) {
+    if (grid[i] !== -1 && grid[i] !== solution[i]) bad.add(i);
+  }
+  if (bad.size === 0) {
+    msgEl.textContent = 'NO ERRORS SO FAR — KEEP GOING';
+    beep(760, .1, 'triangle', .05);
+    return;
+  }
+  msgEl.textContent = bad.size + ' CELL' + (bad.size > 1 ? 'S' : '') + ' WRONG — FLASHING RED';
+  beep(180, .18, 'sawtooth', .05);
+  bad.forEach(function(i) { board.children[i].classList.add('err'); });
+  setTimeout(function() {
+    bad.forEach(function(i) { board.children[i].classList.remove('err'); });
+  }, 1600);
+}
+
+board.addEventListener('click', function(e) {
+  var cell = e.target.closest('.cell');
+  if (!cell) return;
+  cycle(+cell.dataset.i);
+});
+document.addEventListener('keydown', function(e) {
+  var k = e.key;
+  var r = Math.floor(cursor / n), c = cursor % n;
+  if (k === 'ArrowUp') { r = (r + n - 1) % n; cursor = r * n + c; render(); e.preventDefault(); }
+  else if (k === 'ArrowDown') { r = (r + 1) % n; cursor = r * n + c; render(); e.preventDefault(); }
+  else if (k === 'ArrowLeft') { c = (c + n - 1) % n; cursor = r * n + c; render(); e.preventDefault(); }
+  else if (k === 'ArrowRight') { c = (c + 1) % n; cursor = r * n + c; render(); e.preventDefault(); }
+  else if (k === '0' || k === 'o') setVal(cursor, 0);
+  else if (k === '1' || k === 'i') setVal(cursor, 1);
+  else if (k === ' ' || k === 'Enter') { cycle(cursor); e.preventDefault(); }
+  else if (k === 'Backspace' || k === 'Delete') { setVal(cursor, -1); e.preventDefault(); }
+});
+document.querySelectorAll('.diffs button').forEach(function(b) {
+  b.addEventListener('click', function() { beep(400, .06, 'square', .03); newPuzzle(+b.dataset.n, false); });
+});
+document.getElementById('btnCheck').addEventListener('click', checkErrors);
+document.getElementById('btnClear').addEventListener('click', function() {
+  if (solvedFlag) return;
+  grid = puzzle.slice();
+  msgEl.textContent = '';
+  beep(260, .08, 'square', .03);
+  render();
+  saveProgress();
+});
+document.getElementById('btnNew').addEventListener('click', function() { beep(420, .06, 'square', .03); newPuzzle(n, false); });
+document.getElementById('btnAgain').addEventListener('click', function() { newPuzzle(n, false); });
+document.getElementById('btnHarder').addEventListener('click', function() { newPuzzle(n === 6 ? 8 : 10, false); });
+window.addEventListener('resize', function() {
+  board.style.setProperty('--cellpx', (board.clientWidth / n) + 'px');
+});
+setInterval(function() {
+  hTime.textContent = fmtTime(finalTime !== null ? finalTime : (Date.now() - startTime) / 1000);
+}, 250);
+
+var initialSize = (store.game && store.game.n) || 6;
+newPuzzle(initialSize, true);
+})();
+</script>
+</body>
+</html>

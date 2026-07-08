@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Binary Clock · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#39ff14; --accent-soft:rgba(57,255,20,.4);
+  --panel:#161623; --line:#2c2c46; --text:#eefdea; --dim:#8fa38a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:18px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:8px 8px 2px; }
+h1{
+  display:inline-block; font-size:clamp(15px,2.8vw,23px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 24px var(--accent-soft);
+}
+#ctlRow{ display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin:8px 0 4px; padding:0 8px; }
+#ctlRow button{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:5px 11px;
+}
+#ctlRow button.on{ color:#fff; border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); text-shadow:0 0 6px var(--accent); }
+#themes{ display:flex; justify-content:center; gap:7px; margin:4px 0 6px; }
+#themes button{
+  width:20px; height:20px; cursor:pointer; border:2px solid #000; padding:0;
+  outline:1px solid var(--line);
+}
+#themes button.on{ outline:2px solid #fff; box-shadow:0 0 10px currentColor; }
+main{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; align-items:flex-start; max-width:900px; margin:2px auto 0; padding:0 10px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:12px 14px;
+  box-shadow:0 0 0 1px #000, 0 0 20px var(--accent-soft);
+}
+.hidden{ display:none !important; }
+/* ---- binary matrix ---- */
+#binPanel{ text-align:center; }
+#matrix{ display:inline-grid; grid-template-columns:auto repeat(6,1fr); gap:7px 9px; align-items:center; }
+.rowlab{ font-size:10px; color:var(--dim); text-align:right; padding-right:2px; }
+.led{
+  width:min(7.5vw,34px); height:min(7.5vw,34px); border-radius:50%;
+  background:#141420; border:2px solid #23233a;
+  transition:background .18s, box-shadow .18s, border-color .18s;
+}
+.led.on{
+  background:var(--accent); border-color:var(--accent);
+  box-shadow:0 0 12px var(--accent), 0 0 30px var(--accent-soft), inset 0 0 6px rgba(255,255,255,.5);
+}
+.led.ghost{ opacity:.18; border-style:dashed; }
+.collab{ font-size:11px; color:var(--dim); letter-spacing:1px; }
+.coldig{ font-size:13px; color:var(--accent); text-shadow:0 0 8px var(--accent-soft); font-weight:bold; }
+#binReadout{
+  margin-top:10px; font-size:22px; letter-spacing:3px; color:var(--accent);
+  text-shadow:0 0 8px var(--accent), 0 0 30px var(--accent-soft);
+  font-variant-numeric:tabular-nums;
+}
+#binReadout small{ font-size:11px; color:var(--dim); text-shadow:none; }
+/* ---- analog ---- */
+#anaPanel{ text-align:center; }
+#anaCanvas{ display:block; margin:0 auto; }
+#anaDigital{ margin-top:6px; font-size:16px; color:var(--accent); letter-spacing:2px; text-shadow:0 0 8px var(--accent-soft); font-variant-numeric:tabular-nums; }
+/* ---- big digital ---- */
+#digPanel{ text-align:center; padding:24px 26px; }
+#digTime{
+  font-size:clamp(44px,11vw,84px); letter-spacing:4px; color:var(--accent);
+  text-shadow:0 0 12px var(--accent), 0 0 50px var(--accent-soft);
+  font-variant-numeric:tabular-nums; line-height:1.05;
+}
+#digTime small{ font-size:.4em; color:var(--text); }
+#digDate{ font-size:12px; color:var(--dim); letter-spacing:3px; margin-top:8px; }
+/* ---- how to ---- */
+#howPanel{ width:min(96vw,300px); font-size:11px; line-height:1.55; }
+#howPanel h2{
+  font-size:11px; letter-spacing:2px; color:var(--dim); border-bottom:1px solid var(--line);
+  padding-bottom:4px; margin-bottom:6px;
+}
+#howPanel b{ color:var(--accent); text-shadow:0 0 6px var(--accent-soft); }
+#howPanel .ex{ margin-top:6px; color:var(--dim); border-left:2px solid var(--accent); padding-left:8px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header><h1>BINARY CLOCK</h1></header>
+<div id="ctlRow">
+  <button id="mBin" class="on">● BINARY</button>
+  <button id="mAna">◷ ANALOG</button>
+  <button id="mDig">88 DIGITAL</button>
+  <button id="h24">24H</button>
+</div>
+<div id="themes"></div>
+<main>
+  <section class="panel" id="binPanel">
+    <div id="matrix"></div>
+    <div id="binReadout">00:00:00 <small id="ampm"></small></div>
+  </section>
+
+  <section class="panel hidden" id="anaPanel">
+    <canvas id="anaCanvas" width="280" height="280"></canvas>
+    <div id="anaDigital">00:00:00</div>
+  </section>
+
+  <section class="panel hidden" id="digPanel">
+    <div id="digTime">00:00<small>:00</small></div>
+    <div id="digDate">—</div>
+  </section>
+
+  <section class="panel" id="howPanel">
+    <h2>HOW TO READ IT</h2>
+    Each column is one <b>digit</b> of HH:MM:SS in binary-coded decimal.
+    Rows are worth <b>8, 4, 2, 1</b> (top to bottom).
+    Add the values of the <b>lit LEDs</b> in a column to get that digit.
+    <div class="ex">
+      example: LEDs at 4 and 1 lit → 4+1 = <b>5</b>.<br>
+      dashed LEDs can never light for that digit.
+    </div>
+    <div class="ex">columns: H H · M M · S S — live digits shown under each column.</div>
+  </section>
+</main>
+
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-binary-clock';
+var $=function(id){ return document.getElementById(id); };
+
+var THEMES=[
+  {n:'toxic', c:'#39ff14', s:'rgba(57,255,20,.4)'},
+  {n:'cyan', c:'#00e5ff', s:'rgba(0,229,255,.4)'},
+  {n:'magenta',c:'#ff2ec4', s:'rgba(255,46,196,.4)'},
+  {n:'amber', c:'#ffb020', s:'rgba(255,176,32,.4)'},
+  {n:'red', c:'#ff4560', s:'rgba(255,69,96,.4)'},
+  {n:'violet', c:'#b388ff', s:'rgba(179,136,255,.4)'}
+];
+var state={theme:0, mode:'bin', h12:false};
+try{
+  var raw=localStorage.getItem(LS_KEY);
+  if(raw){
+    var d=JSON.parse(raw);
+    if(typeof d.theme==='number' && THEMES[d.theme]) state.theme=d.theme;
+    if(d.mode==='bin'||d.mode==='ana'||d.mode==='dig') state.mode=d.mode;
+    if(typeof d.h12==='boolean') state.h12=d.h12;
+  }
+}catch(e){}
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
+
+/* ---------- themes ---------- */
+var themesBox=$('themes');
+THEMES.forEach(function(t,i){
+  var b=document.createElement('button');
+  b.style.background=t.c; b.style.color=t.c; b.title=t.n;
+  b.addEventListener('click',function(){ state.theme=i; applyTheme(); save(); });
+  themesBox.appendChild(b);
+});
+function applyTheme(){
+  var t=THEMES[state.theme];
+  document.documentElement.style.setProperty('--accent',t.c);
+  document.documentElement.style.setProperty('--accent-soft',t.s);
+  Array.prototype.forEach.call(themesBox.children,function(el,j){ el.classList.toggle('on',j===state.theme); });
+}
+
+/* ---------- binary matrix build ---------- */
+/* columns: bits used per digit: H tens(2) H ones(4) M tens(3) M ones(4) S tens(3) S ones(4) */
+var BITS=[2,4,3,4,3,4];
+var LABELS=['H','H','M','M','S','S'];
+var leds=[]; /* leds[col][rowIdx 0..3] rows are 8,4,2,1 top-down */
+var digEls=[];
+(function build(){
+  var mx=$('matrix');
+  var vals=[8,4,2,1];
+  for(var r=0;r<4;r++){
+    var lab=document.createElement('div');
+    lab.className='rowlab'; lab.textContent=vals[r];
+    mx.appendChild(lab);
+    for(var c=0;c<6;c++){
+      var led=document.createElement('div');
+      var bitVal=vals[r];
+      var usable= bitVal < Math.pow(2,BITS[c]);
+      led.className='led'+(usable?'':' ghost');
+      if(!leds[c]) leds[c]=[];
+      leds[c][r]=usable?led:null;
+      mx.appendChild(led);
+    }
+  }
+  var corner=document.createElement('div'); mx.appendChild(corner);
+  for(var c2=0;c2<6;c2++){
+    var cl=document.createElement('div');
+    cl.className='collab'; cl.innerHTML=LABELS[c2]+'<div class="coldig">0</div>';
+    digEls[c2]=cl.querySelector('.coldig');
+    $('matrix').appendChild(cl);
+  }
+})();
+
+/* ---------- mode / format controls ---------- */
+function applyMode(){
+  $('mBin').classList.toggle('on',state.mode==='bin');
+  $('mAna').classList.toggle('on',state.mode==='ana');
+  $('mDig').classList.toggle('on',state.mode==='dig');
+  $('binPanel').classList.toggle('hidden',state.mode!=='bin');
+  $('anaPanel').classList.toggle('hidden',state.mode!=='ana');
+  $('digPanel').classList.toggle('hidden',state.mode!=='dig');
+  $('h24').textContent=state.h12?'12H':'24H';
+  $('h24').classList.toggle('on',state.h12);
+}
+$('mBin').addEventListener('click',function(){ state.mode='bin'; applyMode(); save(); });
+$('mAna').addEventListener('click',function(){ state.mode='ana'; applyMode(); save(); });
+$('mDig').addEventListener('click',function(){ state.mode='dig'; applyMode(); save(); });
+$('h24').addEventListener('click',function(){ state.h12=!state.h12; applyMode(); save(); tick(); });
+document.addEventListener('keydown',function(e){
+  if(e.key==='1') $('mBin').click();
+  else if(e.key==='2') $('mAna').click();
+  else if(e.key==='3') $('mDig').click();
+  else if(e.key==='t'||e.key==='T'){ state.theme=(state.theme+1)%THEMES.length; applyTheme(); save(); }
+  else if(e.key==='h'||e.key==='H') $('h24').click();
+});
+
+/* ---------- analog canvas ---------- */
+var cv=$('anaCanvas'), cx=cv.getContext('2d');
+var DPR=Math.min(2,window.devicePixelRatio||1);
+cv.width=280*DPR; cv.height=280*DPR;
+cv.style.width='280px'; cv.style.height='280px';
+cx.scale(DPR,DPR);
+function drawAnalog(now){
+  var W=280, C=W/2, R=124;
+  var t=THEMES[state.theme];
+  cx.clearRect(0,0,W,W);
+  cx.strokeStyle='#2c2c46'; cx.lineWidth=3;
+  cx.beginPath(); cx.arc(C,C,R,0,Math.PI*2); cx.stroke();
+  cx.strokeStyle=t.c; cx.lineWidth=1.5;
+  cx.shadowColor=t.c; cx.shadowBlur=8;
+  cx.beginPath(); cx.arc(C,C,R+5,0,Math.PI*2); cx.stroke();
+  cx.shadowBlur=0;
+  for(var i=0;i<60;i++){
+    var a=i*Math.PI/30;
+    var major=(i%5===0);
+    var r1=R-(major?14:7);
+    cx.strokeStyle= major? t.c : '#3a3a55';
+    cx.lineWidth= major?3:1;
+    cx.beginPath();
+    cx.moveTo(C+Math.sin(a)*r1, C-Math.cos(a)*r1);
+    cx.lineTo(C+Math.sin(a)*(R-2), C-Math.cos(a)*(R-2));
+    cx.stroke();
+  }
+  var ms=now.getMilliseconds();
+  var s=now.getSeconds()+ms/1000;
+  var m=now.getMinutes()+s/60;
+  var h=(now.getHours()%12)+m/60;
+  function hand(frac,len,w,col,glow){
+    var a=frac*Math.PI*2;
+    cx.strokeStyle=col; cx.lineWidth=w; cx.lineCap='round';
+    cx.shadowColor=col; cx.shadowBlur=glow;
+    cx.beginPath();
+    cx.moveTo(C-Math.sin(a)*10, C+Math.cos(a)*10);
+    cx.lineTo(C+Math.sin(a)*len, C-Math.cos(a)*len);
+    cx.stroke();
+    cx.shadowBlur=0;
+  }
+  hand(h/12, R*0.5, 5, '#eefdea', 4);
+  hand(m/60, R*0.74, 3.5, '#eefdea', 4);
+  hand(s/60, R*0.86, 1.5, t.c, 10);
+  cx.fillStyle=t.c; cx.shadowColor=t.c; cx.shadowBlur=10;
+  cx.beginPath(); cx.arc(C,C,4,0,Math.PI*2); cx.fill();
+  cx.shadowBlur=0;
+}
+
+/* ---------- tick ---------- */
+function pad(n){ return (n<10?'0':'')+n; }
+var DAYS=['SUN','MON','TUE','WED','THU','FRI','SAT'];
+var MONS=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+function tick(){
+  var now=new Date();
+  var H=now.getHours(), M=now.getMinutes(), S=now.getSeconds();
+  var ampm='';
+  var dispH=H;
+  if(state.h12){
+    ampm= H>=12?'PM':'AM';
+    dispH=H%12; if(dispH===0) dispH=12;
+  }
+  var digits=[Math.floor(dispH/10), dispH%10, Math.floor(M/10), M%10, Math.floor(S/10), S%10];
+  var vals=[8,4,2,1];
+  for(var c=0;c<6;c++){
+    for(var r=0;r<4;r++){
+      var led=leds[c][r];
+      if(!led) continue;
+      led.classList.toggle('on', (digits[c] & vals[r])!==0);
+    }
+    digEls[c].textContent=digits[c];
+  }
+  var tstr=pad(dispH)+':'+pad(M)+':'+pad(S);
+  $('binReadout').childNodes[0].nodeValue=tstr+' ';
+  $('ampm').textContent=ampm;
+  $('anaDigital').textContent=tstr+(ampm?' '+ampm:'');
+  $('digTime').innerHTML=pad(dispH)+':'+pad(M)+'<small>:'+pad(S)+(ampm?' '+ampm:'')+'</small>';
+  $('digDate').textContent=DAYS[now.getDay()]+' · '+MONS[now.getMonth()]+' '+pad(now.getDate())+' · '+now.getFullYear();
+}
+function loop(){
+  tick();
+  if(state.mode==='ana') drawAnalog(new Date());
+  requestAnimationFrame(loop);
+}
+
+applyTheme(); applyMode(); tick();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

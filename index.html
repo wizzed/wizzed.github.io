@@ -3,15 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Wizzed Arcade — 54 Games &amp; Apps</title>
-<meta name="description" content="Wizzed Arcade: 54 free browser games and apps. Arcade, puzzle, board, card and 3D games — no downloads, no ads, just play.">
+<title>Wizzed Arcade — Games &amp; Tools</title>
+<meta name="description" content="Wizzed Arcade: 150+ free browser games and tools. Arcade, RPG, puzzle, board, card and 3D games plus a full toolbox — no downloads, no ads, just play.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #070712;
-    --panel: #12122400;
     --pink: #ff2d78;
     --cyan: #00e5ff;
     --yellow: #ffd166;
@@ -34,47 +33,34 @@
   ::selection { background: var(--pink); color: #fff; }
 
   /* ---------- starfield ---------- */
-  #stars {
-    position: fixed; inset: 0;
-    width: 100%; height: 100%;
-    z-index: 0;
-    pointer-events: none;
-  }
+  #stars { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 
   /* ---------- CRT overlay ---------- */
   .crt {
-    position: fixed; inset: 0;
-    z-index: 60;
-    pointer-events: none;
+    position: fixed; inset: 0; z-index: 60; pointer-events: none;
     background: repeating-linear-gradient(0deg,
       rgba(0,0,0,0.00) 0px, rgba(0,0,0,0.00) 2px,
       rgba(0,0,0,0.14) 3px, rgba(0,0,0,0.00) 4px);
-    mix-blend-mode: multiply;
-    opacity: .8;
+    mix-blend-mode: multiply; opacity: .8;
   }
   .vignette {
-    position: fixed; inset: 0;
-    z-index: 61;
-    pointer-events: none;
+    position: fixed; inset: 0; z-index: 61; pointer-events: none;
     background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,10,0.45) 100%);
   }
 
   /* ---------- hero ---------- */
   .hero {
-    position: relative;
-    z-index: 1;
-    height: clamp(430px, 62vh, 560px);
+    position: relative; z-index: 1;
+    height: clamp(460px, 64vh, 590px);
     overflow: hidden;
     background: linear-gradient(180deg, #070712 0%, #12102e 34%, #2b1257 62%, #4a1668 76%, #7a1f60 88%, #b43a52 100%);
     border-bottom: 3px solid var(--pink);
     box-shadow: 0 0 45px rgba(255,45,120,.45);
   }
   .sun {
-    position: absolute;
-    left: 50%; bottom: 96px;
+    position: absolute; left: 50%; bottom: 96px;
     width: 240px; height: 240px;
-    transform: translateX(-50%);
-    border-radius: 50%;
+    transform: translateX(-50%); border-radius: 50%;
     background: linear-gradient(180deg, #ffe95c 0%, #ffb84d 35%, #ff2d78 75%, #b4157e 100%);
     -webkit-mask: repeating-linear-gradient(0deg, #000 0 14px, transparent 14px 20px);
             mask: repeating-linear-gradient(0deg, #000 0 14px, transparent 14px 20px);
@@ -85,15 +71,10 @@
     0%,100% { filter: drop-shadow(0 0 30px rgba(255,120,90,.7)); }
     50%     { filter: drop-shadow(0 0 55px rgba(255,60,130,.95)); }
   }
-  .city {
-    position: absolute; left: 0; right: 0; bottom: 88px;
-    height: 110px;
-    pointer-events: none;
-  }
+  .city { position: absolute; left: 0; right: 0; bottom: 88px; height: 110px; pointer-events: none; }
   .city svg { width: 100%; height: 100%; display: block; }
   .gridfloor {
-    position: absolute; left: -25%; right: -25%; bottom: -8px;
-    height: 108px;
+    position: absolute; left: -25%; right: -25%; bottom: -8px; height: 108px;
     background-image:
       linear-gradient(rgba(0,229,255,0.85) 2px, transparent 2px),
       linear-gradient(90deg, rgba(0,229,255,0.85) 2px, transparent 2px);
@@ -104,35 +85,18 @@
     box-shadow: 0 -10px 40px rgba(0,229,255,.25) inset;
   }
   @keyframes gridScroll { from { background-position-y: 0; } to { background-position-y: 34px; } }
-  #hero3d {
-    position: absolute; inset: 0;
-    width: 100%; height: 100%;
-    z-index: 2;
-    pointer-events: none;
-  }
+  #hero3d { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
   .hero-inner {
-    position: relative;
-    z-index: 3;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 0 16px;
-    gap: 20px;
+    position: relative; z-index: 3; height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 0 16px; gap: 18px;
   }
   .marquee-title {
     font-family: 'Press Start 2P', monospace;
-    font-size: clamp(1.5rem, 6vw, 3.6rem);
-    color: #fff;
-    letter-spacing: 2px;
-    line-height: 1.25;
-    text-shadow:
-      0 0 8px  #fff,
-      0 0 22px var(--cyan),
-      4px 4px 0 var(--pink),
-      4px 4px 18px var(--pink);
+    font-size: clamp(1.5rem, 6vw, 3.4rem);
+    color: #fff; letter-spacing: 2px; line-height: 1.25;
+    text-shadow: 0 0 8px #fff, 0 0 22px var(--cyan), 4px 4px 0 var(--pink), 4px 4px 18px var(--pink);
     animation: neonFlicker 4.2s linear infinite;
   }
   .marquee-title .z { display: inline-block; animation: letterBounce 2.6s ease-in-out infinite; }
@@ -153,189 +117,162 @@
     text-shadow: 0 0 12px rgba(255,209,102,.8);
     letter-spacing: 1px;
   }
-  .insert-coin {
+  .hero-nav { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .hero-btn {
     font-family: 'Press Start 2P', monospace;
-    font-size: clamp(.6rem, 1.8vw, .9rem);
-    color: #fff;
+    font-size: clamp(.55rem, 1.6vw, .78rem);
+    color: #fff; text-decoration: none;
     background: rgba(0,0,0,.45);
     border: 2px solid var(--cyan);
     box-shadow: 0 0 14px rgba(0,229,255,.5), inset 0 0 14px rgba(0,229,255,.18);
-    padding: 14px 26px;
-    cursor: pointer;
-    user-select: none;
-    animation: blink 1.15s steps(2, start) infinite;
-    transition: transform .12s ease;
+    padding: 13px 20px; cursor: pointer; user-select: none;
+    transition: transform .12s ease, background .12s ease;
   }
-  .insert-coin:hover { animation: none; transform: scale(1.06); background: rgba(0,229,255,.16); }
-  .insert-coin:active { transform: scale(.96); }
+  .hero-btn:hover { transform: scale(1.06); background: rgba(0,229,255,.16); }
+  .hero-btn:active { transform: scale(.96); }
+  .hero-btn.pink { border-color: var(--pink); box-shadow: 0 0 14px rgba(255,45,120,.5), inset 0 0 14px rgba(255,45,120,.18); }
+  .hero-btn.pink:hover { background: rgba(255,45,120,.16); }
+  .hero-btn.gold { border-color: var(--yellow); box-shadow: 0 0 14px rgba(255,209,102,.5), inset 0 0 14px rgba(255,209,102,.18); }
+  .hero-btn.gold:hover { background: rgba(255,209,102,.14); }
+  .insert-coin {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(.6rem, 1.8vw, .85rem);
+    color: #fff; background: none; border: none;
+    cursor: pointer; user-select: none;
+    animation: blink 1.15s steps(2, start) infinite;
+    text-shadow: 0 0 10px rgba(255,255,255,.6);
+  }
   @keyframes blink { 0% { opacity: 1; } 50% { opacity: .35; } 100% { opacity: 1; } }
   .hero-stats {
-    display: flex;
-    gap: 26px;
-    flex-wrap: wrap;
-    justify-content: center;
-    font-size: 22px;
-    color: var(--dim);
+    display: flex; gap: 26px; flex-wrap: wrap; justify-content: center;
+    font-size: 22px; color: var(--dim);
   }
   .hero-stats b { color: var(--green); text-shadow: 0 0 10px rgba(0,255,156,.7); font-weight: normal; }
 
   /* ---------- ticker ---------- */
   .ticker {
-    position: relative;
-    z-index: 2;
-    background: #0d0d20;
-    border-bottom: 1px solid #23234a;
-    overflow: hidden;
-    white-space: nowrap;
-    padding: 9px 0;
-    font-size: 21px;
-    color: var(--cyan);
+    position: relative; z-index: 2;
+    background: #0d0d20; border-bottom: 1px solid #23234a;
+    overflow: hidden; white-space: nowrap; padding: 9px 0;
+    font-size: 21px; color: var(--cyan);
     text-shadow: 0 0 8px rgba(0,229,255,.6);
   }
-  .ticker-track { display: inline-block; animation: tick 32s linear infinite; }
+  .ticker-track { display: inline-block; animation: tick 40s linear infinite; }
   .ticker:hover .ticker-track { animation-play-state: paused; }
   @keyframes tick { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
-  /* ---------- controls ---------- */
-  .controls {
-    position: relative;
-    z-index: 2;
-    max-width: 1280px;
-    margin: 30px auto 6px;
-    padding: 0 20px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    align-items: center;
-    justify-content: center;
-  }
-  .chip {
-    font-family: 'Press Start 2P', monospace;
-    font-size: .58rem;
-    padding: 10px 14px;
-    background: #101024;
-    color: var(--dim);
-    border: 2px solid #2b2b52;
-    cursor: pointer;
-    transition: all .15s ease;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  .chip:hover { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 12px rgba(0,229,255,.35); transform: translateY(-2px); }
-  .chip.active {
-    background: var(--cyan);
-    color: #05050f;
-    border-color: var(--cyan);
-    box-shadow: 0 0 18px rgba(0,229,255,.65);
+  /* ---------- top bar (search / sfx) ---------- */
+  .topbar {
+    position: relative; z-index: 2;
+    max-width: 1280px; margin: 26px auto 0; padding: 0 20px;
+    display: flex; flex-wrap: wrap; gap: 12px;
+    align-items: center; justify-content: center;
   }
   .search-wrap { position: relative; }
   #search {
-    font-family: 'VT323', monospace;
-    font-size: 20px;
-    background: #0b0b1c;
-    border: 2px solid #2b2b52;
-    color: var(--green);
-    padding: 8px 12px 8px 34px;
-    width: 210px;
-    outline: none;
+    font-family: 'VT323', monospace; font-size: 20px;
+    background: #0b0b1c; border: 2px solid #2b2b52; color: var(--green);
+    padding: 8px 12px 8px 34px; width: 260px; outline: none;
     caret-color: var(--green);
     transition: border-color .15s ease, box-shadow .15s ease;
   }
   #search:focus { border-color: var(--green); box-shadow: 0 0 14px rgba(0,255,156,.35); }
   .search-wrap::before {
-    content: '>';
-    position: absolute; left: 12px; top: 50%;
-    transform: translateY(-50%);
-    color: var(--green);
-    font-family: 'VT323', monospace;
-    font-size: 22px;
-    animation: blink 1.2s steps(2,start) infinite;
-    pointer-events: none;
+    content: '>'; position: absolute; left: 12px; top: 50%;
+    transform: translateY(-50%); color: var(--green);
+    font-family: 'VT323', monospace; font-size: 22px;
+    animation: blink 1.2s steps(2,start) infinite; pointer-events: none;
   }
   #sfx-toggle {
-    font-family: 'Press Start 2P', monospace;
-    font-size: .55rem;
-    padding: 10px 12px;
-    background: #101024;
-    border: 2px solid #2b2b52;
-    color: var(--dim);
-    cursor: pointer;
-    transition: all .15s ease;
+    font-family: 'Press Start 2P', monospace; font-size: .55rem;
+    padding: 10px 12px; background: #101024;
+    border: 2px solid #2b2b52; color: var(--dim);
+    cursor: pointer; transition: all .15s ease;
   }
   #sfx-toggle.on { color: var(--yellow); border-color: var(--yellow); box-shadow: 0 0 12px rgba(255,209,102,.4); }
 
   /* ---------- old arcade banner ---------- */
   .old-banner {
-    position: relative;
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    gap: 22px;
-    max-width: 1280px;
-    margin: 26px auto 8px;
-    padding: 18px 26px;
-    text-decoration: none;
+    position: relative; z-index: 2;
+    display: flex; align-items: center; gap: 22px;
+    max-width: 1280px; margin: 22px 20px 8px;
+    padding: 16px 26px; text-decoration: none;
     background:
       linear-gradient(90deg, rgba(58,36,12,.55), rgba(20,14,30,.85) 55%),
       repeating-linear-gradient(45deg, #171126 0 12px, #131022 12px 24px);
-    border: 2px dashed #8a6a3a;
-    color: var(--text);
-    transition: all .18s ease;
-    overflow: hidden;
+    border: 2px dashed #8a6a3a; color: var(--text);
+    transition: all .18s ease; overflow: hidden;
   }
-  @media (min-width: 700px) { .old-banner { margin-left: auto; margin-right: auto; } }
-  .old-banner:hover {
-    border-color: var(--yellow);
-    box-shadow: 0 0 24px rgba(255,209,102,.35);
-    transform: translateY(-2px);
-  }
+  @media (min-width: 1320px) { .old-banner { margin-left: auto; margin-right: auto; } }
+  .old-banner:hover { border-color: var(--yellow); box-shadow: 0 0 24px rgba(255,209,102,.35); transform: translateY(-2px); }
   .old-banner .tv { font-size: 44px; filter: sepia(.6); animation: tvWobble 3.4s ease-in-out infinite; }
   @keyframes tvWobble { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
   .old-banner h2 {
     font-family: 'Press Start 2P', monospace;
     font-size: clamp(.65rem, 2vw, .9rem);
-    color: var(--yellow);
-    text-shadow: 0 0 10px rgba(255,209,102,.5);
+    color: var(--yellow); text-shadow: 0 0 10px rgba(255,209,102,.5);
     margin-bottom: 6px;
   }
   .old-banner p { color: var(--dim); font-size: 19px; line-height: 1.25; }
   .old-banner .go {
     margin-left: auto;
-    font-family: 'Press Start 2P', monospace;
-    font-size: .6rem;
-    color: var(--yellow);
-    white-space: nowrap;
+    font-family: 'Press Start 2P', monospace; font-size: .6rem;
+    color: var(--yellow); white-space: nowrap;
     animation: blink 1.4s steps(2,start) infinite;
   }
-  .old-banner { margin-left: 20px; margin-right: 20px; }
-  @media (min-width: 1320px) { .old-banner { margin-left: auto; margin-right: auto; } }
 
-  /* ---------- sections & grid ---------- */
+  /* ---------- zones ---------- */
   main { position: relative; z-index: 2; }
-  .count-line {
-    max-width: 1280px;
-    margin: 18px auto 0;
-    padding: 0 20px;
-    color: var(--dim);
-    font-size: 20px;
+  .zone { max-width: 1280px; margin: 0 auto; padding: 8px 20px 10px; }
+  .zone-head {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(1rem, 3.4vw, 1.7rem);
+    color: #fff; letter-spacing: 2px;
+    margin: 34px 0 6px;
+    text-shadow: 0 0 10px #fff3, 3px 3px 0 var(--zc, var(--pink)), 3px 3px 14px var(--zc, var(--pink));
+    scroll-margin-top: 20px;
   }
-  .count-line b { color: var(--pink); font-weight: normal; }
+  .zone-head .zh-count {
+    font-size: clamp(.6rem, 1.8vw, .85rem);
+    color: var(--zc, var(--pink));
+    text-shadow: 0 0 10px var(--zc, var(--pink));
+  }
+  .zone-head::after {
+    content: ''; flex: 1 1 60px; height: 3px; align-self: center;
+    background: repeating-linear-gradient(90deg, var(--zc, var(--pink)) 0 12px, transparent 12px 20px);
+    opacity: .55;
+  }
+  #games-zone { --zc: var(--pink); }
+  #tools-zone { --zc: var(--cyan); }
+  .zone-sub { color: var(--dim); font-size: 20px; margin-bottom: 12px; }
+  .zone-sub b { color: var(--zc, var(--pink)); font-weight: normal; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 4px; }
+  .chip {
+    font-family: 'Press Start 2P', monospace; font-size: .56rem;
+    padding: 10px 13px; background: #101024; color: var(--dim);
+    border: 2px solid #2b2b52; cursor: pointer;
+    transition: all .15s ease; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .chip:hover { border-color: var(--zc, var(--cyan)); color: var(--zc, var(--cyan)); box-shadow: 0 0 12px color-mix(in srgb, var(--zc, #00e5ff) 40%, transparent); transform: translateY(-2px); }
+  .chip.active {
+    background: var(--zc, var(--cyan)); color: #05050f;
+    border-color: var(--zc, var(--cyan));
+    box-shadow: 0 0 18px color-mix(in srgb, var(--zc, #00e5ff) 70%, transparent);
+  }
+  .count-line { color: var(--dim); font-size: 19px; margin: 8px 2px 0; }
+  .count-line b { color: var(--zc, var(--pink)); font-weight: normal; }
+
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 22px;
-    max-width: 1280px;
-    margin: 16px auto 0;
-    padding: 8px 20px 30px;
+    gap: 22px; margin-top: 14px; padding-bottom: 16px;
   }
   .card {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    background: #10101f;
-    border: 2px solid #26264a;
-    text-decoration: none;
-    color: inherit;
+    position: relative; display: flex; flex-direction: column;
+    background: #10101f; border: 2px solid #26264a;
+    text-decoration: none; color: inherit;
     transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
     overflow: hidden;
   }
@@ -347,10 +284,8 @@
   }
   .card.hidden { display: none; }
   .shot {
-    position: relative;
-    aspect-ratio: 16 / 10;
-    background: #0a0a18;
-    overflow: hidden;
+    position: relative; aspect-ratio: 16 / 10;
+    background: #0a0a18; overflow: hidden;
     border-bottom: 2px solid #26264a;
   }
   .shot-ph {
@@ -364,17 +299,13 @@
   .shot img {
     position: absolute; inset: 0;
     width: 100%; height: 100%;
-    object-fit: cover;
-    display: block;
-    image-rendering: auto;
+    object-fit: cover; display: block;
   }
   .card.no-shots .shot img { display: none; }
   .shot-dots {
-    position: absolute;
-    bottom: 7px; left: 50%;
+    position: absolute; bottom: 7px; left: 50%;
     transform: translateX(-50%);
-    display: flex; gap: 5px;
-    opacity: 0;
+    display: flex; gap: 5px; opacity: 0;
     transition: opacity .2s ease;
   }
   .card:hover .shot-dots, .card.cycling .shot-dots { opacity: 1; }
@@ -382,7 +313,6 @@
   .shot-dots i {
     width: 7px; height: 7px;
     background: rgba(255,255,255,.28);
-    border-radius: 0;
     box-shadow: 0 0 4px rgba(0,0,0,.8);
     transition: background .12s ease;
   }
@@ -390,91 +320,55 @@
   .shot .shine {
     position: absolute; inset: 0;
     background: linear-gradient(105deg, transparent 42%, rgba(255,255,255,.13) 50%, transparent 58%);
-    transform: translateX(-120%);
-    pointer-events: none;
+    transform: translateX(-120%); pointer-events: none;
   }
   .card:hover .shine { animation: shine .8s ease; }
   @keyframes shine { to { transform: translateX(120%); } }
   .badge {
     position: absolute; top: 8px; right: 8px;
-    font-family: 'Press Start 2P', monospace;
-    font-size: .5rem;
-    padding: 5px 7px;
-    background: var(--purple);
-    color: #fff;
+    font-family: 'Press Start 2P', monospace; font-size: .5rem;
+    padding: 5px 7px; background: var(--purple); color: #fff;
     text-shadow: 0 0 4px rgba(0,0,0,.6);
     box-shadow: 0 0 12px rgba(157,107,255,.8);
-    letter-spacing: 1px;
-    z-index: 2;
+    letter-spacing: 1px; z-index: 2;
   }
-  .card-body {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-    padding: 13px 14px 15px;
-    flex: 1;
-  }
+  .badge.new { background: var(--green); color: #05130b; box-shadow: 0 0 12px rgba(0,255,156,.8); }
+  .card-body { display: flex; flex-direction: column; gap: 7px; padding: 13px 14px 15px; flex: 1; }
   .card-body h3 {
-    font-family: 'Press Start 2P', monospace;
-    font-size: .68rem;
-    color: #fff;
-    line-height: 1.5;
-    letter-spacing: .5px;
+    font-family: 'Press Start 2P', monospace; font-size: .68rem;
+    color: #fff; line-height: 1.5; letter-spacing: .5px;
   }
   .genre {
-    font-size: 16px;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: var(--acc, var(--cyan));
-    border: 1px solid var(--acc, var(--cyan));
-    padding: 1px 8px;
-    width: fit-content;
-    opacity: .9;
+    font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--acc, var(--cyan)); border: 1px solid var(--acc, var(--cyan));
+    padding: 1px 8px; width: fit-content; opacity: .9;
   }
-  .card-body p {
-    color: var(--dim);
-    font-size: 18px;
-    line-height: 1.3;
-    flex: 1;
-  }
+  .card-body p { color: var(--dim); font-size: 18px; line-height: 1.3; flex: 1; }
   .no-results {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 60px 0;
+    grid-column: 1 / -1; text-align: center; padding: 50px 0;
     color: var(--dim);
-    font-family: 'Press Start 2P', monospace;
-    font-size: .8rem;
-    line-height: 2;
-    display: none;
+    font-family: 'Press Start 2P', monospace; font-size: .75rem;
+    line-height: 2; display: none;
   }
 
-  /* ---------- footer ---------- */
   footer {
-    position: relative;
-    z-index: 2;
-    text-align: center;
-    padding: 36px 20px 46px;
+    position: relative; z-index: 2;
+    text-align: center; padding: 36px 20px 46px;
     border-top: 1px solid #1c1c38;
-    color: #55557d;
-    font-size: 19px;
-    line-height: 1.8;
+    color: #55557d; font-size: 19px; line-height: 1.8;
   }
   footer a { color: var(--yellow); text-decoration: none; }
   footer a:hover { text-shadow: 0 0 10px rgba(255,209,102,.7); }
   .gamepad-row { font-size: 26px; letter-spacing: 12px; margin-bottom: 8px; }
 
-  /* ---------- party mode (konami) ---------- */
   body.party { animation: partyHue 3s linear infinite; }
   @keyframes partyHue { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
   #toast {
-    position: fixed;
-    left: 50%; top: 26px;
+    position: fixed; left: 50%; top: 26px;
     transform: translateX(-50%) translateY(-140px);
     z-index: 90;
-    font-family: 'Press Start 2P', monospace;
-    font-size: .7rem;
-    background: #000;
-    color: var(--green);
+    font-family: 'Press Start 2P', monospace; font-size: .7rem;
+    background: #000; color: var(--green);
     border: 2px solid var(--green);
     box-shadow: 0 0 24px rgba(0,255,156,.6);
     padding: 14px 20px;
@@ -486,9 +380,9 @@
     *, *::before, *::after { animation-duration: .001s !important; animation-iteration-count: 1 !important; transition-duration: .001s !important; }
   }
   @media (max-width: 560px) {
-    .hero { height: 400px; }
+    .hero { height: 440px; }
     .sun { width: 170px; height: 170px; bottom: 80px; }
-    #search { width: 150px; }
+    #search { width: 170px; }
     .old-banner { flex-wrap: wrap; }
     .old-banner .go { margin-left: 0; }
   }
@@ -532,12 +426,17 @@
   <canvas id="hero3d"></canvas>
   <div class="hero-inner">
     <h1 class="marquee-title">WI<span class="z">Z</span>ZED<br>ARCADE</h1>
-    <div class="subtitle">★ 54 GAMES &amp; APPS · PIXELS · NEON · 3D ★</div>
-    <div class="insert-coin" id="insert-coin" role="button" tabindex="0">🪙 INSERT COIN — PRESS START</div>
+    <div class="subtitle">★ PIXELS · NEON · RPGs · 3D · TOOLS ★</div>
+    <div class="hero-nav">
+      <a class="hero-btn pink" href="#games">🎮 GAMES <span id="nav-games-n"></span></a>
+      <a class="hero-btn" href="#tools">🛠️ TOOLS <span id="nav-tools-n"></span></a>
+      <a class="hero-btn gold" href="old.html">📺 OLD ARCADE</a>
+    </div>
+    <button class="insert-coin" id="insert-coin">🪙 INSERT COIN — PRESS START</button>
     <div class="hero-stats">
-      <span><b id="stat-count">54</b> GAMES &amp; APPS</span>
-      <span><b>8</b> CATEGORIES</span>
-      <span><b>6</b> IN FULL 3D</span>
+      <span><b id="stat-games">0</b> GAMES</span>
+      <span><b id="stat-tools">0</b> TOOLS</span>
+      <span><b id="stat-3d">0</b> IN FULL 3D</span>
       <span><b>∞</b> FREE PLAYS</span>
     </div>
   </div>
@@ -547,18 +446,9 @@
   <div class="ticker-track" id="ticker-track"></div>
 </div>
 
-<main id="games">
-  <div class="controls">
-    <div class="search-wrap"><input id="search" type="text" placeholder="search games…" aria-label="Search games"></div>
-    <button class="chip active" data-cat="all">All</button>
-    <button class="chip" data-cat="arcade">Arcade</button>
-    <button class="chip" data-cat="action">Action</button>
-    <button class="chip" data-cat="puzzle">Puzzle</button>
-    <button class="chip" data-cat="board">Board</button>
-    <button class="chip" data-cat="words">Words</button>
-    <button class="chip" data-cat="casino">Cards</button>
-    <button class="chip" data-cat="apps">Apps</button>
-    <button class="chip" data-cat="3d">3D</button>
+<main>
+  <div class="topbar">
+    <div class="search-wrap"><input id="search" type="text" placeholder="search games &amp; tools…" aria-label="Search games and tools"></div>
     <button id="sfx-toggle" title="toggle sound effects">SFX: OFF</button>
   </div>
 
@@ -571,15 +461,30 @@
     <span class="go">ENTER ▸</span>
   </a>
 
-  <div class="count-line" id="count-line">Showing <b>54</b> of 54</div>
-  <div class="grid" id="grid">
-    <div class="no-results" id="no-results">NO GAMES FOUND<br>😵<br>TRY ANOTHER SEARCH</div>
-  </div>
+  <section class="zone" id="games-zone">
+    <h2 class="zone-head" id="games">🎮 GAMES <span class="zh-count" id="games-count"></span></h2>
+    <div class="zone-sub">Arcade action, RPGs, puzzles, boards, cards and full-3D worlds. Hover any card to preview <b>5 live screenshots</b>.</div>
+    <div class="chips" id="chips-games"></div>
+    <div class="count-line" id="count-games"></div>
+    <div class="grid" id="grid-games">
+      <div class="no-results">NO GAMES FOUND<br>😵<br>TRY ANOTHER SEARCH</div>
+    </div>
+  </section>
+
+  <section class="zone" id="tools-zone">
+    <h2 class="zone-head" id="tools">🛠️ TOOLS <span class="zh-count" id="tools-count"></span></h2>
+    <div class="zone-sub">A full neon toolbox — planners, converters, generators, audio machines and dev utilities. All offline, all yours.</div>
+    <div class="chips" id="chips-tools"></div>
+    <div class="count-line" id="count-tools"></div>
+    <div class="grid" id="grid-tools">
+      <div class="no-results">NO TOOLS FOUND<br>🔧<br>TRY ANOTHER SEARCH</div>
+    </div>
+  </section>
 </main>
 
 <footer>
   <div class="gamepad-row">🕹️👾🎮👻🪙</div>
-  Wizzed Arcade — every game runs entirely in your browser. No downloads, no accounts, no ads.<br>
+  Wizzed Arcade — every game and tool runs entirely in your browser. No downloads, no accounts, no ads.<br>
   Looking for the originals? Visit <a href="old.html">The Old Arcade</a> · psst… try the Konami code
 </footer>
 
@@ -591,125 +496,281 @@
 <script>
 'use strict';
 
-/* ================= game catalog ================= */
+/* ================= catalog ================= */
 const PALETTE = ['#00e5ff','#ff2d78','#ffd166','#00ff9c','#9d6bff','#ff6b35','#4dc3ff','#ff5c8a','#b6ff3c','#ff9d3c'];
+
 const GAMES = [
+  // rpg
+  {s:'dungeon-crawl',  t:'Dungeon Crawler',  i:'🗡️', g:'Roguelike',      c:'rpg', neu:1, d:"Descend ever-deeper dungeons — every death is permanent, every run different."},
+  {s:'pocket-quest',   t:'Pocket Quest',     i:'🗺️', g:'JRPG',           c:'rpg', neu:1, d:"A tiny JRPG: overworld, random battles, spells, and a dark castle to conquer."},
+  {s:'mon-tamer',      t:'Mon Tamer',        i:'🐾', g:'Monster RPG',    c:'rpg', neu:1, d:"Pick a starter, weaken wild mons, capture a team, beat the champion."},
+  {s:'gladiator',      t:'Gladiator Arena',  i:'🏛️', g:'Combat RPG',     c:'rpg', neu:1, d:"Read your rival, manage stamina, and buy your way to rank one."},
+  {s:'loot-hunter',    t:'Loot Hunter',      i:'⚔️', g:'Action RPG',     c:'rpg', neu:1, d:"Hack through mob waves and chase those legendary orange drops."},
+  {s:'idle-dungeon',   t:'Idle Dungeon',     i:'🛌', g:'Idle RPG',       c:'rpg', neu:1, d:"Your three heroes grind while you are away. Prestige for permanent power."},
+  {s:'cavern-quest',   t:'Cavern Quest',     i:'📜', g:'Text Adventure', c:'rpg', neu:1, d:"A branching cave saga with dice-roll fate and four different endings."},
+  {s:'shadow-tower',   t:'Shadow Tower',     i:'🗼', g:'Roguelite',      c:'rpg', neu:1, d:"30 floors of card-drawn fate. Stack relics, slay the tower lords."},
   // arcade
-  {s:'pong',           t:'Pong Duel',        i:'🏓', g:'Arcade',        c:'arcade', d:'First to 7 against a crafty AI paddle — and the ball only gets faster.'},
-  {s:'asteroids',      t:'Asteroid Storm',   i:'🚀', g:'Space Arcade',  c:'arcade', d:'Thrust, spin and blast your way through a shattering asteroid field.'},
-  {s:'flappy',         t:'Flappy Pixel',     i:'🐤', g:'One-Button',    c:'arcade', d:'One button. Endless pipes. Zero mercy. How far can you flap?'},
-  {s:'runner',         t:'Pixel Runner',     i:'🏃', g:'Endless Runner',c:'arcade', d:'Jump and slide through an ever-faster gauntlet of obstacles.'},
-  {s:'copter',         t:'Cave Copter',      i:'🚁', g:'Arcade',        c:'arcade', d:'Hold to rise, release to fall — thread the ever-narrowing cave.'},
-  {s:'hopper',         t:'Sky Hopper',       i:'🐰', g:'Platform Jump', c:'arcade', d:'Bounce from platform to platform all the way to the stratosphere.'},
-  {s:'road-hopper',    t:'Road Hopper',      i:'🐸', g:'Crossing',      c:'arcade', d:'Traffic, rivers and hungry timing windows — get the frog home safe.'},
-  {s:'maze-muncher',   t:'Maze Muncher',     i:'🟡', g:'Maze Chase',    c:'arcade', d:'Clear the maze of dots while four ghosts with attitude hunt you down.'},
-  {s:'meteor-dodge',   t:'Meteor Dodge',     i:'☄️', g:'Survival',      c:'arcade', d:'Weave through a meteor shower that never, ever lets up.'},
-  {s:'tower-stack',    t:'Tower Stack',      i:'🏗️', g:'Timing',        c:'arcade', d:'Drop blocks with perfect timing and stack a tower to the sky.'},
+  {s:'pong',           t:'Pong Duel',        i:'🏓', g:'Arcade',         c:'arcade', d:"First to 7 against a crafty AI paddle — and the ball only gets faster."},
+  {s:'asteroids',      t:'Asteroid Storm',   i:'🚀', g:'Space Arcade',   c:'arcade', d:"Thrust, spin and blast your way through a shattering asteroid field."},
+  {s:'flappy',         t:'Flappy Pixel',     i:'🐤', g:'One-Button',     c:'arcade', d:"One button. Endless pipes. Zero mercy. How far can you flap?"},
+  {s:'runner',         t:'Pixel Runner',     i:'🏃', g:'Endless Runner', c:'arcade', d:"Jump and slide through an ever-faster gauntlet of obstacles."},
+  {s:'copter',         t:'Cave Copter',      i:'🚁', g:'Arcade',         c:'arcade', d:"Hold to rise, release to fall — thread the ever-narrowing cave."},
+  {s:'hopper',         t:'Sky Hopper',       i:'🐰', g:'Platform Jump',  c:'arcade', d:"Bounce from platform to platform all the way to the stratosphere."},
+  {s:'road-hopper',    t:'Road Hopper',      i:'🐸', g:'Crossing',       c:'arcade', d:"Traffic, rivers and hungry timing windows — get the frog home safe."},
+  {s:'maze-muncher',   t:'Maze Muncher',     i:'🟡', g:'Maze Chase',     c:'arcade', d:"Clear the maze of dots while four ghosts with attitude hunt you down."},
+  {s:'meteor-dodge',   t:'Meteor Dodge',     i:'☄️', g:'Survival',       c:'arcade', d:"Weave through a meteor shower that never, ever lets up."},
+  {s:'tower-stack',    t:'Tower Stack',      i:'🏗️', g:'Timing',         c:'arcade', d:"Drop blocks with perfect timing and stack a tower to the sky."},
+  {s:'bubble-pop',     t:'Bubble Pop',       i:'🫧', g:'Bubble Shooter', c:'arcade', neu:1, d:"Bank shots off the walls and drop whole clusters at once."},
+  {s:'jetpack',        t:'Jetpack Jack',     i:'🎒', g:'Side-Scroller',  c:'arcade', neu:1, d:"Hold to thrust past zappers and missiles in the lab that never ends."},
+  {s:'lane-racer',     t:'Lane Racer',       i:'🏎️', g:'Racing',         c:'arcade', neu:1, d:"Weave lanes at absurd speed — near-misses build your combo."},
+  {s:'ninja-wall',     t:'Ninja Climb',      i:'🥷', g:'Wall Jumper',    c:'arcade', neu:1, d:"Leap wall to wall past spikes, snagging scrolls on the way up."},
+  {s:'submarine',      t:'Deep Diver',       i:'🌊', g:'Underwater',     c:'arcade', neu:1, d:"Thread mines and depth charges while your oxygen ticks down."},
+  {s:'grapple',        t:'Grapple Swing',    i:'🕸️', g:'Physics Swing',  c:'arcade', neu:1, d:"Hook, swing, release — momentum is your only friend."},
+  {s:'train-switch',   t:'Rail Switch',      i:'🚂', g:'Reflex Strategy',c:'arcade', neu:1, d:"Flip the junctions and route every train home before they collide."},
+  {s:'pixel-fisher',   t:'Pixel Fishing',    i:'🎣', g:'Fishing',        c:'arcade', neu:1, d:"Cast deep, win the reel duel, upgrade your rod empire."},
+  {s:'snowboard',      t:'Snow Rush',        i:'🏂', g:'Downhill',       c:'arcade', neu:1, d:"Carve gates, land spins — and never let the yeti catch you."},
+  {s:'moon-lander',    t:'Moon Lander',      i:'🌙', g:'Physics',        c:'arcade', neu:1, d:"Feather the thrusters and touch down soft. Fuel is precious."},
   // action
-  {s:'missile-command',t:'Missile Defense',  i:'🛡️', g:'Defense',       c:'action', d:'Six cities. Endless missile rain. Your blasts are all that stand between.'},
-  {s:'tank-battle',    t:'Tank Arena',       i:'🪖', g:'Top-Down',      c:'action', d:'Out-drive and out-shoot AI tanks with ricocheting shells.'},
-  {s:'star-squadron',  t:'Star Squadron',    i:'👾', g:'Wave Shooter',  c:'action', d:'Swooping formations, dive-bombers and a boss every third wave.'},
-  {s:'blob-blaster',   t:'Blob Blaster',     i:'🔫', g:'Arena Survival',c:'action', d:'Swarms close in. Level up, pick upgrades, and hold out as long as you can.'},
-  {s:'fruit-slice',    t:'Fruit Slicer',     i:'🍉', g:'Slicing',       c:'action', d:'Swipe glowing blade trails through flying fruit — but never the bombs.'},
-  {s:'whack-a-mole',   t:'Whack-a-Mole',     i:'🔨', g:'Reflex',        c:'action', d:'Faster and faster they pop. Watch for the golden mole!'},
-  {s:'archery',        t:'Bullseye Archery', i:'🏹', g:'Skill Shot',    c:'action', d:'Draw, judge the wind, and loose. Ten arrows to prove your aim.'},
-  {s:'free-throw',     t:'Free Throw Frenzy',i:'🏀', g:'Sports',        c:'action', d:'Flick to shoot. Catch fire, chase the streak, beat the buzzer.'},
+  {s:'missile-command',t:'Missile Defense',  i:'🛡️', g:'Defense',        c:'action', d:"Six cities. Endless missile rain. Your blasts are all that stand between."},
+  {s:'tank-battle',    t:'Tank Arena',       i:'🪖', g:'Top-Down',       c:'action', d:"Out-drive and out-shoot AI tanks with ricocheting shells."},
+  {s:'star-squadron',  t:'Star Squadron',    i:'👾', g:'Wave Shooter',   c:'action', d:"Swooping formations, dive-bombers and a boss every third wave."},
+  {s:'blob-blaster',   t:'Blob Blaster',     i:'🔫', g:'Arena Survival', c:'action', d:"Swarms close in. Level up, pick upgrades, and hold out as long as you can."},
+  {s:'fruit-slice',    t:'Fruit Slicer',     i:'🍉', g:'Slicing',        c:'action', d:"Swipe glowing blade trails through flying fruit — but never the bombs."},
+  {s:'whack-a-mole',   t:'Whack-a-Mole',     i:'🔨', g:'Reflex',         c:'action', d:"Faster and faster they pop. Watch for the golden mole!"},
+  {s:'archery',        t:'Bullseye Archery', i:'🏹', g:'Skill Shot',     c:'action', d:"Draw, judge the wind, and loose. Ten arrows to prove your aim."},
+  {s:'free-throw',     t:'Free Throw Frenzy',i:'🏀', g:'Sports',         c:'action', d:"Flick to shoot. Catch fire, chase the streak, beat the buzzer."},
+  {s:'ufo-abduct',     t:'UFO Rancher',      i:'👽', g:'Arcade Action',  c:'action', neu:1, d:"Beam up the livestock before the farmers and jets ruin your harvest."},
+  {s:'cannon-siege',   t:'Cannon Siege',     i:'💥', g:'Artillery',      c:'action', neu:1, d:"Angle, power, wind — crater the terrain and out-shell the enemy."},
+  {s:'castle-defense', t:'Castle Defense',   i:'🏰', g:'Tower Defense',  c:'action', neu:1, d:"Four towers, twenty waves, one castle. Hold the line."},
   // puzzle
-  {s:'fifteen',        t:'15 Puzzle',        i:'🔢', g:'Sliding',       c:'puzzle', d:'The classic sliding puzzle — always solvable, never easy to master fast.'},
-  {s:'lights-out',     t:'Lights Out',       i:'💡', g:'Logic',         c:'puzzle', d:'Every press flips its neighbors. Turn the whole board dark.'},
-  {s:'simon',          t:'Simon Says',       i:'🎵', g:'Memory',        c:'puzzle', d:'Watch, listen, repeat. The sequence grows until your memory breaks.'},
-  {s:'sokoban',        t:'Sokoban',          i:'📦', g:'Box Pusher',    c:'puzzle', d:'Push every crate onto its pad. One wrong shove can ruin everything.'},
-  {s:'nonogram',       t:'Picross',          i:'🖼️', g:'Picture Logic', c:'puzzle', d:'Use the number clues to fill the grid and reveal hidden pixel art.'},
-  {s:'gem-crush',      t:'Gem Crush',        i:'💎', g:'Match-3',       c:'puzzle', d:'Swap gems, chain cascades, chase the target before moves run out.'},
-  {s:'hanoi',          t:'Tower of Hanoi',   i:'🗼', g:'Classic',       c:'puzzle', d:'Move the whole tower — but a big disc may never sit on a small one.'},
+  {s:'fifteen',        t:'15 Puzzle',        i:'🔢', g:'Sliding',        c:'puzzle', d:"The classic sliding puzzle — always solvable, never easy to master fast."},
+  {s:'lights-out',     t:'Lights Out',       i:'💡', g:'Logic',          c:'puzzle', d:"Every press flips its neighbors. Turn the whole board dark."},
+  {s:'simon',          t:'Simon Says',       i:'🎵', g:'Memory',         c:'puzzle', d:"Watch, listen, repeat. The sequence grows until your memory breaks."},
+  {s:'sokoban',        t:'Sokoban',          i:'📦', g:'Box Pusher',     c:'puzzle', d:"Push every crate onto its pad. One wrong shove can ruin everything."},
+  {s:'nonogram',       t:'Picross',          i:'🖼️', g:'Picture Logic',  c:'puzzle', d:"Use the number clues to fill the grid and reveal hidden pixel art."},
+  {s:'gem-crush',      t:'Gem Crush',        i:'💎', g:'Match-3',        c:'puzzle', d:"Swap gems, chain cascades, chase the target before moves run out."},
+  {s:'hanoi',          t:'Tower of Hanoi',   i:'🗼', g:'Classic',        c:'puzzle', d:"Move the whole tower — but a big disc may never sit on a small one."},
+  {s:'pipes',          t:'Pipe Flow',        i:'🚰', g:'Pipe Logic',     c:'puzzle', neu:1, d:"Rotate the plumbing before the water starts flowing."},
+  {s:'laser-bounce',   t:'Laser Bounce',     i:'🔦', g:'Laser Logic',    c:'puzzle', neu:1, d:"Bend a laser through every target with a pocketful of mirrors."},
+  {s:'blocks-fill',    t:'Block Fit',        i:'🧩', g:'Block Puzzle',   c:'puzzle', neu:1, d:"Fit the tray pieces, clear rows and boxes, survive the board."},
+  {s:'color-flood',    t:'Color Flood',      i:'🌈', g:'Flood Fill',     c:'puzzle', neu:1, d:"Flood the board into one color before your moves run dry."},
+  {s:'merge-drop',     t:'Melon Merge',      i:'🍈', g:'Merge Physics',  c:'puzzle', neu:1, d:"Drop, roll, and merge fruit into the fabled watermelon."},
+  {s:'queens',         t:'Queens Puzzle',    i:'👑', g:'Logic',          c:'puzzle', neu:1, d:"N queens, zero quarrels. A classic that scales to brutal."},
+  {s:'bridges',        t:'Bridges',          i:'🌉', g:'Logic',          c:'puzzle', neu:1, d:"Connect every island — counts must match, bridges never cross."},
+  {s:'binary-grid',    t:'Binary Grid',      i:'0️⃣', g:'Takuzu',         c:'puzzle', neu:1, d:"Balance the 0s and 1s — no triples, no twin rows."},
+  {s:'untangle',       t:'Untangle',         i:'🪢', g:'Planarity',      c:'puzzle', neu:1, d:"Drag the knots apart until no two lines cross."},
+  {s:'rush-hour',      t:'Gridlock',         i:'🚗', g:'Sliding Blocks', c:'puzzle', neu:1, d:"Slide the gridlock apart and spring the red car free."},
   // board
-  {s:'tictactoe',      t:'Tic-Tac-Toe Neon', i:'❌', g:'vs AI',         c:'board',  d:'Three difficulties, from pushover to literally unbeatable.'},
-  {s:'connect-four',   t:'Connect Four',     i:'🔴', g:'vs AI',         c:'board',  d:'Drop discs and out-think an AI that reads four moves ahead.'},
-  {s:'reversi',        t:'Reversi',          i:'⚫', g:'vs AI',         c:'board',  d:'Flip the board in one turn — corners win games. Classic Othello rules.'},
-  {s:'checkers',       t:'Checkers',         i:'🩸', g:'vs AI',         c:'board',  d:'Forced captures, multi-jumps and kings. The AI shows no pity.'},
-  {s:'codebreaker',    t:'Codebreaker',      i:'🔐', g:'Deduction',     c:'board',  d:'Crack the hidden color code in ten guesses using peg feedback.'},
-  {s:'peg-solitaire',  t:'Peg Solitaire',    i:'🕳️', g:'Solo Board',    c:'board',  d:'Jump pegs to remove them. Can you finish with one, dead center?'},
-  // words & numbers
-  {s:'pixel-words',    t:'Pixel Words',      i:'🟩', g:'Word Guess',    c:'words',  d:'Six tries to find the five-letter word. Green means go.'},
-  {s:'hangman',        t:'Neon Hangman',     i:'💀', g:'Word Game',     c:'words',  d:'Guess letter by letter while the neon gallows draws itself.'},
-  {s:'type-racer',     t:'Type Racer',       i:'⌨️', g:'Typing',        c:'words',  d:'Live WPM, accuracy tracking, and a personal-best history graph.'},
-  {s:'math-blitz',     t:'Math Blitz',       i:'➕', g:'Mental Math',   c:'words',  d:'Rapid-fire arithmetic against a draining timer bar. Think fast.'},
-  {s:'word-scramble',  t:'Word Scramble',    i:'🔀', g:'Anagrams',      c:'words',  d:'Unscramble the letters before the clock runs out. Longer = more points.'},
+  {s:'tictactoe',      t:'Tic-Tac-Toe Neon', i:'❌', g:'vs AI',          c:'board', d:"Three difficulties, from pushover to literally unbeatable."},
+  {s:'connect-four',   t:'Connect Four',     i:'🔴', g:'vs AI',          c:'board', d:"Drop discs and out-think an AI that reads four moves ahead."},
+  {s:'reversi',        t:'Reversi',          i:'⚫', g:'vs AI',          c:'board', d:"Flip the board in one turn — corners win games. Classic Othello rules."},
+  {s:'checkers',       t:'Checkers',         i:'🩸', g:'vs AI',          c:'board', d:"Forced captures, multi-jumps and kings. The AI shows no pity."},
+  {s:'codebreaker',    t:'Codebreaker',      i:'🔐', g:'Deduction',      c:'board', d:"Crack the hidden color code in ten guesses using peg feedback."},
+  {s:'peg-solitaire',  t:'Peg Solitaire',    i:'🕳️', g:'Solo Board',     c:'board', d:"Jump pegs to remove them. Can you finish with one, dead center?"},
+  {s:'dominoes',       t:'Dominoes',         i:'🦴', g:'Tiles vs AI',    c:'board', neu:1, d:"Match the bones, manage the boneyard, block your rival."},
+  {s:'backgammon',     t:'Backgammon',       i:'🔻', g:'Classic vs AI',  c:'board', neu:1, d:"Race, hit, and bear off — the oldest board game, full rules."},
+  {s:'yahtzee',        t:'Yahtzee Dice',     i:'🎲', g:'Dice vs AI',     c:'board', neu:1, d:"Three rolls, thirteen boxes, and an AI filling its card beside you."},
+  // words
+  {s:'pixel-words',    t:'Pixel Words',      i:'🟩', g:'Word Guess',     c:'words', d:"Six tries to find the five-letter word. Green means go."},
+  {s:'hangman',        t:'Neon Hangman',     i:'💀', g:'Word Game',      c:'words', d:"Guess letter by letter while the neon gallows draws itself."},
+  {s:'type-racer',     t:'Type Racer',       i:'⌨️', g:'Typing',         c:'words', d:"Live WPM, accuracy tracking, and a personal-best history graph."},
+  {s:'math-blitz',     t:'Math Blitz',       i:'➕', g:'Mental Math',    c:'words', d:"Rapid-fire arithmetic against a draining timer bar. Think fast."},
+  {s:'word-scramble',  t:'Word Scramble',    i:'🔀', g:'Anagrams',       c:'words', d:"Unscramble the letters before the clock runs out."},
+  {s:'trivia-blitz',   t:'Trivia Blitz',     i:'🧠', g:'Trivia',         c:'words', neu:1, d:"220 questions, six categories, one merciless timer."},
+  {s:'emoji-riddle',   t:'Emoji Riddles',    i:'🤔', g:'Riddles',        c:'words', neu:1, d:"🦁+👑 = ? Decode movies, songs and places from emoji."},
+  {s:'crossword-mini', t:'Mini Crossword',   i:'✏️', g:'Crossword',      c:'words', neu:1, d:"Five-by-five puzzles you can finish with your coffee."},
+  {s:'hive-words',     t:'Hive Words',       i:'🐝', g:'Spelling Bee',   c:'words', neu:1, d:"Seven letters, one hive. Find the pangram, reach Genius."},
+  {s:'letter-grid',    t:'Word Hunt',        i:'🔤', g:'Word Search',    c:'words', neu:1, d:"Drag through the grid — every word counts, rare ones count more."},
+  {s:'flags-quiz',     t:'Flag Quiz',        i:'🌍', g:'Geography',      c:'words', neu:1, d:"195 flags from gimme to impossible. How long is your streak?"},
   // cards & casino
-  {s:'solitaire',      t:'Klondike Solitaire',i:'🃏',g:'Card Classic',  c:'casino', d:'Full drag-and-drop klondike with undo and auto-complete.'},
-  {s:'blackjack',      t:'Blackjack 21',     i:'🂡', g:'Casino',        c:'casino', d:'Hit, stand, double, split. Dealer stands on soft 17. House rules.'},
-  {s:'video-poker',    t:'Video Poker',      i:'🎰', g:'Jacks or Better',c:'casino',d:'Hold the right cards and chase the royal flush paytable.'},
-  {s:'hilo',           t:'Hi-Lo Cards',      i:'🔺', g:'Push Your Luck',c:'casino', d:'Higher or lower? Every correct call multiplies the pot — cash out or risk it.'},
-  {s:'slots',          t:'Lucky Slots',      i:'🍒', g:'Slots',         c:'casino', d:'Three reels, staggered stops, and that agonizing slow third reel.'},
-  {s:'roulette',       t:'Pixel Roulette',   i:'🎡', g:'Roulette',      c:'casino', d:'Place your chips, watch the ball rattle in. European wheel, real payouts.'},
-  // apps
-  {s:'pixel-painter',  t:'Pixel Painter',    i:'🎨', g:'Art Tool',      c:'apps',   d:'Draw sprites with palettes, fill, mirror mode — export straight to PNG.'},
-  {s:'synth-piano',    t:'Synth Piano',      i:'🎹', g:'Instrument',    c:'apps',   d:'Two playable octaves, four waveforms, and glowing keys.'},
-  {s:'drum-machine',   t:'Drum Machine',     i:'🥁', g:'Sequencer',     c:'apps',   d:'A 16-step, 8-track sequencer with fully synthesized drums.'},
-  {s:'pomodoro',       t:'Pomodoro Timer',   i:'🍅', g:'Focus Tool',    c:'apps',   d:'Work sprints, break cycles, and a daily focus chart.'},
-  {s:'neon-notes',     t:'Neon Notes',       i:'📌', g:'Sticky Notes',  c:'apps',   d:'Draggable neon sticky notes that live in your browser.'},
-  {s:'retro-calc',     t:'Retro Calculator', i:'🧮', g:'Utility',       c:'apps',   d:'A chunky 80s LCD calculator with memory keys and a history tape.'},
+  {s:'solitaire',      t:'Klondike Solitaire',i:'🃏',g:'Card Classic',   c:'casino', d:"Full drag-and-drop klondike with undo and auto-complete."},
+  {s:'blackjack',      t:'Blackjack 21',     i:'🂡', g:'Casino',         c:'casino', d:"Hit, stand, double, split. Dealer stands on soft 17. House rules."},
+  {s:'video-poker',    t:'Video Poker',      i:'🎰', g:'Jacks or Better',c:'casino', d:"Hold the right cards and chase the royal flush paytable."},
+  {s:'hilo',           t:'Hi-Lo Cards',      i:'🔺', g:'Push Your Luck', c:'casino', d:"Higher or lower? Every correct call multiplies the pot."},
+  {s:'slots',          t:'Lucky Slots',      i:'🍒', g:'Slots',          c:'casino', d:"Three reels, staggered stops, and that agonizing slow third reel."},
+  {s:'roulette',       t:'Pixel Roulette',   i:'🎡', g:'Roulette',       c:'casino', d:"Place your chips, watch the ball rattle in. European wheel, real payouts."},
+  {s:'crazy-eights',   t:'Crazy Eights',     i:'🎱', g:'Card Game',      c:'casino', neu:1, d:"Eights are wild. Three AI rivals. First out wins."},
+  {s:'hearts',         t:'Hearts',           i:'🖤', g:'Trick-Taking',   c:'casino', neu:1, d:"Duck the queen, dodge the hearts — or shoot the moon."},
+  {s:'craps',          t:'Craps',            i:'🍀', g:'Casino Dice',    c:'casino', neu:1, d:"Ride the pass line and press your luck on the point."},
+  {s:'keno',           t:'Keno',             i:'🔮', g:'Lottery',        c:'casino', neu:1, d:"Pick your lucky spots and watch twenty balls decide."},
+  {s:'bingo',          t:'Bingo Hall',       i:'🅱️', g:'Bingo',          c:'casino', neu:1, d:"Race three AI daubers to the blackout. Do not miss a call!"},
+  {s:'war-cards',      t:'Card War',         i:'♠️', g:'Card Battle',    c:'casino', neu:1, d:"Flip for glory — ties mean W-A-R and the stakes explode."},
   // 3d
-  {s:'dice-3d',        t:'Dice Roller 3D',   i:'🎲', g:'3D Physics',    c:'3d', x3d:true, d:'Toss up to six tumbling dice across the felt and read the total.'},
-  {s:'maze-3d',        t:'Maze Runner 3D',   i:'🌀', g:'3D Maze',       c:'3d', x3d:true, d:'First-person neon labyrinths that grow with every escape.'},
-  {s:'star-flight-3d', t:'Star Flight',      i:'🛸', g:'3D Flyer',      c:'3d', x3d:true, d:'Bank through an endless asteroid field at ever-increasing speed.'},
-  {s:'solar-3d',       t:'Solar System 3D',  i:'🪐', g:'3D Explorer',   c:'3d', x3d:true, d:'Orbit the planets, spin time faster, click any world for its story.'},
-  {s:'stack-3d',       t:'Stack Tower 3D',   i:'🧱', g:'3D Timing',     c:'3d', x3d:true, d:'Slice, stack and climb — every overhang tumbles away in 3D.'},
-  {s:'voxel-builder',  t:'Voxel Builder',    i:'⛏️', g:'3D Sandbox',    c:'3d', x3d:true, d:'Place neon voxels block by block and build tiny worlds.'},
+  {s:'dice-3d',        t:'Dice Roller 3D',   i:'🎲', g:'3D Physics',     c:'3d', x3d:1, d:"Toss up to six tumbling dice across the felt and read the total."},
+  {s:'maze-3d',        t:'Maze Runner 3D',   i:'🌀', g:'3D Maze',        c:'3d', x3d:1, d:"First-person neon labyrinths that grow with every escape."},
+  {s:'star-flight-3d', t:'Star Flight',      i:'🛸', g:'3D Flyer',       c:'3d', x3d:1, d:"Bank through an endless asteroid field at ever-increasing speed."},
+  {s:'solar-3d',       t:'Solar System 3D',  i:'🪐', g:'3D Explorer',    c:'3d', x3d:1, d:"Orbit the planets, spin time faster, click any world for its story."},
+  {s:'stack-3d',       t:'Stack Tower 3D',   i:'🧱', g:'3D Timing',      c:'3d', x3d:1, d:"Slice, stack and climb — every overhang tumbles away in 3D."},
+  {s:'voxel-builder',  t:'Voxel Builder',    i:'⛏️', g:'3D Sandbox',     c:'3d', x3d:1, d:"Place neon voxels block by block and build tiny worlds."},
+  {s:'tunnel-run-3d',  t:'Tunnel Rush 3D',   i:'💫', g:'3D Rush',        c:'3d', x3d:1, neu:1, d:"Spin around the tube and thread the gaps at warp speed."},
+  {s:'ball-roll-3d',   t:'Roll Master 3D',   i:'⚽', g:'3D Course',      c:'3d', x3d:1, neu:1, d:"Momentum, narrow bridges, and gems begging to be grabbed."},
+  {s:'helix-drop-3d',  t:'Helix Drop',       i:'🌪️', g:'3D Drop',        c:'3d', x3d:1, neu:1, d:"Rotate the tower, dodge the red, smash through on streaks."},
+  {s:'gallery-3d',     t:'Target Gallery 3D',i:'🎯', g:'3D Shooter',     c:'3d', x3d:1, neu:1, d:"Sixty seconds, moving ducks, and your trigger finger."},
 ];
+
+const TOOLS = [
+  // productivity
+  {s:'pomodoro',       t:'Pomodoro Timer',   i:'🍅', g:'Focus',       c:'prod', d:"Work sprints, break cycles, and a daily focus chart."},
+  {s:'neon-notes',     t:'Neon Notes',       i:'📌', g:'Sticky Notes',c:'prod', d:"Draggable neon sticky notes that live in your browser."},
+  {s:'todo-kanban',    t:'Kanban Board',     i:'🗂️', g:'Tasks',       c:'prod', neu:1, d:"Drag your day across To-Do, Doing and Done."},
+  {s:'habit-tracker',  t:'Habit Tracker',    i:'✅', g:'Habits',      c:'prod', neu:1, d:"Thirty days of tiny checkmarks and unbroken streaks."},
+  {s:'week-planner',   t:'Week Planner',     i:'📅', g:'Planner',     c:'prod', neu:1, d:"Paint your week in colored blocks, hour by hour."},
+  {s:'flashcards',     t:'Flashcards',       i:'🗃️', g:'Study',       c:'prod', neu:1, d:"Flip, grade, repeat — ships with a world capitals deck."},
+  {s:'countdown',      t:'Countdown Maker',  i:'⏳', g:'Countdowns',  c:'prod', neu:1, d:"Live tickers for every date you cannot wait for."},
+  {s:'world-clock',    t:'World Clock',      i:'🌐', g:'Clocks',      c:'prod', neu:1, d:"Analog cards for every city you care about, tinted day or night."},
+  {s:'decision-wheel', t:'Decision Wheel',   i:'🎠', g:'Chooser',     c:'prod', neu:1, d:"Cannot decide? Load the wheel and give it a spin."},
+  {s:'expense-tracker',t:'Expense Tracker',  i:'💸', g:'Money',       c:'prod', neu:1, d:"Log spends and let the donut chart tell the truth."},
+  {s:'markdown-pad',   t:'Markdown Pad',     i:'📝', g:'Editor',      c:'prod', neu:1, d:"Type markdown left, watch it render right."},
+  // text
+  {s:'word-counter',   t:'Word Counter',     i:'✍️', g:'Text Stats',  c:'text', neu:1, d:"Words, sentences, reading time and keyword frequency, live."},
+  {s:'case-converter', t:'Case Converter',   i:'🔠', g:'Text',        c:'text', neu:1, d:"Ten cases, one paste, instant copy."},
+  {s:'lorem-ipsum',    t:'Lorem Ipsum',      i:'📄', g:'Generator',   c:'text', neu:1, d:"Classic, hipster or space-opera filler text on demand."},
+  {s:'diff-checker',   t:'Diff Checker',     i:'🆚', g:'Compare',     c:'text', neu:1, d:"Paste two texts, see every line that changed."},
+  {s:'json-formatter', t:'JSON Formatter',   i:'🧾', g:'Dev',         c:'text', neu:1, d:"Pretty-print, validate and explore JSON as a tree."},
+  {s:'base64-tool',    t:'Base64 Tool',      i:'🔗', g:'Encode',      c:'text', neu:1, d:"Base64, URI and hex — both directions, unicode-safe."},
+  {s:'regex-tester',   t:'Regex Tester',     i:'🧪', g:'Dev',         c:'text', neu:1, d:"Live-highlight your pattern against real text."},
+  {s:'morse-code',     t:'Morse Translator', i:'📡', g:'Translator',  c:'text', neu:1, d:"Text to dits and dahs — with sound, light and tap input."},
+  // numbers
+  {s:'retro-calc',     t:'Retro Calculator', i:'🧮', g:'Calculator',  c:'num', d:"A chunky 80s LCD calculator with memory keys and a history tape."},
+  {s:'unit-converter', t:'Unit Converter',   i:'📏', g:'Converter',   c:'num', neu:1, d:"Length, weight, temperature and more — live in both directions."},
+  {s:'percentage-calc',t:'Percent Calculator',i:'💯',g:'Percent',     c:'num', neu:1, d:"Four percentage puzzles solved live, including discounts."},
+  {s:'bmi-calc',       t:'BMI Calculator',   i:'⚖️', g:'Health',      c:'num', neu:1, d:"An animated gauge with WHO bands and your healthy range."},
+  {s:'age-calc',       t:'Age Calculator',   i:'🎂', g:'Dates',       c:'num', neu:1, d:"Exact age, next-birthday countdown, and fun life stats."},
+  {s:'tip-split',      t:'Tip + Split',      i:'🍽️', g:'Money',       c:'num', neu:1, d:"Tip, total and per-person — with rounding that makes sense."},
+  {s:'number-base',    t:'Base Converter',   i:'🔟', g:'Dev',         c:'num', neu:1, d:"Dec, bin, oct and hex linked live — click the bits yourself."},
+  {s:'interest-calc',  t:'Interest Calculator',i:'📈',g:'Finance',    c:'num', neu:1, d:"Compound growth charted year by year, contributions included."},
+  {s:'unix-time',      t:'Epoch Converter',  i:'🕰️', g:'Dev Time',    c:'num', neu:1, d:"Epoch to human and back, ticking live."},
+  // design
+  {s:'pixel-painter',  t:'Pixel Painter',    i:'🎨', g:'Art Tool',    c:'design', d:"Draw sprites with palettes, fill, mirror mode — export to PNG."},
+  {s:'color-picker',   t:'Color Studio',     i:'🖌️', g:'Color',       c:'design', neu:1, d:"Pick, tweak and copy colors with shades and harmonies."},
+  {s:'palette-gen',    t:'Palette Generator',i:'🌈', g:'Color',       c:'design', neu:1, d:"Smash space for palettes, lock the keepers."},
+  {s:'gradient-maker', t:'Gradient Maker',   i:'🌅', g:'CSS',         c:'design', neu:1, d:"Multi-stop gradients with the CSS ready to copy."},
+  {s:'contrast-check', t:'Contrast Checker', i:'🌓', g:'A11y',        c:'design', neu:1, d:"WCAG ratios with a one-click nudge to pass."},
+  {s:'css-shadow',     t:'Shadow Designer',  i:'🕶️', g:'CSS',         c:'design', neu:1, d:"Layered box-shadows with live CSS output."},
+  {s:'char-map',       t:'Character Map',    i:'✳️', g:'Symbols',     c:'design', neu:1, d:"Every arrow, star and box-drawing glyph, one click to copy."},
+  {s:'ascii-art',      t:'ASCII Banner',     i:'🅰️', g:'Text Art',    c:'design', neu:1, d:"Turn any word into a giant pixel-font banner."},
+  {s:'qr-maker',       t:'QR Maker',         i:'🔳', g:'QR',          c:'design', neu:1, d:"Type anything, get a scannable code, download the PNG."},
+  // audio & visual
+  {s:'synth-piano',    t:'Synth Piano',      i:'🎹', g:'Instrument',  c:'av', d:"Two playable octaves, four waveforms, and glowing keys."},
+  {s:'drum-machine',   t:'Drum Machine',     i:'🥁', g:'Sequencer',   c:'av', d:"A 16-step, 8-track sequencer with fully synthesized drums."},
+  {s:'metronome',      t:'Metronome',        i:'🎼', g:'Rhythm',      c:'av', neu:1, d:"Rock-solid timing with tap tempo and accented downbeats."},
+  {s:'tone-gen',       t:'Tone Generator',   i:'🔊', g:'Audio',       c:'av', neu:1, d:"Any frequency, any waveform, sweeps included."},
+  {s:'white-noise',    t:'Noise Machine',    i:'🌧️', g:'Ambient',     c:'av', neu:1, d:"White, pink, brown — plus rain, ocean and wind."},
+  {s:'kaleidoscope',   t:'Kaleidoscope',     i:'🪞', g:'Toy',         c:'av', neu:1, d:"Draw once, mirror twelve times."},
+  {s:'spirograph',     t:'Spirograph',       i:'🌸', g:'Toy',         c:'av', neu:1, d:"Hypnotic math curves, layer after layer."},
+  {s:'matrix-rain',    t:'Matrix Rain',      i:'💾', g:'Screensaver', c:'av', neu:1, d:"Digital rain with your own hidden message inside."},
+  {s:'binary-clock',   t:'Binary Clock',     i:'🕐', g:'Clock',       c:'av', neu:1, d:"Read the time in glowing binary LEDs."},
+  // data & misc
+  {s:'stopwatch',      t:'Stopwatch + Timer',i:'⏱️', g:'Timing',      c:'data', neu:1, d:"Laps with deltas, plus a ring-countdown timer."},
+  {s:'password-gen',   t:'Password Generator',i:'🔑',g:'Security',    c:'data', neu:1, d:"Strong passwords and passphrases with entropy math."},
+  {s:'name-gen',       t:'Name Forge',       i:'🏷️', g:'Generator',   c:'data', neu:1, d:"Fantasy heroes, tavern names and robot designations."},
+  {s:'rpg-dice',       t:'RPG Dice Roller',  i:'🐉', g:'Tabletop',    c:'data', neu:1, d:"3d6+2? Advantage? The dice tray for game night."},
+  {s:'random-gen',     t:'Randomizer',       i:'🪄', g:'Random',      c:'data', neu:1, d:"Numbers, dice, coins, cards, 8-ball and list picks."},
+  {s:'sort-visualizer',t:'Sort Visualizer',  i:'📊', g:'Learn',       c:'data', neu:1, d:"Watch six sort algorithms race in neon bars."},
+  {s:'graph-plot',     t:'Graph Plotter',    i:'📉', g:'Math',        c:'data', neu:1, d:"Plot functions, pan, zoom, and trace the curves."},
+  {s:'csv-viewer',     t:'CSV Viewer',       i:'🗄️', g:'Data',        c:'data', neu:1, d:"Paste CSV, get a sortable table with instant stats."},
+  {s:'text-speech',    t:'Text to Speech',   i:'🗣️', g:'Speech',      c:'data', neu:1, d:"Your browser reads anything aloud, any voice."},
+  {s:'screen-info',    t:'Device Dashboard', i:'🖥️', g:'System',      c:'data', neu:1, d:"Everything your device will admit about itself."},
+];
+
+const GAME_CATS = [
+  ['all','All'], ['arcade','Arcade'], ['action','Action'], ['puzzle','Puzzle'], ['rpg','RPG'],
+  ['board','Board'], ['words','Words'], ['casino','Cards'], ['3d','3D'],
+];
+const TOOL_CATS = [
+  ['all','All'], ['prod','Productivity'], ['text','Text'], ['num','Numbers'],
+  ['design','Design'], ['av','Audio & Visual'], ['data','Data'],
+];
+
 const SHOTS = 5;
 const shotSrc = (slug, n) => `shots/${slug}/${n}.jpg`;
 
-/* ================= render cards ================= */
-const grid = document.getElementById('grid');
-const noResults = document.getElementById('no-results');
-GAMES.forEach((g1, idx) => {
-  const acc = PALETTE[idx % PALETTE.length];
-  const a = document.createElement('a');
-  a.className = 'card';
-  a.href = `games/${g1.s}.html`;
-  a.style.setProperty('--acc', acc);
-  a.dataset.cat = g1.c;
-  a.dataset.slug = g1.s;
-  a.dataset.name = (g1.t + ' ' + g1.g + ' ' + g1.d + ' ' + g1.c).toLowerCase();
-  a.innerHTML = `
-    <div class="shot">
-      <div class="shot-ph"><span>${g1.i}</span></div>
-      <img alt="${g1.t} screenshot" loading="lazy" decoding="async">
-      <div class="shot-dots">${'<i></i>'.repeat(SHOTS)}</div>
-      <div class="shine"></div>
-      ${g1.x3d ? '<span class="badge">3D</span>' : ''}
-    </div>
-    <div class="card-body">
-      <h3>${g1.t}</h3>
-      <span class="genre">${g1.g}</span>
-      <p>${g1.d}</p>
-    </div>`;
-  const img = a.querySelector('img');
-  img.onerror = () => { a.classList.add('no-shots'); };
-  img.src = shotSrc(g1.s, 1);
-  grid.insertBefore(a, noResults);
-});
-document.getElementById('stat-count').textContent = GAMES.length;
+/* ================= render ================= */
+const cardState = new WeakMap();
+function renderCards(list, gridEl, base, offset) {
+  const frag = document.createDocumentFragment();
+  list.forEach((g1, idx) => {
+    const acc = PALETTE[(idx + offset) % PALETTE.length];
+    const a = document.createElement('a');
+    a.className = 'card';
+    a.href = `${base}/${g1.s}.html`;
+    a.style.setProperty('--acc', acc);
+    a.dataset.cat = g1.c;
+    a.dataset.slug = g1.s;
+    a.dataset.name = (g1.t + ' ' + g1.g + ' ' + g1.d + ' ' + g1.c).toLowerCase();
+    a.setAttribute('aria-label', g1.t);
+    a.innerHTML = `
+      <div class="shot">
+        <div class="shot-ph"><span>${g1.i}</span></div>
+        <img alt="" aria-hidden="true" loading="lazy" decoding="async">
+        <img alt="" aria-hidden="true" loading="lazy" decoding="async" style="opacity:0">
+        <div class="shot-dots">${'<i></i>'.repeat(SHOTS)}</div>
+        <div class="shine"></div>
+        ${g1.x3d ? '<span class="badge">3D</span>' : (g1.neu ? '<span class="badge new">NEW</span>' : '')}
+      </div>
+      <div class="card-body">
+        <h3>${g1.t}</h3>
+        <span class="genre">${g1.g}</span>
+        <p>${g1.d}</p>
+      </div>`;
+    const imgs = a.querySelectorAll('img');
+    cardState.set(a, { cur: 0, n: 1 });
+    imgs[0].onerror = () => { a.classList.add('no-shots'); };
+    imgs[0].onload = () => { a.querySelectorAll('.shot-dots i')[0].classList.add('on'); };
+    imgs[0].src = shotSrc(g1.s, 1);
+    frag.appendChild(a);
+  });
+  gridEl.insertBefore(frag, gridEl.querySelector('.no-results'));
+}
+const gridGames = document.getElementById('grid-games');
+const gridTools = document.getElementById('grid-tools');
+renderCards(GAMES, gridGames, 'games', 0);
+renderCards(TOOLS, gridTools, 'tools', 3);
 
-/* ================= screenshot cycling ================= */
+document.getElementById('stat-games').textContent = GAMES.length;
+document.getElementById('stat-tools').textContent = TOOLS.length;
+document.getElementById('stat-3d').textContent = GAMES.filter(g1 => g1.x3d).length;
+document.getElementById('games-count').textContent = `(${GAMES.length})`;
+document.getElementById('tools-count').textContent = `(${TOOLS.length})`;
+document.getElementById('nav-games-n').textContent = GAMES.length;
+document.getElementById('nav-tools-n').textContent = TOOLS.length;
+
+/* ================= screenshot cycling (double-buffered, no flicker) ================= */
 const preloaded = new Set();
 function preloadShots(slug) {
   if (preloaded.has(slug)) return;
   preloaded.add(slug);
   for (let n = 2; n <= SHOTS; n++) { const im = new Image(); im.src = shotSrc(slug, n); }
 }
-function setShot(card, n) {
-  const img = card.querySelector('.shot img');
-  img.src = shotSrc(card.dataset.slug, n);
+function setDots(card, n) {
   card.querySelectorAll('.shot-dots i').forEach((d, j) => d.classList.toggle('on', j === n - 1));
+}
+/* Swap only after the incoming image is fully loaded, so the placeholder
+   never peeks through between frames. */
+function setShot(card, n) {
+  const st = cardState.get(card);
+  if (!st) return;
+  st.n = n;
+  const imgs = card.querySelectorAll('.shot img');
+  const show = imgs[1 - st.cur], hide = imgs[st.cur];
+  const url = shotSrc(card.dataset.slug, n);
+  const commit = () => {
+    show.style.opacity = '1';
+    hide.style.opacity = '0';
+    st.cur = 1 - st.cur;
+    setDots(card, n);
+  };
+  show.onerror = () => { show.onerror = null; };
+  if (show.getAttribute('src') === url && show.complete && show.naturalWidth) { commit(); return; }
+  show.onload = () => { show.onload = null; if (st.n === n) commit(); };
+  show.src = url;
 }
 const cycles = new Map();
 function startCycle(card, speed = 450) {
   if (card.classList.contains('no-shots') || cycles.has(card)) return;
   preloadShots(card.dataset.slug);
-  let n = 1;
-  setShot(card, 1);
+  const st = cardState.get(card);
+  let n = st ? st.n : 1;
   const id = setInterval(() => { n = n % SHOTS + 1; setShot(card, n); }, speed);
   cycles.set(card, id);
 }
@@ -719,31 +780,34 @@ function stopCycle(card) {
   card.classList.remove('cycling');
   if (!card.classList.contains('no-shots')) setShot(card, 1);
 }
-grid.addEventListener('mouseover', e => {
-  const card = e.target.closest('.card');
-  if (card && !cycles.has(card)) { blip(700, .02); startCycle(card); }
-});
-grid.addEventListener('mouseout', e => {
-  const card = e.target.closest('.card');
-  if (card && !card.contains(e.relatedTarget)) stopCycle(card);
-});
-/* touch devices: first tap cycles, second tap navigates */
-grid.addEventListener('touchstart', e => {
-  const card = e.target.closest('.card');
-  if (!card) return;
-  if (!cycles.has(card) && !card.dataset.touched) {
-    card.dataset.touched = '1';
-    startCycle(card);
-    setTimeout(() => { stopCycle(card); delete card.dataset.touched; }, SHOTS * 450 + 200);
-  }
-}, {passive: true});
+function wireGrid(gridEl) {
+  gridEl.addEventListener('mouseover', e => {
+    const card = e.target.closest('.card');
+    if (card && !cycles.has(card)) { blip(700, .02); startCycle(card); }
+  });
+  gridEl.addEventListener('mouseout', e => {
+    const card = e.target.closest('.card');
+    if (card && !card.contains(e.relatedTarget)) stopCycle(card);
+  });
+  gridEl.addEventListener('touchstart', e => {
+    const card = e.target.closest('.card');
+    if (!card) return;
+    if (!cycles.has(card) && !card.dataset.touched) {
+      card.dataset.touched = '1';
+      startCycle(card);
+      setTimeout(() => { stopCycle(card); delete card.dataset.touched; }, SHOTS * 450 + 200);
+    }
+  }, {passive: true});
+}
+wireGrid(gridGames);
+wireGrid(gridTools);
 
 /* attract mode: idle cards take turns showing off */
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 if (!reduceMotion) {
   setInterval(() => {
     if (document.hidden) return;
-    const visible = [...grid.querySelectorAll('.card:not(.hidden):not(.no-shots)')].filter(c => {
+    const visible = [...document.querySelectorAll('.card:not(.hidden):not(.no-shots)')].filter(c => {
       const r = c.getBoundingClientRect();
       return r.top < innerHeight && r.bottom > 0 && !cycles.has(c);
     });
@@ -756,34 +820,41 @@ if (!reduceMotion) {
 }
 
 /* ================= filtering ================= */
-const chips = [...document.querySelectorAll('.chip')];
 const search = document.getElementById('search');
-const countLine = document.getElementById('count-line');
-let activeCat = 'all';
-function applyFilter() {
+const zones = [
+  { key: 'games', cats: GAME_CATS, grid: gridGames, chipsEl: document.getElementById('chips-games'), countEl: document.getElementById('count-games'), total: GAMES.length, active: 'all' },
+  { key: 'tools', cats: TOOL_CATS, grid: gridTools, chipsEl: document.getElementById('chips-tools'), countEl: document.getElementById('count-tools'), total: TOOLS.length, active: 'all' },
+];
+function applyFilter(zone) {
   const q = search.value.trim().toLowerCase();
   let shown = 0;
-  grid.querySelectorAll('.card').forEach(card => {
-    const okCat = activeCat === 'all' || card.dataset.cat === activeCat;
+  zone.grid.querySelectorAll('.card').forEach(card => {
+    const okCat = zone.active === 'all' || card.dataset.cat === zone.active;
     const okQ = !q || card.dataset.name.includes(q);
     const show = okCat && okQ;
     card.classList.toggle('hidden', !show);
     if (show) shown++;
   });
-  countLine.innerHTML = `Showing <b>${shown}</b> of ${GAMES.length}`;
-  noResults.style.display = shown ? 'none' : 'block';
+  zone.countEl.innerHTML = `Showing <b>${shown}</b> of ${zone.total}`;
+  zone.grid.querySelector('.no-results').style.display = shown ? 'none' : 'block';
 }
-chips.forEach(ch => {
-  if (!ch.dataset.cat) return;
-  ch.addEventListener('click', () => {
-    chips.forEach(c => c.classList.remove('active'));
-    ch.classList.add('active');
-    activeCat = ch.dataset.cat;
-    blip(880, .04);
-    applyFilter();
+zones.forEach(zone => {
+  zone.cats.forEach(([cat, label]) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (cat === 'all' ? ' active' : '');
+    b.textContent = label;
+    b.addEventListener('click', () => {
+      zone.chipsEl.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      b.classList.add('active');
+      zone.active = cat;
+      blip(880, .04);
+      applyFilter(zone);
+    });
+    zone.chipsEl.appendChild(b);
   });
+  applyFilter(zone);
 });
-search.addEventListener('input', applyFilter);
+search.addEventListener('input', () => zones.forEach(applyFilter));
 
 /* ================= sfx ================= */
 let audioCtx = null, sfxOn = localStorage.getItem('wizzed-sfx') === 'on';
@@ -813,7 +884,6 @@ sfxBtn.addEventListener('click', () => {
   blip(1046, .08);
 });
 
-/* coin button */
 document.getElementById('insert-coin').addEventListener('click', () => {
   blip(988, .07); setTimeout(() => blip(1319, .12), 80);
   document.getElementById('games').scrollIntoView({behavior: reduceMotion ? 'auto' : 'smooth'});
@@ -821,8 +891,10 @@ document.getElementById('insert-coin').addEventListener('click', () => {
 
 /* ================= ticker ================= */
 const tickerItems = [
-  '54 GAMES & APPS LOADED', 'NEW: FULL 3D ZONE — DICE, MAZES, STAR FLIGHT & VOXELS',
-  'HIGH SCORES SAVED IN YOUR BROWSER', 'HOVER ANY CARD TO PREVIEW 5 SCREENSHOTS',
+  `${GAMES.length} GAMES + ${TOOLS.length} TOOLS LOADED`,
+  'NEW: RPG QUARTER — DUNGEONS, MONSTERS, GLADIATORS & IDLE HEROES',
+  'NEW: THE TOOLBOX — 56 NEON UTILITIES', 'TEN GAMES IN FULL 3D',
+  'HOVER ANY CARD TO PREVIEW 5 SCREENSHOTS', 'HIGH SCORES SAVED IN YOUR BROWSER',
   'THE OLD ARCADE LIVES — 11 ORIGINAL CLASSICS INSIDE', 'NO DOWNLOADS · NO ACCOUNTS · NO ADS',
   'TRY THE KONAMI CODE ↑↑↓↓←→←→BA',
 ];
@@ -849,8 +921,7 @@ document.getElementById('ticker-track').textContent = tick + '·' + tick;
       s.y += s.z * .18; if (s.y > H) s.y = 0;
       const a = .35 + .45 * Math.abs(Math.sin(t / 900 + s.tw));
       cx.fillStyle = `rgba(216,216,255,${a * s.z})`;
-      const sz = s.z > .7 ? 2 : 1;
-      cx.fillRect(s.x, s.y, sz, sz);
+      cx.fillRect(s.x, s.y, s.z > .7 ? 2 : 1, s.z > .7 ? 2 : 1);
     }
     if (!shooting && t - last > 6000 && Math.random() < .01) {
       shooting = {x: Math.random() * W * .8 + W * .1, y: Math.random() * H * .3, vx: 7 + Math.random() * 5, vy: 3 + Math.random() * 2, life: 1};
@@ -926,10 +997,9 @@ document.getElementById('ticker-track').textContent = tick + '·' + tick;
   }
   resize();
   addEventListener('resize', resize);
-  const clock = (typeof performance !== 'undefined') ? performance : {now: () => 0};
   function frame() {
-    const t = clock.now() / 1000;
-    objs.forEach((o, k) => {
+    const t = performance.now() / 1000;
+    objs.forEach(o => {
       o.rotation.x = t * o.userData.rx;
       o.rotation.y = t * o.userData.ry;
       o.position.y = o.userData.y0 + Math.sin(t * .8 + o.userData.ph) * .55;
@@ -968,8 +1038,6 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
 }
-
-applyFilter();
 </script>
 </body>
 </html>

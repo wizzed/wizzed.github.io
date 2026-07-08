@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Idle Dungeon — Wizzed Arcade</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:#0f0f1a;color:#d1fae5;
+    font-family:'Courier New',ui-monospace,monospace;
+    display:flex;align-items:center;justify-content:center;
+    height:100vh;overflow:hidden;
+  }
+  a.back{
+    position:fixed;top:10px;left:12px;z-index:30;
+    color:#8888aa;text-decoration:none;font-size:13px;
+    padding:4px 9px;border:1px solid #33334d;background:rgba(15,15,26,.85);
+  }
+  a.back:hover{color:#4ade80;border-color:#4ade80;text-shadow:0 0 6px #4ade80}
+  #app{
+    width:780px;max-width:98vw;height:480px;max-height:98vh;
+    border:2px solid #14532d;background:#10101c;
+    box-shadow:0 0 24px rgba(74,222,128,.3),0 0 80px rgba(74,222,128,.1);
+    display:flex;flex-direction:column;position:relative;overflow:hidden;
+  }
+  #hdr{
+    display:flex;align-items:center;gap:14px;padding:6px 10px 6px 88px;
+    background:#131322;border-bottom:1px solid #14532d;font-size:12px;
+    white-space:nowrap;
+  }
+  #hdr b{color:#4ade80;text-shadow:0 0 8px rgba(74,222,128,.7);font-size:14px;letter-spacing:1px}
+  .stat{color:#9ca3af}.stat span{color:#fde047;font-weight:bold}
+  #prestige{
+    margin-left:auto;background:#1e1b4b;color:#c4b5fd;border:1px solid #6d28d9;
+    font-family:inherit;font-size:11px;padding:4px 8px;cursor:pointer;
+  }
+  #prestige:not(:disabled):hover{background:#312e81;box-shadow:0 0 8px #8b5cf6}
+  #prestige:disabled{opacity:.45;cursor:default}
+  #main{flex:1;display:flex;min-height:0}
+  #battle{
+    flex:1.15;position:relative;border-right:1px solid #1f2937;
+    background:
+      radial-gradient(ellipse at 50% 120%,rgba(74,222,128,.08),transparent 60%),
+      repeating-linear-gradient(0deg,#12121f 0 38px,#141424 38px 40px);
+    display:flex;flex-direction:column;padding:8px;
+  }
+  #zoneline{font-size:12px;color:#86efac;text-align:center;letter-spacing:1px;text-shadow:0 0 6px rgba(74,222,128,.5)}
+  #killbar{height:6px;background:#1e1e33;margin:5px 18px;border:1px solid #14532d}
+  #killfill{height:100%;background:#22c55e;width:0%;transition:width .2s}
+  #arena{flex:1;display:flex;align-items:center;justify-content:space-between;padding:0 6px;position:relative}
+  .heroCol{display:flex;flex-direction:column;gap:8px}
+  .hero{
+    width:150px;background:rgba(19,19,34,.9);border:1px solid #26263f;padding:4px 6px;
+    position:relative;transition:transform .1s;
+  }
+  .hero.lunge{transform:translateX(14px)}
+  .hero.dead{opacity:.35;filter:grayscale(1)}
+  .hero .nm{font-size:11px;display:flex;justify-content:space-between}
+  .hero .face{font-size:20px;position:absolute;right:-26px;top:6px;transition:transform .1s}
+  .hero.lunge .face{transform:translateX(10px) rotate(12deg)}
+  .hbar{height:7px;background:#1e1e33;margin-top:3px;border:1px solid #000}
+  .hfill{height:100%;background:#22c55e;transition:width .15s}
+  .sbar{height:3px;background:#1e1e33;margin-top:2px}
+  .sfill{height:100%;background:#38bdf8}
+  #monWrap{text-align:center;width:190px;position:relative}
+  #monFace{font-size:64px;line-height:1.1;display:inline-block;transition:transform .08s;filter:drop-shadow(0 0 10px rgba(244,63,94,.5))}
+  #monFace.shake{transform:translateX(8px) rotate(-6deg)}
+  #monFace.boss{font-size:80px}
+  #monName{font-size:12px;color:#fca5a5;margin-top:2px}
+  #monBar{height:12px;background:#1e1e33;border:1px solid #7f1d1d;margin-top:4px}
+  #monFill{height:100%;background:linear-gradient(90deg,#ef4444,#f97316);transition:width .12s}
+  #monHp{font-size:10px;color:#fecaca}
+  #bossTimer{font-size:11px;color:#fbbf24;height:14px}
+  .dmgFloat{
+    position:absolute;font-weight:bold;font-size:14px;pointer-events:none;
+    animation:floatUp .9s ease-out forwards;text-shadow:0 0 4px #000;z-index:5;
+  }
+  @keyframes floatUp{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-44px)}}
+  #logline{font-size:11px;color:#6b7280;text-align:center;height:16px;overflow:hidden}
+  #shop{flex:1;display:flex;flex-direction:column;gap:6px;padding:8px;overflow-y:auto}
+  .card{background:#131322;border:1px solid #26263f;padding:6px 8px}
+  .card h3{font-size:13px;display:flex;gap:6px;align-items:center}
+  .card .lvl{margin-left:auto;font-size:10px;color:#9ca3af}
+  .buyrow{display:flex;gap:5px;margin-top:5px}
+  .buyrow button{
+    flex:1;font-family:inherit;font-size:10px;padding:4px 2px;cursor:pointer;
+    background:#0f2417;color:#86efac;border:1px solid #166534;
+  }
+  .buyrow button:not(:disabled):hover{background:#14532d;box-shadow:0 0 6px rgba(74,222,128,.6)}
+  .buyrow button:disabled{opacity:.4;cursor:default}
+  .skill{font-size:10px;margin-top:4px;color:#64748b}
+  .skill.on{color:#38bdf8;text-shadow:0 0 5px rgba(56,189,248,.6)}
+  #overlay{
+    position:absolute;inset:0;background:rgba(15,15,26,.82);z-index:20;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;cursor:pointer;backdrop-filter:blur(2px);
+  }
+  #overlay h1{
+    font-size:44px;color:#4ade80;letter-spacing:4px;
+    text-shadow:0 0 18px #22c55e,0 0 50px rgba(34,197,94,.6);
+  }
+  #overlay .sub{color:#a7f3d0;font-size:14px;margin:10px 0 4px}
+  #overlay .party{font-size:36px;margin:12px 0;letter-spacing:8px}
+  #overlay .hint{color:#9ca3af;font-size:12px;margin-top:4px}
+  #overlay .go{color:#4ade80;font-size:16px;font-weight:bold;margin-top:16px;animation:blink 1.1s steps(2) infinite}
+  @keyframes blink{50%{opacity:.25}}
+  #away{
+    position:absolute;inset:0;background:rgba(15,15,26,.9);z-index:25;display:none;
+    align-items:center;justify-content:center;cursor:pointer;
+  }
+  #away .box{
+    border:2px solid #4ade80;background:#10101c;padding:22px 30px;text-align:center;
+    box-shadow:0 0 20px rgba(74,222,128,.4);max-width:420px;
+  }
+  #away h2{color:#4ade80;font-size:18px;margin-bottom:10px}
+  #away p{font-size:13px;color:#d1d5db;line-height:1.6}
+  #away .tap{color:#9ca3af;font-size:11px;margin-top:12px}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<div id="app">
+  <div id="hdr">
+    <b>IDLE DUNGEON</b>
+    <span class="stat">💰 <span id="gold">0</span></span>
+    <span class="stat">🗺 zone <span id="zone">1</span></span>
+    <span class="stat">☠ <span id="tkills">0</span></span>
+    <span class="stat">🔮 <span id="relics">0</span> relics</span>
+    <button id="prestige" title="Reset for permanent relics">🔮 PRESTIGE</button>
+  </div>
+  <div id="main">
+    <div id="battle">
+      <div id="zoneline">— ZONE 1 —</div>
+      <div id="killbar"><div id="killfill"></div></div>
+      <div id="arena">
+        <div class="heroCol" id="heroCol"></div>
+        <div id="monWrap">
+          <div id="bossTimer"></div>
+          <div id="monFace">🐀</div>
+          <div id="monName">Cave Rat</div>
+          <div id="monBar"><div id="monFill" style="width:100%"></div></div>
+          <div id="monHp"></div>
+        </div>
+      </div>
+      <div id="logline">the dungeon hums...</div>
+    </div>
+    <div id="shop"></div>
+  </div>
+  <div id="away"><div class="box">
+    <h2>⏳ While you were away…</h2><p id="awayTxt"></p>
+    <div class="tap">click to collect</div>
+  </div></div>
+  <div id="overlay">
+    <h1>IDLE DUNGEON</h1>
+    <div class="sub">your party fights while you idle — spend gold, unlock skills, prestige for relics</div>
+    <div class="party">🗡️ 🧙 ✨ ⚔️ 👹</div>
+    <div class="hint">gold buys DMG / HP / SPD per hero · skills unlock at Lv 10 · boss gate every 5 zones</div>
+    <div class="hint">prestige past zone 15 for permanent 🔮 relic bonuses · progress is saved &amp; earns offline</div>
+    <div class="go" id="goTxt">▶ CLICK or press ENTER to descend ◀</div>
+  </div>
+</div>
+<script>
+'use strict';
+const SAVEKEY='wizzed-idle-dungeon';
+const $=id=>document.getElementById(id);
+
+/* ---------- audio ---------- */
+let AC=null;
+function initAudio(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(AC&&AC.state==='suspended')AC.resume();}
+function beep(f,d,type,v){
+  if(!AC)return;
+  try{
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type=type||'square';o.frequency.value=f;
+    g.gain.value=v||0.03;g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+d);
+    o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d);
+  }catch(e){}
+}
+const sfxHit=()=>beep(200+Math.random()*60,0.05,'square',0.02);
+const sfxKill=()=>{beep(392,0.08,'square',0.03);setTimeout(()=>beep(523,0.1,'square',0.03),70);};
+const sfxBuy=()=>{beep(660,0.06,'triangle',0.04);setTimeout(()=>beep(990,0.08,'triangle',0.04),60);};
+const sfxZone=()=>[523,659,784].forEach((f,i)=>setTimeout(()=>beep(f,0.1,'square',0.04),i*80));
+const sfxBoss=()=>beep(70,0.6,'sawtooth',0.07);
+const sfxSkill=()=>beep(880,0.15,'sawtooth',0.03);
+const sfxWipe=()=>[330,262,196,131].forEach((f,i)=>setTimeout(()=>beep(f,0.18,'triangle',0.05),i*130));
+
+/* ---------- data ---------- */
+const HDEF=[
+  {id:'war',name:'Warrior',emoji:'🗡️',col:'#f87171',baseDmg:4,baseHp:65,baseInt:1.1,
+   skill:{name:'Cleave',stat:'dmg',lv:10,desc:'every 4th hit ×3'}},
+  {id:'mag',name:'Mage',emoji:'🧙',col:'#818cf8',baseDmg:6,baseHp:38,baseInt:1.55,
+   skill:{name:'Fireball',stat:'dmg',lv:10,desc:'auto-nuke ×8 every 8s'}},
+  {id:'cle',name:'Cleric',emoji:'✨',col:'#facc15',baseDmg:3,baseHp:48,baseInt:1.3,
+   skill:{name:'Divine Light',stat:'hp',lv:10,desc:'party heal ×5 every 10s'}}
+];
+const MONS=[
+  ['🐀','Cave Rat'],['🦇','Dire Bat'],['🐍','Pit Viper'],['🕷️','Tomb Spider'],
+  ['🧟','Shambler'],['💀','Skeleton'],['👻','Wraith'],['👹','Ogre'],
+  ['🐺','Warg'],['🧌','Troll'],['🦂','Scorpion King'],['👺','Goblin Lord'],
+  ['🧛','Vampire'],['🐲','Drake'],['🌑','Void Spawn']
+];
+const BOSSNAMES=['Gatewarden','Bonelord','Flame Tyrant','Abyss Maw','Dungeon Heart'];
+
+/* ---------- state ---------- */
+const S={
+  started:false,gold:0,zone:1,kills:0,maxZone:1,relics:0,totalKills:0,prestiges:0,
+  wipeT:0,bossActive:false,bossT:0,bossReady:false,
+  heroes:HDEF.map(()=>({dmg:0,hp:0,spd:0, chp:1,atkT:0,skillT:0,hits:0,resp:0})),
+  mon:null
+};
+const relicMult=()=>1+S.relics*0.1;
+function hDmg(i){return HDEF[i].baseDmg*(1+0.45*S.heroes[i].dmg)*relicMult();}
+function hMaxHp(i){return Math.round(HDEF[i].baseHp*(1+0.35*S.heroes[i].hp));}
+function hInt(i){return HDEF[i].baseInt/(1+0.06*S.heroes[i].spd);}
+function skillOn(i){const sk=HDEF[i].skill;return S.heroes[i][sk.stat]>=sk.lv;}
+function cost(stat,lv){
+  const base=stat==='dmg'?10:stat==='hp'?8:16;
+  const g=stat==='spd'?1.5:1.33;
+  return Math.ceil(base*Math.pow(g,lv));
+}
+function monHpFor(z,boss){return Math.round(18*Math.pow(1.24,z-1)*(boss?7:1));}
+function monDmgFor(z,boss){return Math.max(2,Math.round(3*Math.pow(1.14,z-1)*(boss?1.6:1)));}
+function monGoldFor(z,boss){return Math.max(1,Math.round(4*Math.pow(1.16,z-1)*(boss?10:1)*relicMult()));}
+function newMonster(boss){
+  const z=S.zone;
+  const m=MONS[(z-1)%MONS.length];
+  S.mon={hp:monHpFor(z,boss),maxHp:monHpFor(z,boss),dmg:monDmgFor(z,boss),
+    gold:monGoldFor(z,boss),boss:!!boss,atkT:boss?1.2:1.7,
+    emoji:boss?'👑'+m[0]:m[0],name:boss?BOSSNAMES[(Math.floor(z/5)-1)%BOSSNAMES.length]:m[1]};
+  S.bossActive=!!boss;
+  if(boss){S.bossT=30;sfxBoss();log('⚔ BOSS: '+S.mon.name+' blocks the way! 30s!');}
+}
+function prestigeGain(){return Math.max(0,Math.floor((S.maxZone-10)/2));}
+
+/* ---------- save / load / offline ---------- */
+function save(){
+  try{
+    localStorage.setItem(SAVEKEY,JSON.stringify({
+      started:S.started,gold:S.gold,zone:S.zone,kills:S.kills,maxZone:S.maxZone,
+      relics:S.relics,totalKills:S.totalKills,prestiges:S.prestiges,
+      heroes:S.heroes.map(h=>({dmg:h.dmg,hp:h.hp,spd:h.spd})),
+      time:Date.now()
+    }));
+  }catch(e){}
+}
+function fmt(n){
+  if(n>=1e9)return (n/1e9).toFixed(2)+'B';
+  if(n>=1e6)return (n/1e6).toFixed(2)+'M';
+  if(n>=1e4)return (n/1e3).toFixed(1)+'k';
+  return Math.floor(n)+'';
+}
+function fmtDur(s){
+  const h=Math.floor(s/3600),m=Math.floor(s%3600/60);
+  return h>0?h+'h '+m+'m':m>0?m+'m':Math.floor(s)+'s';
+}
+let awayPending=null;
+function load(){
+  let d=null;
+  try{d=JSON.parse(localStorage.getItem(SAVEKEY)||'null');}catch(e){}
+  if(!d)return;
+  S.started=!!d.started;S.gold=d.gold||0;S.zone=d.zone||1;S.kills=d.kills||0;
+  S.maxZone=d.maxZone||S.zone;S.relics=d.relics||0;S.totalKills=d.totalKills||0;
+  S.prestiges=d.prestiges||0;
+  if(Array.isArray(d.heroes))d.heroes.forEach((h,i)=>{
+    if(S.heroes[i]){S.heroes[i].dmg=h.dmg||0;S.heroes[i].hp=h.hp||0;S.heroes[i].spd=h.spd||0;}
+  });
+  // offline progress
+  if(S.started&&d.time){
+    const dt=Math.min(8*3600,Math.max(0,(Date.now()-d.time)/1000));
+    if(dt>90){
+      let dps=0;
+      for(let i=0;i<3;i++)dps+=hDmg(i)/hInt(i);
+      const mh=monHpFor(S.zone,false);
+      const kps=dps/(mh+dps*0.8)*0.5; // 50% offline efficiency
+      const kills=Math.floor(kps*dt);
+      const goldGain=Math.floor(kills*monGoldFor(S.zone,false));
+      if(kills>0){
+        S.gold+=goldGain;S.totalKills+=kills;
+        awayPending={dur:dt,kills,gold:goldGain};
+      }
+    }
+  }
+}
+load();
+for(let i=0;i<3;i++)S.heroes[i].chp=hMaxHp(i);
+newMonster(false);
+
+/* ---------- build UI ---------- */
+const heroEls=[],cardEls=[];
+(function(){
+  const col=$('heroCol');
+  HDEF.forEach((h,i)=>{
+    const d=document.createElement('div');
+    d.className='hero';
+    d.innerHTML='<div class="nm"><span style="color:'+h.col+'">'+h.name+'</span><span class="hpTxt"></span></div>'+
+      '<div class="face">'+h.emoji+'</div>'+
+      '<div class="hbar"><div class="hfill"></div></div>'+
+      '<div class="sbar"><div class="sfill"></div></div>';
+    col.appendChild(d);
+    heroEls.push({root:d,hp:d.querySelector('.hfill'),hpTxt:d.querySelector('.hpTxt'),sk:d.querySelector('.sfill')});
+  });
+  const shop=$('shop');
+  HDEF.forEach((h,i)=>{
+    const c=document.createElement('div');
+    c.className='card';
+    c.innerHTML='<h3><span>'+h.emoji+'</span><span style="color:'+h.col+'">'+h.name+'</span><span class="lvl"></span></h3>'+
+      '<div class="buyrow">'+
+      '<button data-h="'+i+'" data-s="dmg"></button>'+
+      '<button data-h="'+i+'" data-s="hp"></button>'+
+      '<button data-h="'+i+'" data-s="spd"></button>'+
+      '</div><div class="skill"></div>';
+    shop.appendChild(c);
+    cardEls.push({lvl:c.querySelector('.lvl'),
+      btns:[...c.querySelectorAll('button')],
+      skill:c.querySelector('.skill')});
+  });
+  document.querySelectorAll('.buyrow button').forEach(b=>{
+    b.addEventListener('click',e=>{
+      e.stopPropagation();
+      buy(+b.dataset.h,b.dataset.s);
+    });
+  });
+})();
+function buy(i,stat){
+  if(!S.started)return;
+  const c=cost(stat,S.heroes[i][stat]);
+  if(S.gold<c)return;
+  S.gold-=c;S.heroes[i][stat]++;
+  if(stat==='hp')S.heroes[i].chp=Math.min(hMaxHp(i),S.heroes[i].chp+Math.round(HDEF[i].baseHp*0.35));
+  sfxBuy();
+  if(skillOn(i)&&S.heroes[i][stat]===HDEF[i].skill.lv&&HDEF[i].skill.stat===stat)
+    log('🔓 '+HDEF[i].name+' unlocked '+HDEF[i].skill.name+'!');
+  save();
+}
+
+/* ---------- floating numbers ---------- */
+const arena=$('arena');
+function floatNum(el,txt,col){
+  const r=el.getBoundingClientRect(),a=arena.getBoundingClientRect();
+  const s=document.createElement('div');
+  s.className='dmgFloat';s.textContent=txt;s.style.color=col;
+  s.style.left=(r.left-a.left+r.width*0.3+Math.random()*20)+'px';
+  s.style.top=(r.top-a.top)+'px';
+  arena.appendChild(s);
+  setTimeout(()=>s.remove(),900);
+}
+let logT=0;
+function log(msg){$('logline').textContent=msg;logT=4;}
+
+/* ---------- battle sim ---------- */
+function heroesAlive(){return S.heroes.some((h,i)=>h.chp>0);}
+function damageMonster(i,amt,label,col){
+  if(!S.mon||S.mon.hp<=0)return;
+  S.mon.hp-=amt;
+  const mf=$('monFace');
+  mf.classList.remove('shake');void mf.offsetWidth;mf.classList.add('shake');
+  floatNum($('monWrap'),label||('-'+fmt(amt)),col||HDEF[i].col);
+  sfxHit();
+  if(S.mon.hp<=0)monsterDies();
+}
+function monsterDies(){
+  const wasBoss=S.mon.boss;
+  S.gold+=S.mon.gold;S.totalKills++;
+  floatNum($('monWrap'),'+'+fmt(S.mon.gold)+'g','#fde047');
+  sfxKill();
+  if(wasBoss){
+    S.bossActive=false;S.bossReady=false;
+    S.zone++;S.kills=0;S.maxZone=Math.max(S.maxZone,S.zone);
+    log('👑 Boss slain! Descending to zone '+S.zone+'…');
+    sfxZone();
+  }else{
+    S.kills++;
+    if(S.kills>=10){
+      if(S.zone%5===0){
+        S.bossReady=true;S.kills=10;
+        newMonster(true);save();updateShop();return;
+      }
+      S.zone++;S.kills=0;S.maxZone=Math.max(S.maxZone,S.zone);
+      log('→ zone '+S.zone+': '+MONS[(S.zone-1)%MONS.length][1]+'s ahead');
+      sfxZone();
+    }
+  }
+  newMonster(false);
+  save();updateShop();
+}
+function bossFail(why){
+  S.bossActive=false;
+  log('💨 '+why+' — the boss resets. Farm gold and try again!');
+  newMonster(false);
+}
+function simulate(dt){
+  if(!S.started)return;
+  // party wipe recovery
+  if(S.wipeT>0){
+    S.wipeT-=dt;
+    if(S.wipeT<=0){
+      for(let i=0;i<3;i++){S.heroes[i].chp=hMaxHp(i);S.heroes[i].resp=0;}
+      log('The party regroups, wounds bound.');
+      if(S.mon)S.mon.hp=S.mon.maxHp;
+    }
+    return;
+  }
+  if(S.bossActive){
+    S.bossT-=dt;
+    if(S.bossT<=0){bossFail('Time up!');return;}
+  }
+  // heroes
+  for(let i=0;i<3;i++){
+    const h=S.heroes[i];
+    if(h.chp<=0){
+      h.resp-=dt;
+      if(h.resp<=0){h.chp=hMaxHp(i);floatNum(heroEls[i].root,'revived!','#4ade80');}
+      continue;
+    }
+    // skill timers
+    if(skillOn(i)){
+      h.skillT+=dt;
+      if(HDEF[i].id==='mag'&&h.skillT>=8){
+        h.skillT=0;damageMonster(i,Math.round(hDmg(i)*8),'🔥'+fmt(Math.round(hDmg(i)*8)),'#fb923c');sfxSkill();
+      }
+      if(HDEF[i].id==='cle'&&h.skillT>=10){
+        h.skillT=0;
+        const heal=Math.round(hDmg(i)*5);
+        for(let j=0;j<3;j++)if(S.heroes[j].chp>0)S.heroes[j].chp=Math.min(hMaxHp(j),S.heroes[j].chp+heal);
+        floatNum(heroEls[i].root,'✨+'+fmt(heal),'#facc15');sfxSkill();
+      }
+    }
+    h.atkT+=dt;
+    if(h.atkT>=hInt(i)){
+      h.atkT=0;
+      heroEls[i].root.classList.remove('lunge');void heroEls[i].root.offsetWidth;heroEls[i].root.classList.add('lunge');
+      // cleric heals when an ally is hurt
+      if(HDEF[i].id==='cle'){
+        let low=-1,lowPr=0.65;
+        for(let j=0;j<3;j++){
+          if(S.heroes[j].chp>0){
+            const pr=S.heroes[j].chp/hMaxHp(j);
+            if(pr<lowPr){lowPr=pr;low=j;}
+          }
+        }
+        if(low>=0){
+          const heal=Math.round(hDmg(i)*2.5);
+          S.heroes[low].chp=Math.min(hMaxHp(low),S.heroes[low].chp+heal);
+          floatNum(heroEls[low].root,'+'+fmt(heal),'#4ade80');
+          continue;
+        }
+      }
+      let dmg=hDmg(i);
+      let label=null,col=null;
+      if(HDEF[i].id==='war'&&skillOn(i)){
+        h.hits=(h.hits+1)%4;
+        if(h.hits===0){dmg*=3;label='CLEAVE '+fmt(Math.round(dmg));col='#f87171';}
+      }
+      damageMonster(i,Math.round(dmg),label,col);
+    }
+  }
+  // monster attacks
+  if(S.mon&&S.mon.hp>0){
+    S.mon.atkT-=dt;
+    if(S.mon.atkT<=0){
+      S.mon.atkT=S.mon.boss?1.2:1.7;
+      const alive=[];
+      for(let i=0;i<3;i++)if(S.heroes[i].chp>0)alive.push(i);
+      if(alive.length){
+        const tgt=alive[Math.floor(Math.random()*alive.length)];
+        S.heroes[tgt].chp-=S.mon.dmg;
+        floatNum(heroEls[tgt].root,'-'+fmt(S.mon.dmg),'#f87171');
+        beep(140,0.06,'sawtooth',0.03);
+        if(S.heroes[tgt].chp<=0){
+          S.heroes[tgt].chp=0;S.heroes[tgt].resp=15;
+          floatNum(heroEls[tgt].root,'☠ down','#9ca3af');
+          if(!heroesAlive()){
+            S.wipeT=8;sfxWipe();
+            log('☠ PARTY WIPE! Regrouping for 8s…');
+            if(S.bossActive)bossFail('The party fell');
+          }
+        }
+      }
+    }
+  }
+}
+
+/* ---------- render ---------- */
+const el={gold:$('gold'),zone:$('zone'),tkills:$('tkills'),relics:$('relics'),
+  zoneline:$('zoneline'),killfill:$('killfill'),monFace:$('monFace'),monName:$('monName'),
+  monFill:$('monFill'),monHp:$('monHp'),bossTimer:$('bossTimer'),prestige:$('prestige'),log:$('logline')};
+function updateShop(){
+  for(let i=0;i<3;i++){
+    const h=S.heroes[i],c=cardEls[i];
+    c.lvl.textContent='⚔'+fmt(Math.round(hDmg(i)))+' ♥'+fmt(hMaxHp(i))+' ⚡'+(1/hInt(i)).toFixed(2)+'/s';
+    const stats=['dmg','hp','spd'],labels=['DMG','HP','SPD'];
+    stats.forEach((s,j)=>{
+      const cs=cost(s,h[s]);
+      c.btns[j].innerHTML=labels[j]+' '+h[s]+'<br>'+fmt(cs)+'g';
+      c.btns[j].disabled=S.gold<cs||!S.started;
+    });
+    const sk=HDEF[i].skill,on=skillOn(i);
+    c.skill.className='skill'+(on?' on':'');
+    c.skill.textContent=(on?'★ ':'🔒 ')+sk.name+' — '+sk.desc+(on?'':' (needs '+sk.stat.toUpperCase()+' Lv '+sk.lv+')');
+  }
+}
+function render(){
+  el.gold.textContent=fmt(S.gold);
+  el.zone.textContent=S.zone;
+  el.tkills.textContent=fmt(S.totalKills);
+  el.relics.textContent=S.relics;
+  el.zoneline.textContent='— ZONE '+S.zone+(S.zone%5===0?' · BOSS GATE':'')+' · '+S.kills+'/10 —';
+  el.killfill.style.width=(S.kills*10)+'%';
+  if(S.mon){
+    el.monFace.textContent=S.mon.emoji;
+    el.monFace.classList.toggle('boss',S.mon.boss);
+    el.monName.textContent=S.mon.name+(S.mon.boss?' 👑':'');
+    el.monFill.style.width=Math.max(0,S.mon.hp/S.mon.maxHp*100)+'%';
+    el.monHp.textContent=fmt(Math.max(0,S.mon.hp))+' / '+fmt(S.mon.maxHp);
+  }
+  el.bossTimer.textContent=S.bossActive?('⏳ '+Math.ceil(S.bossT)+'s'):(S.wipeT>0?('regroup '+Math.ceil(S.wipeT)+'s'):'');
+  for(let i=0;i<3;i++){
+    const h=S.heroes[i],e=heroEls[i];
+    e.root.classList.toggle('dead',h.chp<=0);
+    e.hp.style.width=Math.max(0,h.chp/hMaxHp(i)*100)+'%';
+    e.hp.style.background=h.chp/hMaxHp(i)<0.35?'#ef4444':'#22c55e';
+    e.hpTxt.textContent=h.chp<=0?('☠ '+Math.ceil(h.resp)+'s'):fmt(h.chp)+'/'+fmt(hMaxHp(i));
+    let skPr=0;
+    if(skillOn(i)){
+      const max=HDEF[i].id==='mag'?8:HDEF[i].id==='cle'?10:4;
+      skPr=HDEF[i].id==='war'?(h.hits)/max:Math.min(1,h.skillT/max);
+    }
+    e.sk.style.width=(skPr*100)+'%';
+  }
+  const pg=prestigeGain();
+  el.prestige.textContent='🔮 PRESTIGE +'+pg;
+  el.prestige.disabled=pg<1;
+  el.prestige.title=pg<1?'Reach zone 12+ (relics = (best zone−10)/2)':'Reset run, gain '+pg+' relics (+'+(pg*10)+'% dmg & gold forever)';
+}
+setInterval(updateShop,250);
+
+/* ---------- prestige ---------- */
+$('prestige').addEventListener('click',()=>{
+  const pg=prestigeGain();
+  if(pg<1||!S.started)return;
+  S.relics+=pg;S.prestiges++;
+  S.gold=0;S.zone=1;S.kills=0;S.maxZone=1;S.wipeT=0;S.bossActive=false;
+  for(const h of S.heroes){h.dmg=0;h.hp=0;h.spd=0;h.atkT=0;h.skillT=0;h.hits=0;h.resp=0;}
+  for(let i=0;i<3;i++)S.heroes[i].chp=hMaxHp(i);
+  newMonster(false);
+  log('🔮 PRESTIGE! +'+pg+' relics — the dungeon reshapes itself…');
+  sfxZone();save();updateShop();
+});
+
+/* ---------- start & loop ---------- */
+function start(){
+  initAudio();
+  if(awayPending){
+    $('awayTxt').innerHTML='You were gone <b>'+fmtDur(awayPending.dur)+'</b>.<br>Your party slew <b>'+
+      fmt(awayPending.kills)+'</b> monsters<br>and earned <b>💰 '+fmt(awayPending.gold)+' gold</b>.';
+    $('away').style.display='flex';
+    awayPending=null;
+  }
+  S.started=true;
+  $('overlay').style.display='none';
+  log(S.totalKills>0?'Welcome back, delver.':'The descent begins. Slay. Spend. Repeat.');
+  save();updateShop();
+}
+$('overlay').addEventListener('click',start);
+$('away').addEventListener('click',()=>{$('away').style.display='none';});
+addEventListener('keydown',e=>{
+  if(e.key==='Enter'||e.key===' '){
+    e.preventDefault();
+    if($('away').style.display==='flex'){$('away').style.display='none';return;}
+    if(!S.started||$('overlay').style.display!=='none')start();
+  }
+});
+
+let last=performance.now(),logAcc=0;
+function frame(ts){
+  let dt=Math.min(0.25,(ts-last)/1000);last=ts;
+  if(S.started&&$('away').style.display!=='flex'){
+    // fixed small steps for stability
+    while(dt>0){const step=Math.min(dt,0.05);simulate(step);dt-=step;}
+  }
+  logAcc+=0.016;
+  if(logT>0){logT-=0.016;if(logT<=0)$('logline').textContent='…';}
+  render();
+  requestAnimationFrame(frame);
+}
+updateShop();render();
+requestAnimationFrame(frame);
+setInterval(save,2000);
+addEventListener('beforeunload',save);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
+</script>
+</body>
+</html>

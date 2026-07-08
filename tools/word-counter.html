@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Word Counter · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#00e5ff; --accent-soft:rgba(0,229,255,.45);
+  --panel:#161623; --line:#2c2c46; --text:#eaf6f8; --dim:#8fa0ab;
+  --green:#3ddc84; --pink:#ff6ec7;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:24px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{
+  display:grid; grid-template-columns:minmax(280px,1.15fr) minmax(300px,1fr);
+  gap:14px; max-width:1060px; margin:8px auto 0; padding:0 14px;
+  align-items:start;
+}
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:10px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(0,229,255,.08);
+}
+.panel h2{
+  font-size:11px; letter-spacing:3px; color:var(--accent);
+  text-shadow:0 0 8px var(--accent-soft); margin-bottom:8px;
+}
+.toolbar{ display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+.toolbar button{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:5px 10px;
+}
+.toolbar button:hover{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+textarea{
+  width:100%; min-height:270px; resize:vertical;
+  background:#0b0b14; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:13px; line-height:1.55; padding:10px;
+  outline:none;
+}
+textarea:focus{ border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft) inset, 0 0 8px var(--accent-soft); }
+.tiles{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px;
+}
+.tile{
+  background:#101020; border:1px solid var(--line); padding:8px 6px 7px; text-align:center;
+}
+.tile b{
+  display:block; font-size:clamp(15px,2.4vw,21px); color:#fff;
+  text-shadow:0 0 8px var(--accent-soft); word-break:break-word;
+}
+.tile span{ display:block; font-size:9px; letter-spacing:1px; color:var(--dim); margin-top:3px; text-transform:uppercase; }
+.tile.alt b{ color:var(--green); text-shadow:0 0 8px rgba(61,220,132,.5); }
+.tile.pink b{ color:var(--pink); text-shadow:0 0 8px rgba(255,110,199,.5); }
+#kwWrap .row{
+  display:grid; grid-template-columns:minmax(64px,86px) 1fr 34px; gap:8px;
+  align-items:center; font-size:11px; margin-bottom:5px;
+}
+#kwWrap .w{ color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:right; }
+#kwWrap .bar{ height:12px; background:#0b0b14; border:1px solid var(--line); position:relative; }
+#kwWrap .bar i{
+  display:block; height:100%;
+  background:linear-gradient(90deg, #007a8a, var(--accent));
+  box-shadow:0 0 8px var(--accent-soft);
+}
+#kwWrap .n{ color:var(--dim); }
+#kwWrap .empty{ color:var(--dim); font-size:11px; }
+footer{ text-align:center; margin-top:14px; font-size:10px; color:var(--dim); letter-spacing:2px; }
+@media (max-width:680px){
+  main{ grid-template-columns:1fr; }
+  .tiles{ grid-template-columns:repeat(3,1fr); }
+}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>WORD COUNTER</h1>
+  <div class="sub">LIVE TEXT STATS &amp; KEYWORD SCAN</div>
+</header>
+<main>
+  <section class="panel">
+    <h2>&#9646; INPUT TEXT</h2>
+    <div class="toolbar">
+      <button id="btnClear" type="button">CLEAR</button>
+      <button id="btnSample" type="button">SAMPLE</button>
+      <button id="btnCopy" type="button">COPY TEXT</button>
+    </div>
+    <textarea id="txt" spellcheck="false" aria-label="Text to analyze"></textarea>
+  </section>
+  <section class="panel">
+    <h2>&#9646; STATS</h2>
+    <div class="tiles">
+      <div class="tile"><b id="stChars">0</b><span>characters</span></div>
+      <div class="tile"><b id="stCharsNs">0</b><span>chars (no space)</span></div>
+      <div class="tile"><b id="stWords">0</b><span>words</span></div>
+      <div class="tile"><b id="stUnique">0</b><span>unique words</span></div>
+      <div class="tile"><b id="stSent">0</b><span>sentences</span></div>
+      <div class="tile"><b id="stPara">0</b><span>paragraphs</span></div>
+      <div class="tile alt"><b id="stAvg">0</b><span>avg word len</span></div>
+      <div class="tile alt"><b id="stRead">0s</b><span>read @200wpm</span></div>
+      <div class="tile pink"><b id="stSpeak">0s</b><span>speak @130wpm</span></div>
+    </div>
+    <h2>&#9646; TOP KEYWORDS</h2>
+    <div id="kwWrap"></div>
+  </section>
+</main>
+<footer>WIZZED ARCADE // TOOL 01</footer>
+<script>
+"use strict";
+var STOPWORDS = new Set(("a an the and or but if then else when while at by for in of on to up with as is are was were be been being it its this that these those i you he she we they them him his her hers their theirs our ours your yours my mine me us so not no nor yes do does did done have has had having will would shall can could should may might must from into onto over under again more most other others some such only own same than too very just about also there here out off once each few all any both because before after above below between during through what which who whom why how s t don now").split(" "));
+
+function extractWords(text){
+  return (text.match(/[A-Za-zÀ-ÖØ-öø-ÿ0-9]+(?:['’-][A-Za-zÀ-ÖØ-öø-ÿ0-9]+)*/g) || []);
+}
+function countSentences(text){
+  var t = text.trim();
+  if(!t) return 0;
+  var parts = t.split(/[.!?]+(?=\s|$)/).map(function(p){return p.trim();}).filter(Boolean);
+  return parts.length;
+}
+function countParagraphs(text){
+  var t = text.trim();
+  if(!t) return 0;
+  return t.split(/\n\s*\n+/).filter(function(p){return p.trim().length>0;}).length;
+}
+function fmtTime(seconds){
+  if(seconds < 1) return "0s";
+  var s = Math.round(seconds);
+  var m = Math.floor(s/60);
+  var r = s % 60;
+  if(m === 0) return r + "s";
+  if(m >= 60){
+    var h = Math.floor(m/60);
+    return h + "h " + (m%60) + "m";
+  }
+  return m + "m " + r + "s";
+}
+function analyze(text){
+  var words = extractWords(text);
+  var lower = words.map(function(w){return w.toLowerCase();});
+  var unique = new Set(lower).size;
+  var letters = words.reduce(function(a,w){return a + w.length;}, 0);
+  var freq = {};
+  for(var i=0;i<lower.length;i++){
+    var w = lower[i];
+    if(STOPWORDS.has(w) || w.length < 2) continue;
+    freq[w] = (freq[w]||0)+1;
+  }
+  var top = Object.keys(freq).map(function(k){return [k, freq[k]];})
+    .sort(function(a,b){ return b[1]-a[1] || a[0].localeCompare(b[0]); })
+    .slice(0,10);
+  return {
+    chars: text.length,
+    charsNs: text.replace(/\s/g,"").length,
+    words: words.length,
+    unique: unique,
+    sentences: countSentences(text),
+    paragraphs: countParagraphs(text),
+    avg: words.length ? (letters/words.length) : 0,
+    readSec: words.length * 60 / 200,
+    speakSec: words.length * 60 / 130,
+    top: top
+  };
+}
+// ---- DOM ----
+var LS_KEY = "wizzed-word-counter";
+var DEMO = "Welcome to the Wizzed Arcade, a neon-soaked corner of the web where retro games and handy tools share the same glowing marquee. Drop a coin, pick a cabinet, and chase that high score before the attract mode kicks back in.\n\nThis word counter watches your text as you type. It tracks characters, words, sentences and paragraphs, estimates reading and speaking time, and scans for the keywords you repeat most often. Paste an essay, a blog post, or a speech draft and watch the tiles light up.\n\nEvery stat updates live, and your text is saved locally so it survives a page refresh. No servers, no tracking, just pixels and arithmetic.";
+
+var txt = document.getElementById("txt");
+var kwWrap = document.getElementById("kwWrap");
+var els = {
+  chars: document.getElementById("stChars"),
+  charsNs: document.getElementById("stCharsNs"),
+  words: document.getElementById("stWords"),
+  unique: document.getElementById("stUnique"),
+  sent: document.getElementById("stSent"),
+  para: document.getElementById("stPara"),
+  avg: document.getElementById("stAvg"),
+  read: document.getElementById("stRead"),
+  speak: document.getElementById("stSpeak")
+};
+function lsGet(){ try{ return localStorage.getItem(LS_KEY); }catch(e){ return null; } }
+function lsSet(v){ try{ localStorage.setItem(LS_KEY, v); }catch(e){} }
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function nfmt(n){ return n.toLocaleString("en-US"); }
+
+function render(){
+  var st = analyze(txt.value);
+  els.chars.textContent = nfmt(st.chars);
+  els.charsNs.textContent = nfmt(st.charsNs);
+  els.words.textContent = nfmt(st.words);
+  els.unique.textContent = nfmt(st.unique);
+  els.sent.textContent = nfmt(st.sentences);
+  els.para.textContent = nfmt(st.paragraphs);
+  els.avg.textContent = st.avg ? st.avg.toFixed(1) : "0";
+  els.read.textContent = fmtTime(st.readSec);
+  els.speak.textContent = fmtTime(st.speakSec);
+  if(st.top.length === 0){
+    kwWrap.innerHTML = '<div class="empty">Type something to see keyword frequency…</div>';
+  } else {
+    var max = st.top[0][1];
+    kwWrap.innerHTML = st.top.map(function(pair){
+      var pct = Math.max(4, Math.round(pair[1] / max * 100));
+      return '<div class="row"><div class="w">' + esc(pair[0]) + '</div>' +
+        '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
+        '<div class="n">' + pair[1] + '</div></div>';
+    }).join("");
+  }
+}
+txt.addEventListener("input", function(){
+  render();
+  lsSet(txt.value);
+});
+document.getElementById("btnClear").addEventListener("click", function(){
+  txt.value = ""; render(); lsSet(""); txt.focus();
+});
+document.getElementById("btnSample").addEventListener("click", function(){
+  txt.value = DEMO; render(); lsSet(DEMO);
+});
+document.getElementById("btnCopy").addEventListener("click", function(){
+  var btn = this;
+  var done = function(){
+    btn.textContent = "COPIED!";
+    setTimeout(function(){ btn.textContent = "COPY TEXT"; }, 900);
+  };
+  var fallback = function(){
+    try{ txt.select(); document.execCommand("copy"); }catch(e){}
+    done();
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt.value).then(done, fallback);
+  } else { fallback(); }
+});
+var saved = lsGet();
+txt.value = (saved !== null && saved !== "") ? saved : DEMO;
+render();
+</script>
+</body>
+</html>

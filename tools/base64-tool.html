@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Base64 Tool · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#4da6ff; --accent-soft:rgba(77,166,255,.45);
+  --panel:#161623; --line:#2c2c46; --text:#e9f2fb; --dim:#8b9bb0;
+  --err:#ff5470; --good:#3ddc84;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:24px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:860px; margin:8px auto 0; padding:0 14px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:10px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(77,166,255,.08);
+  margin-bottom:12px;
+}
+.tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+button{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:5px 10px;
+}
+button:hover{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+.tabs button.on{
+  color:#0f0f1a; background:var(--accent); border-color:var(--accent);
+  box-shadow:0 0 12px var(--accent); font-weight:bold;
+}
+.moderow{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+.moderow .mode.on{
+  color:var(--good); border-color:var(--good);
+  text-shadow:0 0 8px rgba(61,220,132,.6); box-shadow:0 0 10px rgba(61,220,132,.3);
+}
+label.tog{
+  display:inline-flex; align-items:center; gap:6px; user-select:none; cursor:pointer;
+  font-size:10px; letter-spacing:1px; color:var(--dim);
+  border:1px solid var(--line); background:#121220; padding:5px 10px;
+}
+label.tog input{ accent-color:var(--accent); }
+label.tog.on{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+.lblrow{ display:flex; align-items:center; gap:8px; margin:6px 0 4px; }
+.lblrow span{ font-size:10px; letter-spacing:2px; color:var(--accent); text-shadow:0 0 8px var(--accent-soft); }
+.lblrow button{ margin-left:auto; }
+textarea{
+  width:100%; min-height:96px; resize:vertical;
+  background:#0b0b14; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:12px; line-height:1.5; padding:9px;
+  outline:none; word-break:break-all;
+}
+textarea:focus{ border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft) inset, 0 0 8px var(--accent-soft); }
+textarea.errState{ border-color:var(--err); box-shadow:0 0 12px rgba(255,84,112,.4); }
+#swapRow{ display:flex; justify-content:center; margin:8px 0 2px; }
+#errLine{ margin-top:6px; font-size:11px; color:var(--err); min-height:16px; }
+#hint{ margin-top:2px; font-size:10px; color:var(--dim); letter-spacing:1px; }
+button.okflash{ color:#0f0f1a !important; background:var(--good) !important; border-color:var(--good) !important; }
+footer{ text-align:center; margin-top:10px; font-size:10px; color:var(--dim); letter-spacing:2px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>BASE64 TOOL</h1>
+  <div class="sub">BASE64 · URI · HEX — UNICODE SAFE</div>
+</header>
+<main>
+  <section class="panel">
+    <div class="tabs" id="tabs">
+      <button type="button" data-t="b64" class="on">BASE64</button>
+      <button type="button" data-t="uri">URI COMPONENT</button>
+      <button type="button" data-t="hex">TEXT &harr; HEX</button>
+    </div>
+    <div class="moderow">
+      <button type="button" class="mode on" id="modeEnc">ENCODE &darr;</button>
+      <button type="button" class="mode" id="modeDec">DECODE &darr;</button>
+      <label class="tog" id="urlSafeLbl"><input type="checkbox" id="urlSafe">URL-safe (-_ no padding)</label>
+    </div>
+    <div class="lblrow">
+      <span id="inLabel">&#9646; PLAIN TEXT IN</span>
+      <button type="button" id="copyIn">COPY</button>
+      <button type="button" id="btnClear">CLEAR</button>
+      <button type="button" id="btnSample">SAMPLE</button>
+    </div>
+    <textarea id="inp" spellcheck="false" aria-label="Input"></textarea>
+    <div id="swapRow"><button type="button" id="btnSwap">&#8645; SWAP (use output as input)</button></div>
+    <div class="lblrow">
+      <span id="outLabel">&#9646; BASE64 OUT</span>
+      <button type="button" id="copyOut">COPY</button>
+    </div>
+    <textarea id="outp" readonly spellcheck="false" aria-label="Output"></textarea>
+    <div id="errLine"></div>
+    <div id="hint">Paste into the input — the tool auto-detects whether it looks encoded and flips direction.</div>
+  </section>
+</main>
+<footer>WIZZED ARCADE // TOOL 06</footer>
+<script>
+"use strict";
+function bytesToBinStr(bytes){
+  var bin = "";
+  for(var i = 0; i < bytes.length; i += 0x8000){
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return bin;
+}
+function b64encode(str, urlSafe){
+  var bytes = new TextEncoder().encode(str);
+  var out = btoa(bytesToBinStr(bytes));
+  if(urlSafe) out = out.replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+  return out;
+}
+function b64decode(str){
+  var t = str.replace(/\s/g,"").replace(/-/g,"+").replace(/_/g,"/");
+  if(t === "") return "";
+  if(/[^A-Za-z0-9+/=]/.test(t)) throw new Error("Input contains characters outside the Base64 alphabet.");
+  t = t.replace(/=+$/,"");
+  if(/=/.test(t)) throw new Error("Misplaced '=' padding inside the data.");
+  var rem = t.length % 4;
+  if(rem === 1) throw new Error("Invalid Base64 length (n mod 4 == 1 is impossible).");
+  if(rem) t += "===".slice(rem - 1);
+  var bin = atob(t);
+  var bytes = new Uint8Array(bin.length);
+  for(var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder("utf-8").decode(bytes);
+}
+function uriEncode(str){ return encodeURIComponent(str); }
+function uriDecode(str){
+  try{ return decodeURIComponent(str.replace(/\+/g,"%20")); }
+  catch(e){ throw new Error("Malformed percent-encoding (bad % sequence)."); }
+}
+function hexEncode(str){
+  var bytes = new TextEncoder().encode(str);
+  var out = [];
+  for(var i = 0; i < bytes.length; i++){
+    out.push(bytes[i].toString(16).padStart(2, "0"));
+  }
+  return out.join(" ");
+}
+function hexDecode(str){
+  var t = str.replace(/0x/gi,"").replace(/[\s,:;]/g,"");
+  if(t === "") return "";
+  if(/[^0-9a-fA-F]/.test(t)) throw new Error("Input contains non-hex characters.");
+  if(t.length % 2 !== 0) throw new Error("Odd number of hex digits — bytes need two digits each.");
+  var bytes = new Uint8Array(t.length / 2);
+  for(var i = 0; i < bytes.length; i++){
+    bytes[i] = parseInt(t.substr(i*2, 2), 16);
+  }
+  return new TextDecoder("utf-8").decode(bytes);
+}
+function mostlyPrintable(s){
+  if(!s.length) return false;
+  var good = 0;
+  var n = Math.min(s.length, 512);
+  for(var i = 0; i < n; i++){
+    var c = s.charCodeAt(i);
+    if(c === 9 || c === 10 || c === 13 || (c >= 32 && c !== 0xFFFD)) good++;
+  }
+  return good / n > 0.85;
+}
+function looksEncoded(tab, text){
+  var t = text.trim();
+  if(t.length < 8) return false;
+  if(tab === "b64"){
+    if(!/^[A-Za-z0-9+/\-_=\s]+$/.test(t)) return false;
+    if(!/[A-Za-z]/.test(t)) return false;
+    try{ return mostlyPrintable(b64decode(t)); }catch(e){ return false; }
+  }
+  if(tab === "uri"){
+    return /%[0-9a-fA-F]{2}/.test(t);
+  }
+  if(tab === "hex"){
+    var s = t.replace(/0x/gi,"").replace(/[\s,:;]/g,"");
+    return s.length >= 8 && s.length % 2 === 0 && /^[0-9a-fA-F]+$/.test(s);
+  }
+  return false;
+}
+var CODECS = {
+  b64: { enc: b64encode, dec: b64decode, inEnc:"PLAIN TEXT IN", outEnc:"BASE64 OUT", inDec:"BASE64 IN", outDec:"PLAIN TEXT OUT" },
+  uri: { enc: uriEncode, dec: uriDecode, inEnc:"PLAIN TEXT IN", outEnc:"URI-ENCODED OUT", inDec:"URI-ENCODED IN", outDec:"PLAIN TEXT OUT" },
+  hex: { enc: hexEncode, dec: hexDecode, inEnc:"PLAIN TEXT IN", outEnc:"HEX BYTES OUT", inDec:"HEX BYTES IN", outDec:"PLAIN TEXT OUT" }
+};
+// ---- DOM ----
+var LS_KEY = "wizzed-base64-tool";
+var DEMO = "Wizzed Arcade: insert coin to continue! ★";
+var state = { tab:"b64", mode:"enc", urlSafe:false, input:DEMO };
+try{
+  var saved = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+  if(saved && typeof saved === "object"){
+    if(CODECS[saved.tab]) state.tab = saved.tab;
+    if(saved.mode === "enc" || saved.mode === "dec") state.mode = saved.mode;
+    state.urlSafe = !!saved.urlSafe;
+    if(typeof saved.input === "string" && saved.input !== "") state.input = saved.input;
+  }
+}catch(e){}
+
+var tabsEl = document.getElementById("tabs");
+var modeEnc = document.getElementById("modeEnc");
+var modeDec = document.getElementById("modeDec");
+var urlSafeEl = document.getElementById("urlSafe");
+var urlSafeLbl = document.getElementById("urlSafeLbl");
+var inp = document.getElementById("inp");
+var outp = document.getElementById("outp");
+var inLabel = document.getElementById("inLabel");
+var outLabel = document.getElementById("outLabel");
+var errLine = document.getElementById("errLine");
+
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({tab:state.tab, mode:state.mode, urlSafe:state.urlSafe, input:inp.value})); }catch(e){}
+}
+function syncUI(){
+  Array.prototype.forEach.call(tabsEl.children, function(b){
+    b.classList.toggle("on", b.dataset.t === state.tab);
+  });
+  modeEnc.classList.toggle("on", state.mode === "enc");
+  modeDec.classList.toggle("on", state.mode === "dec");
+  urlSafeLbl.style.display = state.tab === "b64" ? "inline-flex" : "none";
+  urlSafeLbl.classList.toggle("on", state.urlSafe);
+  urlSafeEl.checked = state.urlSafe;
+  var c = CODECS[state.tab];
+  inLabel.textContent = "▮ " + (state.mode === "enc" ? c.inEnc : c.inDec);
+  outLabel.textContent = "▮ " + (state.mode === "enc" ? c.outEnc : c.outDec);
+}
+function convert(){
+  var c = CODECS[state.tab];
+  var v = inp.value;
+  errLine.textContent = "";
+  inp.classList.remove("errState");
+  if(v === ""){
+    outp.value = "";
+    return;
+  }
+  try{
+    if(state.mode === "enc"){
+      outp.value = state.tab === "b64" ? c.enc(v, state.urlSafe) : c.enc(v);
+    } else {
+      outp.value = c.dec(v);
+    }
+  }catch(e){
+    outp.value = "";
+    inp.classList.add("errState");
+    errLine.textContent = "✖ " + (e && e.message ? e.message : "Could not convert this input.");
+  }
+}
+function update(){ syncUI(); convert(); save(); }
+
+tabsEl.addEventListener("click", function(ev){
+  var b = ev.target.closest("button");
+  if(!b) return;
+  state.tab = b.dataset.t;
+  if(looksEncoded(state.tab, inp.value)) state.mode = "dec";
+  update();
+});
+modeEnc.addEventListener("click", function(){ state.mode = "enc"; update(); });
+modeDec.addEventListener("click", function(){ state.mode = "dec"; update(); });
+urlSafeEl.addEventListener("change", function(){ state.urlSafe = urlSafeEl.checked; update(); });
+inp.addEventListener("input", function(){ convert(); save(); });
+inp.addEventListener("paste", function(){
+  setTimeout(function(){
+    var wantDec = looksEncoded(state.tab, inp.value);
+    if(wantDec && state.mode === "enc"){ state.mode = "dec"; }
+    else if(!wantDec && state.mode === "dec" && inp.value.trim().length){
+      // leave decode mode alone unless clearly plain text with spaces/words
+      if(state.tab === "b64" && /[^A-Za-z0-9+/\-_=\s]/.test(inp.value)) state.mode = "enc";
+    }
+    update();
+  }, 0);
+});
+document.getElementById("btnSwap").addEventListener("click", function(){
+  if(outp.value === "") return;
+  inp.value = outp.value;
+  state.mode = state.mode === "enc" ? "dec" : "enc";
+  update();
+});
+document.getElementById("btnClear").addEventListener("click", function(){
+  inp.value = ""; update(); inp.focus();
+});
+document.getElementById("btnSample").addEventListener("click", function(){
+  inp.value = DEMO; state.mode = "enc"; update();
+});
+function bindCopy(btnId, srcEl){
+  var btn = document.getElementById(btnId);
+  btn.addEventListener("click", function(){
+    var t = srcEl.value;
+    var done = function(){
+      btn.classList.add("okflash"); btn.textContent = "OK!";
+      setTimeout(function(){ btn.classList.remove("okflash"); btn.textContent = "COPY"; }, 900);
+    };
+    var fallback = function(){
+      var ta = document.createElement("textarea");
+      ta.value = t;
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try{ document.execCommand("copy"); }catch(e){}
+      document.body.removeChild(ta);
+      done();
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(done, fallback);
+    } else { fallback(); }
+  });
+}
+bindCopy("copyIn", inp);
+bindCopy("copyOut", outp);
+inp.value = state.input;
+update();
+</script>
+</body>
+</html>

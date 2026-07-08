@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Countdown Maker · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ff4560; --accent-soft:rgba(255,69,96,.45);
+  --panel:#161623; --line:#2c2c46; --text:#fdeef0; --dim:#8f9bb0;
+  --cyan:#00e5ff; --amber:#ffb300;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:24px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(16px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{
+  display:grid; grid-template-columns:250px 1fr; gap:12px;
+  max-width:940px; margin:6px auto 0; padding:0 12px; align-items:start;
+}
+@media (max-width:640px){ main{ grid-template-columns:1fr; } }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:12px;
+  box-shadow:0 0 0 1px #000, 0 0 18px rgba(255,69,96,.08);
+}
+.ptitle{ font-size:11px; letter-spacing:2px; color:var(--accent); text-shadow:0 0 8px var(--accent-soft); margin-bottom:9px; }
+#emojiRow{ display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; }
+#emojiRow button{
+  font-family:inherit; font-size:16px; cursor:pointer; background:#111120;
+  border:1px solid var(--line); padding:3px 5px;
+}
+#emojiRow button.on{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+.field{ margin-bottom:8px; }
+.field label{ display:block; font-size:9px; letter-spacing:1px; color:var(--dim); margin-bottom:3px; }
+.field input{
+  width:100%; background:#0b0b15; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:12px; padding:7px 8px; outline:none;
+  color-scheme:dark;
+}
+.field input:focus{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+#saveBtn{
+  width:100%; font-family:inherit; font-size:12px; letter-spacing:3px; cursor:pointer;
+  background:#2a1218; color:var(--accent); border:2px solid var(--accent); padding:9px;
+  text-shadow:0 0 6px var(--accent);
+}
+#saveBtn:hover{ box-shadow:0 0 16px var(--accent-soft); }
+#cancelEdit{
+  width:100%; margin-top:6px; display:none; font-family:inherit; font-size:10px; cursor:pointer;
+  background:transparent; color:var(--dim); border:1px solid var(--line); padding:5px;
+}
+#cancelEdit.show{ display:block; }
+#events{ display:flex; flex-direction:column; gap:10px; }
+.ev{
+  background:var(--panel); border:2px solid var(--line); padding:10px 12px;
+  box-shadow:0 0 0 1px #000, 0 0 14px rgba(255,69,96,.07);
+}
+.ev.past{ opacity:.72; }
+.ev .top{ display:flex; align-items:center; gap:8px; }
+.ev .em{ font-size:22px; }
+.ev .nm{ font-size:14px; letter-spacing:1px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ev .when{ font-size:9px; color:var(--dim); letter-spacing:1px; }
+.ev .tools button{
+  font-family:inherit; font-size:11px; cursor:pointer; background:#1a1a2e;
+  color:var(--dim); border:1px solid var(--line); padding:3px 7px; margin-left:4px;
+}
+.ev .tools button:hover{ color:var(--cyan); border-color:var(--cyan); }
+.ev .tools button.del:hover{ color:var(--accent); border-color:var(--accent); }
+.tick{ display:flex; gap:8px; margin-top:9px; }
+.unit{ text-align:center; }
+.unit .box{
+  position:relative; min-width:52px; padding:8px 6px; font-size:24px; color:#fff;
+  background:linear-gradient(#1d1d33 49%, #14141f 51%); border:1px solid #33334f;
+  box-shadow:0 3px 0 #000, 0 0 12px rgba(255,69,96,.12);
+  text-shadow:0 0 10px var(--accent-soft);
+}
+.unit .box::after{ content:''; position:absolute; left:0; right:0; top:50%; height:1px; background:#000; }
+.unit .box.flip{ animation:flipTick .4s ease; }
+@keyframes flipTick{
+  0%{ transform:rotateX(0); } 45%{ transform:rotateX(-80deg); } 100%{ transform:rotateX(0); }
+}
+.unit .lab{ font-size:8px; letter-spacing:2px; color:var(--dim); margin-top:4px; }
+.ago{ font-size:16px; color:var(--amber); text-shadow:0 0 10px rgba(255,179,0,.5); margin-top:9px; letter-spacing:1px; }
+.empty{ font-size:11px; color:#555f77; padding:14px; border:1px dashed var(--line); text-align:center; }
+footer{ text-align:center; font-size:10px; color:#4c576d; letter-spacing:1px; margin-top:14px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>COUNTDOWN MAKER</h1>
+  <div class="sub">EVERY BIG MOMENT · DOWN TO THE SECOND</div>
+</header>
+<main>
+  <section class="panel">
+    <div class="ptitle" id="formTitle">▸ NEW COUNTDOWN</div>
+    <div id="emojiRow"></div>
+    <div class="field">
+      <label for="evName">EVENT NAME</label>
+      <input type="text" id="evName" maxlength="48" placeholder="e.g. Beach Trip">
+    </div>
+    <div class="field">
+      <label for="evWhen">DATE &amp; TIME</label>
+      <input type="datetime-local" id="evWhen">
+    </div>
+    <button id="saveBtn">+ ADD COUNTDOWN</button>
+    <button id="cancelEdit">cancel edit</button>
+  </section>
+  <section id="events"></section>
+</main>
+<footer>saved automatically in this browser</footer>
+<script>
+(function(){
+"use strict";
+var KEY='wizzed-countdown';
+var EMOJIS=['🎉','🏖️','🎂','✈️','🚀','🎄','💍','🎓','🏆','🕹️','🌙','❤️'];
+var uid=function(){ return 'e'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); };
+
+function demo(){
+  var now=new Date();
+  var ny=new Date(now.getFullYear()+1,0,1,0,0,0).getTime();
+  var trip=new Date(now.getFullYear(),now.getMonth(),now.getDate()+23,9,0,0).getTime();
+  return { events:[
+    {id:uid(),name:'New Year',emoji:'🎉',ts:ny},
+    {id:uid(),name:'Beach Trip',emoji:'🏖️',ts:trip}
+  ]};
+}
+function load(){
+  try{
+    var d=JSON.parse(localStorage.getItem(KEY));
+    if(d && Array.isArray(d.events)) return d;
+  }catch(e){}
+  return demo();
+}
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){} }
+var state=load();
+var editingId=null;
+var pickedEmoji=EMOJIS[0];
+
+/* emoji picker row */
+var emojiRow=document.getElementById('emojiRow');
+EMOJIS.forEach(function(em){
+  var b=document.createElement('button');
+  b.textContent=em;
+  b.addEventListener('click',function(){ pickedEmoji=em; markEmoji(); });
+  emojiRow.appendChild(b);
+});
+function markEmoji(){
+  [].forEach.call(emojiRow.children,function(b){
+    b.classList.toggle('on',b.textContent===pickedEmoji);
+  });
+}
+markEmoji();
+
+function toInputVal(ts){
+  var d=new Date(ts);
+  var p=function(n){ return String(n).padStart(2,'0'); };
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
+}
+function fromInputVal(v){
+  var m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v);
+  if(!m) return NaN;
+  return new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5]).getTime();
+}
+function fmtWhen(ts){
+  return new Date(ts).toLocaleString(undefined,{
+    weekday:'short',year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'
+  });
+}
+
+/* form */
+var saveBtn=document.getElementById('saveBtn');
+saveBtn.addEventListener('click',function(){
+  var name=document.getElementById('evName').value.trim();
+  var ts=fromInputVal(document.getElementById('evWhen').value);
+  if(!name){ document.getElementById('evName').focus(); return; }
+  if(isNaN(ts)){ document.getElementById('evWhen').focus(); return; }
+  if(editingId){
+    var ev=state.events.filter(function(x){ return x.id===editingId; })[0];
+    if(ev){ ev.name=name; ev.ts=ts; ev.emoji=pickedEmoji; }
+  }else{
+    state.events.push({id:uid(),name:name,emoji:pickedEmoji,ts:ts});
+  }
+  resetForm();
+  render();
+});
+document.getElementById('evName').addEventListener('keydown',function(e){
+  if(e.key==='Enter') saveBtn.click();
+});
+document.getElementById('cancelEdit').addEventListener('click',function(){ resetForm(); });
+function resetForm(){
+  editingId=null;
+  document.getElementById('evName').value='';
+  document.getElementById('evWhen').value='';
+  document.getElementById('formTitle').textContent='▸ NEW COUNTDOWN';
+  saveBtn.textContent='+ ADD COUNTDOWN';
+  document.getElementById('cancelEdit').classList.remove('show');
+  pickedEmoji=EMOJIS[0]; markEmoji();
+}
+function startEdit(ev){
+  editingId=ev.id;
+  document.getElementById('evName').value=ev.name;
+  document.getElementById('evWhen').value=toInputVal(ev.ts);
+  document.getElementById('formTitle').textContent='▸ EDIT COUNTDOWN';
+  saveBtn.textContent='✔ SAVE CHANGES';
+  document.getElementById('cancelEdit').classList.add('show');
+  pickedEmoji=ev.emoji; markEmoji();
+  document.getElementById('evName').focus();
+}
+
+/* events list */
+var refs={};  /* id -> {d,h,m,s, vals:{}} */
+function sortedEvents(){
+  var now=Date.now();
+  var fut=state.events.filter(function(e){ return e.ts>=now; }).sort(function(a,b){ return a.ts-b.ts; });
+  var past=state.events.filter(function(e){ return e.ts<now; }).sort(function(a,b){ return b.ts-a.ts; });
+  return fut.concat(past);
+}
+function render(){
+  var wrap=document.getElementById('events');
+  wrap.innerHTML='';
+  refs={};
+  var list=sortedEvents();
+  if(!list.length){
+    var e=document.createElement('div'); e.className='empty';
+    e.textContent='no countdowns yet — add your first on the left';
+    wrap.appendChild(e);
+  }
+  var now=Date.now();
+  list.forEach(function(ev){
+    var past=ev.ts<now;
+    var card=document.createElement('div');
+    card.className='ev'+(past?' past':'');
+    var top=document.createElement('div'); top.className='top';
+    var em=document.createElement('span'); em.className='em'; em.textContent=ev.emoji; top.appendChild(em);
+    var nm=document.createElement('span'); nm.className='nm'; nm.textContent=ev.name; top.appendChild(nm);
+    var tools=document.createElement('span'); tools.className='tools';
+    var ed=document.createElement('button'); ed.textContent='✎'; ed.title='edit';
+    ed.addEventListener('click',function(){ startEdit(ev); });
+    var del=document.createElement('button'); del.className='del'; del.textContent='✕'; del.title='delete';
+    del.addEventListener('click',function(){
+      state.events=state.events.filter(function(x){ return x.id!==ev.id; });
+      render();
+    });
+    tools.appendChild(ed); tools.appendChild(del);
+    top.appendChild(tools);
+    card.appendChild(top);
+    var when=document.createElement('div'); when.className='when';
+    when.textContent=fmtWhen(ev.ts);
+    card.appendChild(when);
+
+    if(past){
+      var ago=document.createElement('div'); ago.className='ago';
+      ago.dataset.id=ev.id;
+      card.appendChild(ago);
+      refs[ev.id]={ago:ago,vals:{}};
+    }else{
+      var tick=document.createElement('div'); tick.className='tick';
+      var r={vals:{}};
+      [['D','DAYS'],['H','HOURS'],['M','MINS'],['S','SECS']].forEach(function(u){
+        var unit=document.createElement('div'); unit.className='unit';
+        var box=document.createElement('div'); box.className='box'; box.textContent='--';
+        var lab=document.createElement('div'); lab.className='lab'; lab.textContent=u[1];
+        unit.appendChild(box); unit.appendChild(lab);
+        tick.appendChild(unit);
+        r[u[0]]=box; r.vals[u[0]]=null;
+      });
+      card.appendChild(tick);
+      refs[ev.id]=r;
+    }
+    wrap.appendChild(card);
+  });
+  save();
+  update();
+}
+function setBox(box,vals,key,txt){
+  if(vals[key]===txt) return;
+  vals[key]=txt;
+  box.textContent=txt;
+  box.classList.remove('flip');
+  void box.offsetWidth;
+  box.classList.add('flip');
+}
+function update(){
+  var now=Date.now();
+  var needRerender=false;
+  state.events.forEach(function(ev){
+    var r=refs[ev.id];
+    if(!r) return;
+    if(ev.ts<now){
+      if(!r.ago){ needRerender=true; return; }   /* just crossed into the past */
+      var days=Math.floor((now-ev.ts)/86400000);
+      r.ago.textContent=days===0?'🎊 earlier today!':days+' day'+(days===1?'':'s')+' ago';
+      return;
+    }
+    if(!r.D){ needRerender=true; return; }
+    var s=Math.floor((ev.ts-now)/1000);
+    var d=Math.floor(s/86400); s-=d*86400;
+    var h=Math.floor(s/3600); s-=h*3600;
+    var m=Math.floor(s/60); s-=m*60;
+    var p=function(n){ return String(n).padStart(2,'0'); };
+    setBox(r.D,r.vals,'D',String(d));
+    setBox(r.H,r.vals,'H',p(h));
+    setBox(r.M,r.vals,'M',p(m));
+    setBox(r.S,r.vals,'S',p(s));
+  });
+  if(needRerender) render();
+}
+setInterval(update,1000);
+render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Queens Puzzle — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --neon: #c77dff; --gold: #ffd76b; }
+  body {
+    background: #0f0f1a;
+    background-image: radial-gradient(ellipse at 50% -20%, rgba(199,125,255,.08), transparent 60%);
+    color: #efe3ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 8px 12px 20px;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+    overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px; z-index: 60;
+    color: #7a7a9a; text-decoration: none; font-size: 13px;
+    padding: 4px 8px; border: 1px solid #2a2a4a; border-radius: 6px;
+    background: rgba(15,15,26,.8);
+  }
+  a.back:hover { color: var(--neon); border-color: var(--neon); }
+  h1 {
+    margin: 8px 0 2px; font-size: clamp(20px, 5vmin, 30px); letter-spacing: 6px;
+    color: var(--neon);
+    text-shadow: 0 0 8px var(--neon), 0 0 28px rgba(199,125,255,.45);
+  }
+  .sub { color: #8a6fae; font-size: 11px; letter-spacing: 3px; margin-bottom: 8px; }
+  .hud { display: flex; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; justify-content: center; }
+  .stat {
+    background: #171226; border: 2px solid #45356b; border-radius: 8px;
+    padding: 3px 12px; min-width: 84px; text-align: center;
+  }
+  .stat .lbl { display: block; font-size: 10px; letter-spacing: 2px; color: #8a6fae; }
+  .stat .val { display: block; font-size: 18px; font-weight: bold; color: var(--neon); text-shadow: 0 0 6px rgba(199,125,255,.7); }
+  .sizes { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+  .sizes button {
+    font-family: inherit; font-size: 12px; font-weight: bold;
+    color: #9a86bb; background: #171226; border: 2px solid #382a55; border-radius: 7px;
+    width: 34px; height: 30px; cursor: pointer; padding: 0;
+  }
+  .sizes button.cur { color: var(--neon); border-color: var(--neon); box-shadow: 0 0 10px rgba(199,125,255,.5); }
+  .sizes button.done::after { content: '✓'; color: #6dffb0; font-size: 9px; vertical-align: super; }
+  #boardWrap { position: relative; }
+  #board {
+    display: grid; position: relative;
+    width: min(62vmin, 420px, calc(100vw - 28px));
+    aspect-ratio: 1;
+    border: 3px solid var(--neon); border-radius: 10px;
+    box-shadow: 0 0 18px rgba(199,125,255,.35), 0 0 60px rgba(199,125,255,.12), inset 0 0 26px rgba(0,0,0,.6);
+    overflow: hidden;
+    background: #171226;
+  }
+  .cell {
+    position: relative; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .12s;
+  }
+  .cell.light { background: #241d3a; }
+  .cell.dark  { background: #17122a; }
+  .cell:hover { background: #35295a; }
+  .cell.cursor { outline: 2px solid #6de0ff; outline-offset: -2px; z-index: 2; }
+  .cell.conflict { background: #4a1224 !important; }
+  .cell .q {
+    font-size: calc(var(--cellpx) * .72); line-height: 1;
+    color: var(--gold);
+    text-shadow: 0 0 6px rgba(255,215,107,.9), 0 0 18px rgba(255,215,107,.5);
+    transform: translateY(-4%);
+    animation: qpop .18s cubic-bezier(.3,1.6,.5,1);
+  }
+  @keyframes qpop { from { transform: scale(.4) translateY(-4%); } }
+  .cell.conflict .q { color: #ff5d7e; text-shadow: 0 0 8px rgba(255,93,126,1), 0 0 20px rgba(255,93,126,.6); }
+  .cell .q.hinted { color: #6de0ff; text-shadow: 0 0 8px rgba(109,224,255,1), 0 0 22px rgba(109,224,255,.6); }
+  #lines { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+  #lines line {
+    stroke: #ff3d68; stroke-width: .07; stroke-linecap: round; opacity: .8;
+    filter: drop-shadow(0 0 .06px #ff3d68);
+  }
+  .controls { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+  .controls button {
+    font-family: inherit; font-size: 12px; font-weight: bold; letter-spacing: 2px;
+    color: var(--neon); background: #171226;
+    border: 2px solid var(--neon); border-radius: 8px;
+    padding: 7px 14px; cursor: pointer;
+    box-shadow: 0 0 10px rgba(199,125,255,.22);
+    text-shadow: 0 0 6px rgba(199,125,255,.6);
+  }
+  .controls button:hover { background: #241a3a; box-shadow: 0 0 18px rgba(199,125,255,.45); }
+  .controls button:active { transform: translateY(1px); }
+  .tip { margin-top: 10px; color: #6b5a8a; font-size: 11px; letter-spacing: 1px; text-align: center; max-width: 520px; }
+  #msg { min-height: 16px; margin-top: 6px; font-size: 12px; color: #ff8fa9; letter-spacing: 1px; text-align: center; }
+  .overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(8,8,16,.85); backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .overlay.hidden { display: none; }
+  .panel {
+    background: #171226; border: 3px solid var(--neon); border-radius: 14px;
+    padding: 26px 34px; text-align: center; max-width: 90vw;
+    box-shadow: 0 0 30px rgba(199,125,255,.5), 0 0 90px rgba(199,125,255,.18);
+    animation: pop .3s cubic-bezier(.3,1.5,.5,1);
+  }
+  @keyframes pop { from { transform: scale(.7); opacity: 0; } }
+  .panel h2 { color: var(--gold); letter-spacing: 5px; font-size: 24px; text-shadow: 0 0 12px var(--gold); margin-bottom: 10px; }
+  .panel p { color: #d8c6f5; margin: 5px 0; font-size: 14px; }
+  .panel .rec { color: #6de0ff; text-shadow: 0 0 10px rgba(109,224,255,.8); font-weight: bold; }
+  .panel button {
+    font-family: inherit; font-size: 13px; font-weight: bold; letter-spacing: 2px;
+    color: var(--neon); background: #171226; border: 2px solid var(--neon); border-radius: 8px;
+    padding: 8px 16px; cursor: pointer; margin: 14px 5px 0;
+    box-shadow: 0 0 10px rgba(199,125,255,.25);
+  }
+  .panel button:hover { background: #241a3a; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>QUEENS PUZZLE</h1>
+<div class="sub">PLACE N QUEENS · NONE MAY ATTACK</div>
+<div class="hud">
+  <div class="stat"><span class="lbl">BOARD</span><span class="val" id="hSize">6×6</span></div>
+  <div class="stat"><span class="lbl">QUEENS</span><span class="val" id="hQueens">0/6</span></div>
+  <div class="stat"><span class="lbl">TIME</span><span class="val" id="hTime">0:00</span></div>
+  <div class="stat"><span class="lbl">BEST</span><span class="val" id="hBest">—</span></div>
+</div>
+<div class="sizes" id="sizes"></div>
+<div id="boardWrap">
+  <div id="board"></div>
+</div>
+<div id="msg"></div>
+<div class="controls">
+  <button id="btnHint">HINT (+15s)</button>
+  <button id="btnClear">CLEAR</button>
+</div>
+<div class="tip">CLICK / TAP a square to place or remove a queen · queens sharing a row, column or diagonal glow red · arrows + SPACE work too</div>
+<div class="overlay hidden" id="winOverlay">
+  <div class="panel">
+    <h2>♛ SOLVED!</h2>
+    <p id="winInfo"></p>
+    <p id="winBest" class="rec"></p>
+    <button id="btnAgain">PLAY AGAIN</button>
+    <button id="btnNext">NEXT SIZE →</button>
+  </div>
+</div>
+<script>
+(function(){
+'use strict';
+var SIZES = [4,5,6,7,8,9,10,11,12];
+var LS_KEY = 'wizzed-queens';
+var store;
+try { store = JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch(e) { store = {}; }
+if (!store.best) store.best = {};
+if (!store.done) store.done = {};
+var n = SIZES.indexOf(store.size) >= 0 ? store.size : 6;
+
+var queens = [];        // [{r,c,hinted}]
+var startTime = null;   // ms timestamp of first move
+var penalty = 0;        // seconds added by hints
+var finalTime = null;
+var cursor = { r: 0, c: 0 };
+var solved = false;
+
+var board = document.getElementById('board');
+var sizesEl = document.getElementById('sizes');
+var msgEl = document.getElementById('msg');
+var hSize = document.getElementById('hSize');
+var hQueens = document.getElementById('hQueens');
+var hTime = document.getElementById('hTime');
+var hBest = document.getElementById('hBest');
+var winOverlay = document.getElementById('winOverlay');
+
+/* ---------- audio ---------- */
+var AC = null;
+function beep(freq, dur, type, gain) {
+  try {
+    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    var o = AC.createOscillator(), g = AC.createGain();
+    o.type = type || 'square';
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(gain || 0.05, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
+    o.connect(g); g.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + dur);
+  } catch (e) {}
+}
+function winJingle() {
+  [523, 659, 784, 1047].forEach(function(f, i) {
+    setTimeout(function(){ beep(f, .22, 'triangle', .06); }, i * 110);
+  });
+}
+
+/* ---------- helpers ---------- */
+function conflictPairs() {
+  var pairs = [];
+  for (var i = 0; i < queens.length; i++) {
+    for (var j = i + 1; j < queens.length; j++) {
+      var a = queens[i], b = queens[j];
+      if (a.r === b.r || a.c === b.c || Math.abs(a.r - b.r) === Math.abs(a.c - b.c)) pairs.push([i, j]);
+    }
+  }
+  return pairs;
+}
+function fmtTime(sec) {
+  var m = Math.floor(sec / 60), s = sec - m * 60;
+  return m + ':' + (s < 10 ? '0' : '') + s.toFixed(1);
+}
+function elapsed() {
+  if (finalTime !== null) return finalTime;
+  if (startTime === null) return penalty;
+  return (Date.now() - startTime) / 1000 + penalty;
+}
+function save() {
+  store.size = n;
+  try { localStorage.setItem(LS_KEY, JSON.stringify(store)); } catch (e) {}
+}
+
+/* ---------- solver (backtracking, seeded with fixed queens) ---------- */
+function solveWith(fixed) {
+  // fixed: array of {r,c}; returns cols array [n] or null
+  var rowFix = new Array(n).fill(-1);
+  for (var i = 0; i < fixed.length; i++) {
+    var q = fixed[i];
+    if (rowFix[q.r] !== -1) return null;
+    rowFix[q.r] = q.c;
+  }
+  // pairwise compat of fixed
+  for (var a = 0; a < fixed.length; a++) for (var b = a + 1; b < fixed.length; b++) {
+    var p = fixed[a], q2 = fixed[b];
+    if (p.r === q2.r || p.c === q2.c || Math.abs(p.r - q2.r) === Math.abs(p.c - q2.c)) return null;
+  }
+  var cols = new Array(n).fill(-1);
+  var usedC = new Array(n).fill(false);
+  var usedD1 = new Array(2 * n).fill(false); // r+c
+  var usedD2 = new Array(2 * n).fill(false); // r-c+n
+  function place(r, c) { cols[r] = c; usedC[c] = usedD1[r + c] = usedD2[r - c + n] = true; }
+  function unplace(r, c) { cols[r] = -1; usedC[c] = usedD1[r + c] = usedD2[r - c + n] = false; }
+  function free(r, c) { return !usedC[c] && !usedD1[r + c] && !usedD2[r - c + n]; }
+  var order = [];
+  for (var c0 = 0; c0 < n; c0++) order.push(c0);
+  function bt(r) {
+    if (r === n) return true;
+    if (rowFix[r] !== -1) {
+      if (!free(r, rowFix[r])) return false;
+      place(r, rowFix[r]);
+      if (bt(r + 1)) return true;
+      unplace(r, rowFix[r]);
+      return false;
+    }
+    // shuffled column order for variety
+    for (var i = order.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = order[i]; order[i] = order[j]; order[j] = t;
+    }
+    var local = order.slice();
+    for (var k = 0; k < n; k++) {
+      var c = local[k];
+      if (!free(r, c)) continue;
+      place(r, c);
+      if (bt(r + 1)) return true;
+      unplace(r, c);
+    }
+    return false;
+  }
+  return bt(0) ? cols : null;
+}
+
+/* ---------- rendering ---------- */
+function buildBoard() {
+  board.innerHTML = '';
+  board.style.gridTemplateColumns = 'repeat(' + n + ', 1fr)';
+  var cellPx = board.clientWidth / n;
+  board.style.setProperty('--cellpx', cellPx + 'px');
+  for (var r = 0; r < n; r++) {
+    for (var c = 0; c < n; c++) {
+      var cell = document.createElement('div');
+      cell.className = 'cell ' + ((r + c) % 2 === 0 ? 'light' : 'dark');
+      cell.dataset.r = r; cell.dataset.c = c;
+      board.appendChild(cell);
+    }
+  }
+  var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('id', 'lines');
+  svg.setAttribute('viewBox', '0 0 ' + n + ' ' + n);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  board.appendChild(svg);
+  render();
+}
+function cellAt(r, c) { return board.children[r * n + c]; }
+function render() {
+  var pairs = conflictPairs();
+  var conflictIdx = {};
+  pairs.forEach(function(p) { conflictIdx[p[0]] = conflictIdx[p[1]] = true; });
+  for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) {
+    var cell = cellAt(r, c);
+    cell.classList.remove('conflict', 'cursor');
+    cell.innerHTML = '';
+  }
+  queens.forEach(function(q, i) {
+    var cell = cellAt(q.r, q.c);
+    var span = document.createElement('span');
+    span.className = 'q' + (q.hinted ? ' hinted' : '');
+    span.textContent = '♛';
+    cell.appendChild(span);
+    if (conflictIdx[i]) cell.classList.add('conflict');
+  });
+  cellAt(cursor.r, cursor.c).classList.add('cursor');
+  // attack lines
+  var svg = document.getElementById('lines');
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  pairs.forEach(function(p) {
+    var a = queens[p[0]], b = queens[p[1]];
+    var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', a.c + 0.5); line.setAttribute('y1', a.r + 0.5);
+    line.setAttribute('x2', b.c + 0.5); line.setAttribute('y2', b.r + 0.5);
+    svg.appendChild(line);
+  });
+  hQueens.textContent = queens.length + '/' + n;
+  hSize.textContent = n + '×' + n;
+  var best = store.best[n];
+  hBest.textContent = best ? fmtTime(best) : '—';
+  msgEl.textContent = pairs.length ? pairs.length + ' ATTACK' + (pairs.length > 1 ? 'S' : '') + ' — RED QUEENS CLASH' : '';
+}
+function buildSizes() {
+  sizesEl.innerHTML = '';
+  SIZES.forEach(function(s) {
+    var b = document.createElement('button');
+    b.textContent = s;
+    if (s === n) b.classList.add('cur');
+    if (store.done[s]) b.classList.add('done');
+    b.addEventListener('click', function() { setSize(s); beep(340, .06, 'square', .03); });
+    sizesEl.appendChild(b);
+  });
+}
+function setSize(s) {
+  n = s;
+  queens = [];
+  startTime = null; penalty = 0; finalTime = null; solved = false;
+  cursor = { r: 0, c: 0 };
+  winOverlay.classList.add('hidden');
+  save();
+  buildSizes();
+  buildBoard();
+}
+
+/* ---------- game actions ---------- */
+function toggle(r, c) {
+  if (solved) return;
+  if (startTime === null) startTime = Date.now();
+  var idx = -1;
+  for (var i = 0; i < queens.length; i++) if (queens[i].r === r && queens[i].c === c) idx = i;
+  if (idx >= 0) { queens.splice(idx, 1); beep(220, .07, 'square', .035); }
+  else if (queens.length < n) { queens.push({ r: r, c: c }); beep(520, .07, 'square', .04); }
+  else { beep(140, .12, 'sawtooth', .04); msgEl.textContent = 'ALL ' + n + ' QUEENS PLACED — REMOVE ONE FIRST'; render(); return; }
+  render();
+  checkWin();
+}
+function checkWin() {
+  if (queens.length === n && conflictPairs().length === 0) {
+    solved = true;
+    finalTime = elapsed();
+    var t = Math.round(finalTime * 10) / 10;
+    var isRecord = !store.best[n] || t < store.best[n];
+    if (isRecord) store.best[n] = t;
+    store.done[n] = true;
+    save();
+    buildSizes();
+    document.getElementById('winInfo').textContent = n + ' queens in ' + fmtTime(t) + (penalty ? ' (incl. +' + penalty + 's hints)' : '');
+    document.getElementById('winBest').textContent = isRecord ? '★ NEW BEST TIME FOR ' + n + '×' + n + ' ★' : 'best: ' + fmtTime(store.best[n]);
+    document.getElementById('btnNext').style.display = n < 12 ? '' : 'none';
+    setTimeout(function(){ winOverlay.classList.remove('hidden'); }, 350);
+    winJingle();
+    render();
+  }
+}
+function hint() {
+  if (solved) return;
+  if (queens.length >= n) { msgEl.textContent = 'BOARD FULL — REMOVE A CLASHING QUEEN'; beep(140, .1, 'sawtooth', .04); return; }
+  if (startTime === null) startTime = Date.now();
+  var placed = queens.slice();
+  var sol = solveWith(placed);
+  var removed = 0;
+  while (!sol && placed.length) {
+    // remove the queen involved in the most conflicts (or the last one)
+    var counts = placed.map(function() { return 0; });
+    for (var i = 0; i < placed.length; i++) for (var j = i + 1; j < placed.length; j++) {
+      var a = placed[i], b = placed[j];
+      if (a.r === b.r || a.c === b.c || Math.abs(a.r - b.r) === Math.abs(a.c - b.c)) { counts[i]++; counts[j]++; }
+    }
+    var worst = 0;
+    for (var k = 1; k < placed.length; k++) if (counts[k] >= counts[worst]) worst = k;
+    placed.splice(worst, 1);
+    removed++;
+    sol = solveWith(placed);
+  }
+  if (!sol) return;
+  queens = placed;
+  // add one queen from the solution on a row that has none
+  var haveRow = {};
+  queens.forEach(function(q) { haveRow[q.r] = true; });
+  for (var r = 0; r < n; r++) {
+    if (!haveRow[r]) {
+      queens.push({ r: r, c: sol[r], hinted: true });
+      break;
+    }
+  }
+  penalty += 15;
+  msgEl.textContent = removed ? 'HINT: REMOVED ' + removed + ' STUCK QUEEN' + (removed > 1 ? 'S' : '') + ', PLACED 1 (+15s)' : 'HINT QUEEN PLACED (+15s)';
+  beep(880, .1, 'triangle', .05);
+  render();
+  checkWin();
+}
+
+/* ---------- events ---------- */
+board.addEventListener('click', function(e) {
+  var cell = e.target.closest('.cell');
+  if (!cell) return;
+  cursor = { r: +cell.dataset.r, c: +cell.dataset.c };
+  toggle(cursor.r, cursor.c);
+});
+document.addEventListener('keydown', function(e) {
+  var k = e.key;
+  if (k === 'ArrowUp') { cursor.r = (cursor.r + n - 1) % n; render(); e.preventDefault(); }
+  else if (k === 'ArrowDown') { cursor.r = (cursor.r + 1) % n; render(); e.preventDefault(); }
+  else if (k === 'ArrowLeft') { cursor.c = (cursor.c + n - 1) % n; render(); e.preventDefault(); }
+  else if (k === 'ArrowRight') { cursor.c = (cursor.c + 1) % n; render(); e.preventDefault(); }
+  else if (k === ' ' || k === 'Enter') { toggle(cursor.r, cursor.c); e.preventDefault(); }
+  else if (k === 'h' || k === 'H') hint();
+});
+document.getElementById('btnHint').addEventListener('click', hint);
+document.getElementById('btnClear').addEventListener('click', function() {
+  queens = []; msgEl.textContent = ''; beep(260, .08, 'square', .03); render();
+});
+document.getElementById('btnAgain').addEventListener('click', function() { setSize(n); });
+document.getElementById('btnNext').addEventListener('click', function() { setSize(Math.min(12, n + 1)); });
+window.addEventListener('resize', function() {
+  board.style.setProperty('--cellpx', (board.clientWidth / n) + 'px');
+});
+setInterval(function() {
+  if (!solved) hTime.textContent = fmtTime(elapsed());
+}, 100);
+
+buildSizes();
+buildBoard();
+})();
+</script>
+</body>
+</html>

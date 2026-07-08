@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Craps — Wizzed Arcade</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--acc:#ffd166;--grn:#39ffa0}
+  html,body{min-height:100%}
+  body{
+    background:#0f0f1a;
+    background-image:radial-gradient(ellipse 100% 85% at 50% 118%, #14442a 0%, #0d2a1c 45%, transparent 74%),
+      radial-gradient(ellipse 100% 55% at 50% -12%, rgba(255,209,102,.1), transparent 60%);
+    color:#ffeec2;font-family:'Courier New',ui-monospace,Menlo,monospace;
+    min-height:100vh;overflow-x:hidden;user-select:none;-webkit-user-select:none;
+  }
+  a.back{position:fixed;top:8px;left:10px;z-index:60;color:#ffe08a;text-decoration:none;
+    font-size:12px;letter-spacing:1px;opacity:.75;border:1px solid rgba(255,209,102,.35);
+    padding:3px 8px;border-radius:6px;background:rgba(15,15,26,.85)}
+  a.back:hover{opacity:1;box-shadow:0 0 10px rgba(255,209,102,.5)}
+  header{text-align:center;padding:6px 90px 0}
+  h1{font-size:clamp(14px,2.4vw,22px);letter-spacing:5px;color:var(--acc);
+    text-shadow:0 0 10px rgba(255,209,102,.9),0 0 28px rgba(255,209,102,.45)}
+  .sub{font-size:10px;letter-spacing:2px;color:#8fae9b;margin-top:1px}
+  #bank{position:fixed;top:8px;right:10px;z-index:60;font-size:13px;color:var(--grn);
+    border:1px solid rgba(57,255,160,.4);border-radius:8px;padding:3px 10px;
+    background:rgba(15,15,26,.85);text-shadow:0 0 8px rgba(57,255,160,.7)}
+
+  #wrap{display:flex;gap:10px;max-width:960px;margin:4px auto 0;padding:0 10px 10px;align-items:stretch}
+  #tableCol{flex:1;min-width:0}
+  #felt{position:relative;border-radius:16px;padding:26px 10px 8px;
+    background:radial-gradient(ellipse at 50% 40%, #17553a 0%, #0f3a26 65%, #0b2b1c 100%);
+    border:2px solid rgba(255,209,102,.4);box-shadow:0 0 20px rgba(255,209,102,.15) inset}
+  .zone{border:1px solid rgba(255,238,194,.45);border-radius:8px;text-align:center;cursor:pointer;
+    position:relative;transition:box-shadow .15s,background .15s;background:rgba(0,0,0,.08)}
+  .zone:hover{box-shadow:0 0 12px rgba(255,209,102,.5);background:rgba(255,209,102,.08)}
+  .zone.off{opacity:.45;cursor:default}
+  .zone.off:hover{box-shadow:none;background:rgba(0,0,0,.08)}
+  .zone.winflash{animation:wf .8s}
+  .zone.loseflash{animation:lf .8s}
+  @keyframes wf{0%,60%{background:rgba(57,255,160,.35);box-shadow:0 0 18px rgba(57,255,160,.8)}100%{background:rgba(0,0,0,.08)}}
+  @keyframes lf{0%,60%{background:rgba(255,80,80,.3);box-shadow:0 0 16px rgba(255,80,80,.7)}100%{background:rgba(0,0,0,.08)}}
+
+  #numbers{display:flex;gap:6px;margin-bottom:6px}
+  .num{flex:1;padding:14px 0 6px;font-size:17px;letter-spacing:1px;color:#ffeec2}
+  .num small{display:block;font-size:8px;color:#9fd4b5;letter-spacing:1px;margin-top:2px}
+  .num.place{color:#ffe08a}
+  #puck{position:absolute;top:-13px;width:34px;height:34px;border-radius:50%;z-index:12;
+    display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;
+    border:2px solid #333;transition:left .45s ease,background .3s,color .3s;
+    background:#111;color:#eee;left:8px;box-shadow:0 2px 8px rgba(0,0,0,.7)}
+  #puck.on{background:#f5f0e0;color:#111;border-color:#c9a227;box-shadow:0 0 14px rgba(255,209,102,.8)}
+
+  .bar{padding:7px 0;font-size:12px;letter-spacing:2px;margin-bottom:6px}
+  .bar small{font-size:9px;letter-spacing:1px;color:#9fd4b5;display:block;margin-top:1px}
+  #rowCF{display:flex;gap:6px;margin-bottom:6px}
+  #come{flex:1}
+  #field{flex:2}
+  #rowPass{display:flex;gap:6px;margin-bottom:2px}
+  #dpass{flex:1}
+  #pass{flex:2}
+  .odds{flex:0 0 84px;font-size:10px;padding:7px 0}
+
+  .chipstack{position:absolute;right:4px;bottom:3px;z-index:10;pointer-events:none}
+  .chipv{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;
+    padding:0 3px;border-radius:50%;font-size:10px;font-weight:bold;color:#111;
+    background:radial-gradient(circle at 35% 30%, #ffe9a8, #ffd166 60%, #b8912f);
+    border:2px dashed rgba(120,80,0,.7);box-shadow:0 1px 4px rgba(0,0,0,.6)}
+  .cpt{position:absolute;left:3px;top:3px;z-index:10;pointer-events:none}
+  .cpt .chipv{background:radial-gradient(circle at 35% 30%, #b7f7d8, #39ffa0 60%, #1e8f57);font-size:9px;min-width:22px;height:22px}
+
+  #side{flex:0 0 190px;display:flex;flex-direction:column;gap:8px}
+  #diceBox{background:rgba(15,15,26,.7);border:1px solid rgba(255,209,102,.35);border-radius:12px;
+    padding:10px;text-align:center}
+  #dice{display:flex;gap:14px;justify-content:center;padding:6px 0 8px}
+  .die{width:46px;height:46px;border-radius:9px;background:linear-gradient(145deg,#fdfdf4,#d8d8c8);
+    box-shadow:0 3px 8px rgba(0,0,0,.6),inset 0 0 4px rgba(0,0,0,.15);
+    display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:6px;gap:1px}
+  .die.rolling{animation:tumble .12s linear infinite}
+  @keyframes tumble{0%{transform:rotate(0) translateY(0)}25%{transform:rotate(14deg) translateY(-5px)}
+    50%{transform:rotate(-6deg) translateY(2px)}75%{transform:rotate(9deg) translateY(-3px)}100%{transform:rotate(0)}}
+  .pip{border-radius:50%;background:transparent}
+  .pip.on{background:#1c1c2e;box-shadow:inset 0 1px 1px rgba(255,255,255,.4)}
+  #rollBtn{font-family:inherit;font-size:14px;letter-spacing:3px;padding:8px 0;width:100%;
+    border-radius:10px;background:linear-gradient(180deg,#5c4a12,#3a2e0a);color:#ffeec2;
+    border:1px solid var(--acc);cursor:pointer;box-shadow:0 0 12px rgba(255,209,102,.4)}
+  #rollBtn:hover:not(:disabled){box-shadow:0 0 20px rgba(255,209,102,.8)}
+  #rollBtn:disabled{opacity:.45;cursor:default;box-shadow:none}
+  #hist{background:rgba(15,15,26,.7);border:1px solid rgba(255,209,102,.25);border-radius:12px;
+    padding:6px 8px;flex:1;overflow:hidden;min-height:80px}
+  #hist h3{font-size:9px;letter-spacing:2px;color:#8fae9b;margin-bottom:4px}
+  #histList{display:flex;flex-wrap:wrap;gap:4px}
+  .hroll{font-size:11px;padding:1px 6px;border-radius:6px;border:1px solid rgba(255,238,194,.3);color:#ffeec2}
+  .hroll.w{color:var(--grn);border-color:rgba(57,255,160,.5)}
+  .hroll.l{color:#ff7b7b;border-color:rgba(255,123,123,.5)}
+
+  #controls{max-width:960px;margin:2px auto 0;padding:0 10px 14px;display:flex;gap:8px;
+    align-items:center;justify-content:center;flex-wrap:wrap}
+  .chipBtn{width:44px;height:44px;border-radius:50%;font-family:inherit;font-weight:bold;font-size:12px;
+    cursor:pointer;border:3px dashed rgba(0,0,0,.45);color:#111;box-shadow:0 2px 6px rgba(0,0,0,.6);
+    transition:transform .12s}
+  .chipBtn:hover{transform:translateY(-3px)}
+  .chipBtn.sel{outline:3px solid #fff;outline-offset:1px;box-shadow:0 0 14px rgba(255,255,255,.7)}
+  #c1{background:radial-gradient(circle at 35% 30%, #fff, #cfd8ff 60%, #7f8bb5)}
+  #c5{background:radial-gradient(circle at 35% 30%, #ffb3b3, #ff5c5c 60%, #a12626)}
+  #c25{background:radial-gradient(circle at 35% 30%, #b7f7d8, #39d98a 60%, #1e8f57)}
+  #c100{background:radial-gradient(circle at 35% 30%, #444, #222 60%, #000);color:#ffd166}
+  #clearBtn{font-family:inherit;font-size:11px;letter-spacing:1px;padding:6px 12px;border-radius:8px;
+    background:transparent;border:1px solid rgba(255,123,123,.55);color:#ff9b9b;cursor:pointer}
+  #clearBtn:hover{box-shadow:0 0 10px rgba(255,123,123,.5)}
+  #msg{max-width:960px;margin:0 auto;padding:0 10px 8px;text-align:center;font-size:12px;
+    letter-spacing:1px;color:#ffe08a;min-height:18px;text-shadow:0 0 8px rgba(255,224,138,.6)}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>🎲 CRAPS 🎲</h1>
+  <div class="sub">PASS · DON'T PASS · ODDS · FIELD · PLACE 6/8 · COME</div>
+</header>
+<div id="bank">$1000</div>
+
+<div id="wrap">
+  <div id="tableCol">
+    <div id="felt">
+      <div id="puck">OFF</div>
+      <div id="numbers">
+        <div class="zone num" data-z="n4">4<small>COME PT</small></div>
+        <div class="zone num" data-z="n5">5<small>COME PT</small></div>
+        <div class="zone num place" data-z="place6">SIX<small>PLACE · 7:6</small></div>
+        <div class="zone num place" data-z="place8">8<small>PLACE · 7:6</small></div>
+        <div class="zone num" data-z="n9">NINE<small>COME PT</small></div>
+        <div class="zone num" data-z="n10">10<small>COME PT</small></div>
+      </div>
+      <div id="rowCF">
+        <div class="zone bar" id="come" data-z="come">COME<small>after point</small></div>
+        <div class="zone bar" id="field" data-z="field">FIELD · 2 3 4 9 10 11 12<small>2 PAYS DOUBLE · 12 PAYS TRIPLE</small></div>
+      </div>
+      <div id="rowPass">
+        <div class="zone bar" id="dpass" data-z="dpass">DON'T PASS<small>BAR 12</small></div>
+        <div class="zone bar odds" data-z="dpassOdds">LAY ODDS<small>true odds</small></div>
+        <div class="zone bar" id="pass" data-z="pass">PASS LINE<small>even money</small></div>
+        <div class="zone bar odds" data-z="passOdds">ODDS<small>true odds ·3x</small></div>
+      </div>
+    </div>
+  </div>
+  <div id="side">
+    <div id="diceBox">
+      <div id="dice"><div class="die" id="d1"></div><div class="die" id="d2"></div></div>
+      <button id="rollBtn">ROLL</button>
+    </div>
+    <div id="hist"><h3>ROLL HISTORY</h3><div id="histList"></div></div>
+  </div>
+</div>
+<div id="msg">Place a PASS or DON'T PASS bet, then roll the dice.</div>
+<div id="controls">
+  <button class="chipBtn" id="c1" data-v="1">$1</button>
+  <button class="chipBtn sel" id="c5" data-v="5">$5</button>
+  <button class="chipBtn" id="c25" data-v="25">$25</button>
+  <button class="chipBtn" id="c100" data-v="100">$100</button>
+  <button id="clearBtn">CLEAR BETS</button>
+</div>
+
+<script>
+'use strict';
+(function(){
+const LSK='wizzed-craps';
+const $=id=>document.getElementById(id);
+
+/* ---------- audio ---------- */
+let AC=null;
+function ensureAC(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+  if(AC&&AC.state==='suspended')AC.resume(); }
+document.addEventListener('pointerdown',ensureAC);
+function beep(f,dur,type,g){ if(!AC)return; try{
+  const o=AC.createOscillator(),ga=AC.createGain();
+  o.type=type||'square';o.frequency.value=f;
+  ga.gain.setValueAtTime(g||0.04,AC.currentTime);
+  ga.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+(dur||0.07));
+  o.connect(ga);ga.connect(AC.destination);o.start();o.stop(AC.currentTime+(dur||0.07)+0.02);
+}catch(e){} }
+const sChip=()=>beep(660,0.04,'triangle',0.05);
+const sWin=()=>{beep(520,0.08,'square',0.045);setTimeout(()=>beep(780,0.1,'square',0.045),90);};
+const sLose=()=>beep(150,0.16,'sawtooth',0.05);
+const sTick=()=>beep(300+Math.random()*200,0.03,'square',0.025);
+
+/* ---------- state ---------- */
+let bank=1000;
+try{const j=JSON.parse(localStorage.getItem(LSK));if(j&&typeof j.bank==='number'&&j.bank>0)bank=j.bank;}catch(e){}
+const bets={pass:0,passOdds:0,dpass:0,dpassOdds:0,field:0,come:0,place6:0,place8:0,
+  comePts:{4:0,5:0,6:0,8:0,9:0,10:0}};
+let point=null, chip=5, rolling=false;
+
+function save(){try{localStorage.setItem(LSK,JSON.stringify({bank}));}catch(e){}}
+function totalOnTable(){
+  return bets.pass+bets.passOdds+bets.dpass+bets.dpassOdds+bets.field+bets.come+
+    bets.place6+bets.place8+Object.values(bets.comePts).reduce((a,b)=>a+b,0);
+}
+function checkBroke(){
+  if(bank<=0&&totalOnTable()===0){bank=1000;save();msg('Bankroll busted — the house staked you a fresh $1000.');}
+}
+
+/* ---------- UI helpers ---------- */
+function msg(t){$('msg').textContent=t;}
+function renderBank(){$('bank').textContent='$'+bank;}
+const zoneEls={};
+document.querySelectorAll('.zone').forEach(z=>{zoneEls[z.dataset.z]=z;});
+function renderBets(){
+  for(const key of ['pass','passOdds','dpass','dpassOdds','field','come','place6','place8']){
+    const z=zoneEls[key];if(!z)continue;
+    let cs=z.querySelector('.chipstack');
+    if(bets[key]>0){
+      if(!cs){cs=document.createElement('div');cs.className='chipstack';z.appendChild(cs);}
+      cs.innerHTML='<span class="chipv">'+bets[key]+'</span>';
+    }else if(cs)cs.remove();
+  }
+  for(const n of [4,5,6,8,9,10]){
+    const z=zoneEls[n===6?'place6':n===8?'place8':'n'+n];
+    let cp=z.querySelector('.cpt');
+    if(bets.comePts[n]>0){
+      if(!cp){cp=document.createElement('div');cp.className='cpt';z.appendChild(cp);}
+      cp.innerHTML='<span class="chipv">C'+bets.comePts[n]+'</span>';
+    }else if(cp)cp.remove();
+  }
+  // availability shading
+  zoneEls.pass.classList.toggle('off',point!==null);
+  zoneEls.dpass.classList.toggle('off',point!==null&&bets.dpass===0);
+  zoneEls.come.classList.toggle('off',point===null);
+  zoneEls.passOdds.classList.toggle('off',!(point!==null&&bets.pass>0));
+  zoneEls.dpassOdds.classList.toggle('off',!(point!==null&&bets.dpass>0));
+  zoneEls.place6.classList.toggle('off',false);
+  zoneEls.place8.classList.toggle('off',false);
+}
+function renderPuck(){
+  const p=$('puck');
+  if(point===null){p.className='';p.textContent='OFF';p.style.left='8px';}
+  else{
+    p.className='on';p.textContent='ON';
+    const z=zoneEls[point===6?'place6':point===8?'place8':'n'+point];
+    p.style.left=(z.offsetLeft+z.offsetWidth/2-17)+'px';
+  }
+}
+function flash(zKey,win){
+  const z=zoneEls[zKey];if(!z)return;
+  z.classList.remove('winflash','loseflash');void z.offsetWidth;
+  z.classList.add(win?'winflash':'loseflash');
+}
+
+/* ---------- betting ---------- */
+document.querySelectorAll('.chipBtn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    chip=+b.dataset.v;sChip();
+    document.querySelectorAll('.chipBtn').forEach(x=>x.classList.toggle('sel',x===b));
+  });
+});
+function tryBet(zKey){
+  if(rolling)return;
+  let err=null;
+  if(bank<chip)err='Not enough bankroll for that chip.';
+  else if(zKey==='pass'&&point!==null)err='Pass line bets only before the point.';
+  else if(zKey==='dpass'&&point!==null)err="Don't Pass bets only before the point.";
+  else if(zKey==='come'&&point===null)err='Come bets only after a point is set.';
+  else if(zKey==='passOdds'){
+    if(point===null||bets.pass===0)err='Odds need a pass bet and a point.';
+    else if(bets.passOdds+chip>3*bets.pass)err='Odds capped at 3x your pass bet.';
+  }
+  else if(zKey==='dpassOdds'){
+    if(point===null||bets.dpass===0)err="Lay odds need a don't pass bet and a point.";
+    else if(bets.dpassOdds+chip>3*bets.dpass)err="Lay odds capped at 3x your don't pass bet.";
+  }
+  else if(zKey.startsWith('n'))err='Numbers are marked by COME bets — place SIX or 8 directly.';
+  if(err){msg(err);sLose();return;}
+  bank-=chip;bets[zKey]+=chip;sChip();
+  renderBank();renderBets();
+  msg('$'+chip+' on '+zKey.replace('dpassOdds',"don't pass lay odds").replace('passOdds','pass odds')
+    .replace('dpass',"don't pass").replace('place6','place SIX').replace('place8','place EIGHT').toUpperCase()+'.');
+}
+document.querySelectorAll('.zone').forEach(z=>{
+  z.addEventListener('click',()=>tryBet(z.dataset.z));
+});
+$('clearBtn').addEventListener('click',()=>{
+  if(rolling)return;
+  let back=0;
+  back+=bets.field;bets.field=0;
+  back+=bets.come;bets.come=0;
+  back+=bets.place6;bets.place6=0;
+  back+=bets.place8;bets.place8=0;
+  back+=bets.passOdds;bets.passOdds=0;
+  back+=bets.dpassOdds;bets.dpassOdds=0;
+  back+=bets.dpass;bets.dpass=0;           // don't pass may always come down
+  if(point===null){back+=bets.pass;bets.pass=0;}
+  if(back>0){bank+=back;sChip();msg('Removable bets returned (+$'+back+'). Pass line and come points are contracts.');}
+  else msg('Nothing removable — pass line and travelled come bets are contracts.');
+  renderBank();renderBets();save();
+});
+
+/* ---------- dice ---------- */
+const PIPMAP={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+function setDie(el,v){
+  el.innerHTML='';
+  for(let i=0;i<9;i++){const p=document.createElement('div');p.className='pip'+(PIPMAP[v].includes(i)?' on':'');el.appendChild(p);}
+}
+setDie($('d1'),3);setDie($('d2'),4);
+
+$('rollBtn').addEventListener('click',()=>{
+  if(rolling)return;
+  if(point===null&&bets.pass===0&&bets.dpass===0&&bets.field===0&&bets.place6===0&&bets.place8===0
+     &&Object.values(bets.comePts).every(v=>v===0)){
+    msg('Place a bet first — the dice need a stake.');sLose();return;
+  }
+  rolling=true;$('rollBtn').disabled=true;
+  $('d1').classList.add('rolling');$('d2').classList.add('rolling');
+  const t0=Date.now();
+  const iv=setInterval(()=>{
+    setDie($('d1'),1+Math.floor(Math.random()*6));
+    setDie($('d2'),1+Math.floor(Math.random()*6));
+    sTick();
+    if(Date.now()-t0>820){
+      clearInterval(iv);
+      const a=1+Math.floor(Math.random()*6),b=1+Math.floor(Math.random()*6);
+      setDie($('d1'),a);setDie($('d2'),b);
+      $('d1').classList.remove('rolling');$('d2').classList.remove('rolling');
+      setTimeout(()=>resolve(a,b),260);
+    }
+  },85);
+});
+
+/* ---------- resolution ---------- */
+function oddsPayPass(pt,amt){
+  if(pt===4||pt===10)return amt*2;
+  if(pt===5||pt===9)return Math.round(amt*3/2);
+  return Math.round(amt*6/5);
+}
+function oddsPayDont(pt,amt){
+  if(pt===4||pt===10)return Math.round(amt/2);
+  if(pt===5||pt===9)return Math.round(amt*2/3);
+  return Math.round(amt*5/6);
+}
+function addHist(a,b,cls){
+  const list=$('histList');
+  const d=document.createElement('span');
+  d.className='hroll'+(cls?' '+cls:'');
+  const faces='⚀⚁⚂⚃⚄⚅';
+  d.textContent=faces[a-1]+faces[b-1]+' '+(a+b);
+  list.prepend(d);
+  while(list.children.length>18)list.lastChild.remove();
+}
+function resolve(a,b){
+  const sum=a+b;
+  const lines=[];let net=0;let histCls='';
+  const pay=(zKey,amount,returnBet,label)=>{ // win
+    bank+=amount+(returnBet||0);net+=amount;
+    lines.push(label+' +$'+amount);flash(zKey,true);
+  };
+  const lose=(zKey,label)=>{lines.push(label);flash(zKey,false);};
+
+  // FIELD (one-roll, always working)
+  if(bets.field>0){
+    if(sum===2){pay('field',bets.field*2,bets.field,'FIELD pays DOUBLE');}
+    else if(sum===12){pay('field',bets.field*3,bets.field,'FIELD pays TRIPLE');}
+    else if([3,4,9,10,11].includes(sum)){pay('field',bets.field,bets.field,'FIELD wins');}
+    else lose('field','Field loses');
+    bets.field=0;
+  }
+
+  if(point===null){ /* ---- come-out roll ---- */
+    // come point bets are contracts and work on the come-out
+    if(sum===7){
+      for(const n of [4,5,6,8,9,10]){if(bets.comePts[n]>0){lose(n===6?'place6':n===8?'place8':'n'+n,'Come '+n+' down');bets.comePts[n]=0;}}
+    }else if(bets.comePts[sum]>0){
+      pay(sum===6?'place6':sum===8?'place8':'n'+sum,bets.comePts[sum],bets.comePts[sum],'COME '+sum+' hits');
+      bets.comePts[sum]=0;
+    }
+    if(sum===7||sum===11){
+      if(bets.pass>0){pay('pass',bets.pass,bets.pass,'PASS wins');bets.pass=0;}
+      if(bets.dpass>0){lose('dpass',"Don't Pass loses");bets.dpass=0;}
+      histCls='w';msg('Natural '+sum+'! '+(lines.join(' · ')||'No line bets working.'));
+    }else if(sum===2||sum===3){
+      if(bets.pass>0){lose('pass','PASS craps out');bets.pass=0;}
+      if(bets.dpass>0){pay('dpass',bets.dpass,bets.dpass,"DON'T PASS wins");bets.dpass=0;}
+      histCls='l';msg('Craps '+sum+'. '+(lines.join(' · ')||''));
+    }else if(sum===12){
+      if(bets.pass>0){lose('pass','PASS craps out');bets.pass=0;}
+      if(bets.dpass>0)lines.push("Don't Pass BAR 12 — push");
+      histCls='l';msg('Boxcars! 12 bars the don\'t. '+(lines.join(' · ')||''));
+    }else{
+      point=sum;histCls='';
+      msg('Point is '+sum+'. Place bets working. '+(lines.join(' · ')||''));
+    }
+  }else{ /* ---- point is on ---- */
+    if(sum===7){ /* seven out */
+      if(bets.pass>0){lose('pass','PASS loses');}
+      if(bets.passOdds>0){lose('passOdds','Odds lose');}
+      if(bets.dpass>0){pay('dpass',bets.dpass,bets.dpass,"DON'T PASS wins");}
+      if(bets.dpassOdds>0){pay('dpassOdds',oddsPayDont(point,bets.dpassOdds),bets.dpassOdds,'Lay odds pay');}
+      if(bets.place6>0){lose('place6','Place 6 down');}
+      if(bets.place8>0){lose('place8','Place 8 down');}
+      for(const n of [4,5,6,8,9,10]){if(bets.comePts[n]>0){lose(n===6?'place6':n===8?'place8':'n'+n,'Come '+n+' down');}}
+      if(bets.come>0){pay('come',bets.come,bets.come,'COME wins on 7');}
+      bets.pass=bets.passOdds=bets.dpass=bets.dpassOdds=bets.place6=bets.place8=bets.come=0;
+      for(const n of [4,5,6,8,9,10])bets.comePts[n]=0;
+      point=null;histCls='l';
+      msg('SEVEN OUT! '+lines.join(' · '));
+    }else{
+      // place bets (working while point is on)
+      if(sum===6&&bets.place6>0)pay('place6',Math.round(bets.place6*7/6),0,'PLACE 6 pays 7:6');
+      if(sum===8&&bets.place8>0)pay('place8',Math.round(bets.place8*7/6),0,'PLACE 8 pays 7:6');
+      // existing come point hit
+      if([4,5,6,8,9,10].includes(sum)&&bets.comePts[sum]>0){
+        pay(sum===6?'place6':sum===8?'place8':'n'+sum,bets.comePts[sum],bets.comePts[sum],'COME '+sum+' hits');
+        bets.comePts[sum]=0;
+      }
+      // fresh come bet resolves
+      if(bets.come>0){
+        if(sum===11){pay('come',bets.come,bets.come,'COME wins');bets.come=0;}
+        else if(sum===2||sum===3||sum===12){lose('come','COME craps');bets.come=0;}
+        else if([4,5,6,8,9,10].includes(sum)){
+          bets.comePts[sum]+=bets.come;lines.push('COME travels to '+sum);bets.come=0;
+        }
+      }
+      if(sum===point){
+        if(bets.pass>0){pay('pass',bets.pass,bets.pass,'PASS wins');}
+        if(bets.passOdds>0){pay('passOdds',oddsPayPass(point,bets.passOdds),bets.passOdds,'Odds pay true');}
+        if(bets.dpass>0){lose('dpass',"Don't Pass loses");}
+        if(bets.dpassOdds>0){lose('dpassOdds','Lay odds lose');}
+        bets.pass=bets.passOdds=bets.dpass=bets.dpassOdds=0;
+        point=null;histCls='w';
+        msg('POINT MADE — '+sum+'! '+lines.join(' · '));
+      }else{
+        msg('Rolled '+sum+'. Point stays '+point+'. '+(lines.join(' · ')||''));
+      }
+    }
+  }
+  if(net>0)sWin(); else if(histCls==='l')sLose(); else beep(340,0.05,'triangle',0.03);
+  addHist(a,b,histCls);
+  renderBank();renderBets();renderPuck();save();checkBroke();renderBank();
+  rolling=false;$('rollBtn').disabled=false;
+}
+
+/* ---------- boot ---------- */
+renderBank();renderBets();renderPuck();
+window.addEventListener('resize',renderPuck);
+})();
+</script>
+</body>
+</html>

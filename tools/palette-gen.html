@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Palette Generator · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#a970ff; --accent-soft:rgba(169,112,255,.45);
+  --panel:#161623; --line:#2c2c46; --text:#f1ecf8; --dim:#95889f;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:20px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:8px 8px 2px; }
+h1{
+  display:inline-block; font-size:clamp(16px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:1px; }
+#wrap{ max-width:940px; margin:6px auto 0; padding:0 12px; }
+#bar{
+  display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center;
+  background:var(--panel); border:2px solid var(--line); padding:8px 10px;
+  box-shadow:0 0 0 1px #000;
+}
+#bar label{ font-size:10px; color:var(--dim); letter-spacing:1px; }
+select{
+  font-family:inherit; font-size:11px; background:#0c0c16; color:var(--text);
+  border:1px solid var(--line); padding:4px 6px; outline:none;
+}
+select:focus{ border-color:var(--accent); }
+button{
+  font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:5px 10px;
+}
+button:hover{ color:var(--accent); border-color:var(--accent); }
+#genBtn{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 6px var(--accent); }
+#genBtn:hover{ box-shadow:0 0 12px var(--accent-soft); }
+#lightWrap{ display:flex; align-items:center; gap:6px; }
+input[type=range]{
+  -webkit-appearance:none; appearance:none; width:110px; height:6px; background:#22223a; outline:none;
+  border:1px solid var(--line);
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:14px; height:16px; background:var(--accent);
+  box-shadow:0 0 8px var(--accent); cursor:pointer;
+}
+input[type=range]::-moz-range-thumb{
+  width:14px; height:16px; background:var(--accent); border:none; border-radius:0;
+  box-shadow:0 0 8px var(--accent); cursor:pointer;
+}
+#cols{
+  display:flex; height:min(52vh,320px); margin-top:10px;
+  border:2px solid var(--line); box-shadow:0 0 0 1px #000, 0 0 26px rgba(169,112,255,.12);
+}
+.col{
+  flex:1; position:relative; display:flex; flex-direction:column; justify-content:flex-end;
+  align-items:center; padding-bottom:14px; transition:flex .15s;
+}
+.col .hex{
+  font-size:clamp(9px,1.7vw,14px); letter-spacing:1px; cursor:pointer; padding:4px 6px;
+  background:rgba(0,0,0,.25); user-select:none;
+}
+.col .hex:hover{ outline:1px solid currentColor; }
+.col .lock{
+  position:absolute; top:8px; right:8px; cursor:pointer; font-size:15px; line-height:1;
+  padding:5px 6px; background:rgba(0,0,0,.3); border:1px solid transparent; user-select:none;
+  opacity:.55;
+}
+.col .lock:hover{ opacity:1; border-color:currentColor; }
+.col.locked .lock{ opacity:1; text-shadow:0 0 8px currentColor; border-color:currentColor; }
+#hint{ text-align:center; font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:6px; }
+kbd{ border:1px solid var(--line); padding:1px 5px; background:#121220; color:var(--text); font-family:inherit; }
+#shelfPanel{
+  background:var(--panel); border:2px solid var(--line); padding:8px 10px; margin-top:12px;
+  box-shadow:0 0 0 1px #000;
+}
+#shelfHead{ display:flex; justify-content:space-between; align-items:center;
+  font-size:10px; color:var(--dim); letter-spacing:2px; }
+#clearShelf{ font-size:9px; padding:2px 6px; }
+#clearShelf:hover{ color:#ff4560; border-color:#ff4560; }
+#shelf{ display:flex; flex-wrap:wrap; gap:8px; margin-top:7px; min-height:30px; }
+.savedPal{
+  display:flex; cursor:pointer; border:2px solid var(--line); position:relative;
+  box-shadow:0 0 0 1px #000;
+}
+.savedPal:hover{ border-color:var(--accent); }
+.savedPal i{ width:22px; height:24px; display:block; }
+.savedPal span{
+  position:absolute; top:-8px; right:-8px; width:15px; height:15px; line-height:13px;
+  font-size:9px; text-align:center; background:#000; color:#ff4560;
+  border:1px solid #ff4560; display:none;
+}
+.savedPal:hover span{ display:block; }
+#shelfEmpty{ font-size:10px; color:var(--dim); letter-spacing:1px; align-self:center; }
+#toast{
+  position:fixed; left:50%; bottom:18px; transform:translateX(-50%) translateY(60px);
+  background:#000; color:var(--accent); border:1px solid var(--accent); padding:6px 14px;
+  font-size:11px; letter-spacing:1px; transition:transform .25s; z-index:99;
+  text-shadow:0 0 8px var(--accent); box-shadow:0 0 14px var(--accent-soft); pointer-events:none;
+}
+#toast.show{ transform:translateX(-50%) translateY(0); }
+@media (max-width:560px){
+  #cols{ flex-direction:column; height:auto; }
+  .col{ min-height:56px; flex-direction:row; justify-content:space-between; padding:0 44px 0 12px; }
+  .col .lock{ top:50%; transform:translateY(-50%); }
+}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>▮▮ PALETTE GENERATOR ▮▮</h1>
+  <div class="sub">SPACE TO SHUFFLE · LOCK WHAT YOU LOVE</div>
+</header>
+<div id="wrap">
+  <div id="bar">
+    <button id="genBtn">⟳ GENERATE</button>
+    <label>MODE</label>
+    <select id="mode">
+      <option value="random">random</option>
+      <option value="analogous">analogous</option>
+      <option value="complementary">complementary</option>
+      <option value="triadic">triadic</option>
+      <option value="pastel">pastel</option>
+    </select>
+    <div id="lightWrap">
+      <label>LIGHT</label>
+      <input type="range" id="light" min="-40" max="40" value="0">
+      <label id="lightVal">+0</label>
+    </div>
+    <button id="saveBtn">★ SAVE PALETTE</button>
+  </div>
+  <div id="cols"></div>
+  <div id="hint">press <kbd>SPACE</kbd> to randomize unlocked columns · click hex to copy · 🔒 to lock</div>
+  <div id="shelfPanel">
+    <div id="shelfHead"><span>SAVED PALETTES</span><button id="clearShelf">CLEAR</button></div>
+    <div id="shelf"></div>
+  </div>
+</div>
+<div id="toast">COPIED!</div>
+<script>
+(function(){
+"use strict";
+var LS_KEY="wizzed-palette-gen";
+var $=function(id){return document.getElementById(id);};
+var N=5;
+// state.base = [[h,s,l]x5] before lightness offset; offset applied for display
+var state={
+  base:[[333,93,53],[313,79,42],[281,91,38],[229,84,59],[194,84,62]], // gorgeous preset
+  locked:[false,false,false,false,false],
+  offset:0,
+  mode:"random",
+  shelf:[]
+};
+
+function clamp(v,a,b){return Math.min(b,Math.max(a,v));}
+function hslToRgb(h,s,l){
+  h=((h%360)+360)%360; s/=100; l/=100;
+  var c=(1-Math.abs(2*l-1))*s, x=c*(1-Math.abs((h/60)%2-1)), m=l-c/2, r=0,g=0,b=0;
+  if(h<60){r=c;g=x;}else if(h<120){r=x;g=c;}else if(h<180){g=c;b=x;}
+  else if(h<240){g=x;b=c;}else if(h<300){r=x;b=c;}else{r=c;b=x;}
+  return [Math.round((r+m)*255),Math.round((g+m)*255),Math.round((b+m)*255)];
+}
+function hex2(n){return ("0"+n.toString(16)).slice(-2);}
+function displayHsl(i){
+  var c=state.base[i];
+  return [c[0],c[1],clamp(c[2]+state.offset,3,97)];
+}
+function displayHex(i){
+  var c=displayHsl(i), rgb=hslToRgb(c[0],c[1],c[2]);
+  return "#"+hex2(rgb[0])+hex2(rgb[1])+hex2(rgb[2]);
+}
+function luminance(rgb){
+  var c=rgb.map(function(v){v/=255;return v<=0.03928? v/12.92 : Math.pow((v+0.055)/1.055,2.4);});
+  return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2];
+}
+function rnd(a,b){return a+Math.random()*(b-a);}
+
+function generate(){
+  var mode=state.mode;
+  var baseH=rnd(0,360);
+  for(var i=0;i<N;i++){
+    if(state.locked[i])continue;
+    var h,s,l;
+    if(mode==="random"){ h=rnd(0,360); s=rnd(55,100); l=rnd(38,68); }
+    else if(mode==="analogous"){ h=(baseH+i*22+rnd(-6,6)+360)%360; s=rnd(60,95); l=rnd(42,66); }
+    else if(mode==="complementary"){
+      h=(baseH+(i<3?0:180)+rnd(-12,12)+360)%360; s=rnd(60,98); l=38+i*7+rnd(-4,4);
+    }
+    else if(mode==="triadic"){ h=(baseH+[0,0,120,240,120][i]+rnd(-10,10)+360)%360; s=rnd(62,96); l=rnd(40,66); }
+    else { /* pastel */ h=(baseH+i*67+rnd(-15,15))%360; s=rnd(45,70); l=rnd(76,88); }
+    state.base[i]=[h,s,l];
+  }
+  render();
+  save();
+}
+
+var toastTimer=null;
+function toast(msg){
+  var t=$("toast"); t.textContent=msg; t.classList.add("show");
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.classList.remove("show");},1100);
+}
+function copyText(txt){
+  function ok(){toast("COPIED "+txt.toUpperCase());}
+  function fallback(){
+    try{
+      var ta=document.createElement("textarea");
+      ta.value=txt;ta.style.position="fixed";ta.style.opacity="0";
+      document.body.appendChild(ta);ta.select();
+      document.execCommand("copy");document.body.removeChild(ta);ok();
+    }catch(e){toast("COPY FAILED");}
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(ok,fallback);
+  else fallback();
+}
+
+var colsEl=$("cols"), colEls=[];
+(function buildCols(){
+  for(var i=0;i<N;i++){
+    var col=document.createElement("div"); col.className="col";
+    var lock=document.createElement("div"); lock.className="lock"; lock.textContent="🔓";
+    lock.title="lock this color";
+    var hexEl=document.createElement("div"); hexEl.className="hex";
+    hexEl.title="click to copy";
+    col.appendChild(lock); col.appendChild(hexEl);
+    (function(i,lock,hexEl){
+      lock.addEventListener("click",function(){
+        state.locked[i]=!state.locked[i];
+        render(); save();
+      });
+      hexEl.addEventListener("click",function(){copyText(displayHex(i));});
+    })(i,lock,hexEl);
+    colsEl.appendChild(col);
+    colEls.push(col);
+  }
+})();
+
+function render(){
+  for(var i=0;i<N;i++){
+    var hex=displayHex(i), c=displayHsl(i);
+    var rgb=hslToRgb(c[0],c[1],c[2]);
+    var fg=luminance(rgb)>0.35?"#0b0b14":"#ffffff";
+    var col=colEls[i];
+    col.style.background=hex;
+    col.style.color=fg;
+    col.classList.toggle("locked",state.locked[i]);
+    col.querySelector(".lock").textContent=state.locked[i]?"🔒":"🔓";
+    col.querySelector(".hex").textContent=hex.toUpperCase();
+  }
+  $("lightVal").textContent=(state.offset>=0?"+":"")+state.offset;
+  $("light").value=state.offset;
+  $("mode").value=state.mode;
+}
+
+function renderShelf(){
+  var shelf=$("shelf"); shelf.innerHTML="";
+  if(!state.shelf.length){
+    var em=document.createElement("div"); em.id="shelfEmpty";
+    em.textContent="★ SAVE PALETTE pins your keepers here — click one to reload it";
+    shelf.appendChild(em); return;
+  }
+  state.shelf.forEach(function(pal,idx){
+    var d=document.createElement("div"); d.className="savedPal";
+    pal.forEach(function(hsl){
+      var s=document.createElement("i");
+      var rgb=hslToRgb(hsl[0],hsl[1],hsl[2]);
+      s.style.background="#"+hex2(rgb[0])+hex2(rgb[1])+hex2(rgb[2]);
+      d.appendChild(s);
+    });
+    var x=document.createElement("span"); x.textContent="×";
+    x.addEventListener("click",function(e){
+      e.stopPropagation(); state.shelf.splice(idx,1); renderShelf(); save();
+    });
+    d.appendChild(x);
+    d.addEventListener("click",function(){
+      state.base=pal.map(function(c){return c.slice();});
+      state.offset=0;
+      render(); save();
+    });
+    shelf.appendChild(d);
+  });
+}
+
+$("genBtn").addEventListener("click",generate);
+$("mode").addEventListener("change",function(){ state.mode=this.value; generate(); });
+$("light").addEventListener("input",function(){
+  state.offset=parseInt(this.value,10)||0; render(); save();
+});
+$("saveBtn").addEventListener("click",function(){
+  state.shelf.unshift(state.base.map(function(i,idx){return displayHsl(idx);}));
+  if(state.shelf.length>24)state.shelf.pop();
+  renderShelf(); save(); toast("PALETTE SAVED");
+});
+$("clearShelf").addEventListener("click",function(){ state.shelf=[]; renderShelf(); save(); });
+window.addEventListener("keydown",function(e){
+  if(e.code==="Space"&&!/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)){
+    e.preventDefault(); generate();
+  }
+});
+
+function save(){
+  try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){}
+}
+function load(){
+  try{
+    var d=JSON.parse(localStorage.getItem(LS_KEY));
+    if(d&&Array.isArray(d.base)&&d.base.length===N){
+      state.base=d.base;
+      if(Array.isArray(d.locked)&&d.locked.length===N)state.locked=d.locked;
+      if(typeof d.offset==="number")state.offset=clamp(d.offset,-40,40);
+      if(typeof d.mode==="string")state.mode=d.mode;
+      if(Array.isArray(d.shelf))state.shelf=d.shelf.slice(0,24);
+    }
+  }catch(e){}
+}
+load();
+render();
+renderShelf();
+})();
+</script>
+</body>
+</html>

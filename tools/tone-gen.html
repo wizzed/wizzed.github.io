@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tone Generator · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#00e5ff; --accent-soft:rgba(0,229,255,.5);
+  --panel:#161623; --line:#2c2c46; --text:#e2f6fa; --dim:#7e97a0;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:16px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 2px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{
+  display:flex; flex-wrap:wrap; gap:14px; justify-content:center; align-items:stretch;
+  max-width:880px; margin:8px auto 0; padding:0 12px;
+}
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:12px 14px;
+  box-shadow:0 0 0 1px #000, 0 0 22px rgba(0,229,255,.10);
+}
+#mainPanel{ width:430px; display:flex; flex-direction:column; gap:9px; }
+#scope{ width:100%; height:86px; background:#0a0a12; border:1px solid var(--line); display:block; }
+#freqRow{ display:flex; align-items:baseline; justify-content:center; gap:8px; flex-wrap:wrap; }
+#freqIn{
+  width:130px; font-family:inherit; font-size:30px; font-weight:bold; text-align:right;
+  background:#0a0a12; color:var(--accent); border:2px solid var(--line); padding:2px 6px;
+  text-shadow:0 0 10px var(--accent);
+}
+#freqIn:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft); }
+#freqRow .unit{ font-size:13px; color:var(--dim); letter-spacing:2px; }
+#noteName{
+  font-size:13px; letter-spacing:2px; color:var(--text); text-align:center; min-height:16px;
+}
+#noteName b{ color:var(--accent); text-shadow:0 0 8px var(--accent); font-size:16px; }
+.sliderRow{ display:flex; align-items:center; gap:8px; }
+.sliderRow .lbl{ font-size:10px; letter-spacing:1px; color:var(--dim); width:58px; flex-shrink:0; }
+.sliderRow .val{ font-size:10px; color:var(--dim); width:46px; text-align:right; flex-shrink:0; }
+input[type=range]{
+  flex:1; -webkit-appearance:none; appearance:none; height:10px; min-width:60px;
+  background:#0c0c16; border:1px solid var(--line); outline:none; cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:20px; height:24px;
+  background:var(--accent); border:2px solid #000; box-shadow:0 0 10px var(--accent); cursor:pointer;
+}
+input[type=range]::-moz-range-thumb{
+  width:18px; height:22px; border-radius:0;
+  background:var(--accent); border:2px solid #000; box-shadow:0 0 10px var(--accent); cursor:pointer;
+}
+.chips{ display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
+button{
+  font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--text); border:2px solid var(--line); padding:6px 9px;
+  text-transform:uppercase;
+}
+button:hover{ border-color:var(--accent); text-shadow:0 0 6px var(--accent); }
+button:active{ transform:translateY(1px); }
+button.on{
+  color:#000; background:var(--accent); border-color:var(--accent); box-shadow:0 0 12px var(--accent);
+  text-shadow:none;
+}
+#playBtn{
+  font-size:15px; padding:11px 0; width:100%; letter-spacing:4px;
+  border-color:var(--accent); color:var(--accent);
+}
+#playBtn.playing{
+  background:var(--accent); color:#000; animation:pulse 1.1s ease-in-out infinite;
+}
+@keyframes pulse{ 0%,100%{box-shadow:0 0 10px var(--accent);} 50%{box-shadow:0 0 28px var(--accent);} }
+#sidePanel{ width:280px; display:flex; flex-direction:column; gap:9px; }
+.secTitle{ font-size:10px; letter-spacing:3px; color:var(--dim); border-bottom:1px solid var(--line); padding-bottom:4px; }
+.sweepGrid{ display:grid; grid-template-columns:auto 1fr; gap:6px 8px; align-items:center; }
+.sweepGrid label{ font-size:10px; color:var(--dim); letter-spacing:1px; }
+.sweepGrid input{
+  font-family:inherit; font-size:13px; width:100%;
+  background:#0a0a12; color:var(--text); border:1px solid var(--line); padding:4px 6px;
+}
+.sweepGrid input:focus{ outline:none; border-color:var(--accent); }
+#sweepBtn{ width:100%; margin-top:2px; }
+#sweepBtn.on{ animation:pulse 0.8s ease-in-out infinite; }
+#safeNote{ font-size:9px; color:var(--dim); letter-spacing:1px; line-height:1.5; }
+#safeNote b{ color:var(--accent); }
+.hint{ text-align:center; font-size:10px; color:var(--dim); letter-spacing:1px; }
+kbd{ border:1px solid var(--line); padding:0 4px; background:#0c0c16; }
+@media (max-width:760px){ #mainPanel,#sidePanel{ width:min(94vw,430px); } }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>TONE GENERATOR</h1>
+  <div class="sub">SINE · SQUARE · SAW · TRI</div>
+</header>
+<main>
+  <div class="panel" id="mainPanel">
+    <canvas id="scope" width="400" height="86"></canvas>
+    <div id="freqRow">
+      <input id="freqIn" type="number" min="20" max="20000" step="0.01" value="440" aria-label="Frequency in Hz">
+      <span class="unit">Hz</span>
+    </div>
+    <div id="noteName"><b>A4</b> ±0¢</div>
+    <div class="sliderRow">
+      <span class="lbl">FREQ</span>
+      <input type="range" id="freqSlider" min="0" max="1000" value="500" aria-label="Frequency slider (log)">
+    </div>
+    <div class="chips" id="waveChips">
+      <button data-w="sine" class="on">SINE</button>
+      <button data-w="square">SQUARE</button>
+      <button data-w="sawtooth">SAW</button>
+      <button data-w="triangle">TRIANGLE</button>
+    </div>
+    <div class="sliderRow">
+      <span class="lbl">VOLUME</span>
+      <input type="range" id="volSlider" min="0" max="100" value="50" aria-label="Volume">
+      <span class="val" id="volVal">50%</span>
+    </div>
+    <div class="sliderRow">
+      <span class="lbl">BALANCE</span>
+      <input type="range" id="panSlider" min="-100" max="100" value="0" aria-label="Stereo balance">
+      <span class="val" id="panVal">C</span>
+    </div>
+    <button id="playBtn">▶ PLAY</button>
+    <div class="hint"><kbd>SPACE</kbd> play / stop</div>
+  </div>
+  <div class="panel" id="sidePanel">
+    <div class="secTitle">PRESETS</div>
+    <div class="chips" id="presetChips">
+      <button data-f="110">A2 110</button>
+      <button data-f="220">A3 220</button>
+      <button data-f="440">A4 440</button>
+      <button data-f="880">A5 880</button>
+      <button data-f="1760">A6 1760</button>
+      <button data-f="528">528 HZ</button>
+      <button data-f="261.63">C4 MID</button>
+      <button data-f="1000">1 KHZ</button>
+    </div>
+    <div class="secTitle">FREQUENCY SWEEP</div>
+    <div class="sweepGrid">
+      <label for="sweepStart">START HZ</label><input id="sweepStart" type="number" min="20" max="20000" value="100">
+      <label for="sweepEnd">END HZ</label><input id="sweepEnd" type="number" min="20" max="20000" value="8000">
+      <label for="sweepDur">SECONDS</label><input id="sweepDur" type="number" min="0.5" max="60" step="0.5" value="6">
+    </div>
+    <button id="sweepBtn">⇗ RUN SWEEP</button>
+    <div class="secTitle">SAFETY</div>
+    <div id="safeNote">Output is <b>auto-limited</b> above 1.5 kHz to protect your ears and speakers. Current limit: <b id="limVal">100%</b></div>
+  </div>
+</main>
+<script>
+'use strict';
+(function(){
+  var LS_KEY='wizzed-tone-gen';
+  var state={ freq:440, wave:'sine', vol:50, pan:0, sweepStart:100, sweepEnd:8000, sweepDur:6 };
+  try{
+    var s=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
+    if(typeof s.freq==='number') state.freq=clampF(s.freq);
+    if(['sine','square','sawtooth','triangle'].indexOf(s.wave)>=0) state.wave=s.wave;
+    if(typeof s.vol==='number') state.vol=Math.min(100,Math.max(0,s.vol));
+    if(typeof s.pan==='number') state.pan=Math.min(100,Math.max(-100,s.pan));
+    if(typeof s.sweepStart==='number') state.sweepStart=clampF(s.sweepStart);
+    if(typeof s.sweepEnd==='number') state.sweepEnd=clampF(s.sweepEnd);
+    if(typeof s.sweepDur==='number') state.sweepDur=Math.min(60,Math.max(0.5,s.sweepDur));
+  }catch(e){}
+  function clampF(f){ return Math.min(20000,Math.max(20,f)); }
+  function save(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){} }
+
+  var $=function(id){ return document.getElementById(id); };
+  var freqIn=$('freqIn'), freqSlider=$('freqSlider'), volSlider=$('volSlider'),
+      panSlider=$('panSlider'), playBtn=$('playBtn'), noteName=$('noteName'),
+      volVal=$('volVal'), panVal=$('panVal'), limVal=$('limVal'),
+      sweepBtn=$('sweepBtn'), scope=$('scope'), sctx=scope.getContext('2d');
+
+  /* log slider mapping: 20 Hz .. 20 kHz over 0..1000 */
+  function sliderToFreq(v){ return 20*Math.pow(1000, v/1000); }
+  function freqToSlider(f){ return Math.round(1000*Math.log(f/20)/Math.log(1000)); }
+
+  /* ---------- audio ---------- */
+  var ctx=null, osc=null, oscGain=null, panner=null, master=null, playing=false;
+  function ensureCtx(){
+    if(!ctx){
+      ctx=new (window.AudioContext||window.webkitAudioContext)();
+      master=ctx.createGain(); master.gain.value=0;
+      if(ctx.createStereoPanner){ panner=ctx.createStereoPanner(); }
+      else{ panner=ctx.createGain(); } /* fallback: no pan */
+      panner.connect(master); master.connect(ctx.destination);
+      applyPan();
+    }
+    if(ctx.state==='suspended') ctx.resume();
+  }
+  /* progressively limit gain above 1.5 kHz (down to 20% at 20 kHz) */
+  function safeScale(f){
+    if(f<=1500) return 1;
+    var p=Math.log(f/1500)/Math.log(20000/1500);
+    return Math.max(0.2, 1-0.8*p);
+  }
+  function targetGain(){ return (state.vol/100)*0.4*safeScale(state.freq); }
+  function applyGain(){
+    if(ctx && master && playing) master.gain.setTargetAtTime(targetGain(), ctx.currentTime, 0.03);
+    limVal.textContent=Math.round(safeScale(state.freq)*100)+'%';
+  }
+  function applyPan(){
+    if(ctx && panner && panner.pan) panner.pan.setTargetAtTime(state.pan/100, ctx.currentTime, 0.02);
+  }
+  function applyFreq(smooth){
+    if(osc){
+      if(smooth) osc.frequency.setTargetAtTime(state.freq, ctx.currentTime, 0.02);
+      else osc.frequency.setValueAtTime(state.freq, ctx.currentTime);
+    }
+    applyGain();
+  }
+  function play(){
+    ensureCtx();
+    if(playing) return;
+    osc=ctx.createOscillator();
+    osc.type=state.wave;
+    osc.frequency.value=state.freq;
+    oscGain=ctx.createGain(); oscGain.gain.value=1;
+    osc.connect(oscGain); oscGain.connect(panner);
+    osc.start();
+    master.gain.cancelScheduledValues(ctx.currentTime);
+    master.gain.setValueAtTime(0.0001, ctx.currentTime);
+    master.gain.exponentialRampToValueAtTime(Math.max(0.0001,targetGain()), ctx.currentTime+0.06);
+    playing=true;
+    playBtn.textContent='■ STOP'; playBtn.classList.add('playing');
+  }
+  function stop(){
+    if(!playing) return;
+    playing=false; endSweep(false);
+    var o=osc, og=oscGain;
+    master.gain.cancelScheduledValues(ctx.currentTime);
+    master.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.03);
+    o.stop(ctx.currentTime+0.25);
+    o.onended=function(){ o.disconnect(); og.disconnect(); };
+    osc=null; oscGain=null;
+    playBtn.textContent='▶ PLAY'; playBtn.classList.remove('playing');
+  }
+  playBtn.addEventListener('click',function(){ playing?stop():play(); });
+
+  /* ---------- sweep ---------- */
+  var sweep=null; // {t0,dur,f0,f1}
+  function runSweep(){
+    var f0=clampF(+$('sweepStart').value||100),
+        f1=clampF(+$('sweepEnd').value||8000),
+        dur=Math.min(60,Math.max(0.5,+$('sweepDur').value||6));
+    state.sweepStart=f0; state.sweepEnd=f1; state.sweepDur=dur; save();
+    if(sweep){ endSweep(true); return; }
+    if(!playing) play();
+    var now=ctx.currentTime;
+    osc.frequency.cancelScheduledValues(now);
+    osc.frequency.setValueAtTime(f0, now);
+    osc.frequency.exponentialRampToValueAtTime(f1, now+dur);
+    sweep={ t0:now, dur:dur, f0:f0, f1:f1 };
+    sweepBtn.textContent='■ STOP SWEEP'; sweepBtn.classList.add('on');
+  }
+  function endSweep(snapToCurrent){
+    if(!sweep) return;
+    if(snapToCurrent && osc){
+      var now=ctx.currentTime;
+      var p=Math.min(1,(now-sweep.t0)/sweep.dur);
+      var f=sweep.f0*Math.pow(sweep.f1/sweep.f0,p);
+      osc.frequency.cancelScheduledValues(now);
+      osc.frequency.setValueAtTime(f, now);
+      setFreq(f,'sweep');
+    }
+    sweep=null;
+    sweepBtn.textContent='⇗ RUN SWEEP'; sweepBtn.classList.remove('on');
+  }
+  sweepBtn.addEventListener('click',runSweep);
+
+  /* ---------- note names ---------- */
+  var NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  function updateNote(){
+    var f=state.freq;
+    var n=Math.round(69+12*Math.log(f/440)/Math.LN2);
+    n=Math.min(131,Math.max(12,n));
+    var ref=440*Math.pow(2,(n-69)/12);
+    var cents=Math.round(1200*Math.log(f/ref)/Math.LN2);
+    var name=NAMES[((n%12)+12)%12]+(Math.floor(n/12)-1);
+    noteName.innerHTML='<b>'+name+'</b> '+(cents>=0?'+':'')+cents+'¢';
+  }
+
+  /* ---------- UI wiring ---------- */
+  function setFreq(f,src){
+    state.freq=clampF(f);
+    if(src!=='input') freqIn.value=(Math.round(state.freq*100)/100);
+    if(src!=='slider') freqSlider.value=freqToSlider(state.freq);
+    updateNote(); applyGain(); save();
+    if(src!=='sweep'){
+      if(sweep) endSweep(false);
+      if(osc){
+        osc.frequency.cancelScheduledValues(ctx.currentTime);
+        applyFreq(true);
+      }
+    }
+  }
+  freqSlider.addEventListener('input',function(){ setFreq(sliderToFreq(+this.value),'slider'); });
+  freqIn.addEventListener('change',function(){ setFreq(+this.value||440,'change'); });
+  freqIn.addEventListener('input',function(){
+    var v=+this.value;
+    if(v>=20 && v<=20000) setFreq(v,'input');
+  });
+  volSlider.addEventListener('input',function(){
+    state.vol=+this.value; volVal.textContent=state.vol+'%'; applyGain(); save();
+  });
+  panSlider.addEventListener('input',function(){
+    state.pan=+this.value;
+    panVal.textContent = state.pan===0?'C':(state.pan<0?'L'+(-state.pan):'R'+state.pan);
+    applyPan(); save();
+  });
+  var waveChips=document.querySelectorAll('#waveChips button');
+  function setWave(w){
+    state.wave=w;
+    for(var i=0;i<waveChips.length;i++)
+      waveChips[i].classList.toggle('on',waveChips[i].dataset.w===w);
+    if(osc) osc.type=w;
+    save();
+  }
+  for(var i=0;i<waveChips.length;i++)
+    waveChips[i].addEventListener('click',function(){ setWave(this.dataset.w); });
+  var presets=document.querySelectorAll('#presetChips button');
+  for(var j=0;j<presets.length;j++)
+    presets[j].addEventListener('click',function(){ setFreq(+this.dataset.f,'preset'); });
+  document.addEventListener('keydown',function(e){
+    var t=e.target.tagName;
+    if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT') return;
+    if(e.code==='Space'){ e.preventDefault(); playing?stop():play(); }
+  });
+
+  /* ---------- scope preview (pure math, always animating) ---------- */
+  var phase=0, lastT=0;
+  function waveAt(x){ // x in cycles
+    var p=x-Math.floor(x);
+    switch(state.wave){
+      case 'square': return p<0.5?1:-1;
+      case 'sawtooth': return 2*p-1;
+      case 'triangle': return p<0.5 ? 4*p-1 : 3-4*p;
+      default: return Math.sin(2*Math.PI*p);
+    }
+  }
+  function drawScope(t){
+    var dt=Math.min(0.05,(t-lastT)/1000)||0; lastT=t;
+    phase+=dt*(0.4+Math.log(state.freq/20)/Math.log(1000)*2.2);
+    var w=scope.width, h=scope.height, mid=h/2;
+    sctx.fillStyle='#0a0a12'; sctx.fillRect(0,0,w,h);
+    sctx.strokeStyle='rgba(0,229,255,.12)'; sctx.lineWidth=1;
+    sctx.beginPath(); sctx.moveTo(0,mid); sctx.lineTo(w,mid); sctx.stroke();
+    var amp=(playing?1:0.55)*(state.vol/100)*safeScale(state.freq)*(mid-8)+2;
+    sctx.strokeStyle='#00e5ff'; sctx.lineWidth=2;
+    sctx.shadowColor='#00e5ff'; sctx.shadowBlur=playing?10:5;
+    sctx.beginPath();
+    for(var x=0;x<=w;x+=2){
+      var y=mid-waveAt(phase + (x/w)*3)*amp;
+      if(x===0) sctx.moveTo(x,y); else sctx.lineTo(x,y);
+    }
+    sctx.stroke();
+    sctx.shadowBlur=0;
+    requestAnimationFrame(drawScope);
+  }
+  requestAnimationFrame(drawScope);
+
+  /* ---------- sweep UI follower ---------- */
+  function sweepFrame(){
+    if(sweep && ctx){
+      var p=(ctx.currentTime-sweep.t0)/sweep.dur;
+      if(p>=1){
+        state.freq=sweep.f1; sweep=null;
+        sweepBtn.textContent='⇗ RUN SWEEP'; sweepBtn.classList.remove('on');
+        setFreq(state.freq,'sweep');
+      }else{
+        var f=sweep.f0*Math.pow(sweep.f1/sweep.f0,Math.max(0,p));
+        state.freq=clampF(f);
+        freqIn.value=Math.round(state.freq*10)/10;
+        freqSlider.value=freqToSlider(state.freq);
+        updateNote(); applyGain();
+      }
+    }
+    requestAnimationFrame(sweepFrame);
+  }
+  requestAnimationFrame(sweepFrame);
+
+  /* ---------- init ---------- */
+  freqIn.value=state.freq; freqSlider.value=freqToSlider(state.freq);
+  volSlider.value=state.vol; volVal.textContent=state.vol+'%';
+  panSlider.value=state.pan;
+  panVal.textContent=state.pan===0?'C':(state.pan<0?'L'+(-state.pan):'R'+state.pan);
+  $('sweepStart').value=state.sweepStart; $('sweepEnd').value=state.sweepEnd; $('sweepDur').value=state.sweepDur;
+  setWave(state.wave); updateNote();
+  limVal.textContent=Math.round(safeScale(state.freq)*100)+'%';
+})();
+</script>
+</body>
+</html>

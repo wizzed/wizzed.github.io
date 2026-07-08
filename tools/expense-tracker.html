@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expense Tracker · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#3ddc84; --accent-soft:rgba(61,220,132,.45);
+  --panel:#161623; --line:#2c2c46; --text:#eafff2; --dim:#8fa398; --red:#ff4560;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:18px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:8px 8px 2px; }
+h1{
+  display:inline-block; font-size:clamp(16px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:1px; }
+main{
+  display:flex; flex-wrap:wrap; gap:12px; justify-content:center; align-items:flex-start;
+  max-width:980px; margin:6px auto 0; padding:0 10px;
+}
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:10px;
+  box-shadow:0 0 0 1px #000, 0 0 18px rgba(61,220,132,.08);
+}
+.panel h2{
+  font-size:11px; letter-spacing:2px; color:var(--dim); margin-bottom:8px;
+  border-bottom:1px solid var(--line); padding-bottom:4px;
+}
+/* ------- form ------- */
+#formPanel{ width:230px; }
+label.f{ display:block; font-size:10px; color:var(--dim); letter-spacing:1px; margin:7px 0 2px; }
+input[type=number], input[type=text], input[type=date]{
+  width:100%; background:#0c0c16; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:13px; padding:6px 7px; outline:none;
+}
+input:focus{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+input.bad{ border-color:var(--red); box-shadow:0 0 8px rgba(255,69,96,.5); animation:shake .3s; }
+@keyframes shake{ 25%{transform:translateX(-3px);} 75%{transform:translateX(3px);} }
+#cats{ display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
+#cats button{
+  font-size:17px; padding:5px 0 2px; cursor:pointer; background:#0c0c16;
+  border:1px solid var(--line); color:var(--text); line-height:1.15; font-family:inherit;
+}
+#cats button small{ display:block; font-size:8px; letter-spacing:1px; color:var(--dim); }
+#cats button.on{ border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft), inset 0 0 8px rgba(61,220,132,.15); }
+#cats button.on small{ color:var(--accent); }
+#addBtn{
+  width:100%; margin-top:10px; padding:8px 0; font-family:inherit; font-size:13px;
+  letter-spacing:3px; cursor:pointer; color:#08130c; background:var(--accent);
+  border:0; box-shadow:0 0 14px var(--accent-soft); font-weight:bold;
+}
+#addBtn:active{ transform:translateY(1px); }
+/* ------- chart / summary ------- */
+#chartPanel{ width:270px; text-align:center; }
+#monthNav{ display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:6px; }
+#monthNav button{
+  background:#0c0c16; color:var(--accent); border:1px solid var(--line); cursor:pointer;
+  font-family:inherit; font-size:14px; padding:2px 10px;
+}
+#monthNav button:hover{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+#monthLbl{ font-size:13px; letter-spacing:2px; min-width:130px; }
+#total{
+  font-size:26px; letter-spacing:1px; color:var(--accent);
+  text-shadow:0 0 8px var(--accent), 0 0 26px var(--accent-soft); margin:2px 0 0;
+}
+#totalSub{ font-size:10px; color:var(--dim); letter-spacing:1px; }
+#bigCat{
+  margin:7px auto 5px; padding:5px 8px; font-size:11px; letter-spacing:1px;
+  border:1px dashed var(--line); color:var(--text); max-width:240px;
+}
+#bigCat b{ color:var(--accent); }
+#donut{ display:block; margin:2px auto 0; }
+#legend{
+  display:grid; grid-template-columns:1fr 1fr; gap:2px 10px; margin-top:6px;
+  font-size:10px; text-align:left;
+}
+#legend .li{ display:flex; align-items:center; gap:5px; color:var(--dim); }
+#legend .sw{ width:9px; height:9px; flex:none; box-shadow:0 0 5px currentColor; }
+#legend .amt{ margin-left:auto; color:var(--text); }
+/* ------- history ------- */
+#histPanel{ width:300px; }
+#histList{ max-height:330px; overflow-y:auto; }
+.row{
+  display:flex; align-items:center; gap:7px; padding:5px 4px;
+  border-bottom:1px solid #1e1e30; font-size:12px;
+}
+.row .em{ font-size:16px; flex:none; }
+.row .meta{ flex:1; min-width:0; }
+.row .note{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.row .date{ font-size:9px; color:var(--dim); letter-spacing:1px; }
+.row .amt{ color:var(--accent); flex:none; }
+.row .del{
+  flex:none; background:none; border:1px solid transparent; color:#5a5a74; cursor:pointer;
+  font-family:inherit; font-size:12px; padding:1px 5px;
+}
+.row .del:hover{ color:var(--red); border-color:var(--red); text-shadow:0 0 6px var(--red); }
+#empty{ color:var(--dim); font-size:11px; text-align:center; padding:18px 4px; letter-spacing:1px; }
+#count{ font-size:9px; color:var(--dim); letter-spacing:1px; text-align:right; margin-top:5px; }
+#histList::-webkit-scrollbar{ width:8px; }
+#histList::-webkit-scrollbar-thumb{ background:var(--line); }
+@media (max-width:560px){
+  #formPanel,#chartPanel,#histPanel{ width:100%; max-width:340px; }
+}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>EXPENSE TRACKER</h1>
+  <div class="sub">WHERE DID THE CREDITS GO?</div>
+</header>
+<main>
+  <section class="panel" id="formPanel">
+    <h2>ADD EXPENSE</h2>
+    <label class="f" for="amt">AMOUNT ($)</label>
+    <input type="number" id="amt" min="0" step="0.01" placeholder="12.50">
+    <label class="f">CATEGORY</label>
+    <div id="cats"></div>
+    <label class="f" for="note">NOTE</label>
+    <input type="text" id="note" maxlength="40" placeholder="what was it?">
+    <label class="f" for="date">DATE</label>
+    <input type="date" id="date">
+    <button id="addBtn">+ ADD</button>
+  </section>
+
+  <section class="panel" id="chartPanel">
+    <div id="monthNav">
+      <button id="prevM" title="previous month">‹</button>
+      <span id="monthLbl"></span>
+      <button id="nextM" title="next month">›</button>
+    </div>
+    <div id="total">$0.00</div>
+    <div id="totalSub">MONTH TOTAL</div>
+    <div id="bigCat">—</div>
+    <canvas id="donut" width="200" height="200"></canvas>
+    <div id="legend"></div>
+  </section>
+
+  <section class="panel" id="histPanel">
+    <h2>HISTORY <span id="histMonth"></span></h2>
+    <div id="histList"></div>
+    <div id="count"></div>
+  </section>
+</main>
+
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-expense-tracker';
+var CATS=[
+  {e:'🍔',n:'Food',c:'#3ddc84'},
+  {e:'🚌',n:'Transit',c:'#00e5ff'},
+  {e:'🏠',n:'Home',c:'#ffb020'},
+  {e:'🎮',n:'Fun',c:'#ff2ec4'},
+  {e:'🛒',n:'Shop',c:'#b388ff'},
+  {e:'💊',n:'Health',c:'#ff4560'},
+  {e:'📚',n:'Learn',c:'#ffe066'},
+  {e:'✨',n:'Other',c:'#7de3ff'}
+];
+var MONTHS=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+
+function pad(n){ return (n<10?'0':'')+n; }
+function iso(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function money(n){ return '$'+n.toFixed(2); }
+
+/* ---- state ---- */
+var today=new Date();
+var view={y:today.getFullYear(), m:today.getMonth()};
+var entries=load();
+var selCat=0;
+var nextId=entries.reduce(function(a,e){return Math.max(a,e.id);},0)+1;
+
+function load(){
+  try{
+    var raw=localStorage.getItem(LS_KEY);
+    if(raw){ var d=JSON.parse(raw); if(Array.isArray(d.entries)) return d.entries; }
+  }catch(e){}
+  return demo();
+}
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({entries:entries})); }catch(e){}
+}
+function demo(){
+  var t=new Date(), y=t.getFullYear(), m=t.getMonth(), dmax=t.getDate();
+  function d(off){ return y+'-'+pad(m+1)+'-'+pad(Math.max(1,dmax-off)); }
+  var rows=[
+    [14.20,0,'burger night',0],[42.00,2,'electric bill',1],[6.75,1,'bus pass top-up',2],
+    [19.99,3,'indie game bundle',3],[54.30,4,'groceries run',4],[12.00,5,'pharmacy',6],
+    [24.50,6,'used book haul',8],[8.40,0,'coffee + bagel',10],[31.15,4,'new headphones pad',12],
+    [15.00,7,'arcade tokens',14]
+  ];
+  var id=1;
+  return rows.map(function(r){ return {id:id++, amt:r[0], cat:r[1], note:r[2], date:d(r[3])}; });
+}
+
+/* ---- dom ---- */
+var $=function(id){ return document.getElementById(id); };
+var amtIn=$('amt'), noteIn=$('note'), dateIn=$('date');
+dateIn.value=iso(today);
+
+CATS.forEach(function(c,i){
+  var b=document.createElement('button');
+  b.type='button';
+  b.innerHTML=c.e+'<small>'+c.n.toUpperCase()+'</small>';
+  b.addEventListener('click',function(){
+    selCat=i;
+    Array.prototype.forEach.call($('cats').children,function(el,j){ el.classList.toggle('on',j===i); });
+  });
+  $('cats').appendChild(b);
+});
+$('cats').children[0].classList.add('on');
+
+$('addBtn').addEventListener('click',function(){
+  var v=parseFloat(amtIn.value);
+  if(!(v>0)){ amtIn.classList.remove('bad'); void amtIn.offsetWidth; amtIn.classList.add('bad'); amtIn.focus(); return; }
+  var dt=dateIn.value||iso(new Date());
+  entries.push({id:nextId++, amt:Math.round(v*100)/100, cat:selCat, note:noteIn.value.trim()||CATS[selCat].n, date:dt});
+  amtIn.value=''; noteIn.value=''; amtIn.classList.remove('bad');
+  var parts=dt.split('-');
+  view={y:+parts[0], m:+parts[1]-1};
+  save(); refresh(true);
+});
+amtIn.addEventListener('keydown',function(e){ if(e.key==='Enter') $('addBtn').click(); });
+noteIn.addEventListener('keydown',function(e){ if(e.key==='Enter') $('addBtn').click(); });
+
+$('prevM').addEventListener('click',function(){ view.m--; if(view.m<0){view.m=11;view.y--;} refresh(true); });
+$('nextM').addEventListener('click',function(){ view.m++; if(view.m>11){view.m=0;view.y++;} refresh(true); });
+
+/* ---- donut ---- */
+var canvas=$('donut'), ctx=canvas.getContext('2d');
+var DPR=Math.min(2,window.devicePixelRatio||1);
+canvas.width=200*DPR; canvas.height=200*DPR;
+canvas.style.width='200px'; canvas.style.height='200px';
+ctx.scale(DPR,DPR);
+
+var animT=1, animReq=null, curSums=[];
+function ease(t){ return 1-Math.pow(1-t,3); }
+function startAnim(){
+  animT=0;
+  if(animReq) cancelAnimationFrame(animReq);
+  var t0=performance.now();
+  (function step(now){
+    animT=Math.min(1,(now-t0)/700);
+    drawDonut();
+    if(animT<1) animReq=requestAnimationFrame(step);
+  })(t0);
+}
+function drawDonut(){
+  ctx.clearRect(0,0,200,200);
+  var total=curSums.reduce(function(a,b){return a+b;},0);
+  var cx=100, cy=100, r=72, w=26;
+  ctx.lineWidth=w;
+  ctx.strokeStyle='#1d1d2e';
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+  if(total>0){
+    var start=-Math.PI/2, sweepMax=Math.PI*2*ease(animT);
+    var acc=0;
+    for(var i=0;i<CATS.length;i++){
+      if(curSums[i]<=0) continue;
+      var frac=curSums[i]/total;
+      var a0=start+acc*Math.PI*2;
+      var a1=a0+frac*Math.PI*2;
+      var lim=start+sweepMax;
+      if(a0>=lim) break;
+      ctx.strokeStyle=CATS[i].c;
+      ctx.shadowColor=CATS[i].c; ctx.shadowBlur=10;
+      ctx.beginPath(); ctx.arc(cx,cy,r,a0,Math.min(a1,lim)); ctx.stroke();
+      ctx.shadowBlur=0;
+      acc+=frac;
+    }
+  }
+  ctx.fillStyle= total>0 ? '#eafff2' : '#5a5a74';
+  ctx.font='bold 13px "Courier New",monospace';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(total>0?money(total*ease(animT)):'NO DATA',cx,cy-8);
+  ctx.fillStyle='#8fa398'; ctx.font='9px "Courier New",monospace';
+  ctx.fillText(total>0?'THIS MONTH':'ADD EXPENSES',cx,cy+10);
+}
+
+/* ---- render ---- */
+function monthEntries(){
+  var pre=view.y+'-'+pad(view.m+1);
+  return entries.filter(function(e){ return e.date.slice(0,7)===pre; });
+}
+function refresh(animate){
+  var list=monthEntries();
+  $('monthLbl').textContent=MONTHS[view.m]+' '+view.y;
+  $('histMonth').textContent='· '+MONTHS[view.m].slice(0,3)+' '+view.y;
+
+  curSums=CATS.map(function(){return 0;});
+  var total=0;
+  list.forEach(function(e){ curSums[e.cat]+=e.amt; total+=e.amt; });
+  $('total').textContent=money(total);
+
+  var bigI=-1,bigV=0;
+  curSums.forEach(function(s,i){ if(s>bigV){bigV=s;bigI=i;} });
+  $('bigCat').innerHTML = bigI<0 ? 'no spending this month'
+    : 'biggest: '+CATS[bigI].e+' <b>'+CATS[bigI].n+'</b> — '+money(bigV)+' ('+Math.round(bigV/total*100)+'%)';
+
+  var lg=$('legend'); lg.innerHTML='';
+  CATS.forEach(function(c,i){
+    if(curSums[i]<=0) return;
+    var d=document.createElement('div'); d.className='li';
+    d.innerHTML='<span class="sw" style="background:'+c.c+';color:'+c.c+'"></span>'+c.e+' '+c.n+'<span class="amt">'+money(curSums[i])+'</span>';
+    lg.appendChild(d);
+  });
+
+  var hl=$('histList'); hl.innerHTML='';
+  var sorted=list.slice().sort(function(a,b){ return b.date<a.date?-1:b.date>a.date?1:b.id-a.id; });
+  if(!sorted.length){
+    hl.innerHTML='<div id="empty">nothing logged — add one! →</div>';
+  }
+  sorted.forEach(function(e){
+    var r=document.createElement('div'); r.className='row';
+    var day=e.date.slice(8,10), mo=MONTHS[+e.date.slice(5,7)-1].slice(0,3);
+    r.innerHTML='<span class="em">'+CATS[e.cat].e+'</span>'+
+      '<span class="meta"><span class="note"></span><span class="date">'+mo+' '+day+' · '+CATS[e.cat].n+'</span></span>'+
+      '<span class="amt">'+money(e.amt)+'</span>';
+    r.querySelector('.note').textContent=e.note;
+    var del=document.createElement('button');
+    del.className='del'; del.textContent='✕'; del.title='delete';
+    del.addEventListener('click',function(){
+      entries=entries.filter(function(x){ return x.id!==e.id; });
+      save(); refresh(true);
+    });
+    r.appendChild(del);
+    hl.appendChild(r);
+  });
+  $('count').textContent=sorted.length+' ENTR'+(sorted.length===1?'Y':'IES');
+
+  if(animate) startAnim(); else { animT=1; drawDonut(); }
+}
+
+save();
+refresh(true);
+})();
+</script>
+</body>
+</html>

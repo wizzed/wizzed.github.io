@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metronome · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ffb020; --accent-soft:rgba(255,176,32,.5);
+  --panel:#161623; --line:#2c2c46; --text:#f6edd9; --dim:#9a8f78;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:16px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 2px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:6px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{
+  display:flex; flex-wrap:wrap; gap:14px; justify-content:center; align-items:stretch;
+  max-width:860px; margin:8px auto 0; padding:0 12px;
+}
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:12px 14px;
+  box-shadow:0 0 0 1px #000, 0 0 22px rgba(255,176,32,.10);
+}
+/* ---------- pendulum ---------- */
+#pendPanel{ width:250px; display:flex; flex-direction:column; align-items:center; }
+#pendArea{ position:relative; width:210px; height:250px; }
+#pendArea .arc{
+  position:absolute; left:50%; bottom:26px; width:190px; height:95px;
+  transform:translateX(-50%);
+  border:1px dashed #2c2c46; border-bottom:none; border-radius:190px 190px 0 0;
+}
+#arm{
+  position:absolute; left:50%; bottom:30px; width:6px; height:185px;
+  margin-left:-3px; transform-origin:50% 100%;
+  background:linear-gradient(#5a4a26,var(--accent));
+  box-shadow:0 0 10px var(--accent-soft);
+  border-radius:3px;
+}
+#arm .bob{
+  position:absolute; top:-4px; left:50%; transform:translateX(-50%);
+  width:34px; height:40px; background:var(--accent);
+  clip-path:polygon(50% 0,100% 28%,84% 100%,16% 100%,0 28%);
+  box-shadow:0 0 16px var(--accent);
+}
+#arm.idle{ animation:sway 3.4s ease-in-out infinite; }
+@keyframes sway{ 0%,100%{transform:rotate(-9deg);} 50%{transform:rotate(9deg);} }
+#pendArea .pivot{
+  position:absolute; left:50%; bottom:22px; width:22px; height:22px; margin-left:-11px;
+  background:#22222f; border:2px solid var(--accent); border-radius:50%;
+  box-shadow:0 0 10px var(--accent-soft); z-index:2;
+}
+#pendArea .base{
+  position:absolute; left:50%; bottom:0; transform:translateX(-50%);
+  width:150px; height:22px; background:#1c1c2c; border:2px solid var(--line);
+  box-shadow:0 3px 0 #000;
+}
+#dots{ display:flex; gap:10px; justify-content:center; margin:12px 0 4px; min-height:26px; align-items:center; }
+#dots .dot{
+  width:14px; height:14px; border-radius:50%;
+  background:#22222f; border:2px solid var(--line); transition:all .08s;
+}
+#dots .dot.head{ width:19px; height:19px; border-color:#5a4a26; }
+#dots .dot.on{ background:var(--accent); border-color:var(--accent); box-shadow:0 0 14px var(--accent); }
+#dots .dot.head.on{ background:#fff; box-shadow:0 0 18px #fff, 0 0 30px var(--accent); }
+#beatLabel{ font-size:10px; letter-spacing:2px; color:var(--dim); text-align:center; }
+/* ---------- controls ---------- */
+#ctrlPanel{ width:330px; display:flex; flex-direction:column; gap:10px; }
+#bpmRow{ display:flex; align-items:baseline; justify-content:center; gap:8px; }
+#bpmVal{
+  font-size:58px; font-weight:bold; color:var(--accent);
+  text-shadow:0 0 10px var(--accent), 0 0 34px var(--accent-soft); line-height:1;
+}
+#bpmRow .unit{ font-size:13px; color:var(--dim); letter-spacing:2px; }
+#tempoName{ text-align:center; font-size:11px; letter-spacing:3px; color:var(--dim); min-height:14px; }
+.sliderRow{ display:flex; align-items:center; gap:8px; }
+.sliderRow .lbl{ font-size:10px; letter-spacing:1px; color:var(--dim); width:44px; }
+input[type=range]{
+  flex:1; -webkit-appearance:none; appearance:none; height:10px;
+  background:#0c0c16; border:1px solid var(--line); outline:none; cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:22px; height:26px;
+  background:var(--accent); border:2px solid #000; box-shadow:0 0 10px var(--accent);
+  cursor:pointer;
+}
+input[type=range]::-moz-range-thumb{
+  width:20px; height:24px; border-radius:0;
+  background:var(--accent); border:2px solid #000; box-shadow:0 0 10px var(--accent); cursor:pointer;
+}
+.btnRow{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+button{
+  font-family:inherit; font-size:12px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--text); border:2px solid var(--line); padding:8px 12px;
+  text-transform:uppercase;
+}
+button:hover{ border-color:var(--accent); text-shadow:0 0 6px var(--accent); }
+button:active{ transform:translateY(1px); }
+.step{ width:44px; font-size:16px; padding:6px 0; }
+#tapBtn{ min-width:120px; }
+#tapBtn.flash{ background:var(--accent); color:#000; box-shadow:0 0 16px var(--accent); }
+#sigRow{ display:flex; gap:6px; justify-content:center; }
+#sigRow button{ padding:7px 10px; font-size:12px; }
+#sigRow button.on{
+  color:#000; background:var(--accent); border-color:var(--accent);
+  box-shadow:0 0 12px var(--accent);
+}
+#startBtn{
+  font-size:16px; padding:12px 0; width:100%; letter-spacing:4px;
+  border-color:var(--accent); color:var(--accent);
+}
+#startBtn.playing{
+  background:var(--accent); color:#000; box-shadow:0 0 22px var(--accent);
+  animation:pulse 1s ease-in-out infinite;
+}
+@keyframes pulse{ 0%,100%{box-shadow:0 0 12px var(--accent);} 50%{box-shadow:0 0 30px var(--accent);} }
+.hint{ text-align:center; font-size:10px; color:var(--dim); letter-spacing:1px; }
+kbd{ border:1px solid var(--line); padding:0 4px; background:#0c0c16; }
+@media (max-width:620px){
+  #ctrlPanel{ width:min(94vw,330px); }
+  #pendPanel{ width:min(94vw,330px); }
+}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>METRONOME</h1>
+  <div class="sub">KEEP · THE · BEAT</div>
+</header>
+<main>
+  <div class="panel" id="pendPanel">
+    <div id="pendArea">
+      <div class="arc"></div>
+      <div id="arm" class="idle"><div class="bob"></div></div>
+      <div class="pivot"></div>
+      <div class="base"></div>
+    </div>
+    <div id="dots"></div>
+    <div id="beatLabel">READY</div>
+  </div>
+  <div class="panel" id="ctrlPanel">
+    <div id="bpmRow"><span id="bpmVal">120</span><span class="unit">BPM</span></div>
+    <div id="tempoName">ALLEGRO</div>
+    <div class="sliderRow">
+      <button class="step" id="bpmDown">−</button>
+      <input type="range" id="bpmSlider" min="30" max="240" value="120" aria-label="BPM">
+      <button class="step" id="bpmUp">+</button>
+    </div>
+    <div class="btnRow"><button id="tapBtn">TAP TEMPO</button></div>
+    <div id="sigRow">
+      <button data-sig="2/4">2/4</button>
+      <button data-sig="3/4">3/4</button>
+      <button data-sig="4/4" class="on">4/4</button>
+      <button data-sig="6/8">6/8</button>
+    </div>
+    <div class="sliderRow">
+      <span class="lbl">VOLUME</span>
+      <input type="range" id="volSlider" min="0" max="100" value="70" aria-label="Volume">
+    </div>
+    <button id="startBtn">▶ START</button>
+    <div class="hint">press <kbd>SPACE</kbd> to start / stop · <kbd>T</kbd> to tap</div>
+  </div>
+</main>
+<script>
+'use strict';
+(function(){
+  var LS_KEY='wizzed-metronome';
+  var state={ bpm:120, sig:'4/4', vol:70 };
+  try{
+    var saved=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
+    if(typeof saved.bpm==='number') state.bpm=Math.min(240,Math.max(30,Math.round(saved.bpm)));
+    if(['2/4','3/4','4/4','6/8'].indexOf(saved.sig)>=0) state.sig=saved.sig;
+    if(typeof saved.vol==='number') state.vol=Math.min(100,Math.max(0,saved.vol));
+  }catch(e){}
+  function save(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){} }
+
+  var $=function(id){ return document.getElementById(id); };
+  var bpmVal=$('bpmVal'), bpmSlider=$('bpmSlider'), volSlider=$('volSlider'),
+      startBtn=$('startBtn'), tapBtn=$('tapBtn'), arm=$('arm'),
+      dotsEl=$('dots'), beatLabel=$('beatLabel'), tempoName=$('tempoName');
+
+  var SIGS={ '2/4':{beats:2,accents:[0]}, '3/4':{beats:3,accents:[0]},
+             '4/4':{beats:4,accents:[0]}, '6/8':{beats:6,accents:[0],mid:[3]} };
+
+  /* ---------- audio: lookahead scheduler ---------- */
+  var ctx=null, playing=false, timerId=null;
+  var nextNoteTime=0, beatInMeasure=0, totalBeats=0;
+  var LOOKAHEAD_MS=25, SCHEDULE_AHEAD=0.12;
+  var beatQueue=[]; // {time,beat,total}
+  var lastBeat=null; // for pendulum
+
+  function ensureCtx(){
+    if(!ctx){ ctx=new (window.AudioContext||window.webkitAudioContext)(); }
+    if(ctx.state==='suspended') ctx.resume();
+  }
+  function clickAt(time, kind){
+    // kind 0 = downbeat accent, 1 = mid accent, 2 = normal
+    var vol=Math.max(0.0001,(state.vol/100)*0.6);
+    var osc=ctx.createOscillator(), g=ctx.createGain();
+    osc.type='square';
+    osc.frequency.value = kind===0?1568 : kind===1?1175 : 784;
+    g.gain.setValueAtTime(0.0001,time);
+    g.gain.exponentialRampToValueAtTime(vol*(kind===0?1:0.72), time+0.0015);
+    g.gain.exponentialRampToValueAtTime(0.0001, time+0.055);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(time); osc.stop(time+0.08);
+  }
+  function secondsPerBeat(){ return 60/state.bpm; }
+  function scheduler(){
+    var sig=SIGS[state.sig];
+    while(nextNoteTime < ctx.currentTime + SCHEDULE_AHEAD){
+      var kind = sig.accents.indexOf(beatInMeasure)>=0 ? 0
+               : (sig.mid && sig.mid.indexOf(beatInMeasure)>=0) ? 1 : 2;
+      clickAt(nextNoteTime, kind);
+      beatQueue.push({time:nextNoteTime, beat:beatInMeasure, total:totalBeats});
+      nextNoteTime += secondsPerBeat();
+      totalBeats++;
+      beatInMeasure=(beatInMeasure+1)%sig.beats;
+    }
+  }
+  function start(){
+    ensureCtx();
+    playing=true;
+    beatInMeasure=0; totalBeats=0; beatQueue.length=0; lastBeat=null;
+    nextNoteTime=ctx.currentTime+0.08;
+    timerId=setInterval(scheduler,LOOKAHEAD_MS);
+    startBtn.textContent='■ STOP'; startBtn.classList.add('playing');
+    arm.classList.remove('idle');
+    beatLabel.textContent='PLAYING';
+  }
+  function stop(){
+    playing=false;
+    if(timerId){ clearInterval(timerId); timerId=null; }
+    beatQueue.length=0; lastBeat=null;
+    startBtn.textContent='▶ START'; startBtn.classList.remove('playing');
+    arm.style.transform=''; arm.classList.add('idle');
+    setDots(-1); beatLabel.textContent='READY';
+  }
+  function toggle(){ playing?stop():start(); }
+
+  /* ---------- pendulum + dots (rAF) ---------- */
+  var dotEls=[];
+  function buildDots(){
+    dotsEl.innerHTML=''; dotEls=[];
+    var sig=SIGS[state.sig];
+    for(var i=0;i<sig.beats;i++){
+      var d=document.createElement('div');
+      d.className='dot'+(i===0?' head':'');
+      dotsEl.appendChild(d); dotEls.push(d);
+    }
+  }
+  function setDots(active){
+    for(var i=0;i<dotEls.length;i++) dotEls[i].classList.toggle('on',i===active);
+  }
+  function frame(){
+    if(playing && ctx){
+      var now=ctx.currentTime;
+      while(beatQueue.length && beatQueue[0].time<=now){
+        lastBeat=beatQueue.shift();
+        setDots(lastBeat.beat);
+        beatLabel.textContent='BEAT '+(lastBeat.beat+1)+' / '+SIGS[state.sig].beats;
+      }
+      if(lastBeat){
+        var spb=secondsPerBeat();
+        var p=Math.min(1,Math.max(0,(now-lastBeat.time)/spb));
+        var dir=(lastBeat.total%2===0)?1:-1;
+        var ang=26*Math.cos(Math.PI*p)*dir;
+        arm.style.transform='rotate('+ang.toFixed(2)+'deg)';
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  /* ---------- BPM ---------- */
+  var TEMPI=[[40,'GRAVE'],[60,'LARGO'],[76,'ADAGIO'],[108,'ANDANTE'],
+             [120,'MODERATO'],[156,'ALLEGRO'],[200,'PRESTO'],[241,'PRESTISSIMO']];
+  function tempoLabel(bpm){
+    for(var i=0;i<TEMPI.length;i++) if(bpm<TEMPI[i][0]) return TEMPI[i][1];
+    return 'PRESTISSIMO';
+  }
+  function setBpm(v,fromSlider){
+    state.bpm=Math.min(240,Math.max(30,Math.round(v)));
+    bpmVal.textContent=state.bpm;
+    tempoName.textContent=tempoLabel(state.bpm);
+    if(!fromSlider) bpmSlider.value=state.bpm;
+    save();
+  }
+  bpmSlider.addEventListener('input',function(){ setBpm(+this.value,true); });
+  $('bpmUp').addEventListener('click',function(){ setBpm(state.bpm+1); });
+  $('bpmDown').addEventListener('click',function(){ setBpm(state.bpm-1); });
+
+  /* ---------- tap tempo: average of last 4 taps ---------- */
+  var taps=[];
+  function tap(){
+    var now=performance.now();
+    if(taps.length && now-taps[taps.length-1]>2000) taps=[];
+    taps.push(now);
+    if(taps.length>4) taps.shift();
+    if(taps.length>=2){
+      var sum=0;
+      for(var i=1;i<taps.length;i++) sum+=taps[i]-taps[i-1];
+      var avg=sum/(taps.length-1);
+      setBpm(60000/avg);
+    }
+    tapBtn.classList.add('flash');
+    setTimeout(function(){ tapBtn.classList.remove('flash'); },90);
+  }
+  tapBtn.addEventListener('click',tap);
+
+  /* ---------- signature / volume ---------- */
+  var sigBtns=document.querySelectorAll('#sigRow button');
+  function setSig(sig){
+    state.sig=sig;
+    for(var i=0;i<sigBtns.length;i++)
+      sigBtns[i].classList.toggle('on',sigBtns[i].dataset.sig===sig);
+    buildDots();
+    beatInMeasure=0;
+    save();
+  }
+  for(var i=0;i<sigBtns.length;i++){
+    sigBtns[i].addEventListener('click',function(){ setSig(this.dataset.sig); });
+  }
+  volSlider.addEventListener('input',function(){ state.vol=+this.value; save(); });
+
+  /* ---------- start / stop + keys ---------- */
+  startBtn.addEventListener('click',toggle);
+  document.addEventListener('keydown',function(e){
+    var t=e.target.tagName;
+    if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'){
+      if(e.code==='Space' && e.target.type==='range'){ e.preventDefault(); toggle(); }
+      return;
+    }
+    if(e.code==='Space'){ e.preventDefault(); toggle(); }
+    else if(e.key==='t'||e.key==='T'){ tap(); }
+    else if(e.key==='ArrowUp'||e.key==='ArrowRight'){ setBpm(state.bpm+1); }
+    else if(e.key==='ArrowDown'||e.key==='ArrowLeft'){ setBpm(state.bpm-1); }
+  });
+
+  /* ---------- init ---------- */
+  bpmSlider.value=state.bpm;
+  volSlider.value=state.vol;
+  setBpm(state.bpm);
+  setSig(state.sig);
+})();
+</script>
+</body>
+</html>

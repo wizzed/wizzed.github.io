@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lorem Ipsum · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ffb347; --accent-soft:rgba(255,179,71,.45);
+  --panel:#161623; --line:#2c2c46; --text:#f7f0e6; --dim:#a89a86;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:24px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:920px; margin:8px auto 0; padding:0 14px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:10px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(255,179,71,.08);
+  margin-bottom:12px;
+}
+.panel h2{
+  font-size:11px; letter-spacing:3px; color:var(--accent);
+  text-shadow:0 0 8px var(--accent-soft); margin-bottom:8px;
+}
+.controls{ display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; }
+.ctl{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--dim); letter-spacing:1px; }
+input[type=number], select{
+  font-family:inherit; font-size:12px; background:#0b0b14; color:var(--text);
+  border:1px solid var(--line); padding:5px 6px; outline:none;
+}
+input[type=number]{ width:60px; }
+input[type=number]:focus, select:focus{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+.tabs{ display:flex; gap:6px; }
+.tabs button, .toolbar button, label.tog{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:5px 10px;
+}
+.tabs button:hover, .toolbar button:hover{ color:var(--accent); border-color:var(--accent); }
+.tabs button.on{
+  color:#0f0f1a; background:var(--accent); border-color:var(--accent);
+  box-shadow:0 0 12px var(--accent); font-weight:bold;
+}
+label.tog{ display:inline-flex; align-items:center; gap:6px; user-select:none; }
+label.tog input{ accent-color:var(--accent); }
+label.tog.on{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+.toolbar{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+.toolbar .stats{ margin-left:auto; font-size:10px; color:var(--dim); letter-spacing:1px; }
+button.ok{ color:#0f0f1a !important; background:var(--accent) !important; border-color:var(--accent) !important; box-shadow:0 0 12px var(--accent); }
+#out{
+  width:100%; min-height:230px; max-height:52vh; overflow-y:auto;
+  background:#0b0b14; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:13px; line-height:1.6; padding:12px;
+  white-space:pre-wrap; word-break:break-word;
+}
+footer{ text-align:center; margin-top:10px; font-size:10px; color:var(--dim); letter-spacing:2px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>LOREM IPSUM</h1>
+  <div class="sub">PLACEHOLDER TEXT FORGE · 3 CORPORA</div>
+</header>
+<main>
+  <section class="panel">
+    <h2>&#9646; GENERATOR SETTINGS</h2>
+    <div class="controls">
+      <span class="ctl">COUNT <input type="number" id="count" min="1" max="20" value="3" aria-label="Count"></span>
+      <span class="ctl">UNIT
+        <select id="unit" aria-label="Unit">
+          <option value="paragraphs" selected>paragraphs</option>
+          <option value="sentences">sentences</option>
+          <option value="words">words</option>
+        </select>
+      </span>
+      <span class="tabs" id="corpusTabs">
+        <button type="button" data-c="classic" class="on">CLASSIC LATIN</button>
+        <button type="button" data-c="hipster">HIPSTER</button>
+        <button type="button" data-c="space">SPACE OPERA</button>
+      </span>
+      <label class="tog on" id="loremTogLbl"><input type="checkbox" id="loremTog" checked>start with “Lorem ipsum”</label>
+      <label class="tog" id="htmlTogLbl"><input type="checkbox" id="htmlTog">HTML &lt;p&gt; mode</label>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="toolbar">
+      <button id="btnRegen" type="button">&#8635; REGENERATE</button>
+      <button id="btnCopy" type="button">COPY</button>
+      <span class="stats" id="stats"></span>
+    </div>
+    <div id="out" aria-label="Generated text"></div>
+  </section>
+</main>
+<footer>WIZZED ARCADE // TOOL 03</footer>
+<script>
+"use strict";
+var CORPORA = {
+  classic: ("lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua enim ad minim veniam quis nostrud exercitation ullamco laboris nisi aliquip ex ea commodo consequat duis aute irure in reprehenderit voluptate velit esse cillum eu fugiat nulla pariatur excepteur sint occaecat cupidatat non proident sunt culpa qui officia deserunt mollit anim id est laborum curabitur pretium tincidunt lacus nulla gravida orci vestibulum sagittis mauris integer euismod porta justo feugiat vitae ultricies").split(" "),
+  hipster: ("artisan brooklyn kombucha vinyl fixie sriracha selvage tote bag beard oat milk cold brew flannel typewriter mustache banjo kale chips craft ipa succulent macrame sourdough starter tattooed barista pour over single origin roastery raw denim thrifted cardigan vegan taxidermy chillwave lo-fi cassette polaroid zine kickstarter meditation retreat matcha turmeric latte heirloom tomato farmers market bicycle rights gentrify skateboard hoodie small batch bespoke pickled ramps forage mushroom hunting analog synth vibes aesthetic curated moodboard").split(" "),
+  space: ("starfield nebula hyperdrive quantum comet android galaxy warp singularity plasma cruiser starport smuggler federation rebellion blaster ion storm asteroid belt cryosleep navigator wormhole beacon dreadnought escape pod terraform colony moonbase stardust photon lance gravity well cloaking field mech hangar orbit drift alien envoy treaty holomap coordinates jumpgate reactor core supernova relic artifact prophecy captain squadron fleet armada void horizon eclipse binary suns rogue drone signal distress cargo bay stasis engine afterburn").split(" ")
+};
+var LOREM_OPEN_WORDS = ["Lorem","ipsum","dolor","sit","amet,","consectetur","adipiscing","elit."];
+var LOREM_OPEN_SENTENCE = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.";
+
+function rnd(n){ return Math.floor(Math.random()*n); }
+function pick(list){ return list[rnd(list.length)]; }
+function cap(w){ return w.charAt(0).toUpperCase() + w.slice(1); }
+
+function makeSentence(words){
+  var len = 6 + rnd(8); // 6-13 words
+  var parts = [];
+  for(var i=0;i<len;i++) parts.push(pick(words));
+  if(len >= 9){
+    var commaAt = 3 + rnd(len - 6);
+    parts[commaAt] = parts[commaAt] + ",";
+  }
+  return cap(parts.join(" ")) + ".";
+}
+function makeParagraph(words){
+  var n = 4 + rnd(4); // 4-7 sentences
+  var out = [];
+  for(var i=0;i<n;i++) out.push(makeSentence(words));
+  return out.join(" ");
+}
+function generate(opts){
+  var words = CORPORA[opts.corpus] || CORPORA.classic;
+  var count = Math.min(20, Math.max(1, opts.count|0));
+  var paras = [];
+  if(opts.unit === "words"){
+    var w = [];
+    for(var i=0;i<count;i++) w.push(pick(words));
+    if(opts.startLorem){
+      for(var j=0;j<Math.min(count, LOREM_OPEN_WORDS.length);j++){
+        w[j] = j === 0 ? LOREM_OPEN_WORDS[j] : LOREM_OPEN_WORDS[j].toLowerCase();
+      }
+    }
+    var s = w.join(" ").replace(/[.,]$/,"");
+    paras = [cap(s) + "."];
+  } else if(opts.unit === "sentences"){
+    var sents = [];
+    for(var k=0;k<count;k++) sents.push(makeSentence(words));
+    if(opts.startLorem) sents[0] = LOREM_OPEN_SENTENCE;
+    paras = [sents.join(" ")];
+  } else {
+    for(var p=0;p<count;p++) paras.push(makeParagraph(words));
+    if(opts.startLorem){
+      var first = paras[0].split(". ");
+      first[0] = LOREM_OPEN_SENTENCE.slice(0, -1);
+      paras[0] = first.join(". ");
+    }
+  }
+  if(opts.html){
+    return paras.map(function(p){ return "<p>" + p + "</p>"; }).join("\n");
+  }
+  return paras.join("\n\n");
+}
+// ---- DOM ----
+var LS_KEY = "wizzed-lorem-ipsum";
+var state = { count:3, unit:"paragraphs", corpus:"classic", startLorem:true, html:false };
+try{
+  var saved = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+  if(saved && typeof saved === "object"){
+    if(saved.count >= 1 && saved.count <= 20) state.count = saved.count;
+    if(["paragraphs","sentences","words"].indexOf(saved.unit) >= 0) state.unit = saved.unit;
+    if(CORPORA[saved.corpus]) state.corpus = saved.corpus;
+    state.startLorem = !!saved.startLorem;
+    state.html = !!saved.html;
+  }
+}catch(e){}
+
+var countEl = document.getElementById("count");
+var unitEl = document.getElementById("unit");
+var tabsEl = document.getElementById("corpusTabs");
+var loremTog = document.getElementById("loremTog");
+var htmlTog = document.getElementById("htmlTog");
+var outEl = document.getElementById("out");
+var statsEl = document.getElementById("stats");
+var current = "";
+
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+}
+function syncUI(){
+  countEl.value = state.count;
+  unitEl.value = state.unit;
+  Array.prototype.forEach.call(tabsEl.children, function(b){
+    b.classList.toggle("on", b.dataset.c === state.corpus);
+  });
+  loremTog.checked = state.startLorem;
+  htmlTog.checked = state.html;
+  document.getElementById("loremTogLbl").classList.toggle("on", state.startLorem);
+  document.getElementById("htmlTogLbl").classList.toggle("on", state.html);
+}
+function regen(){
+  current = generate(state);
+  outEl.textContent = current;
+  var plain = state.html ? current.replace(/<\/?p>/g,"") : current;
+  var wc = (plain.match(/[A-Za-z0-9]+/g) || []).length;
+  var pc = state.unit === "paragraphs" ? state.count : 1;
+  statsEl.textContent = pc + (pc === 1 ? " block · " : " paragraphs · ") + wc + " words · " + current.length + " chars";
+  save();
+}
+countEl.addEventListener("input", function(){
+  var v = parseInt(countEl.value, 10);
+  if(!isNaN(v)){ state.count = Math.min(20, Math.max(1, v)); regen(); }
+});
+countEl.addEventListener("change", function(){ countEl.value = state.count; });
+unitEl.addEventListener("change", function(){ state.unit = unitEl.value; regen(); });
+tabsEl.addEventListener("click", function(ev){
+  var b = ev.target.closest("button");
+  if(!b) return;
+  state.corpus = b.dataset.c;
+  syncUI(); regen();
+});
+loremTog.addEventListener("change", function(){ state.startLorem = loremTog.checked; syncUI(); regen(); });
+htmlTog.addEventListener("change", function(){ state.html = htmlTog.checked; syncUI(); regen(); });
+document.getElementById("btnRegen").addEventListener("click", regen);
+document.getElementById("btnCopy").addEventListener("click", function(){
+  var btn = this;
+  var done = function(){
+    btn.classList.add("ok"); btn.textContent = "COPIED!";
+    setTimeout(function(){ btn.classList.remove("ok"); btn.textContent = "COPY"; }, 900);
+  };
+  var fallback = function(){
+    var ta = document.createElement("textarea");
+    ta.value = current;
+    ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand("copy"); }catch(e){}
+    document.body.removeChild(ta);
+    done();
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(current).then(done, fallback);
+  } else { fallback(); }
+});
+syncUI();
+regen();
+</script>
+</body>
+</html>

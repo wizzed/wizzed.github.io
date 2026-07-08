@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stopwatch &amp; Timer · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ff9f43; --accent-soft:rgba(255,159,67,.45);
+  --panel:#161623; --line:#2c2c46; --text:#fff3e6; --dim:#a3948a;
+  --green:#3ddc84; --red:#ff4560;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:18px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:8px 8px 2px; }
+h1{
+  display:inline-block; font-size:clamp(15px,2.8vw,23px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 24px var(--accent-soft);
+}
+#tabs{ display:flex; justify-content:center; gap:8px; margin:6px 0 10px; }
+#tabs button{
+  font-family:inherit; font-size:12px; letter-spacing:2px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:6px 18px;
+}
+#tabs button.on{
+  color:#fff; border-color:var(--accent);
+  box-shadow:0 0 12px var(--accent-soft); text-shadow:0 0 6px var(--accent);
+}
+main{ display:flex; flex-wrap:wrap; gap:14px; justify-content:center; align-items:flex-start; padding:0 12px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:12px 14px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(255,159,67,.08);
+}
+.hidden{ display:none !important; }
+/* ---- stopwatch ---- */
+#swPanel{ text-align:center; width:min(96vw,430px); }
+#swTime{
+  font-size:clamp(38px,9vw,62px); letter-spacing:2px; color:var(--accent);
+  text-shadow:0 0 10px var(--accent), 0 0 40px var(--accent-soft);
+  font-variant-numeric:tabular-nums; margin:4px 0 2px;
+}
+#swTime .cc{ font-size:.55em; color:var(--text); }
+.btns{ display:flex; gap:8px; justify-content:center; margin:8px 0 4px; }
+.btns button{
+  font-family:inherit; font-size:13px; letter-spacing:2px; cursor:pointer; min-width:86px;
+  background:#121220; color:var(--text); border:1px solid var(--line); padding:9px 12px;
+}
+.btns button.primary{ color:#1a0f00; background:var(--accent); border-color:var(--accent); font-weight:bold; box-shadow:0 0 14px var(--accent-soft); }
+.btns button.go{ color:#03130a; background:var(--green); border-color:var(--green); font-weight:bold; box-shadow:0 0 14px rgba(61,220,132,.45); }
+.btns button:active{ transform:translateY(1px); }
+.keys{ font-size:9px; color:var(--dim); letter-spacing:1px; margin-top:4px; }
+#lapPanel{ width:min(96vw,290px); }
+#lapPanel h2{ font-size:11px; letter-spacing:2px; color:var(--dim); border-bottom:1px solid var(--line); padding-bottom:4px; margin-bottom:6px; }
+#laps{ max-height:300px; overflow-y:auto; font-size:12px; }
+#laps::-webkit-scrollbar{ width:8px; } #laps::-webkit-scrollbar-thumb{ background:var(--line); }
+.lap{ display:flex; justify-content:space-between; gap:8px; padding:4px 4px; border-bottom:1px solid #1e1e30; font-variant-numeric:tabular-nums; }
+.lap .n{ color:var(--dim); }
+.lap.best .d{ color:var(--green); text-shadow:0 0 8px var(--green); }
+.lap.worst .d{ color:var(--red); text-shadow:0 0 8px var(--red); }
+.lap .t{ color:var(--dim); }
+.tag{ font-size:8px; letter-spacing:1px; border:1px solid currentColor; padding:0 3px; margin-left:4px; }
+#noLaps{ color:var(--dim); font-size:11px; text-align:center; padding:16px 0; }
+/* ---- timer ---- */
+#tmPanel{ text-align:center; width:min(96vw,430px); }
+#ringWrap{ position:relative; width:min(56vmin,230px); height:min(56vmin,230px); margin:2px auto; }
+#ringWrap svg{ width:100%; height:100%; transform:rotate(-90deg); }
+#ringBg{ fill:none; stroke:#22222f; stroke-width:11; }
+#ringFg{
+  fill:none; stroke:var(--accent); stroke-width:11; stroke-linecap:round;
+  filter:drop-shadow(0 0 6px var(--accent));
+}
+#ringText{
+  position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+#tmTime{
+  font-size:clamp(30px,7vw,44px); color:var(--accent); font-variant-numeric:tabular-nums;
+  text-shadow:0 0 10px var(--accent), 0 0 34px var(--accent-soft);
+}
+#tmState{ font-size:10px; letter-spacing:2px; color:var(--dim); margin-top:2px; }
+#tmSet{ display:flex; justify-content:center; gap:6px; align-items:flex-end; margin:6px 0; }
+#tmSet label{ font-size:9px; color:var(--dim); display:block; letter-spacing:1px; }
+#tmSet input{
+  width:58px; background:#0c0c16; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:16px; text-align:center; padding:5px 2px; outline:none;
+}
+#tmSet input:focus{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+#chips{ display:flex; justify-content:center; gap:6px; margin:4px 0 6px; }
+#chips button{
+  font-family:inherit; font-size:11px; cursor:pointer; letter-spacing:1px;
+  background:#121220; color:var(--accent); border:1px solid var(--line); padding:4px 12px;
+}
+#chips button:hover{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+body.alarm{ animation:alarmflash .5s steps(2) 6; }
+@keyframes alarmflash{ 50%{ background:#33150a; } }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header><h1>STOPWATCH &amp; TIMER</h1></header>
+<div id="tabs">
+  <button id="tabSw" class="on">⏱ STOPWATCH</button>
+  <button id="tabTm">⏳ TIMER</button>
+</div>
+<main>
+  <section class="panel" id="swPanel">
+    <div id="swTime">00:00<span class="cc">.00</span></div>
+    <div class="btns">
+      <button id="swStart" class="go">START</button>
+      <button id="swLap">LAP</button>
+      <button id="swReset">RESET</button>
+    </div>
+    <div class="keys">[SPACE] start/stop · [L] lap · [R] reset</div>
+  </section>
+  <section class="panel" id="lapPanel">
+    <h2>LAPS</h2>
+    <div id="laps"></div>
+  </section>
+
+  <section class="panel hidden" id="tmPanel">
+    <div id="ringWrap">
+      <svg viewBox="0 0 120 120">
+        <circle id="ringBg" cx="60" cy="60" r="52"></circle>
+        <circle id="ringFg" cx="60" cy="60" r="52"></circle>
+      </svg>
+      <div id="ringText">
+        <div id="tmTime">05:00</div>
+        <div id="tmState">READY</div>
+      </div>
+    </div>
+    <div id="tmSet">
+      <div><label for="tmH">HRS</label><input id="tmH" type="number" min="0" max="23" value="0"></div>
+      <div><label for="tmM">MIN</label><input id="tmM" type="number" min="0" max="59" value="5"></div>
+      <div><label for="tmS">SEC</label><input id="tmS" type="number" min="0" max="59" value="0"></div>
+    </div>
+    <div id="chips">
+      <button data-m="1">1m</button>
+      <button data-m="5">5m</button>
+      <button data-m="10">10m</button>
+    </div>
+    <div class="btns">
+      <button id="tmStart" class="go">START</button>
+      <button id="tmReset">RESET</button>
+    </div>
+    <div class="keys">[SPACE] start/pause · [R] reset · alarm sounds at zero</div>
+  </section>
+</main>
+
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-stopwatch';
+var $=function(id){ return document.getElementById(id); };
+
+function pad(n){ return (n<10?'0':'')+n; }
+function fmtSW(ms){
+  ms=Math.max(0,Math.floor(ms));
+  var cc=Math.floor(ms/10)%100;
+  var s=Math.floor(ms/1000)%60;
+  var m=Math.floor(ms/60000);
+  return pad(m)+':'+pad(s)+'<span class="cc">.'+pad(cc)+'</span>';
+}
+function fmtPlain(ms){
+  ms=Math.max(0,Math.floor(ms));
+  var cc=Math.floor(ms/10)%100;
+  var s=Math.floor(ms/1000)%60;
+  var m=Math.floor(ms/60000);
+  return pad(m)+':'+pad(s)+'.'+pad(cc);
+}
+function fmtTM(ms){
+  var t=Math.max(0,Math.ceil(ms/1000));
+  var h=Math.floor(t/3600), m=Math.floor(t/60)%60, s=t%60;
+  return (h>0? h+':'+pad(m) : pad(m))+':'+pad(s);
+}
+
+/* ================= persistence ================= */
+function loadState(){
+  try{
+    var raw=localStorage.getItem(LS_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return null;
+}
+function saveState(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify({laps:laps, acc:swAcc}));
+  }catch(e){}
+}
+
+/* ================= stopwatch ================= */
+var swRunning=false, swStartAt=0, swAcc=0, laps=[];
+var saved=loadState();
+if(saved && Array.isArray(saved.laps)){
+  laps=saved.laps.filter(function(x){ return typeof x==='number' && x>=0; });
+  swAcc=typeof saved.acc==='number' ? saved.acc : (laps.length?laps[laps.length-1]:0);
+}else{
+  laps=[31240, 65110, 94830, 127450];
+  swAcc=142370;
+}
+
+function swNow(){ return swRunning ? swAcc+(performance.now()-swStartAt) : swAcc; }
+function swRender(){
+  $('swTime').innerHTML=fmtSW(swNow());
+}
+function lapsRender(){
+  var box=$('laps');
+  box.innerHTML='';
+  if(!laps.length){ box.innerHTML='<div id="noLaps">no laps yet — hit LAP while running</div>'; return; }
+  var deltas=laps.map(function(t,i){ return i===0 ? t : t-laps[i-1]; });
+  var best=-1,worst=-1;
+  if(laps.length>=2){
+    var mn=Infinity,mx=-Infinity;
+    deltas.forEach(function(d,i){ if(d<mn){mn=d;best=i;} if(d>mx){mx=d;worst=i;} });
+    if(best===worst){ best=-1; worst=-1; }
+  }
+  for(var i=laps.length-1;i>=0;i--){
+    var div=document.createElement('div');
+    div.className='lap'+(i===best?' best':'')+(i===worst?' worst':'');
+    div.innerHTML='<span class="n">#'+pad(i+1)+'</span>'+
+      '<span class="d">'+fmtPlain(deltas[i])+
+      (i===best?'<span class="tag">BEST</span>':'')+(i===worst?'<span class="tag">WORST</span>':'')+'</span>'+
+      '<span class="t">'+fmtPlain(laps[i])+'</span>';
+    box.appendChild(div);
+  }
+}
+function swTick(){
+  if(!swRunning) return;
+  swRender();
+  requestAnimationFrame(swTick);
+}
+function swToggle(){
+  if(swRunning){
+    swAcc=swNow(); swRunning=false;
+    $('swStart').textContent='START'; $('swStart').className='go';
+    saveState();
+  }else{
+    swRunning=true; swStartAt=performance.now();
+    $('swStart').textContent='PAUSE'; $('swStart').className='primary';
+    requestAnimationFrame(swTick);
+  }
+}
+function swLap(){
+  var t=swNow();
+  if(t<=0) return;
+  if(laps.length && t<=laps[laps.length-1]) return;
+  laps.push(Math.floor(t));
+  lapsRender(); saveState();
+}
+function swReset(){
+  swRunning=false; swAcc=0; laps=[];
+  $('swStart').textContent='START'; $('swStart').className='go';
+  swRender(); lapsRender(); saveState();
+}
+$('swStart').addEventListener('click',swToggle);
+$('swLap').addEventListener('click',swLap);
+$('swReset').addEventListener('click',swReset);
+
+/* ================= timer ================= */
+var tmTotal=300000, tmLeft=300000, tmRunning=false, tmEndAt=0, tmDone=false, tmRaf=null;
+var CIRC=2*Math.PI*52;
+$('ringFg').style.strokeDasharray=CIRC;
+$('ringFg').style.strokeDashoffset=0;
+
+function tmInputMs(){
+  var h=Math.min(23,Math.max(0,parseInt($('tmH').value,10)||0));
+  var m=Math.min(59,Math.max(0,parseInt($('tmM').value,10)||0));
+  var s=Math.min(59,Math.max(0,parseInt($('tmS').value,10)||0));
+  return ((h*3600)+(m*60)+s)*1000;
+}
+function tmRender(){
+  $('tmTime').textContent=fmtTM(tmLeft);
+  var frac= tmTotal>0 ? tmLeft/tmTotal : 0;
+  $('ringFg').style.strokeDashoffset=String(CIRC*(1-frac));
+  $('tmState').textContent= tmDone ? 'TIME UP!' : tmRunning ? 'RUNNING' : (tmLeft<tmTotal && tmLeft>0 ? 'PAUSED' : 'READY');
+}
+function tmTick(){
+  if(!tmRunning) return;
+  tmLeft=tmEndAt-performance.now();
+  if(tmLeft<=0){
+    tmLeft=0; tmRunning=false; tmDone=true;
+    $('tmStart').textContent='START'; $('tmStart').className='go';
+    tmRender(); ringAlarm();
+    return;
+  }
+  tmRender();
+  tmRaf=requestAnimationFrame(tmTick);
+}
+function tmToggle(){
+  if(tmRunning){
+    tmRunning=false;
+    if(tmRaf) cancelAnimationFrame(tmRaf);
+    tmLeft=Math.max(0,tmEndAt-performance.now());
+    $('tmStart').textContent='RESUME'; $('tmStart').className='go';
+    tmRender();
+  }else{
+    if(tmDone || tmLeft<=0){
+      tmTotal=tmInputMs();
+      if(tmTotal<=0){ tmTotal=60000; $('tmM').value=1; $('tmH').value=0; $('tmS').value=0; }
+      tmLeft=tmTotal; tmDone=false;
+    }else if(tmLeft===tmTotal){
+      var fresh=tmInputMs();
+      if(fresh>0){ tmTotal=fresh; tmLeft=fresh; }
+    }
+    tmRunning=true; tmEndAt=performance.now()+tmLeft;
+    $('tmStart').textContent='PAUSE'; $('tmStart').className='primary';
+    tmRender();
+    tmRaf=requestAnimationFrame(tmTick);
+  }
+}
+function tmReset(){
+  tmRunning=false; tmDone=false;
+  if(tmRaf) cancelAnimationFrame(tmRaf);
+  tmTotal=tmInputMs(); if(tmTotal<=0) tmTotal=300000;
+  tmLeft=tmTotal;
+  $('tmStart').textContent='START'; $('tmStart').className='go';
+  tmRender();
+}
+$('tmStart').addEventListener('click',tmToggle);
+$('tmReset').addEventListener('click',tmReset);
+Array.prototype.forEach.call(document.querySelectorAll('#chips button'),function(b){
+  b.addEventListener('click',function(){
+    $('tmH').value=0; $('tmM').value=+b.getAttribute('data-m'); $('tmS').value=0;
+    tmReset();
+  });
+});
+['tmH','tmM','tmS'].forEach(function(id){
+  $(id).addEventListener('change',function(){ if(!tmRunning){ tmDone=false; tmTotal=tmInputMs()||300000; tmLeft=tmTotal; tmRender(); } });
+});
+
+/* alarm via WebAudio */
+var actx=null;
+function ringAlarm(){
+  document.body.classList.remove('alarm'); void document.body.offsetWidth;
+  document.body.classList.add('alarm');
+  try{
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==='suspended') actx.resume();
+    var t0=actx.currentTime;
+    for(var i=0;i<4;i++){
+      var osc=actx.createOscillator(), g=actx.createGain();
+      osc.type='square';
+      osc.frequency.setValueAtTime(880,t0+i*0.45);
+      osc.frequency.setValueAtTime(1174,t0+i*0.45+0.15);
+      g.gain.setValueAtTime(0.0001,t0+i*0.45);
+      g.gain.exponentialRampToValueAtTime(0.18,t0+i*0.45+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+i*0.45+0.38);
+      osc.connect(g); g.connect(actx.destination);
+      osc.start(t0+i*0.45); osc.stop(t0+i*0.45+0.4);
+    }
+  }catch(e){}
+}
+
+/* ================= tabs + keys ================= */
+var mode='sw';
+function setMode(m){
+  mode=m;
+  $('tabSw').classList.toggle('on',m==='sw');
+  $('tabTm').classList.toggle('on',m==='tm');
+  $('swPanel').classList.toggle('hidden',m!=='sw');
+  $('lapPanel').classList.toggle('hidden',m!=='sw');
+  $('tmPanel').classList.toggle('hidden',m!=='tm');
+}
+$('tabSw').addEventListener('click',function(){ setMode('sw'); });
+$('tabTm').addEventListener('click',function(){ setMode('tm'); });
+
+document.addEventListener('keydown',function(e){
+  var tag=(e.target&&e.target.tagName)||'';
+  if(tag==='INPUT'||tag==='TEXTAREA') return;
+  if(e.code==='Space'){ e.preventDefault(); (mode==='sw'?swToggle:tmToggle)(); }
+  else if(e.key==='l'||e.key==='L'){ if(mode==='sw') swLap(); }
+  else if(e.key==='r'||e.key==='R'){ (mode==='sw'?swReset:tmReset)(); }
+});
+
+swRender(); lapsRender(); tmRender(); saveState();
+})();
+</script>
+</body>
+</html>

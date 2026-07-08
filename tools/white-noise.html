@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Noise Machine · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#b388ff; --accent-soft:rgba(179,136,255,.5);
+  --panel:#161623; --line:#2c2c46; --text:#efe8fa; --dim:#8f84a8;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:16px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 2px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:760px; margin:8px auto 0; padding:0 12px; display:flex; flex-direction:column; gap:12px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:12px 14px;
+  box-shadow:0 0 0 1px #000, 0 0 22px rgba(179,136,255,.10);
+}
+#masterPanel{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center; }
+#playBtn{
+  font-family:inherit; font-size:15px; letter-spacing:3px; cursor:pointer; text-transform:uppercase;
+  background:#121220; color:var(--accent); border:2px solid var(--accent); padding:12px 22px;
+}
+#playBtn:hover{ text-shadow:0 0 8px var(--accent); }
+#playBtn.playing{
+  background:var(--accent); color:#000; animation:pulse 1.6s ease-in-out infinite; text-shadow:none;
+}
+@keyframes pulse{ 0%,100%{box-shadow:0 0 10px var(--accent);} 50%{box-shadow:0 0 30px var(--accent);} }
+.mRow{ display:flex; align-items:center; gap:8px; flex:1; min-width:200px; }
+.mRow .lbl{ font-size:10px; letter-spacing:1px; color:var(--dim); }
+input[type=range]{
+  flex:1; -webkit-appearance:none; appearance:none; height:10px; min-width:70px;
+  background:#0c0c16; border:1px solid var(--line); outline:none; cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:18px; height:22px;
+  background:var(--ch,#b388ff); border:2px solid #000; box-shadow:0 0 10px var(--ch,#b388ff); cursor:pointer;
+}
+input[type=range]::-moz-range-thumb{
+  width:16px; height:20px; border-radius:0;
+  background:var(--ch,#b388ff); border:2px solid #000; box-shadow:0 0 10px var(--ch,#b388ff); cursor:pointer;
+}
+#timerRow{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:center; }
+#timerRow .lbl{ font-size:10px; letter-spacing:2px; color:var(--dim); margin-right:2px; }
+#timerRow button{
+  font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--text); border:2px solid var(--line); padding:5px 9px;
+}
+#timerRow button:hover{ border-color:var(--accent); }
+#timerRow button.on{ color:#000; background:var(--accent); border-color:var(--accent); box-shadow:0 0 10px var(--accent); }
+#timerLeft{ font-size:12px; color:var(--accent); text-shadow:0 0 8px var(--accent); min-width:52px; text-align:center; letter-spacing:1px; }
+#mixer{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+@media (max-width:600px){ #mixer{ grid-template-columns:1fr; } }
+.chan{
+  background:#12121f; border:1px solid var(--line); padding:9px 11px 11px;
+  position:relative; overflow:hidden;
+}
+.chan .top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+.chan .name{ font-size:13px; letter-spacing:2px; color:var(--ch); text-shadow:0 0 8px var(--ch); font-weight:bold; }
+.chan .pct{ font-size:10px; color:var(--dim); }
+.chan .glow{
+  position:absolute; left:0; bottom:0; height:3px; width:100%;
+  background:var(--ch); box-shadow:0 0 12px var(--ch), 0 0 4px var(--ch);
+  transform-origin:left; opacity:.25;
+}
+.chan .desc{ font-size:9px; color:var(--dim); letter-spacing:1px; margin-top:5px; }
+.hint{ text-align:center; font-size:10px; color:var(--dim); letter-spacing:1px; }
+kbd{ border:1px solid var(--line); padding:0 4px; background:#0c0c16; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>NOISE MACHINE</h1>
+  <div class="sub">FOCUS · RELAX · SLEEP</div>
+</header>
+<main>
+  <div class="panel" id="masterPanel">
+    <button id="playBtn">▶ PLAY</button>
+    <div class="mRow" style="--ch:#b388ff">
+      <span class="lbl">MASTER</span>
+      <input type="range" id="masterVol" min="0" max="100" value="80" aria-label="Master volume">
+    </div>
+    <div id="timerRow">
+      <span class="lbl">SLEEP</span>
+      <button data-min="0" class="on">OFF</button>
+      <button data-min="15">15m</button>
+      <button data-min="30">30m</button>
+      <button data-min="60">60m</button>
+      <span id="timerLeft">--:--</span>
+    </div>
+  </div>
+  <div class="panel">
+    <div id="mixer"></div>
+  </div>
+  <div class="hint"><kbd>SPACE</kbd> play / stop · mix &amp; timer fade out automatically</div>
+</main>
+<script>
+'use strict';
+(function(){
+  var LS_KEY='wizzed-white-noise';
+  var CHANNELS=[
+    { id:'white', name:'WHITE', color:'#f2f2f2', def:35, desc:'full-spectrum static' },
+    { id:'pink',  name:'PINK',  color:'#ff8ad8', def:0,  desc:'softer, natural hiss' },
+    { id:'brown', name:'BROWN', color:'#d29a6a', def:0,  desc:'deep low rumble' },
+    { id:'rain',  name:'RAIN',  color:'#6ac8ff', def:45, desc:'droplets on a window' },
+    { id:'ocean', name:'OCEAN', color:'#4fd8c0', def:30, desc:'slow rolling swells' },
+    { id:'wind',  name:'WIND',  color:'#b8e986', def:0,  desc:'drifting gusts' }
+  ];
+  var TRIM={ white:.28, pink:.4, brown:.9, rain:.9, ocean:1.0, wind:.55 };
+  var state={ master:80, vols:{} };
+  CHANNELS.forEach(function(c){ state.vols[c.id]=c.def; });
+  try{
+    var s=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
+    if(typeof s.master==='number') state.master=Math.min(100,Math.max(0,s.master));
+    if(s.vols) CHANNELS.forEach(function(c){
+      if(typeof s.vols[c.id]==='number') state.vols[c.id]=Math.min(100,Math.max(0,s.vols[c.id]));
+    });
+  }catch(e){}
+  function save(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){} }
+
+  var $=function(id){ return document.getElementById(id); };
+  var playBtn=$('playBtn'), masterVol=$('masterVol'), timerLeft=$('timerLeft');
+
+  /* ---------- build mixer UI ---------- */
+  var mixer=$('mixer'), glowEls={}, pctEls={};
+  CHANNELS.forEach(function(c){
+    var div=document.createElement('div');
+    div.className='chan'; div.style.setProperty('--ch',c.color);
+    div.innerHTML=
+      '<div class="top"><span class="name">'+c.name+'</span><span class="pct" id="pct-'+c.id+'"></span></div>'+
+      '<div class="mRow"><input type="range" min="0" max="100" id="vol-'+c.id+'" aria-label="'+c.name+' volume"></div>'+
+      '<div class="desc">'+c.desc+'</div>'+
+      '<div class="glow" id="glow-'+c.id+'"></div>';
+    mixer.appendChild(div);
+    var sl=div.querySelector('#vol-'+c.id);
+    sl.value=state.vols[c.id];
+    glowEls[c.id]=div.querySelector('#glow-'+c.id);
+    pctEls[c.id]=div.querySelector('#pct-'+c.id);
+    pctEls[c.id].textContent=state.vols[c.id]+'%';
+    sl.addEventListener('input',function(){
+      state.vols[c.id]=+this.value;
+      pctEls[c.id].textContent=state.vols[c.id]+'%';
+      if(nodes[c.id]) nodes[c.id].gain.gain.setTargetAtTime(chGain(c.id), actx.currentTime, 0.05);
+      save();
+    });
+  });
+  function chGain(id){ return (state.vols[id]/100)*TRIM[id]; }
+
+  /* ---------- audio engine ---------- */
+  var actx=null, master=null, nodes={}, playing=false, built=false;
+  function noiseBuffer(kind,seconds){
+    var sr=actx.sampleRate, len=Math.floor(sr*seconds);
+    var buf=actx.createBuffer(1,len,sr), d=buf.getChannelData(0);
+    if(kind==='white'){
+      for(var i=0;i<len;i++) d[i]=Math.random()*2-1;
+    }else if(kind==='pink'){
+      var b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+      for(var j=0;j<len;j++){
+        var w=Math.random()*2-1;
+        b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759;
+        b2=0.96900*b2+w*0.1538520; b3=0.86650*b3+w*0.3104856;
+        b4=0.55000*b4+w*0.5329522; b5=-0.7616*b5-w*0.0168980;
+        d[j]=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11;
+        b6=w*0.115926;
+      }
+    }else{ /* brown */
+      var last=0;
+      for(var k=0;k<len;k++){
+        var wt=Math.random()*2-1;
+        last=(last+0.02*wt)/1.02;
+        d[k]=last*3.5;
+      }
+    }
+    return buf;
+  }
+  /* sparse droplet envelope buffer for rain crackle */
+  function crackleBuffer(seconds,density){
+    var sr=actx.sampleRate, len=Math.floor(sr*seconds);
+    var buf=actx.createBuffer(1,len,sr), d=buf.getChannelData(0);
+    var drops=Math.floor(seconds*density);
+    for(var n=0;n<drops;n++){
+      var pos=Math.floor(Math.random()*len);
+      var amp=0.25+Math.random()*0.75;
+      var tail=Math.floor(sr*(0.002+Math.random()*0.01));
+      for(var i=0;i<tail && pos+i<len;i++){
+        d[pos+i]+=amp*Math.exp(-i/(tail*0.35));
+      }
+    }
+    for(var m=0;m<len;m++) if(d[m]>1) d[m]=1;
+    return buf;
+  }
+  function loopSrc(buf){
+    var s=actx.createBufferSource(); s.buffer=buf; s.loop=true;
+    s.start(actx.currentTime+Math.random()*0.5);
+    return s;
+  }
+  function lfo(freq,depth,target,type){
+    var o=actx.createOscillator(), g=actx.createGain();
+    o.type=type||'sine'; o.frequency.value=freq; g.gain.value=depth;
+    o.connect(g); g.connect(target); o.start();
+    return o;
+  }
+  function build(){
+    if(built) return;
+    built=true;
+    master=actx.createGain(); master.gain.value=0;
+    var comp=actx.createDynamicsCompressor();
+    comp.threshold.value=-18; comp.ratio.value=6;
+    master.connect(comp); comp.connect(actx.destination);
+    var white=noiseBuffer('white',4), pink=noiseBuffer('pink',4), brown=noiseBuffer('brown',4);
+
+    CHANNELS.forEach(function(c){
+      var gain=actx.createGain();
+      gain.gain.value=chGain(c.id);
+      gain.connect(master);
+      nodes[c.id]={ gain:gain };
+
+      if(c.id==='white'){ loopSrc(white).connect(gain); }
+      else if(c.id==='pink'){ loopSrc(pink).connect(gain); }
+      else if(c.id==='brown'){ loopSrc(brown).connect(gain); }
+      else if(c.id==='rain'){
+        /* hiss bed + crackle-modulated droplets */
+        var bed=actx.createBiquadFilter(); bed.type='highpass'; bed.frequency.value=1400;
+        var bedGain=actx.createGain(); bedGain.gain.value=0.22;
+        loopSrc(pink).connect(bed); bed.connect(bedGain); bedGain.connect(gain);
+        var hp=actx.createBiquadFilter(); hp.type='bandpass'; hp.frequency.value=3800; hp.Q.value=0.6;
+        var dropGain=actx.createGain(); dropGain.gain.value=0.0;
+        loopSrc(white).connect(hp); hp.connect(dropGain); dropGain.connect(gain);
+        var env=loopSrc(crackleBuffer(5,110));
+        var envAmt=actx.createGain(); envAmt.gain.value=1.6;
+        env.connect(envAmt); envAmt.connect(dropGain.gain);
+      }
+      else if(c.id==='ocean'){
+        var lp=actx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=420; lp.Q.value=0.4;
+        var swell=actx.createGain(); swell.gain.value=0.55;
+        loopSrc(brown).connect(lp); lp.connect(swell); swell.connect(gain);
+        lfo(0.085,0.4,swell.gain);           /* slow amplitude swell */
+        lfo(0.061,160,lp.frequency);         /* gentle tone movement */
+      }
+      else if(c.id==='wind'){
+        var bp=actx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=520; bp.Q.value=0.9;
+        var wg=actx.createGain(); wg.gain.value=0.5;
+        loopSrc(pink).connect(bp); bp.connect(wg); wg.connect(gain);
+        lfo(0.047,260,bp.frequency);         /* two incommensurate drifts */
+        lfo(0.013,140,bp.frequency);
+        lfo(0.07,0.2,wg.gain);               /* gust swells */
+      }
+    });
+  }
+  function masterTarget(){ return (state.master/100)*0.9; }
+  var suspendTimer=null;
+  function startAudio(){
+    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    if(suspendTimer){ clearTimeout(suspendTimer); suspendTimer=null; }
+    var go=function(){
+      build();
+      master.gain.cancelScheduledValues(actx.currentTime);
+      master.gain.setTargetAtTime(masterTarget(), actx.currentTime, 0.2);
+    };
+    if(actx.state==='suspended') actx.resume().then(go); else go();
+    playing=true;
+    playBtn.textContent='■ STOP'; playBtn.classList.add('playing');
+  }
+  function stopAudio(){
+    playing=false;
+    playBtn.textContent='▶ PLAY'; playBtn.classList.remove('playing');
+    clearTimer();
+    if(actx && master){
+      master.gain.cancelScheduledValues(actx.currentTime);
+      master.gain.setTargetAtTime(0.0001, actx.currentTime, 0.15);
+      suspendTimer=setTimeout(function(){
+        suspendTimer=null;
+        if(!playing && actx.state==='running') actx.suspend();
+      },900);
+    }
+  }
+  playBtn.addEventListener('click',function(){ playing?stopAudio():startAudio(); });
+  masterVol.addEventListener('input',function(){
+    state.master=+this.value;
+    if(actx && master && playing && !timerEnd)
+      master.gain.setTargetAtTime(masterTarget(), actx.currentTime, 0.05);
+    save();
+  });
+  document.addEventListener('keydown',function(e){
+    var t=e.target.tagName;
+    if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT') return;
+    if(e.code==='Space'){ e.preventDefault(); playing?stopAudio():startAudio(); }
+  });
+
+  /* ---------- sleep timer ---------- */
+  var timerEnd=0, timerTick=null, FADE_MS=20000;
+  var timerBtns=document.querySelectorAll('#timerRow button');
+  function clearTimer(){
+    timerEnd=0;
+    if(timerTick){ clearInterval(timerTick); timerTick=null; }
+    timerLeft.textContent='--:--';
+    setTimerBtn(0);
+  }
+  function setTimerBtn(min){
+    for(var i=0;i<timerBtns.length;i++)
+      timerBtns[i].classList.toggle('on',+timerBtns[i].dataset.min===min);
+  }
+  function setTimer(min){
+    if(min===0){ clearTimer();
+      if(playing && actx && master)
+        master.gain.setTargetAtTime(masterTarget(), actx.currentTime, 0.2);
+      return;
+    }
+    if(!playing) startAudio();
+    timerEnd=Date.now()+min*60000;
+    setTimerBtn(min);
+    if(timerTick) clearInterval(timerTick);
+    timerTick=setInterval(tick,250);
+    tick();
+  }
+  function tick(){
+    var left=timerEnd-Date.now();
+    if(left<=0){ clearTimer(); stopAudio(); return; }
+    var s=Math.ceil(left/1000);
+    timerLeft.textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+    if(left<FADE_MS && actx && master && playing){
+      master.gain.setTargetAtTime(masterTarget()*(left/FADE_MS), actx.currentTime, 0.2);
+    }
+  }
+  for(var b=0;b<timerBtns.length;b++)
+    timerBtns[b].addEventListener('click',function(){ setTimer(+this.dataset.min); });
+
+  /* ---------- animated level glow ---------- */
+  var phases={};
+  CHANNELS.forEach(function(c,i){ phases[c.id]=i*1.3; });
+  function glowFrame(t){
+    var sec=t/1000;
+    CHANNELS.forEach(function(c){
+      var v=state.vols[c.id]/100;
+      var flick;
+      if(c.id==='rain') flick=0.6+0.4*Math.abs(Math.sin(sec*7+phases[c.id]))*Math.abs(Math.sin(sec*3.1));
+      else if(c.id==='ocean') flick=0.5+0.5*(0.5+0.5*Math.sin(sec*0.55+phases[c.id]));
+      else if(c.id==='wind') flick=0.55+0.45*(0.5+0.5*Math.sin(sec*0.9+phases[c.id])*Math.sin(sec*0.31));
+      else flick=0.75+0.25*Math.sin(sec*4+phases[c.id]);
+      var level=v*(playing?flick:0.35+0.1*Math.sin(sec*1.2+phases[c.id]));
+      var g=glowEls[c.id];
+      g.style.transform='scaleX('+Math.max(0.02,level).toFixed(3)+')';
+      g.style.opacity=(0.25+0.75*level).toFixed(3);
+    });
+    requestAnimationFrame(glowFrame);
+  }
+  requestAnimationFrame(glowFrame);
+
+  /* ---------- init ---------- */
+  masterVol.value=state.master;
+})();
+</script>
+</body>
+</html>

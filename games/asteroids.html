@@ -97,11 +97,10 @@ bindBtn('btnL','l');bindBtn('btnR','r');bindBtn('btnT','t');bindBtn('btnF','f');
 function die(){
   boom(ship.x,ship.y,34,'#ff8a5c');beep(120,0.5,'sawtooth',0.09,40);
   lives--;
-  if(lives<=0){state='over';overT=0;if(score>best){best=score;saveBest();}}
+  if(lives<=0){state='over';overT=0;ship.dead=9999;if(score>best){best=score;saveBest();}}
   else ship.dead=1.5;
 }
 function update(dt){
-  const t=performance.now()/1000;
   /* particles always */
   for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=0.98;p.vy*=0.98;p.life-=dt;if(p.life<=0)parts.splice(i,1);}
   /* rocks drift always (title backdrop too) */

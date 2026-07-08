@@ -125,7 +125,7 @@ let showMap = true;
 // ── Scene ──────────────────────────────────────────────────────────────────
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0f0f1a);
-scene.fog = new THREE.FogExp2(0x0f0f1a, 0.055);
+scene.fog = new THREE.FogExp2(0x0f0f1a, 0.016); // thin at load (attract view); densified in-maze
 
 const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 200);
 camera.rotation.order = 'YXZ';
@@ -327,7 +327,11 @@ const keys = {};
 addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'KeyM') { showMap = !showMap; document.getElementById('minimap').style.display = showMap ? 'block' : 'none'; }
-  if (e.code === 'KeyR') { level = 1; N = 15; buildMaze(); if (!playing) return; }
+  if (e.code === 'KeyR') {
+    level = 1; N = 15;
+    document.getElementById('win-ov').style.display = 'none';
+    buildMaze();
+  }
   if ((e.code === 'Enter' || e.code === 'Space')) {
     if (!playing) startGame();
     else if (won) nextLevel();
@@ -455,6 +459,7 @@ function loop(ts) {
   }
 
   if (playing && !won) {
+    scene.fog.density += (0.055 - scene.fog.density) * Math.min(1, dt * 3);
     timeSec += dt;
     // movement
     let mx = 0, mz = 0;
@@ -466,19 +471,15 @@ function loop(ts) {
     const len = Math.hypot(mx, mz);
     if (len > 0.01) {
       mx /= Math.max(1, len); mz /= Math.max(1, len);
-      const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
-      const wx = (mx * cos - mz * sin) * SPEED * dt;
-      const wz = (-mx * sin - mz * cos) * SPEED * dt * -1;
       // forward is -z in camera space; convert local (mx, mz) to world
       const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
       const rx = Math.cos(player.yaw), rz = -Math.sin(player.yaw);
       const dxw = (rx * mx + fx * -mz) * SPEED * dt;
       const dzw = (rz * mx + fz * -mz) * SPEED * dt;
-      let nx = player.x + dxw;
+      const nx = player.x + dxw;
       if (!collides(nx, player.z)) player.x = nx;
-      let nz = player.z + dzw;
+      const nz = player.z + dzw;
       if (!collides(player.x, nz)) player.z = nz;
-      void wx; void wz;
     }
     // win check
     const ddx = player.x - exitWorld.x, ddz = player.z - exitWorld.z;
@@ -488,9 +489,10 @@ function loop(ts) {
     camera.rotation.y = player.yaw;
     camera.rotation.x = player.pitch;
   } else if (!playing) {
-    // attract mode: drift over the maze
+    // attract mode: drift over the maze (thin the fog so it reads well)
+    scene.fog.density += (0.016 - scene.fog.density) * Math.min(1, dt * 3);
     const a = t * 0.12;
-    camera.position.set(Math.sin(a) * W * 0.34, W * 0.42 + Math.sin(t * 0.3) * 2, Math.cos(a) * W * 0.34);
+    camera.position.set(Math.sin(a) * W * 0.3, W * 0.34 + Math.sin(t * 0.3) * 2, Math.cos(a) * W * 0.3);
     camera.lookAt(0, 0, 0);
   } else {
     // won: slow spin around portal

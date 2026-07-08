@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Word Scramble — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f1a;
+    --accent: #b14aff;
+    --accent-dim: rgba(177,74,255,.35);
+    --good: #00ff9d;
+    --bad: #ff4060;
+    --panel: #191930;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: #e8e8ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 8px 12px 16px;
+    overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px;
+    color: #8888c0; text-decoration: none; font-size: 13px; letter-spacing: 1px;
+    padding: 4px 8px; border: 1px solid #2a2a4a; border-radius: 6px;
+    background: rgba(15,15,26,.8); z-index: 50;
+  }
+  a.back:hover { color: var(--accent); border-color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+  h1 {
+    margin-top: 2px;
+    font-size: clamp(20px, 4.5vmin, 34px);
+    letter-spacing: 5px;
+    color: var(--accent);
+    text-shadow: 0 0 8px var(--accent), 0 0 26px var(--accent-dim);
+    text-transform: uppercase;
+  }
+  #hud { display: flex; gap: 8px; margin: 5px 0 8px; flex-wrap: wrap; justify-content: center; }
+  .hudbox {
+    background: var(--panel); border: 1px solid #2a2a4a; border-radius: 8px;
+    padding: 3px 12px; font-size: 10px; letter-spacing: 1px; color: #9a9ac8; text-align: center; min-width: 70px;
+  }
+  .hudbox b { display: block; color: var(--accent); font-size: 17px; text-shadow: 0 0 8px var(--accent); }
+  #arena {
+    width: 100%; max-width: 560px;
+    background: var(--panel);
+    border: 1px solid #2a2a4a;
+    border-radius: 12px;
+    box-shadow: 0 0 18px rgba(177,74,255,.12);
+    padding: 14px 16px;
+    text-align: center;
+  }
+  #lenlabel { font-size: 10px; letter-spacing: 3px; color: #8888c0; margin-bottom: 8px; }
+  #lenlabel b { color: var(--accent); }
+  .tilerow { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; min-height: 52px; align-items: center; }
+  #slots { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #34345a; }
+  .tile {
+    width: clamp(34px, 7vmin, 50px);
+    height: clamp(38px, 7.6vmin, 54px);
+    border-radius: 6px;
+    border: 2px solid var(--accent);
+    background: #23233d;
+    color: #fff;
+    font-family: inherit;
+    font-size: clamp(17px, 3.6vmin, 26px);
+    font-weight: bold;
+    text-transform: uppercase;
+    cursor: pointer;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+    box-shadow: 0 0 10px var(--accent-dim);
+    transition: transform .1s;
+  }
+  .tile:hover { transform: translateY(-3px); }
+  .tile:active { transform: scale(.92); }
+  .tile.slotted { background: rgba(177,74,255,.22); text-shadow: 0 0 8px var(--accent); }
+  .tile.empty { background: #14142a; border-style: dashed; border-color: #34345a; box-shadow: none; cursor: default; }
+  .tile.locked { border-color: var(--good); color: var(--good); text-shadow: 0 0 8px var(--good); cursor: default; box-shadow: 0 0 10px rgba(0,255,157,.35); }
+  #slots.shake { animation: shake .4s; }
+  @keyframes shake {
+    20%,60% { transform: translateX(-7px); }
+    40%,80% { transform: translateX(7px); }
+  }
+  #timerwrap { margin-top: 12px; }
+  #timebar { height: 8px; background: #23233d; border-radius: 4px; overflow: hidden; }
+  #timefill { height: 100%; width: 100%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  #feedback { min-height: 18px; font-size: 12px; letter-spacing: 1px; margin-top: 8px; color: #9a9ac8; }
+  #feedback.good { color: var(--good); text-shadow: 0 0 8px var(--good); }
+  #feedback.bad { color: var(--bad); text-shadow: 0 0 8px var(--bad); }
+  #actions { display: flex; gap: 8px; justify-content: center; margin-top: 10px; flex-wrap: wrap; }
+  .abtn {
+    background: #23233d; border: 1px solid #34345a; color: #d8d8f8;
+    font-family: inherit; font-weight: bold; font-size: 12px; letter-spacing: 1px;
+    padding: 9px 16px; border-radius: 6px; cursor: pointer; text-transform: uppercase;
+    touch-action: manipulation;
+  }
+  .abtn:hover:not(:disabled) { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-dim); }
+  .abtn:disabled { opacity: .4; cursor: default; }
+  .abtn.primary {
+    background: var(--accent); color: #1c0430; border-color: var(--accent);
+    box-shadow: 0 0 14px var(--accent-dim);
+  }
+  .abtn.primary:hover:not(:disabled) { box-shadow: 0 0 24px var(--accent); }
+  #startbtn { animation: pulse 1.4s ease-in-out infinite; font-size: 14px; padding: 11px 26px; }
+  @keyframes pulse { 50% { box-shadow: 0 0 30px var(--accent); } }
+  #overlay {
+    position: fixed; inset: 0; background: rgba(10,10,20,.9);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 100;
+  }
+  #overlay.show { opacity: 1; pointer-events: auto; }
+  .panel2 {
+    background: var(--panel); border: 2px solid var(--accent); border-radius: 12px;
+    box-shadow: 0 0 30px var(--accent-dim), 0 0 80px rgba(177,74,255,.15);
+    padding: 24px 32px; text-align: center; max-width: 92vw;
+  }
+  .panel2 h2 { color: var(--accent); letter-spacing: 4px; font-size: 24px; text-shadow: 0 0 12px var(--accent); margin-bottom: 8px; }
+  .panel2 .word { font-size: 19px; letter-spacing: 5px; color: #fff; margin: 6px 0 10px; text-shadow: 0 0 10px #fff; }
+  .panel2 .sub { color: #9a9ac8; font-size: 13px; margin-bottom: 16px; line-height: 1.8; }
+  .panel2 .sub b { color: var(--accent); }
+  .btn {
+    background: var(--accent); color: #1c0430; border: none; font-family: inherit;
+    font-weight: bold; font-size: 15px; letter-spacing: 2px; padding: 11px 26px;
+    border-radius: 6px; cursor: pointer; text-transform: uppercase;
+    box-shadow: 0 0 14px var(--accent-dim);
+  }
+  .btn:hover { box-shadow: 0 0 26px var(--accent); }
+  @media (max-height: 560px) {
+    h1 { font-size: 18px; }
+    .tilerow { min-height: 42px; }
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<h1>Word Scramble</h1>
+<div id="hud">
+  <div class="hudbox">SCORE<b id="h-score">0</b></div>
+  <div class="hudbox">LEVEL<b id="h-level">1</b></div>
+  <div class="hudbox">STREAK<b id="h-streak">0</b></div>
+  <div class="hudbox">TIME<b id="h-time">30</b></div>
+  <div class="hudbox">BEST<b id="h-best">0</b></div>
+</div>
+<div id="arena">
+  <div id="lenlabel"><b id="len-count">6</b> LETTERS — LONGER WORDS SCORE MORE</div>
+  <div class="tilerow" id="slots"></div>
+  <div class="tilerow" id="pool"></div>
+  <div id="timerwrap"><div id="timebar"><div id="timefill"></div></div></div>
+  <div id="feedback">Unscramble the letters before time runs out!</div>
+  <div id="actions">
+    <button class="abtn primary" id="startbtn">▶ Start</button>
+    <button class="abtn" id="submitbtn">Submit ↵</button>
+    <button class="abtn" id="shufflebtn">Shuffle</button>
+    <button class="abtn" id="hintbtn">Hint (−15)</button>
+    <button class="abtn" id="clearbtn">Clear</button>
+  </div>
+</div>
+<div id="overlay">
+  <div class="panel2">
+    <h2>TIME UP!</h2>
+    <div class="word" id="ov-word">WORD</div>
+    <div class="sub" id="ov-sub"></div>
+    <button class="btn" id="ov-again">Play Again</button>
+  </div>
+</div>
+<script>
+(function () {
+  "use strict";
+  var WORDS_STR = "able acid arch army atom aunt axle bake ball band bank barn base bath beam bean bear bell belt bird boat bolt bone book boot bowl bulb burn bush cake calm camp card cart cash cave chef clay clip club coal coat code coin cone cook copy cord cork corn crab crew crop cube dark dart dawn deck deer desk dice dish dock dome door dove drum duck dusk dust echo edge exit face farm fern fire fish flag flow foam fold food foot fork fort frog fuel gate gear gift glow goat gold golf gown grid grin grip hall hand harp hawk heat herb hero hill hive hold hole home hood hook hoop horn hose host husk icon iron jade join jolt jump kale keep kelp kick kind king kite knee knot lace lake lamb lamp land lane leaf lens lime lion loaf lock loft logo loop mask mast maze meal melt mesh milk mint mist moat mole moon moss moth nail neat neon nest news node noon nose note oath palm park path peak pear peel pier pine plot plum plug poem pond pony pool port pump pure quiz raft rail rain ramp reef rice ring ripe road rock roof root rope rose ruby rust sail salt sand scan seal seed shed ship shoe sign silk sink sled slot snow sock sofa soil song soup spin spot spur star stem step stew stir surf swan tail tale tame tank tape task team tent thaw tide tile toad tomb tone tool town tray tree trim tuna twig vase vast vine volt wall wand warm wasp wave weld well west whip wick wind wing wire wolf wood wool word yarn yawn zinc zoom amber apron badge basil beach beard berry blaze bloom brave bread brick broom cabin candy cedar chair chalk charm chess chord cider clock cloud coral crane crown daisy dance diver dough dozen eagle ember fable feast fence field flame flock forge frost fruit gecko glide globe gloom grape grass grill grove hazel heart hedge honey horse igloo ivory jelly jewel juice koala lance lemon light lunar mango maple marsh medal metal miner mocha mount mouse music night noble ocean olive onion opera orbit otter peach pearl penny piano pilot pixel plane plant plaza pouch prism quill quilt radar raven ridge river robin robot rodeo salsa scarf shark shelf shell shine shore skate sleet slope smile snail spark spice spoon sport steam stone storm swirl sword table tiger torch tower trail train tulip twine vapor vault vinyl wagon whale wheat witch zebra anchor autumn bamboo banner basket beacon bishop bottle branch breeze bridge bucket butter camera candle canyon carpet castle cellar cherry coffee copper cosmos cradle crayon dagger dragon drawer editor engine falcon fiddle flower forest fossil galaxy garden garlic geyser ginger goblet goblin guitar hammer hazard helmet hermit hollow icicle island jacket jungle kernel kitten ladder lagoon legend lizard locket magnet marble market meadow melody mirror morsel mosaic muffin mystic needle nectar nugget orchid oyster palace parrot pebble pepper pigeon pillow pirate planet plasma pocket portal puzzle python quartz rabbit raptor riddle rocket saddle scarab shadow shield silver sketch spider spiral sprout statue summer sunset temple thread throne timber tomato treaty tunnel turtle valley velvet violet violin voyage walnut wander weasel willow window winter wizard wonder zephyr zigzag admiral almanac antenna avocado balcony beehive bicycle blanket blossom bonfire bracket cabbage caravan cascade channel charity chimney compass crystal cyclone diamond dolphin dungeon eclipse emerald factory fortune freight gazelle glacier granite gravity harvest horizon journey lantern lettuce library machine mansion mineral monsoon mustang mystery octopus orchard pageant panther pendant phantom picture pioneer plateau polygon pyramid rainbow redwood referee samurai satchel scarlet scholar sparrow specter stadium thunder tornado trumpet tsunami vehicle village vintage volcano voyager warrior weather whisper wildcat aquarium birthday blizzard campfire computer creature daffodil daydream dinosaur doughnut elephant festival firewood flamingo fortress fountain hedgehog keyboard kangaroo lavender magician meridian midnight molasses monument moonbeam mountain mushroom obsidian paradise pavilion porridge princess sandwich sapphire scorpion seahorse skeleton squirrel stargaze sunlight treasure trombone twilight umbrella universe velocity wildfire yearbook";
+  var WORDS = WORDS_STR.trim().split(/\s+/).map(function (w) { return w.toUpperCase(); });
+
+  // ---------- audio ----------
+  var actx = null;
+  function initAudio() {
+    if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; } }
+    if (actx && actx.state === "suspended") actx.resume();
+  }
+  document.addEventListener("pointerdown", initAudio, { once: true });
+  document.addEventListener("keydown", initAudio, { once: true });
+  function beep(freq, dur, type, vol) {
+    if (!actx) return;
+    try {
+      dur = dur || 0.06; type = type || "square"; vol = vol || 0.035;
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+      o.connect(g); g.connect(actx.destination);
+      o.start(); o.stop(actx.currentTime + dur);
+    } catch (e) { /* ignore */ }
+  }
+
+  // ---------- storage ----------
+  var STORE_KEY = "wizzed-word-scramble";
+  var store = { best: 0, bestStreak: 0, games: 0 };
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (raw) { var p = JSON.parse(raw); if (p && typeof p === "object") store = Object.assign(store, p); }
+  } catch (e) { /* ignore */ }
+  function saveStore() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) { /* ignore */ } }
+
+  // ---------- state ----------
+  var word = "";
+  var tiles = [];        // [{ch, slot: -1|index}] pool tiles in display order
+  var locked = [];       // per-slot boolean (hint-locked)
+  var score = 0, level = 1, streak = 0;
+  var running = false, over = false;
+  var timeLeft = 30, wordTime = 30, lastTick = 0, rafId = 0;
+  var hintUsed = false;
+  var recentWords = [];
+
+  var slotsEl = document.getElementById("slots");
+  var poolEl = document.getElementById("pool");
+  var fbEl = document.getElementById("feedback");
+
+  function timeForLevel(lv) { return Math.max(10, 30 - Math.floor((lv - 1) * 1.5)); }
+
+  function pickWord() {
+    var w;
+    var guard = 0;
+    do {
+      w = WORDS[Math.floor(Math.random() * WORDS.length)];
+      guard++;
+    } while (recentWords.indexOf(w) >= 0 && guard < 50);
+    recentWords.push(w);
+    if (recentWords.length > 20) recentWords.shift();
+    return w;
+  }
+
+  function scramble(w) {
+    var arr = w.split(""), out, guard = 0;
+    do {
+      out = arr.slice();
+      for (var i = out.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = out[i]; out[i] = out[j]; out[j] = t;
+      }
+      guard++;
+    } while (out.join("") === w && guard < 20);
+    return out;
+  }
+
+  function newWord() {
+    word = pickWord();
+    tiles = scramble(word).map(function (ch) { return { ch: ch, slot: -1 }; });
+    locked = word.split("").map(function () { return false; });
+    hintUsed = false;
+    document.getElementById("hintbtn").disabled = false;
+    document.getElementById("len-count").textContent = word.length;
+    wordTime = timeForLevel(level);
+    timeLeft = wordTime;
+    render();
+  }
+
+  function slotContents() {
+    // returns array: slotIndex -> tile object or null
+    var arr = word.split("").map(function () { return null; });
+    tiles.forEach(function (t) { if (t.slot >= 0) arr[t.slot] = t; });
+    return arr;
+  }
+
+  function render() {
+    var slotArr = slotContents();
+    slotsEl.innerHTML = "";
+    slotArr.forEach(function (t, i) {
+      var b = document.createElement("button");
+      if (t) {
+        b.className = "tile slotted" + (locked[i] ? " locked" : "");
+        b.textContent = t.ch;
+        if (!locked[i]) {
+          b.addEventListener("click", function () { removeFromSlot(i); });
+        }
+      } else {
+        b.className = "tile empty";
+        b.textContent = " ";
+      }
+      slotsEl.appendChild(b);
+    });
+    poolEl.innerHTML = "";
+    tiles.forEach(function (t, idx) {
+      var b = document.createElement("button");
+      if (t.slot === -1) {
+        b.className = "tile";
+        b.textContent = t.ch;
+        b.addEventListener("click", function () { placeTile(idx); });
+      } else {
+        b.className = "tile empty";
+        b.textContent = " ";
+      }
+      poolEl.appendChild(b);
+    });
+    renderHud();
+  }
+
+  function renderHud() {
+    document.getElementById("h-score").textContent = score;
+    document.getElementById("h-level").textContent = level;
+    document.getElementById("h-streak").textContent = streak;
+    document.getElementById("h-best").textContent = store.best;
+    document.getElementById("h-time").textContent = Math.ceil(timeLeft);
+    var fill = document.getElementById("timefill");
+    var frac = wordTime > 0 ? timeLeft / wordTime : 0;
+    fill.style.width = (Math.max(0, frac) * 100) + "%";
+    var col = frac < 0.25 ? "#ff4060" : "#b14aff";
+    fill.style.background = col;
+    fill.style.boxShadow = "0 0 10px " + col;
+  }
+
+  function firstEmptySlot() {
+    var slotArr = slotContents();
+    for (var i = 0; i < slotArr.length; i++) if (!slotArr[i]) return i;
+    return -1;
+  }
+
+  function placeTile(idx) {
+    if (!running) return;
+    var s = firstEmptySlot();
+    if (s === -1) return;
+    tiles[idx].slot = s;
+    beep(420 + s * 40, 0.04, "square", 0.03);
+    render();
+  }
+
+  function removeFromSlot(slotIdx) {
+    if (!running || locked[slotIdx]) return;
+    tiles.forEach(function (t) { if (t.slot === slotIdx) t.slot = -1; });
+    beep(240, 0.04, "square", 0.03);
+    render();
+  }
+
+  function removeLast() {
+    if (!running) return;
+    var maxSlot = -1;
+    tiles.forEach(function (t) { if (t.slot > maxSlot && !locked[t.slot]) maxSlot = t.slot; });
+    if (maxSlot >= 0) removeFromSlot(maxSlot);
+  }
+
+  function clearSlots() {
+    if (!running) return;
+    tiles.forEach(function (t) { if (t.slot >= 0 && !locked[t.slot]) t.slot = -1; });
+    render();
+  }
+
+  function shufflePool() {
+    if (!running) return;
+    // shuffle display order of unplaced tiles
+    var free = tiles.filter(function (t) { return t.slot === -1; });
+    var placed = tiles.filter(function (t) { return t.slot !== -1; });
+    for (var i = free.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = free[i]; free[i] = free[j]; free[j] = t;
+    }
+    tiles = placed.concat(free);
+    beep(500, 0.05, "triangle", 0.03);
+    render();
+  }
+
+  function hint() {
+    if (!running || hintUsed) return;
+    // find leftmost slot that is not locked-correct
+    var slotArr = slotContents();
+    var target = -1;
+    for (var i = 0; i < word.length; i++) {
+      if (!(slotArr[i] && slotArr[i].ch === word[i])) { target = i; break; }
+    }
+    if (target === -1) return;
+    // clear wrong occupant
+    if (slotArr[target]) slotArr[target].slot = -1;
+    // find a free tile (or steal from a non-locked slot) with the needed char
+    var needed = word[target];
+    var donor = null;
+    tiles.forEach(function (t) {
+      if (donor) return;
+      if (t.ch === needed && (t.slot === -1 || !locked[t.slot]) && t.slot !== target) donor = t;
+    });
+    if (!donor) return;
+    donor.slot = target;
+    locked[target] = true;
+    hintUsed = true;
+    score = Math.max(0, score - 15);
+    document.getElementById("hintbtn").disabled = true;
+    fbEl.textContent = "HINT: letter " + (target + 1) + " is " + needed + " (−15 pts)";
+    fbEl.className = "";
+    beep(700, 0.1, "triangle", 0.04);
+    render();
+  }
+
+  function submit() {
+    if (!running) return;
+    var slotArr = slotContents();
+    if (slotArr.some(function (t) { return !t; })) {
+      shakeSlots();
+      fbEl.textContent = "Fill every slot first!";
+      fbEl.className = "bad";
+      return;
+    }
+    var attempt = slotArr.map(function (t) { return t.ch; }).join("");
+    if (attempt === word) {
+      var pts = word.length * 10 + Math.ceil(timeLeft) * 2;
+      score += pts;
+      streak++;
+      level++;
+      fbEl.textContent = "+" + pts + " pts — " + word + "!";
+      fbEl.className = "good";
+      [660, 784, 988].forEach(function (f, i) { setTimeout(function () { beep(f, 0.08, "square", 0.04); }, i * 80); });
+      newWord();
+    } else {
+      shakeSlots();
+      fbEl.textContent = "Not quite — keep rearranging!";
+      fbEl.className = "bad";
+      beep(150, 0.18, "sawtooth", 0.05);
+    }
+  }
+
+  function shakeSlots() {
+    slotsEl.classList.remove("shake");
+    void slotsEl.offsetWidth;
+    slotsEl.classList.add("shake");
+  }
+
+  // ---------- timer ----------
+  function loop(now) {
+    if (!running) return;
+    var dt = (now - lastTick) / 1000;
+    lastTick = now;
+    timeLeft -= dt;
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      renderHud();
+      gameOver();
+      return;
+    }
+    renderHud();
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function startGame() {
+    running = true; over = false;
+    score = 0; level = 1; streak = 0;
+    document.getElementById("startbtn").style.display = "none";
+    document.getElementById("overlay").classList.remove("show");
+    fbEl.textContent = "GO! Click tiles or type letters.";
+    fbEl.className = "good";
+    newWord();
+    lastTick = performance.now();
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(loop);
+    beep(880, 0.1, "square", 0.05);
+  }
+
+  function gameOver() {
+    running = false; over = true;
+    cancelAnimationFrame(rafId);
+    var solved = level - 1;
+    var isBest = score > store.best;
+    if (isBest) store.best = score;
+    if (streak > store.bestStreak) store.bestStreak = streak;
+    store.games++;
+    saveStore();
+    [300, 240, 180, 120].forEach(function (f, i) { setTimeout(function () { beep(f, 0.2, "sawtooth", 0.05); }, i * 150); });
+    document.getElementById("ov-word").textContent = "The word was " + word;
+    document.getElementById("ov-sub").innerHTML =
+      "Score <b>" + score + "</b> &nbsp;|&nbsp; Words solved <b>" + solved + "</b> &nbsp;|&nbsp; Streak <b>" + streak + "</b><br>" +
+      (isBest ? "★ NEW BEST SCORE ★" : "Best score <b>" + store.best + "</b> &nbsp;|&nbsp; Best streak <b>" + store.bestStreak + "</b>");
+    document.getElementById("overlay").classList.add("show");
+    document.getElementById("startbtn").style.display = "";
+  }
+
+  // ---------- input ----------
+  window.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (document.getElementById("overlay").classList.contains("show")) {
+      if (e.key === "Enter") { startGame(); e.preventDefault(); }
+      return;
+    }
+    if (!running) {
+      if (e.key === "Enter") { startGame(); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "Enter") { submit(); e.preventDefault(); return; }
+    if (e.key === "Backspace") { removeLast(); e.preventDefault(); return; }
+    if (/^[a-zA-Z]$/.test(e.key)) {
+      var L = e.key.toUpperCase();
+      for (var i = 0; i < tiles.length; i++) {
+        if (tiles[i].slot === -1 && tiles[i].ch === L) { placeTile(i); return; }
+      }
+      shakeSlots();
+    }
+  });
+
+  document.getElementById("startbtn").addEventListener("click", startGame);
+  document.getElementById("ov-again").addEventListener("click", startGame);
+  document.getElementById("submitbtn").addEventListener("click", submit);
+  document.getElementById("shufflebtn").addEventListener("click", shufflePool);
+  document.getElementById("hintbtn").addEventListener("click", hint);
+  document.getElementById("clearbtn").addEventListener("click", clearSlots);
+
+  // initial display (pre-game): show a scrambled word so the board looks alive
+  word = pickWord();
+  tiles = scramble(word).map(function (ch) { return { ch: ch, slot: -1 }; });
+  locked = word.split("").map(function () { return false; });
+  document.getElementById("len-count").textContent = word.length;
+  wordTime = timeForLevel(1);
+  timeLeft = wordTime;
+  render();
+})();
+</script>
+</body>
+</html>

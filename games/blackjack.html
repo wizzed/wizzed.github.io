@@ -253,6 +253,7 @@ function updBetUI(){
   });
   el('rebetBtn').style.display=(lastBet>0&&bank>=lastBet&&bet===0)?'':'none';
   updBank();
+  if(bank<5&&bet===0)el('broke').style.display='flex';
 }
 document.querySelectorAll('.chip').forEach(function(c){
   c.addEventListener('click',function(){
@@ -280,7 +281,6 @@ el('newBtn').addEventListener('click',function(){
   setMsg('PLACE YOUR BET');
   showUI('betUI');
   updBetUI();
-  if(bank<=0&&bet<=0)el('broke').style.display='flex';
 });
 el('resetBank').addEventListener('click',function(){
   bank=1000;bet=0;saveBank();el('broke').style.display='none';updBetUI();
@@ -599,7 +599,6 @@ shuffleShoe();
   shuffleShoe();
 })();
 updBetUI();
-if(bank<=0)el('broke').style.display='flex';
 })();
 </script>
 </body>

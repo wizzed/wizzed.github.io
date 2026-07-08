@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neon Notes · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#b465ff; --accent-soft:rgba(180,101,255,.5);
+  --panel:#161624; --line:#2c2c48; --text:#efe8fa; --dim:#93889f;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:200;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; flex:none; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+.bar{
+  flex:none; display:flex; gap:10px; justify-content:center; align-items:center;
+  padding:6px 12px 10px; flex-wrap:wrap;
+}
+#addBtn{
+  font-family:inherit; font-size:12px; letter-spacing:2px; cursor:pointer;
+  background:#1c1030; color:var(--accent); border:1px solid var(--accent);
+  padding:7px 14px; text-shadow:0 0 8px var(--accent);
+  box-shadow:0 0 12px rgba(180,101,255,.25);
+}
+#addBtn:hover{ box-shadow:0 0 18px var(--accent-soft); }
+#search{
+  font-family:inherit; font-size:12px; background:#121220; color:var(--text);
+  border:1px solid var(--line); padding:7px 10px; width:min(46vw,240px);
+}
+#search:focus{ outline:1px solid var(--accent); }
+#count{ font-size:10px; color:var(--dim); letter-spacing:1px; }
+#board{
+  flex:1; position:relative; overflow:hidden;
+  border-top:2px solid var(--line);
+  background-image:
+    linear-gradient(rgba(180,101,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(180,101,255,.05) 1px, transparent 1px);
+  background-size:32px 32px;
+}
+.note{
+  position:absolute; width:208px; background:#14141f;
+  border:2px solid var(--nc,#b465ff);
+  box-shadow:0 0 14px var(--ncs,rgba(180,101,255,.4)), 0 6px 18px rgba(0,0,0,.55);
+  display:flex; flex-direction:column;
+  transition:opacity .2s;
+}
+.note.dim{ opacity:.07; pointer-events:none; }
+.note.dragging{ opacity:.92; cursor:grabbing; }
+.nhead{
+  display:flex; align-items:center; gap:4px;
+  background:var(--nc,#b465ff); color:#0f0f1a;
+  padding:3px 6px; cursor:grab; touch-action:none; user-select:none;
+  font-size:10px; letter-spacing:1px; font-weight:bold;
+}
+.note.pinned .nhead{ cursor:default; }
+.nhead .grip{ flex:1; overflow:hidden; white-space:nowrap; }
+.nhead button{
+  background:none; border:none; cursor:pointer; font-family:inherit;
+  font-size:11px; color:#0f0f1a; padding:0 3px; line-height:1;
+}
+.nhead button:hover{ color:#fff; }
+.nhead .pin.on{ color:#fff; text-shadow:0 0 6px #fff; }
+.note textarea{
+  font-family:inherit; font-size:12px; line-height:1.45;
+  background:transparent; color:var(--text); border:none; resize:none;
+  padding:8px; min-height:70px; overflow:hidden;
+}
+.note textarea:focus{ outline:none; background:rgba(255,255,255,.03); }
+.nfoot{ display:flex; gap:4px; padding:4px 6px 6px; }
+.dot{
+  width:14px; height:14px; border:1px solid #000; cursor:pointer; padding:0;
+  border-radius:50%;
+}
+.dot:hover{ transform:scale(1.2); }
+.dot.on{ outline:2px solid #fff; }
+#empty{
+  position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+  color:var(--dim); font-size:13px; letter-spacing:2px; text-align:center; padding:20px;
+}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header><h1>NEON NOTES</h1></header>
+<div class="bar">
+  <button id="addBtn">+ NEW NOTE</button>
+  <input type="text" id="search" placeholder="search notes...">
+  <span id="count"></span>
+</div>
+<div id="board"><div id="empty">no notes match — add one with + NEW NOTE</div></div>
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-neon-notes';
+var COLORS=['#ff2079','#00e5ff','#3ddc84','#f9f871','#b465ff','#ff9e3d'];
+var board=document.getElementById('board');
+var emptyEl=document.getElementById('empty');
+var searchEl=document.getElementById('search');
+var countEl=document.getElementById('count');
+var NOTE_W=208;
+
+var notes=[];
+var zTop=10;
+
+function defaults(){
+  return [
+    { id:'n1', x:40,  y:30,  color:'#ff2079', pinned:true,  z:1,
+      text:'★ WELCOME TO NEON NOTES ★\n\ndrag notes by their header,\nclick text to edit,\n📌 pin locks a note in place,\n✕ zaps it forever.' },
+    { id:'n2', x:300, y:60,  color:'#00e5ff', pinned:false, z:2,
+      text:'TODO:\n[x] make coffee\n[ ] beat drum machine hi-score\n[ ] water the pixel cactus\n[ ] take over the arcade' },
+    { id:'n3', x:560, y:40,  color:'#3ddc84', pinned:false, z:3,
+      text:'  /\\_/\\\n ( o.o )\n  > ^ <\n\npixel cat approves\nof your notes ✔' }
+  ];
+}
+
+function load(){
+  try{
+    var raw=localStorage.getItem(LS_KEY);
+    if(raw){
+      var o=JSON.parse(raw);
+      if(o&&Array.isArray(o.notes)) return o.notes;
+    }
+  }catch(e){}
+  return null;
+}
+var saveTimer=null;
+function flush(){
+  try{ localStorage.setItem(LS_KEY,JSON.stringify({notes:notes})); }catch(e){}
+}
+function persist(){
+  if(saveTimer) clearTimeout(saveTimer);
+  saveTimer=setTimeout(flush,200);
+}
+window.addEventListener('pagehide',flush);
+
+function hexToRgba(hex,a){
+  var n=parseInt(hex.slice(1),16);
+  return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
+}
+function clampPos(n){
+  var bw=board.clientWidth, bh=board.clientHeight;
+  n.x=Math.max(0,Math.min(n.x,Math.max(bw-NOTE_W,0)));
+  n.y=Math.max(0,Math.min(n.y,Math.max(bh-60,0)));
+}
+
+function makeEl(n){
+  var el=document.createElement('div');
+  el.className='note'+(n.pinned?' pinned':'');
+  el.dataset.id=n.id;
+  el.style.setProperty('--nc',n.color);
+  el.style.setProperty('--ncs',hexToRgba(n.color,0.45));
+  el.style.left=n.x+'px';
+  el.style.top=n.y+'px';
+  el.style.zIndex=String(n.z||1);
+
+  var head=document.createElement('div');
+  head.className='nhead';
+  var grip=document.createElement('span');
+  grip.className='grip';
+  grip.textContent='▓▒░ NOTE';
+  var pin=document.createElement('button');
+  pin.className='pin'+(n.pinned?' on':'');
+  pin.textContent='📌';
+  pin.title=n.pinned?'unpin':'pin in place';
+  var del=document.createElement('button');
+  del.textContent='✕';
+  del.title='delete note';
+  head.appendChild(grip); head.appendChild(pin); head.appendChild(del);
+
+  var ta=document.createElement('textarea');
+  ta.value=n.text;
+  ta.spellcheck=false;
+
+  var foot=document.createElement('div');
+  foot.className='nfoot';
+  COLORS.forEach(function(c){
+    var d=document.createElement('button');
+    d.className='dot'+(c===n.color?' on':'');
+    d.style.background=c;
+    d.title='recolor';
+    d.addEventListener('click',function(){
+      n.color=c;
+      el.style.setProperty('--nc',c);
+      el.style.setProperty('--ncs',hexToRgba(c,0.45));
+      var dots=foot.children;
+      for(var i=0;i<dots.length;i++) dots[i].classList.toggle('on',dots[i]===d);
+      persist();
+    });
+    foot.appendChild(d);
+  });
+
+  el.appendChild(head); el.appendChild(ta); el.appendChild(foot);
+
+  function grow(){
+    ta.style.height='auto';
+    ta.style.height=Math.min(ta.scrollHeight,320)+'px';
+  }
+  ta.addEventListener('input',function(){
+    n.text=ta.value; grow(); persist(); applyFilter();
+  });
+  requestAnimationFrame(grow);
+
+  pin.addEventListener('click',function(){
+    n.pinned=!n.pinned;
+    pin.classList.toggle('on',n.pinned);
+    el.classList.toggle('pinned',n.pinned);
+    pin.title=n.pinned?'unpin':'pin in place';
+    persist();
+  });
+  del.addEventListener('click',function(){
+    notes=notes.filter(function(x){ return x.id!==n.id; });
+    el.remove();
+    persist(); updateCount();
+  });
+
+  /* bring to front on any press */
+  el.addEventListener('pointerdown',function(){
+    zTop++; n.z=zTop; el.style.zIndex=String(zTop);
+    persist();
+  });
+
+  /* drag by header */
+  var drag=null;
+  head.addEventListener('pointerdown',function(e){
+    if(e.target===pin||e.target===del) return;
+    if(n.pinned) return;
+    e.preventDefault();
+    head.setPointerCapture(e.pointerId);
+    drag={dx:e.clientX-n.x, dy:e.clientY-n.y};
+    el.classList.add('dragging');
+  });
+  head.addEventListener('pointermove',function(e){
+    if(!drag) return;
+    n.x=e.clientX-drag.dx;
+    n.y=e.clientY-drag.dy;
+    clampPos(n);
+    el.style.left=n.x+'px';
+    el.style.top=n.y+'px';
+  });
+  function endDrag(){
+    if(drag){ drag=null; el.classList.remove('dragging'); persist(); }
+  }
+  head.addEventListener('pointerup',endDrag);
+  head.addEventListener('pointercancel',endDrag);
+
+  return el;
+}
+
+function renderAll(){
+  board.querySelectorAll('.note').forEach(function(e){ e.remove(); });
+  notes.forEach(function(n){
+    clampPos(n);
+    if((n.z||0)>zTop) zTop=n.z;
+    board.appendChild(makeEl(n));
+  });
+  applyFilter(); updateCount();
+}
+
+function updateCount(){
+  countEl.textContent=notes.length+' note'+(notes.length===1?'':'s');
+  applyFilter();
+}
+
+function applyFilter(){
+  var q=searchEl.value.trim().toLowerCase();
+  var visible=0;
+  notes.forEach(function(n){
+    var el=board.querySelector('.note[data-id="'+n.id+'"]');
+    if(!el) return;
+    var hit=!q||n.text.toLowerCase().indexOf(q)!==-1;
+    el.classList.toggle('dim',!hit);
+    if(hit) visible++;
+  });
+  emptyEl.style.display=(notes.length===0||visible===0)?'flex':'none';
+}
+searchEl.addEventListener('input',applyFilter);
+
+var colorIdx=0;
+document.getElementById('addBtn').addEventListener('click',function(){
+  var bw=board.clientWidth;
+  var n={
+    id:'n'+Date.now().toString(36)+Math.floor(Math.random()*999),
+    x:20+Math.random()*Math.max(bw-NOTE_W-40,40),
+    y:20+Math.random()*Math.max(board.clientHeight-180,40),
+    color:COLORS[colorIdx++%COLORS.length],
+    pinned:false,
+    z:++zTop,
+    text:'new note...'
+  };
+  clampPos(n);
+  notes.push(n);
+  var el=makeEl(n);
+  board.appendChild(el);
+  persist(); updateCount();
+  var ta=el.querySelector('textarea');
+  ta.focus(); ta.select();
+});
+
+window.addEventListener('resize',function(){
+  notes.forEach(function(n){
+    clampPos(n);
+    var el=board.querySelector('.note[data-id="'+n.id+'"]');
+    if(el){ el.style.left=n.x+'px'; el.style.top=n.y+'px'; }
+  });
+});
+
+/* ---------- init ---------- */
+var stored=load();
+notes=stored!==null?stored:defaults();
+colorIdx=notes.length;
+/* board has zero height until layout; render after first frame */
+requestAnimationFrame(function(){ renderAll(); persist(); });
+})();
+</script>
+</body>
+</html>

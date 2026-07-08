@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pomodoro Timer · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ff4560; --accent-soft:rgba(255,69,96,.5);
+  --green:#3ddc84; --cyan:#00e5ff;
+  --panel:#161623; --line:#2c2c46; --text:#f4e8ec; --dim:#96889a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:20px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 2px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{
+  display:flex; flex-wrap:wrap; gap:14px; justify-content:center; align-items:flex-start;
+  max-width:860px; margin:6px auto 0; padding:0 12px;
+}
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:10px 12px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(255,69,96,.10);
+}
+#timerCol{ text-align:center; }
+.modes{ display:flex; gap:6px; justify-content:center; margin-bottom:8px; }
+.modes button{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:5px 9px;
+}
+.modes button.on{
+  color:#fff; border-color:var(--mc,#ff4560);
+  box-shadow:0 0 10px var(--mc,#ff4560); text-shadow:0 0 6px var(--mc,#ff4560);
+}
+#ringWrap{ position:relative; width:min(64vmin,270px); height:min(64vmin,270px); margin:0 auto; }
+#ringWrap svg{ width:100%; height:100%; transform:rotate(-90deg); }
+#ringBg{ fill:none; stroke:#22222f; stroke-width:12; }
+#ringFg{
+  fill:none; stroke:var(--accent); stroke-width:12; stroke-linecap:round;
+  filter:drop-shadow(0 0 6px var(--accent));
+  transition:stroke-dashoffset .3s linear, stroke .3s;
+}
+#ringText{
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:4px;
+}
+#clock{
+  font-size:clamp(34px,10vmin,52px); letter-spacing:2px; color:#fff;
+  text-shadow:0 0 10px var(--accent), 0 0 30px var(--accent-soft);
+}
+#modeLabel{ font-size:11px; letter-spacing:3px; color:var(--accent); }
+#taskShow{ font-size:10px; color:var(--dim); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.btns{ display:flex; gap:8px; justify-content:center; margin-top:10px; }
+.btns button{
+  font-family:inherit; font-size:12px; letter-spacing:2px; cursor:pointer;
+  background:#121220; color:var(--text); border:1px solid var(--line); padding:8px 14px;
+}
+.btns button:hover{ border-color:var(--accent); }
+#startBtn{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+#startBtn.running{ background:#2a0e14; box-shadow:0 0 14px var(--accent-soft); }
+#tomatoes{ margin-top:10px; font-size:18px; letter-spacing:3px; }
+#tomatoes .off{ filter:grayscale(1) brightness(.45); }
+#todayLine{ font-size:10px; color:var(--dim); margin-top:4px; letter-spacing:1px; }
+.side{ width:250px; display:flex; flex-direction:column; gap:12px; }
+.panel h2{
+  font-size:11px; letter-spacing:2px; color:var(--accent);
+  border-bottom:1px solid var(--line); padding-bottom:5px; margin-bottom:8px;
+  text-shadow:0 0 6px var(--accent-soft);
+}
+label.small{ font-size:10px; color:var(--dim); letter-spacing:1px; }
+.setline{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:8px; }
+.setline input[type=number]{
+  width:56px; font-family:inherit; font-size:12px; background:#121220; color:var(--text);
+  border:1px solid var(--line); padding:4px 5px; text-align:right;
+}
+input[type=text]{
+  width:100%; font-family:inherit; font-size:12px; background:#121220; color:var(--text);
+  border:1px solid var(--line); padding:6px;
+}
+input:focus{ outline:1px solid var(--accent); }
+.toggle{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--dim); cursor:pointer; }
+.toggle input{ accent-color:#ff4560; }
+#chart{
+  display:flex; align-items:flex-end; gap:6px; height:110px; padding:6px 2px 0;
+}
+.bar{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+.bar .v{ font-size:9px; color:var(--dim); margin-bottom:2px; }
+.bar .fill{
+  width:100%; background:linear-gradient(#ff8ea0,var(--accent));
+  box-shadow:0 0 8px var(--accent-soft); min-height:2px;
+}
+.bar.today .fill{ background:linear-gradient(#a5ffd0,var(--green)); box-shadow:0 0 8px rgba(61,220,132,.6); }
+.bar .d{ font-size:9px; color:var(--dim); margin-top:3px; }
+@media (max-width:640px){ .side{ width:min(92vw,340px); } }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>POMODORO TIMER</h1>
+  <div class="sub">FOCUS &middot; BREAK &middot; REPEAT</div>
+</header>
+<main>
+  <div class="panel" id="timerCol">
+    <div class="modes">
+      <button id="m-focus" data-m="focus" class="on" style="--mc:#ff4560">FOCUS</button>
+      <button id="m-short" data-m="short" style="--mc:#3ddc84">SHORT BREAK</button>
+      <button id="m-long" data-m="long" style="--mc:#00e5ff">LONG BREAK</button>
+    </div>
+    <div id="ringWrap">
+      <svg viewBox="0 0 240 240">
+        <circle id="ringBg" cx="120" cy="120" r="104"></circle>
+        <circle id="ringFg" cx="120" cy="120" r="104"></circle>
+      </svg>
+      <div id="ringText">
+        <div id="modeLabel">FOCUS</div>
+        <div id="clock">25:00</div>
+        <div id="taskShow"></div>
+      </div>
+    </div>
+    <div class="btns">
+      <button id="startBtn">&#9654; START</button>
+      <button id="resetBtn">&#8634; RESET</button>
+      <button id="skipBtn">&#9197; SKIP</button>
+    </div>
+    <div id="tomatoes">🍅🍅🍅🍅</div>
+    <div id="todayLine"></div>
+  </div>
+  <div class="side">
+    <div class="panel">
+      <h2>TASK</h2>
+      <input type="text" id="taskInput" maxlength="48" placeholder="what are you focusing on?">
+    </div>
+    <div class="panel">
+      <h2>SETTINGS (MINUTES)</h2>
+      <div class="setline"><label class="small">FOCUS</label><input type="number" id="durFocus" min="1" max="90" value="25"></div>
+      <div class="setline"><label class="small">SHORT BREAK</label><input type="number" id="durShort" min="1" max="30" value="5"></div>
+      <div class="setline"><label class="small">LONG BREAK</label><input type="number" id="durLong" min="1" max="60" value="15"></div>
+      <label class="toggle"><input type="checkbox" id="autoAdv" checked> AUTO-ADVANCE CYCLES</label>
+    </div>
+    <div class="panel">
+      <h2>FOCUS MINUTES · LAST 7 DAYS</h2>
+      <div id="chart"></div>
+    </div>
+  </div>
+</main>
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-pomodoro';
+var MODES={
+  focus:{label:'FOCUS',color:'#ff4560'},
+  short:{label:'SHORT BREAK',color:'#3ddc84'},
+  long:{label:'LONG BREAK',color:'#00e5ff'}
+};
+var R=104, CIRC=2*Math.PI*R;
+
+var data={
+  durations:{focus:25,short:5,long:15},
+  autoAdvance:true,
+  task:'',
+  stats:{},           /* 'YYYY-MM-DD' -> {min:Number, sessions:Number} */
+  cycle:{date:'',count:0}
+};
+try{
+  var raw=localStorage.getItem(LS_KEY);
+  if(raw){
+    var o=JSON.parse(raw);
+    if(o&&typeof o==='object'){
+      data=Object.assign(data,o);
+      data.durations=Object.assign({focus:25,short:5,long:15},o.durations||{});
+      data.stats=o.stats||{};
+      data.cycle=o.cycle||{date:'',count:0};
+    }
+  }
+}catch(e){}
+function persist(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(data)); }catch(e){} }
+
+function dayKey(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function todayKey(){ return dayKey(new Date()); }
+if(data.cycle.date!==todayKey()){ data.cycle={date:todayKey(),count:0}; }
+
+/* ---------- elements ---------- */
+var ringFg=document.getElementById('ringFg');
+var clockEl=document.getElementById('clock');
+var modeLabel=document.getElementById('modeLabel');
+var taskShow=document.getElementById('taskShow');
+var startBtn=document.getElementById('startBtn');
+var tomatoesEl=document.getElementById('tomatoes');
+var todayLine=document.getElementById('todayLine');
+var modeBtns={
+  focus:document.getElementById('m-focus'),
+  short:document.getElementById('m-short'),
+  long:document.getElementById('m-long')
+};
+ringFg.style.strokeDasharray=String(CIRC);
+ringFg.style.strokeDashoffset='0';
+
+/* ---------- timer state ---------- */
+var mode='focus';
+var totalMs=data.durations.focus*60000;
+var remaining=totalMs;
+var running=false;
+var lastTs=0;
+var interval=null;
+
+function fmtTime(ms){
+  var s=Math.max(0,Math.ceil(ms/1000));
+  var m=Math.floor(s/60);
+  return String(m).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+function renderTimer(){
+  clockEl.textContent=fmtTime(remaining);
+  var frac=totalMs>0?remaining/totalMs:0;
+  ringFg.style.strokeDashoffset=String(CIRC*(1-frac));
+  var c=MODES[mode].color;
+  ringFg.style.stroke=c;
+  ringFg.style.filter='drop-shadow(0 0 6px '+c+')';
+  clockEl.style.textShadow='0 0 10px '+c+', 0 0 30px '+c;
+  modeLabel.textContent=MODES[mode].label;
+  modeLabel.style.color=c;
+  document.title=fmtTime(remaining)+' · '+MODES[mode].label+' · Pomodoro';
+}
+function switchMode(m,keepRunning){
+  mode=m;
+  totalMs=data.durations[m]*60000;
+  remaining=totalMs;
+  for(var k in modeBtns) modeBtns[k].classList.toggle('on',k===m);
+  if(!keepRunning) pause();
+  renderTimer();
+}
+function tick(){
+  var now=Date.now();
+  remaining-=(now-lastTs);
+  lastTs=now;
+  if(remaining<=0){ complete(); return; }
+  renderTimer();
+}
+function start(){
+  ensureAudio();
+  if(running) return;
+  running=true;
+  lastTs=Date.now();
+  interval=setInterval(tick,250);
+  startBtn.classList.add('running');
+  startBtn.innerHTML='&#9646;&#9646; PAUSE';
+}
+function pause(){
+  running=false;
+  if(interval){ clearInterval(interval); interval=null; }
+  startBtn.classList.remove('running');
+  startBtn.innerHTML='&#9654; START';
+}
+function reset(){ pause(); remaining=totalMs; renderTimer(); }
+function complete(){
+  pause();
+  chime();
+  if(mode==='focus'){
+    recordFocus(data.durations.focus);
+    data.cycle.count++;
+    persist();
+    var next=(data.cycle.count%4===0)?'long':'short';
+    switchMode(next,true);
+  }else{
+    switchMode('focus',true);
+  }
+  renderCycle(); renderChart();
+  if(data.autoAdvance) start(); else renderTimer();
+}
+function skip(){
+  pause();
+  if(mode==='focus'){
+    switchMode((data.cycle.count%4===3)?'long':'short');
+  }else{
+    switchMode('focus');
+  }
+}
+
+/* ---------- stats ---------- */
+function recordFocus(mins){
+  var k=todayKey();
+  if(!data.stats[k]) data.stats[k]={min:0,sessions:0};
+  data.stats[k].min+=mins;
+  data.stats[k].sessions++;
+  /* keep last 60 days only */
+  var keys=Object.keys(data.stats).sort();
+  while(keys.length>60){ delete data.stats[keys.shift()]; }
+  persist();
+}
+function renderCycle(){
+  if(data.cycle.date!==todayKey()) data.cycle={date:todayKey(),count:0};
+  var inCycle=data.cycle.count%4;
+  if(inCycle===0&&data.cycle.count>0) inCycle=4;
+  var html='';
+  for(var i=0;i<4;i++){
+    html+='<span class="'+(i<inCycle?'':'off')+'">🍅</span>';
+  }
+  tomatoesEl.innerHTML=html;
+  var st=data.stats[todayKey()]||{min:0,sessions:0};
+  todayLine.textContent='today: '+st.sessions+' session'+(st.sessions===1?'':'s')+' · '+st.min+' min focused';
+}
+var chartEl=document.getElementById('chart');
+var DAYS=['SU','MO','TU','WE','TH','FR','SA'];
+function renderChart(){
+  chartEl.innerHTML='';
+  var max=25;
+  var days=[];
+  for(var i=6;i>=0;i--){
+    var d=new Date(); d.setDate(d.getDate()-i);
+    var k=dayKey(d);
+    var min=(data.stats[k]&&data.stats[k].min)||0;
+    if(min>max) max=min;
+    days.push({k:k,d:d,min:min,today:i===0});
+  }
+  days.forEach(function(day){
+    var bar=document.createElement('div');
+    bar.className='bar'+(day.today?' today':'');
+    var v=document.createElement('div');
+    v.className='v'; v.textContent=day.min>0?String(day.min):'';
+    var fill=document.createElement('div');
+    fill.className='fill';
+    fill.style.height=Math.max(day.min/max*80,2)+'px';
+    var lab=document.createElement('div');
+    lab.className='d'; lab.textContent=DAYS[day.d.getDay()];
+    bar.appendChild(v); bar.appendChild(fill); bar.appendChild(lab);
+    chartEl.appendChild(bar);
+  });
+}
+
+/* ---------- audio chime ---------- */
+var actx=null;
+function ensureAudio(){
+  if(!actx){
+    var AC=window.AudioContext||window.webkitAudioContext;
+    try{ actx=new AC(); }catch(e){ actx=null; }
+  }
+  if(actx&&actx.state==='suspended') actx.resume();
+}
+function chime(){
+  if(!actx) return;
+  var t=actx.currentTime;
+  [880,1108.7,1318.5].forEach(function(f,i){
+    var o=actx.createOscillator(); o.type='sine'; o.frequency.value=f;
+    var g=actx.createGain();
+    var st=t+i*0.18;
+    g.gain.setValueAtTime(0.0001,st);
+    g.gain.linearRampToValueAtTime(0.25,st+0.02);
+    g.gain.exponentialRampToValueAtTime(0.001,st+0.9);
+    o.connect(g); g.connect(actx.destination);
+    o.start(st); o.stop(st+1);
+  });
+}
+
+/* ---------- wiring ---------- */
+startBtn.addEventListener('click',function(){ running?pause():start(); });
+document.getElementById('resetBtn').addEventListener('click',reset);
+document.getElementById('skipBtn').addEventListener('click',skip);
+for(var mk in modeBtns){
+  (function(m){
+    modeBtns[m].addEventListener('click',function(){ switchMode(m); });
+  })(mk);
+}
+var durInputs={focus:document.getElementById('durFocus'),short:document.getElementById('durShort'),long:document.getElementById('durLong')};
+for(var dk in durInputs){
+  (function(m){
+    durInputs[m].addEventListener('change',function(){
+      var v=Math.max(1,Math.min(+this.value||1,m==='focus'?90:60));
+      this.value=String(v);
+      data.durations[m]=v;
+      persist();
+      if(mode===m&&!running){ totalMs=v*60000; remaining=totalMs; renderTimer(); }
+      else if(mode===m){ totalMs=v*60000; if(remaining>totalMs) remaining=totalMs; renderTimer(); }
+    });
+  })(dk);
+}
+var autoAdv=document.getElementById('autoAdv');
+autoAdv.addEventListener('change',function(){ data.autoAdvance=this.checked; persist(); });
+var taskInput=document.getElementById('taskInput');
+taskInput.addEventListener('input',function(){
+  data.task=this.value;
+  taskShow.textContent=data.task?('» '+data.task):'';
+  persist();
+});
+document.addEventListener('keydown',function(e){
+  var tag=(e.target&&e.target.tagName)||'';
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
+  if(e.key===' '){ e.preventDefault(); running?pause():start(); }
+  else if(e.key.toLowerCase()==='r') reset();
+  else if(e.key.toLowerCase()==='s') skip();
+});
+window.addEventListener('resize',renderTimer);
+
+/* ---------- init ---------- */
+durInputs.focus.value=String(data.durations.focus);
+durInputs.short.value=String(data.durations.short);
+durInputs.long.value=String(data.durations.long);
+autoAdv.checked=!!data.autoAdvance;
+taskInput.value=data.task||'';
+taskShow.textContent=data.task?('» '+data.task):'';
+switchMode('focus');
+renderCycle();
+renderChart();
+persist();
+})();
+</script>
+</body>
+</html>

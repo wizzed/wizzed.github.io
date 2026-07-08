@@ -338,6 +338,7 @@ function reset() {
   updateHud();
 }
 function startGame() {
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   reset();
   playing = true;
   document.getElementById('start-ov').style.display = 'none';

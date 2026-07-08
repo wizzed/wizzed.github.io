@@ -387,6 +387,7 @@ function updateJoy(e) {
 
 // ── Flow ───────────────────────────────────────────────────────────────────
 function startGame() {
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   playing = true;
   document.getElementById('start-ov').style.display = 'none';
 }
@@ -404,6 +405,8 @@ function winLevel() {
   }
 }
 function nextLevel() {
+  if (!won) return;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   level++;
   N = Math.min(25, N + 2);
   document.getElementById('win-ov').style.display = 'none';

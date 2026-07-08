@@ -195,7 +195,6 @@ function topOfStack() { return stack[stack.length - 1]; }
 function spawnMoving() {
   const top = topOfStack();
   const axis = level % 2 === 0 ? 'x' : 'z';
-  const y = top.y + H / 2 + (level === 0 ? H / 2 : H / 2) + level * 0; // top.y is top surface
   const mesh = makeSlab(top.x, top.z, top.sx, top.sz, top.y + H / 2, level + 1);
   moving = {
     mesh, axis,
@@ -205,7 +204,6 @@ function spawnMoving() {
     baseX: top.x, baseZ: top.z,
     y: top.y + H / 2
   };
-  void y;
 }
 
 function updateScore() {
@@ -319,6 +317,7 @@ function gameOver() {
 }
 
 function startGame() {
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   document.getElementById('start-ov').style.display = 'none';
   document.getElementById('over-ov').style.display = 'none';
   initTower();
@@ -346,13 +345,15 @@ document.getElementById('restart-btn').addEventListener('click', startGame);
 // ── Loop ───────────────────────────────────────────────────────────────────
 initTower();       // build attract-mode tower behind the start panel
 // pre-stack a few blocks so the load view looks like a tower
+scene.remove(moving.mesh);
+moving = null;
 for (let i = 0; i < 5; i++) {
   const top = topOfStack();
   const m = makeSlab(top.x, top.z, top.sx, top.sz, top.y + H / 2, i + 1);
   stack.push({ mesh: m, x: top.x, z: top.z, sx: top.sx, sz: top.sz, y: top.y + H });
   level++;
 }
-level = 0;
+spawnMoving();     // wiggling preview slab on top of the attract tower
 
 let lastT = 0;
 function loop(ts) {
@@ -370,7 +371,9 @@ function loop(ts) {
   } else if (moving && !playing) {
     // idle preview wiggle
     moving.phase += dt * 1.2;
-    moving.mesh.position.x = moving.baseX + Math.sin(moving.phase) * RANGE * 0.5;
+    const off = Math.sin(moving.phase) * RANGE * 0.5;
+    if (moving.axis === 'x') moving.mesh.position.x = moving.baseX + off;
+    else moving.mesh.position.z = moving.baseZ + off;
   }
 
   // debris physics

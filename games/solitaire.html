@@ -312,7 +312,7 @@ var CW=70,CH=101,GAP=8,UPOFF=28,DNOFF=10;
 function layout(){
   var W=Math.min(window.innerWidth,980)-16;
   var H=window.innerHeight-el('board').getBoundingClientRect().top-10;
-  var chByH=Math.max(60,(H-24)/4.9);
+  var chByH=Math.max(60,(H-24)/4.35);
   var cwByW=(W-6*GAP)/7;
   CW=Math.floor(Math.max(40,Math.min(cwByW,chByH/1.45,110)));
   CH=Math.floor(CW*1.45);

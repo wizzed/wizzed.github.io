@@ -442,14 +442,22 @@ function updateHover(cx, cy) {
     ghost.position.copy(cellToWorld(pc.x, pc.y, pc.z, typeIdx));
     ghost.scale.setScalar(1.0);
     ghost.visible = ok;
-    // face marker sits on the hovered face
-    if (hover.hitBlock || hover.normal.y > 0.5) {
-      const n = hover.normal;
-      faceMark.position.copy(hover.point).addScaledVector(n, 0.015);
-      faceMark.lookAt(faceMark.position.clone().add(n));
-      faceMark.material.color.set(PALETTE[colorIdx]);
-      faceMark.visible = true;
-    } else faceMark.visible = false;
+    // face marker snapped to the hovered cell face
+    const n = hover.normal;
+    faceMark.scale.set(1, 1, 1);
+    if (hover.hitBlock) {
+      const hb = hover.hitBlock;
+      const c = cellToWorld(hb.x, hb.y, hb.z, hb.t);
+      const half = { x: 0.48, y: hb.t === 1 ? 0.24 : 0.48, z: 0.48 };
+      const ax = Math.abs(n.x) > 0.5 ? 'x' : (Math.abs(n.y) > 0.5 ? 'y' : 'z');
+      faceMark.position.copy(c).addScaledVector(n, half[ax] + 0.02);
+      if (hb.t === 1 && ax !== 'y') faceMark.scale.set(1, 0.5, 1);
+    } else {
+      faceMark.position.set(hover.placeCell.x - OFF + 0.5, 0.02, hover.placeCell.z - OFF + 0.5);
+    }
+    faceMark.lookAt(faceMark.position.clone().add(n));
+    faceMark.material.color.set(PALETTE[colorIdx]);
+    faceMark.visible = true;
   }
 }
 
@@ -503,8 +511,8 @@ function pointerUp(e) {
     updateHover(e.clientX, e.clientY);
   }
 }
-renderer.domElement.addEventListener('pointerup', pointerUp);
-renderer.domElement.addEventListener('pointercancel', e => { pointers.delete(e.pointerId); lastPinch = 0; });
+addEventListener('pointerup', pointerUp);
+addEventListener('pointercancel', e => { pointers.delete(e.pointerId); lastPinch = 0; });
 renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
 renderer.domElement.addEventListener('wheel', e => {
   e.preventDefault();

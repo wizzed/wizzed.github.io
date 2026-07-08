@@ -48,6 +48,7 @@
     border: 2px solid #1d3d61; border-radius: 14px;
     box-shadow: 0 0 18px rgba(77,166,255,.35), inset 0 0 30px rgba(77,166,255,.07);
     padding: 3%;
+    touch-action: none;
   }
   #board {
     width: 100%; height: 100%;
@@ -474,6 +475,14 @@
       renderAll();
       $('status').textContent = 'Peg deselected.';
     }
+  });
+
+  document.addEventListener('pointercancel', function () {
+    if (!drag) return;
+    if (drag.ghost && drag.ghost.parentNode) drag.ghost.parentNode.removeChild(drag.ghost);
+    var peg = cellEl(drag.r, drag.c).querySelector('.peg');
+    if (peg) peg.classList.remove('lift');
+    drag = null;
   });
 
   /* ---------- controls ---------- */

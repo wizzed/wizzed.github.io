@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crazy Eights — Wizzed Arcade</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--acc:#00e5ff;--acc2:#ff5cc8;--gold:#ffd166;--cw:52px;--ch:74px}
+  html,body{height:100%}
+  body{
+    background:#0f0f1a;
+    background-image:
+      radial-gradient(ellipse 90% 70% at 50% 50%, #123b3f 0%, #0c2530 46%, transparent 74%),
+      radial-gradient(ellipse 80% 50% at 50% -8%, rgba(0,229,255,.10), transparent 60%);
+    color:#dff6ff;font-family:'Courier New',ui-monospace,Menlo,monospace;
+    height:100vh;overflow:hidden;position:relative;
+    user-select:none;-webkit-user-select:none;
+  }
+  a.back{position:fixed;top:8px;left:10px;z-index:120;color:var(--acc);text-decoration:none;
+    font-size:12px;letter-spacing:1px;opacity:.75;border:1px solid rgba(0,229,255,.4);
+    padding:3px 8px;border-radius:6px;background:rgba(15,15,26,.85)}
+  a.back:hover{opacity:1;box-shadow:0 0 12px rgba(0,229,255,.6)}
+
+  #scores{position:fixed;top:6px;right:8px;z-index:110;display:flex;gap:5px}
+  .schip{font-size:10px;letter-spacing:.5px;padding:3px 6px;border-radius:6px;
+    border:1px solid rgba(0,229,255,.3);background:rgba(10,20,30,.85);text-align:center;min-width:44px}
+  .schip b{display:block;color:var(--gold);font-size:12px}
+  .schip.lead{border-color:var(--acc2);box-shadow:0 0 8px rgba(255,92,200,.4)}
+
+  #table{position:absolute;inset:0}
+  .seat{position:absolute;display:flex;flex-direction:column;align-items:center;z-index:5}
+  .seat.you{bottom:8px;left:50%;transform:translateX(-50%);z-index:8}
+  .seat.top{top:40px;left:50%;transform:translateX(-50%)}
+  .seat.left{left:8px;top:48%;transform:translateY(-50%)}
+  .seat.right{right:8px;top:48%;transform:translateY(-50%)}
+  .plabel{font-size:11px;letter-spacing:1px;color:#9fd8e6;margin-bottom:3px;white-space:nowrap;
+    padding:2px 8px;border-radius:8px;border:1px solid transparent}
+  .seat.active .plabel{color:#0f0f1a;background:var(--acc);
+    box-shadow:0 0 14px rgba(0,229,255,.7);font-weight:bold}
+  .plabel .ct{color:var(--gold);font-weight:bold}
+  .fan{display:flex;position:relative}
+  .fan.vert{flex-direction:column}
+  .fan .b{margin-left:-15px}
+  .fan .b:first-child{margin-left:0}
+  .fan.vert .b{margin-left:0;margin-top:-34px}
+  .fan.vert .b:first-child{margin-top:0}
+
+  .card,.back-card{width:var(--cw);height:var(--ch);border-radius:7px;flex:0 0 auto;position:relative}
+  .back-card{border:1px solid rgba(0,229,255,.7);
+    background:repeating-linear-gradient(45deg,#14243a 0 5px,#1d3556 5px 10px);
+    box-shadow:inset 0 0 0 2px #0f0f1a,inset 0 0 8px rgba(0,229,255,.4),0 2px 5px rgba(0,0,0,.5)}
+  .back-card.sm{width:34px;height:48px}
+  .cf{width:100%;height:100%;border-radius:7px;background:linear-gradient(155deg,#fdfdff,#e6ebf4);
+    border:1px solid #99a;color:#16233a;box-shadow:0 2px 6px rgba(0,0,0,.5);position:relative;overflow:hidden}
+  .cf.red{color:#d81e4a}
+  .cf .cn{position:absolute;top:2px;left:4px;font-size:14px;font-weight:bold;line-height:1}
+  .cf .cs{position:absolute;top:15px;left:4px;font-size:11px;line-height:1}
+  .cf .cc{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:26px;opacity:.92}
+  .seat.you .card{cursor:default;transition:transform .12s ease,box-shadow .12s ease}
+  .seat.you .hand{display:flex;justify-content:center}
+  .seat.you .hand .card{margin-left:-18px}
+  .seat.you .hand .card:first-child{margin-left:0}
+  .seat.you .card.playable{cursor:pointer}
+  .seat.you .card.playable:hover{transform:translateY(-14px)}
+  .seat.you .card.playable .cf{box-shadow:0 0 0 2px var(--acc),0 4px 10px rgba(0,0,0,.5)}
+  .seat.you .card.dim .cf{filter:brightness(.62) saturate(.7)}
+  .seat.you .card.sel{transform:translateY(-16px);z-index:9}
+  .seat.you .card.sel .cf{box-shadow:0 0 0 3px var(--acc2),0 0 16px rgba(255,92,200,.6),0 6px 12px rgba(0,0,0,.5)}
+
+  #center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    display:flex;align-items:center;gap:22px;z-index:6}
+  .pilewrap{display:flex;flex-direction:column;align-items:center;gap:5px}
+  .pilelbl{font-size:10px;letter-spacing:1px;color:#8fb9c6}
+  #drawPile{cursor:default;position:relative}
+  #drawPile.live{cursor:pointer}
+  #drawPile.live .back-card{box-shadow:inset 0 0 0 2px #0f0f1a,inset 0 0 8px rgba(0,229,255,.4),
+    0 0 14px rgba(0,229,255,.65);animation:pulse 1.1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  #drawPile .cnt{position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);
+    font-size:10px;color:#8fb9c6;white-space:nowrap}
+  #discardPile{position:relative}
+  #suitBadge{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;font-size:26px;border:2px solid var(--acc);background:rgba(10,22,30,.9);
+    box-shadow:0 0 16px rgba(0,229,255,.5)}
+  #suitBadge.red{color:#ff5c7a;border-color:#ff5c7a;box-shadow:0 0 16px rgba(255,92,122,.5)}
+  .pop{animation:pop .32s ease}
+  @keyframes pop{0%{transform:scale(1.35) rotate(8deg);opacity:.5}100%{transform:scale(1) rotate(0)}}
+  .dealin{animation:dealin .3s ease both}
+  @keyframes dealin{from{transform:translateY(26px);opacity:0}to{transform:none;opacity:1}}
+  .fly{position:fixed;z-index:200;transition:transform .34s cubic-bezier(.4,0,.2,1),opacity .34s;pointer-events:none}
+
+  .bubble{position:absolute;font-size:11px;background:#fff;color:#16233a;padding:3px 8px;
+    border-radius:10px;white-space:nowrap;font-weight:bold;opacity:0;pointer-events:none;
+    transition:opacity .18s ease,transform .18s ease;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+  .bubble.show{opacity:1;transform:translateY(-4px)}
+  .seat.you .bubble{top:-24px;left:50%;transform:translateX(-50%)}
+  .seat.top .bubble{bottom:-24px;left:50%}
+  .seat.left .bubble{right:-6px;top:-20px}
+  .seat.right .bubble{left:-6px;top:-20px}
+  .bubble::after{content:'';position:absolute;width:8px;height:8px;background:#fff;
+    left:14px;bottom:-3px;transform:rotate(45deg)}
+
+  #hint{position:absolute;bottom:118px;left:50%;transform:translateX(-50%);z-index:9;
+    font-size:12px;letter-spacing:.5px;color:#bfeeff;text-align:center;
+    background:rgba(10,22,30,.7);padding:4px 12px;border-radius:8px;max-width:92vw}
+  #keys{position:fixed;bottom:5px;left:50%;transform:translateX(-50%);z-index:9;
+    font-size:9.5px;color:#5f8493;letter-spacing:.5px;white-space:nowrap}
+
+  h1{font-family:'Courier New',monospace}
+  .overlay{position:absolute;inset:0;z-index:100;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;
+    background:radial-gradient(ellipse at center,rgba(10,20,30,.82),rgba(8,12,22,.95));padding:16px}
+  .overlay.hidden{display:none}
+  .ttl{font-size:clamp(26px,7vw,50px);letter-spacing:5px;color:var(--acc);
+    text-shadow:0 0 12px rgba(0,229,255,.9),0 0 34px rgba(0,229,255,.45),4px 4px 0 var(--acc2)}
+  .subttl{font-size:13px;letter-spacing:2px;color:#9fd8e6;margin-top:10px;max-width:460px;line-height:1.6}
+  .btn{margin-top:20px;font-family:inherit;font-size:15px;letter-spacing:2px;cursor:pointer;
+    color:#0f0f1a;background:var(--acc);border:none;padding:11px 26px;border-radius:9px;font-weight:bold;
+    box-shadow:0 0 18px rgba(0,229,255,.6)}
+  .btn:hover{background:#5cf0ff;box-shadow:0 0 26px rgba(0,229,255,.85)}
+  .btn.alt{background:var(--acc2);box-shadow:0 0 18px rgba(255,92,200,.6);margin-left:10px}
+  .flash{font-size:11px;color:#7fdcff;margin-top:14px;animation:bl 1.1s steps(2) infinite}
+  @keyframes bl{50%{opacity:.3}}
+  .panel{background:rgba(12,26,34,.96);border:2px solid var(--acc);border-radius:14px;
+    padding:20px 26px;box-shadow:0 0 30px rgba(0,229,255,.35);max-width:440px}
+  .scoretbl{margin:12px auto 4px;font-size:13px;border-collapse:collapse}
+  .scoretbl td{padding:3px 12px;text-align:left}
+  .scoretbl td.n{text-align:right;color:var(--gold);font-weight:bold}
+  .scoretbl tr.win td{color:var(--acc);text-shadow:0 0 8px rgba(0,229,255,.6)}
+
+  #suitPicker .picks{display:flex;gap:14px;margin-top:20px}
+  .suitbtn{width:64px;height:64px;border-radius:12px;font-size:36px;cursor:pointer;
+    border:2px solid var(--acc);background:#fff;color:#16233a;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 14px rgba(0,229,255,.4)}
+  .suitbtn.red{color:#d81e4a}
+  .suitbtn:hover{transform:translateY(-4px);box-shadow:0 0 22px rgba(0,229,255,.7)}
+  @media (max-height:520px){
+    :root{--cw:46px;--ch:66px}
+    .seat.top{top:30px}#hint{bottom:100px}
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<div id="scores"></div>
+
+<div id="table">
+  <div class="seat top" id="seat2"><div class="plabel"></div><div class="fan" id="fan2"></div><div class="bubble" id="bub2"></div></div>
+  <div class="seat left" id="seat1"><div class="plabel"></div><div class="fan vert" id="fan1"></div><div class="bubble" id="bub1"></div></div>
+  <div class="seat right" id="seat3"><div class="plabel"></div><div class="fan vert" id="fan3"></div><div class="bubble" id="bub3"></div></div>
+
+  <div id="center">
+    <div class="pilewrap">
+      <div class="pilelbl">DECK</div>
+      <div id="drawPile"><div class="back-card"></div><div class="cnt"></div></div>
+    </div>
+    <div class="pilewrap">
+      <div class="pilelbl">DISCARD</div>
+      <div id="discardPile"></div>
+    </div>
+    <div class="pilewrap">
+      <div class="pilelbl">SUIT</div>
+      <div id="suitBadge">♠</div>
+    </div>
+  </div>
+
+  <div class="seat you" id="seat0"><div class="plabel"></div><div class="hand" id="fan0"></div><div class="bubble" id="bub0"></div></div>
+</div>
+
+<div id="hint"></div>
+<div id="keys">← → select · ENTER play · D draw · 1-4 pick suit</div>
+
+<div class="overlay" id="title">
+  <div class="ttl">CRAZY EIGHTS</div>
+  <div class="subttl">Match the suit or rank of the discard. Eights are WILD — play one and name the suit. First to empty their hand wins the round. Others take penalty points. First to 100 ends the match — lowest score wins!</div>
+  <button class="btn" id="startBtn">DEAL</button>
+  <div class="flash">click / tap · or press ENTER / SPACE</div>
+</div>
+
+<div class="overlay hidden" id="suitPicker">
+  <div class="panel">
+    <div style="font-size:18px;letter-spacing:2px;color:var(--acc)">CHOOSE A SUIT</div>
+    <div class="picks">
+      <button class="suitbtn" data-s="0">♠</button>
+      <button class="suitbtn red" data-s="1">♥</button>
+      <button class="suitbtn red" data-s="2">♦</button>
+      <button class="suitbtn" data-s="3">♣</button>
+    </div>
+    <div style="font-size:10px;color:#8fb9c6;margin-top:14px">press 1-4</div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="roundOver">
+  <div class="panel">
+    <div id="roTitle" style="font-size:22px;letter-spacing:2px;color:var(--acc)"></div>
+    <table class="scoretbl" id="roTable"></table>
+    <button class="btn" id="nextBtn">NEXT ROUND</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="matchOver">
+  <div class="panel">
+    <div id="moTitle" class="ttl" style="font-size:32px"></div>
+    <table class="scoretbl" id="moTable"></table>
+    <div id="moTally" style="font-size:11px;color:#9fd8e6;margin-top:6px"></div>
+    <button class="btn alt" id="againBtn">NEW MATCH</button>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+const LSK='wizzed-crazy-eights';
+const $=id=>document.getElementById(id);
+const SUIT=['♠','♥','♦','♣'];
+const isRed=s=>s===1||s===2;
+const RCH=r=>({1:'A',11:'J',12:'Q',13:'K'})[r]||String(r);
+const NAMES=['You','Ada','Bex','Cy'];
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+
+/* ---------- audio ---------- */
+let AC=null;
+function ensureAC(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+  if(AC&&AC.state==='suspended')AC.resume(); }
+document.addEventListener('pointerdown',ensureAC);
+document.addEventListener('keydown',ensureAC);
+function beep(f,dur,type,g){ if(!AC)return; try{
+  const o=AC.createOscillator(),ga=AC.createGain();
+  o.type=type||'square';o.frequency.value=f;
+  ga.gain.setValueAtTime(g||0.045,AC.currentTime);
+  ga.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+(dur||0.07));
+  o.connect(ga);ga.connect(AC.destination);o.start();o.stop(AC.currentTime+(dur||0.07)+0.02);
+}catch(e){} }
+const sPlay=()=>beep(440,0.06,'square',0.05);
+const sDraw=()=>beep(300,0.05,'triangle',0.045);
+const sWild=()=>{beep(600,0.06,'square',0.05);setTimeout(()=>beep(880,0.08,'square',0.05),70);};
+const sWin=()=>{[520,660,880].forEach((f,i)=>setTimeout(()=>beep(f,0.09,'square',0.05),i*90));};
+const sLose=()=>beep(160,0.16,'sawtooth',0.05);
+
+/* ---------- persistence ---------- */
+let store={mw:0,ml:0,rw:0};
+let scores=[0,0,0,0];
+let round=1;
+try{
+  const j=JSON.parse(localStorage.getItem(LSK));
+  if(j&&typeof j==='object'){
+    store.mw=j.mw|0; store.ml=j.ml|0; store.rw=j.rw|0;
+    if(Array.isArray(j.scores)&&j.scores.length===4) scores=j.scores.map(x=>x|0);
+    if(j.round) round=j.round|0;
+  }
+}catch(e){}
+if(scores.some(s=>s>=100)){ scores=[0,0,0,0]; round=1; }
+function save(){ try{ localStorage.setItem(LSK,JSON.stringify({mw:store.mw,ml:store.ml,rw:store.rw,scores:scores,round:round})); }catch(e){} }
+
+/* ---------- state ---------- */
+let hands=[[],[],[],[]];
+let drawPile=[], discard=[];
+let curSuit=0;
+let cur=0;
+let phase='title';   // title | play | roundover | matchover
+let busy=false;
+let passStreak=0;
+let sel=0;           // selection index for human hand
+
+/* ---------- deck ---------- */
+function penalty(c){ return c.rank===8?50 : c.rank>=11?10 : c.rank===1?1 : c.rank; }
+function newDeck(){ const d=[]; for(let s=0;s<4;s++)for(let r=1;r<=13;r++)d.push({s:s,rank:r}); return shuffle(d); }
+function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+function dealRound(){
+  const d=newDeck();
+  hands=[[],[],[],[]];
+  for(let k=0;k<5;k++) for(let p=0;p<4;p++) hands[p].push(d.pop());
+  // first discard, avoid starting on an 8
+  let first=d.pop();
+  while(first.rank===8){ d.unshift(first); shuffle(d); first=d.pop(); }
+  discard=[first];
+  drawPile=d;
+  curSuit=first.s;
+  passStreak=0;
+  sel=0;
+}
+
+/* ---------- card rendering ---------- */
+function cardFaceHTML(c){
+  return '<div class="cf'+(isRed(c.s)?' red':'')+'">'+
+    '<span class="cn">'+RCH(c.rank)+'</span>'+
+    '<span class="cs">'+SUIT[c.s]+'</span>'+
+    '<span class="cc">'+SUIT[c.s]+'</span></div>';
+}
+function topDiscard(){ return discard[discard.length-1]; }
+function playable(c){ const t=topDiscard(); return c.rank===8 || c.s===curSuit || c.rank===t.rank; }
+function playableIdx(p){ const r=[]; hands[p].forEach((c,i)=>{ if(playable(c)) r.push(i); }); return r; }
+
+/* ---------- render ---------- */
+function renderScores(){
+  let lead=0; for(let q=1;q<4;q++) if(scores[q]<scores[lead]) lead=q;
+  let h='';
+  for(let p=0;p<4;p++){
+    h+='<div class="schip'+(scores[p]===scores[lead]?' lead':'')+'">'+NAMES[p]+'<b>'+scores[p]+'</b></div>';
+  }
+  $('scores').innerHTML=h;
+}
+function renderLabels(){
+  for(let p=0;p<4;p++){
+    $('seat'+p).querySelector('.plabel').innerHTML=NAMES[p]+' <span class="ct">'+hands[p].length+'</span>';
+    $('seat'+p).classList.toggle('active', p===cur && phase==='play');
+  }
+}
+function renderPlayerHand(anim){
+  const f=$('fan0'); f.innerHTML='';
+  const pl=new Set(playableIdx(0));
+  const canPlay = cur===0 && phase==='play' && pl.size>0;
+  hands[0].forEach((c,i)=>{
+    const el=document.createElement('div');
+    el.className='card';
+    if(canPlay){ if(pl.has(i)) el.classList.add('playable'); else el.classList.add('dim'); }
+    if(canPlay && i===sel && pl.has(i)) el.classList.add('sel');
+    el.innerHTML=cardFaceHTML(c);
+    el.addEventListener('click',()=>onHumanCard(i));
+    f.appendChild(el);
+  });
+  if(anim!==false){}
+}
+function renderOppHand(p){
+  const f=$('fan'+p); f.innerHTML='';
+  const n=hands[p].length; const show=Math.min(n,8);
+  for(let i=0;i<show;i++){ const b=document.createElement('div'); b.className='back-card sm b'; f.appendChild(b); }
+}
+function renderDiscard(popAnim){
+  const d=$('discardPile');
+  const c=topDiscard();
+  d.innerHTML='<div class="card'+(popAnim?' pop':'')+'">'+cardFaceHTML(c)+'</div>';
+}
+function renderSuit(){
+  const b=$('suitBadge'); b.textContent=SUIT[curSuit];
+  b.classList.toggle('red', isRed(curSuit));
+}
+function renderDeckCount(){ $('drawPile').querySelector('.cnt').textContent=drawPile.length+' left'; }
+function renderAll(){
+  renderScores(); renderLabels(); renderPlayerHand(); renderDiscard(false);
+  renderSuit(); renderDeckCount();
+  for(let p=1;p<4;p++) renderOppHand(p);
+}
+
+/* ---------- speech bubbles ---------- */
+const bubTimers=[null,null,null,null];
+function say(p,txt){
+  const b=$('bub'+p); b.textContent=txt; b.classList.add('show');
+  if(bubTimers[p]) clearTimeout(bubTimers[p]);
+  bubTimers[p]=setTimeout(()=>b.classList.remove('show'),1200);
+}
+
+/* ---------- fly animation ---------- */
+function flyCard(fromEl,toEl,html,cb){
+  try{
+    const a=fromEl.getBoundingClientRect(), b=toEl.getBoundingClientRect();
+    const g=document.createElement('div');
+    g.className='card fly'; g.innerHTML=html;
+    g.style.left=a.left+'px'; g.style.top=a.top+'px';
+    g.style.width='var(--cw)'; g.style.height='var(--ch)';
+    document.body.appendChild(g);
+    const dx=(b.left+b.width/2)-(a.left+a.width/2);
+    const dy=(b.top+b.height/2)-(a.top+a.height/2);
+    requestAnimationFrame(()=>{ g.style.transform='translate('+dx+'px,'+dy+'px)'; });
+    setTimeout(()=>{ g.remove(); if(cb)cb(); },340);
+  }catch(e){ if(cb)cb(); }
+}
+
+/* ---------- draw / reshuffle ---------- */
+function reshuffleIfNeeded(){
+  if(drawPile.length===0 && discard.length>1){
+    const top=discard.pop();
+    drawPile=shuffle(discard);
+    discard=[top];
+  }
+}
+function drawOne(){
+  reshuffleIfNeeded();
+  if(drawPile.length===0) return null;
+  return drawPile.pop();
+}
+
+/* ---------- turn engine ---------- */
+function startRound(){
+  dealRound();
+  cur=(round-1)%4;
+  phase='play';
+  renderAll();
+  hint('New round dealt. '+(cur===0?'Your move!':NAMES[cur]+' starts.'));
+  busy=false;
+  setTimeout(beginTurn, cur===0?200:650);
+}
+function beginTurn(){
+  if(phase!=='play') return;
+  renderLabels();
+  updateDrawGlow();
+  if(cur===0) humanTurn(); else { busy=true; setTimeout(aiTurn,650); }
+}
+function nextPlayer(){ cur=(cur+1)%4; }
+function advance(){
+  if(phase!=='play') return;
+  nextPlayer();
+  beginTurn();
+}
+function doPass(p){
+  passStreak++;
+  say(p, pick(p===0?['pass','no moves']:['pass','hmm','no luck','skip']));
+  if(passStreak>=4){ endRound(lowestHandPlayer(), true); return; }
+  setTimeout(advance, 420);
+}
+
+/* ---------- human turn ---------- */
+let humanDrawCount=0;
+let humanCanDraw=false;
+function humanTurn(){
+  busy=false;
+  humanDrawCount=0;
+  const pl=playableIdx(0);
+  if(pl.length>0){
+    humanCanDraw=false;
+    if(!pl.includes(sel)) sel=pl[0];
+    hint('Your turn — play a highlighted card. (← → select, ENTER)');
+  } else {
+    humanCanDraw=true;
+    hint('No playable card — click the DECK to draw (up to 3).');
+  }
+  updateDrawGlow();
+  renderPlayerHand();
+}
+function onHumanCard(i){
+  if(phase!=='play'||cur!==0||busy) return;
+  if(!playable(hands[0][i])) return;
+  sel=i;
+  playCard(0,i);
+}
+function onDrawClick(){
+  if(phase!=='play'||cur!==0||busy||!humanCanDraw) return;
+  const c=drawOne();
+  if(!c){ humanCanDraw=false; updateDrawGlow(); hint('Deck empty — you must pass.'); busy=true; setTimeout(()=>doPass(0),500); return; }
+  hands[0].push(c); humanDrawCount++;
+  sDraw();
+  renderOppHandNone();
+  renderPlayerHand();
+  renderLabels(); renderDeckCount();
+  const nc=$('fan0').lastChild; if(nc) nc.classList.add('dealin');
+  const pl=playableIdx(0);
+  if(pl.length>0){
+    humanCanDraw=false; updateDrawGlow();
+    sel=hands[0].length-1;
+    hint('Drew a playable card — play it! (ENTER)');
+    renderPlayerHand();
+  } else if(humanDrawCount>=3){
+    humanCanDraw=false; updateDrawGlow();
+    hint('No moves after 3 draws — passing…');
+    busy=true; setTimeout(()=>doPass(0),700);
+  } else {
+    hint('Drew '+humanDrawCount+'/3 — no match yet. Draw again.');
+  }
+}
+function renderOppHandNone(){}
+
+/* ---------- AI turn ---------- */
+function aiTurn(){
+  if(phase!=='play'||cur===0) return;
+  const p=cur;
+  let draws=0;
+  (function step(){
+    if(phase!=='play') return;
+    const pl=playableIdx(p);
+    if(pl.length>0){ const idx=aiChoose(p,pl); playCard(p,idx); return; }
+    if(draws<3){
+      const c=drawOne();
+      if(c){ hands[p].push(c); draws++; sDraw(); renderOppHand(p); renderLabels(); renderDeckCount();
+        if(draws===2) say(p, pick(['hmm…','c\'mon']));
+        setTimeout(step, 470); return; }
+    }
+    doPass(p);
+  })();
+}
+function aiChoose(p,pl){
+  const cand=pl.map(i=>({i:i,c:hands[p][i]}));
+  const non=cand.filter(x=>x.c.rank!==8);
+  const pool=non.length?non:cand;
+  pool.sort((a,b)=>penalty(b.c)-penalty(a.c));
+  return pool[0].i;
+}
+function aiChooseSuit(p){
+  const cnt=[0,0,0,0];
+  hands[p].forEach(c=>{ if(c.rank!==8) cnt[c.s]++; });
+  let best=0; for(let s=1;s<4;s++) if(cnt[s]>cnt[best]) best=s;
+  if(cnt[best]===0) best=Math.floor(Math.random()*4);
+  return best;
+}
+
+/* ---------- play a card ---------- */
+function playCard(p,idx){
+  busy=true;
+  const c=hands[p][idx];
+  const srcEl = p===0 ? ($('fan0').children[idx]||$('fan'+0)) : $('fan'+p);
+  hands[p].splice(idx,1);
+  passStreak=0;
+  // animate fly
+  flyCard(srcEl,$('discardPile'),cardFaceHTML(c));
+  if(p===0) renderPlayerHand(); else renderOppHand(p);
+  renderLabels();
+  if(c.rank===8){
+    sWild();
+    if(p===0){
+      // human picks suit
+      openSuitPicker(function(s){
+        curSuit=s; afterPlay(p,c,true);
+      });
+      return;
+    } else {
+      curSuit=aiChooseSuit(p);
+      // opponent announces
+      setTimeout(()=>afterPlay(p,c,true),120);
+      return;
+    }
+  } else {
+    sPlay();
+    curSuit=c.s;
+    setTimeout(()=>afterPlay(p,c,false),120);
+  }
+}
+function afterPlay(p,c,wild){
+  discard.push(c);
+  renderDiscard(true);
+  renderSuit();
+  renderDeckCount();
+  if(wild){
+    // reaction from a random other player
+    const others=[0,1,2,3].filter(x=>x!==p);
+    const r=pick(others);
+    say(r, pick(['ugh!','not again!','wild!','sneaky','oof']));
+    say(p, pick(['change to '+SUIT[curSuit],'wild!','eight!']));
+  }
+  if(hands[p].length===0){ endRound(p,false); return; }
+  if(hands[p].length===1){ say(p, pick(['1 card!','last one!','almost!'])); }
+  setTimeout(advance, 480);
+}
+
+/* ---------- suit picker ---------- */
+let suitCb=null;
+function openSuitPicker(cb){ suitCb=cb; $('suitPicker').classList.remove('hidden'); hint('Pick a suit for your eight (1-4).'); }
+function chooseSuit(s){
+  if(!suitCb) return;
+  $('suitPicker').classList.add('hidden');
+  const cb=suitCb; suitCb=null; cb(s);
+}
+Array.prototype.forEach.call(document.querySelectorAll('.suitbtn'),btn=>{
+  btn.addEventListener('click',()=>chooseSuit(parseInt(btn.dataset.s,10)));
+});
+
+/* ---------- round / match end ---------- */
+function lowestHandPlayer(){
+  let w=0,wp=handPenalty(0);
+  for(let p=1;p<4;p++){ const hp=handPenalty(p); if(hp<wp){wp=hp;w=p;} }
+  return w;
+}
+function handPenalty(p){ return hands[p].reduce((s,c)=>s+penalty(c),0); }
+function endRound(winner,stalemate){
+  phase='roundover';
+  busy=true;
+  const deltas=[0,0,0,0];
+  for(let q=0;q<4;q++) if(q!==winner) deltas[q]=handPenalty(q);
+  for(let q=0;q<4;q++) scores[q]+=deltas[q];
+  if(winner===0) store.rw++;
+  save();
+  renderScores();
+  if(winner===0) sWin(); else sLose();
+  say(winner, pick(['nice!','gg','yes!','too easy']));
+  if(scores.some(s=>s>=100)){ setTimeout(()=>matchOver(),700); return; }
+  setTimeout(()=>showRoundOver(winner,deltas,stalemate),650);
+}
+function showRoundOver(winner,deltas,stalemate){
+  $('roTitle').textContent = winner===0 ? 'You win the round!' : NAMES[winner]+' wins the round';
+  let rows='';
+  for(let p=0;p<4;p++){
+    const add = p===winner ? '—' : '+'+deltas[p];
+    rows+='<tr'+(p===winner?' class="win"':'')+'><td>'+NAMES[p]+(stalemate&&p===winner?' (fewest)':'')+'</td><td class="n">'+add+'</td><td class="n">'+scores[p]+'</td></tr>';
+  }
+  $('roTable').innerHTML='<tr><td></td><td class="n">round</td><td class="n">total</td></tr>'+rows;
+  $('roundOver').classList.remove('hidden');
+}
+function matchOver(){
+  phase='matchover';
+  let winner=0; for(let q=1;q<4;q++) if(scores[q]<scores[winner]) winner=q;
+  if(winner===0) store.mw++; else store.ml++;
+  let rows='';
+  const order=[0,1,2,3].slice().sort((a,b)=>scores[a]-scores[b]);
+  order.forEach(p=>{
+    rows+='<tr'+(p===winner?' class="win"':'')+'><td>'+NAMES[p]+'</td><td class="n">'+scores[p]+'</td></tr>';
+  });
+  $('moTitle').textContent = winner===0 ? 'YOU WIN!' : NAMES[winner]+' WINS';
+  $('moTable').innerHTML='<tr><td></td><td class="n">final</td></tr>'+rows;
+  $('moTally').textContent='Matches — won '+store.mw+' · lost '+store.ml+' · rounds won '+store.rw;
+  if(winner===0) sWin(); else sLose();
+  // reset for next match
+  scores=[0,0,0,0]; round=1; save();
+  $('matchOver').classList.remove('hidden');
+}
+
+/* ---------- draw glow ---------- */
+function updateDrawGlow(){
+  $('drawPile').classList.toggle('live', phase==='play'&&cur===0&&humanCanDraw&&!busy);
+}
+$('drawPile').addEventListener('click',onDrawClick);
+
+/* ---------- hint ---------- */
+function hint(t){ $('hint').textContent=t; }
+
+/* ---------- controls ---------- */
+$('startBtn').addEventListener('click',startGame);
+$('nextBtn').addEventListener('click',function(){
+  $('roundOver').classList.add('hidden');
+  round++; save(); startRound();
+});
+$('againBtn').addEventListener('click',function(){
+  $('matchOver').classList.add('hidden');
+  scores=[0,0,0,0]; round=1; save(); startRound();
+});
+function startGame(){
+  ensureAC();
+  $('title').classList.add('hidden');
+  startRound();
+}
+
+document.addEventListener('keydown',function(e){
+  const k=e.key;
+  if(phase==='title'){ if(k==='Enter'||k===' '){ e.preventDefault(); startGame(); } return; }
+  if(!$('suitPicker').classList.contains('hidden')){
+    if(k>='1'&&k<='4'){ e.preventDefault(); chooseSuit(parseInt(k,10)-1); }
+    return;
+  }
+  if(phase==='roundover'){ if(k==='Enter'||k===' '){ e.preventDefault(); $('nextBtn').click(); } return; }
+  if(phase==='matchover'){ if(k==='Enter'||k===' '){ e.preventDefault(); $('againBtn').click(); } return; }
+  if(phase==='play'&&cur===0&&!busy){
+    const pl=playableIdx(0);
+    if(pl.length>0){
+      if(k==='ArrowRight'||k==='ArrowUp'){ e.preventDefault(); moveSel(pl,1); }
+      else if(k==='ArrowLeft'||k==='ArrowDown'){ e.preventDefault(); moveSel(pl,-1); }
+      else if(k==='Enter'||k===' '){ e.preventDefault(); if(pl.includes(sel)) playCard(0,sel); }
+    } else if(humanCanDraw && (k==='d'||k==='D'||k==='Enter'||k===' '||k==='ArrowDown')){
+      e.preventDefault(); onDrawClick();
+    }
+  }
+});
+function moveSel(pl,dir){
+  let pos=pl.indexOf(sel); if(pos<0) pos=0;
+  pos=(pos+dir+pl.length)%pl.length;
+  sel=pl[pos];
+  renderPlayerHand();
+}
+
+window.addEventListener('resize',()=>{ if(phase!=='title') renderAll(); });
+
+/* ---------- boot: deal a rich scene immediately behind title ---------- */
+dealRound();
+cur=0;
+renderAll();
+hint('Match the suit or rank. Eights are wild!');
+})();
+</script>
+</body>
+</html>

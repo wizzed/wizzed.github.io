@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Text to Speech · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ff6ec7; --accent-soft:rgba(255,110,199,.45);
+  --panel:#161623; --line:#2c2c46; --text:#eaf6f8; --dim:#8fa0ab;
+  --cyan:#00e5ff; --green:#3ddc84; --amber:#ffb454;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:18px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{
+  display:grid; grid-template-columns:minmax(300px,1.5fr) minmax(260px,1fr);
+  gap:14px; max-width:1120px; margin:8px auto 0; padding:0 14px;
+  align-items:start;
+}
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:11px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(255,110,199,.08);
+}
+.panel h2{
+  font-size:11px; letter-spacing:3px; color:var(--accent);
+  text-shadow:0 0 8px var(--accent-soft); margin-bottom:8px;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.notice{
+  background:#25121f; border:1px solid var(--accent-soft); color:#ffd6ef;
+  padding:8px 10px; font-size:11px; line-height:1.5; margin-bottom:10px;
+  letter-spacing:.5px; display:none;
+}
+.notice b{ color:var(--accent); }
+.notice.show{ display:block; }
+textarea{
+  width:100%; min-height:130px; resize:vertical;
+  background:#0b0b14; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:13px; line-height:1.6; padding:10px; outline:none;
+}
+textarea:focus{ border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft) inset; }
+.reading{
+  margin-top:10px; background:#0b0b14; border:1px solid var(--line);
+  padding:12px; font-size:14px; line-height:1.85; min-height:96px; max-height:200px;
+  overflow:auto; color:var(--dim);
+}
+.reading .sent{ transition:background .12s, color .12s; padding:1px 2px; border-radius:2px; }
+.reading .sent.active{
+  background:var(--accent); color:#1a0714; text-shadow:none;
+  box-shadow:0 0 14px var(--accent-soft);
+}
+.reading .sent.done{ color:var(--text); }
+.smalltoolbar{ display:flex; gap:6px; margin-top:9px; flex-wrap:wrap; }
+button.btn{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:6px 10px;
+}
+button.btn:hover:not(:disabled){ color:var(--accent); border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+button.btn:disabled{ opacity:.4; cursor:not-allowed; }
+.field{ margin-bottom:12px; }
+.field label{ display:block; font-size:10px; letter-spacing:2px; color:var(--dim); margin-bottom:5px; text-transform:uppercase; }
+select{
+  width:100%; background:#0b0b14; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:12px; padding:8px; outline:none;
+}
+select:focus{ border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+.slider{ display:flex; align-items:center; gap:9px; }
+input[type=range]{
+  -webkit-appearance:none; appearance:none; flex:1; height:6px;
+  background:linear-gradient(90deg,var(--accent),#5a2545); border:1px solid var(--line); outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:15px; height:15px; border-radius:50%;
+  background:var(--accent); box-shadow:0 0 10px var(--accent-soft); cursor:pointer; border:2px solid #1a0714;
+}
+input[type=range]::-moz-range-thumb{
+  width:15px; height:15px; border-radius:50%; background:var(--accent);
+  box-shadow:0 0 10px var(--accent-soft); cursor:pointer; border:2px solid #1a0714;
+}
+input[type=range]:disabled{ opacity:.4; }
+.slider .val{ width:44px; text-align:right; font-size:12px; color:var(--amber); font-variant-numeric:tabular-nums; }
+.transport{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px; }
+button.tp{
+  font-family:inherit; font-size:12px; letter-spacing:2px; cursor:pointer; padding:11px 6px;
+  background:#121220; color:var(--text); border:1px solid var(--line);
+  display:flex; align-items:center; justify-content:center; gap:6px;
+}
+button.tp:hover:not(:disabled){ border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft); color:var(--accent); }
+button.tp:disabled{ opacity:.35; cursor:not-allowed; }
+button.tp.play{ color:var(--green); border-color:rgba(61,220,132,.45); }
+button.tp.play:hover:not(:disabled){ border-color:var(--green); color:var(--green); box-shadow:0 0 12px rgba(61,220,132,.4); }
+button.tp.stop{ color:var(--accent); }
+.statusbar{
+  margin-top:12px; display:flex; align-items:center; gap:10px;
+  background:#101020; border:1px solid var(--line); padding:9px 11px;
+}
+.dot{ width:11px; height:11px; border-radius:50%; background:var(--dim); box-shadow:0 0 8px currentColor; }
+.dot.idle{ background:var(--dim); }
+.dot.speaking{ background:var(--green); animation:pulse 1s infinite; }
+.dot.paused{ background:var(--amber); }
+.dot.error, .dot.novoice{ background:var(--accent); }
+@keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+.statusbar .stxt{ font-size:12px; letter-spacing:2px; color:var(--text); }
+.statusbar .stxt small{ display:block; color:var(--dim); font-size:9px; letter-spacing:1px; margin-top:2px; }
+footer{ text-align:center; margin-top:14px; font-size:10px; color:var(--dim); letter-spacing:2px; }
+@media (max-width:760px){ main{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>TEXT TO SPEECH</h1>
+  <div class="sub">TYPE &middot; TUNE &middot; SPEAK</div>
+</header>
+<main>
+  <section class="panel">
+    <h2>&#9646; SCRIPT</h2>
+    <div class="notice" id="notice"></div>
+    <textarea id="txt" spellcheck="false" aria-label="Text to speak"></textarea>
+    <div class="smalltoolbar">
+      <button class="btn" id="btnDemo" type="button">DEMO TEXT</button>
+      <button class="btn" id="btnClear" type="button">CLEAR</button>
+    </div>
+    <h2 style="margin-top:12px">&#9646; READING VIEW</h2>
+    <div class="reading" id="reading" aria-live="polite"></div>
+  </section>
+  <section class="panel">
+    <h2>&#9646; VOICE &amp; CONTROLS</h2>
+    <div class="field">
+      <label for="voiceSel">Voice</label>
+      <select id="voiceSel" aria-label="Voice selection"><option>Loading voices…</option></select>
+    </div>
+    <div class="field">
+      <label>Rate <span style="color:var(--dim)">(speed)</span></label>
+      <div class="slider"><input type="range" id="rate" min="0.5" max="2" step="0.05" value="1"><span class="val" id="rateV">1.00x</span></div>
+    </div>
+    <div class="field">
+      <label>Pitch</label>
+      <div class="slider"><input type="range" id="pitch" min="0" max="2" step="0.05" value="1"><span class="val" id="pitchV">1.00</span></div>
+    </div>
+    <div class="field">
+      <label>Volume</label>
+      <div class="slider"><input type="range" id="volume" min="0" max="1" step="0.05" value="1"><span class="val" id="volumeV">100%</span></div>
+    </div>
+    <div class="transport">
+      <button class="tp play" id="btnPlay" type="button">&#9654; PLAY</button>
+      <button class="tp" id="btnPause" type="button" disabled>&#10074;&#10074; PAUSE</button>
+      <button class="tp" id="btnResume" type="button" disabled>&#9654; RESUME</button>
+      <button class="tp stop" id="btnStop" type="button" disabled>&#9632; STOP</button>
+    </div>
+    <div class="statusbar">
+      <span class="dot idle" id="dot"></span>
+      <span class="stxt" id="statusTxt">IDLE<small id="statusSub">ready when you are</small></span>
+    </div>
+  </section>
+</main>
+<footer>WIZZED ARCADE // TEXT TO SPEECH</footer>
+<script>
+"use strict";
+var LS_KEY = "wizzed-text-speech";
+var DEMO = "Welcome to the Wizzed Arcade text to speech booth. Type any script here and hear it read aloud in the voice of your choice. Drag the sliders to tune the rate, pitch, and volume until it sounds just right. Each sentence lights up as it is spoken, so you can follow along. Press play to begin, pause to catch your breath, and stop to reset the marquee.";
+
+var synthOK = ("speechSynthesis" in window) && (typeof SpeechSynthesisUtterance !== "undefined");
+var synth = synthOK ? window.speechSynthesis : null;
+
+var el = {
+  txt: document.getElementById("txt"),
+  reading: document.getElementById("reading"),
+  notice: document.getElementById("notice"),
+  voiceSel: document.getElementById("voiceSel"),
+  rate: document.getElementById("rate"),
+  pitch: document.getElementById("pitch"),
+  volume: document.getElementById("volume"),
+  rateV: document.getElementById("rateV"),
+  pitchV: document.getElementById("pitchV"),
+  volumeV: document.getElementById("volumeV"),
+  btnPlay: document.getElementById("btnPlay"),
+  btnPause: document.getElementById("btnPause"),
+  btnResume: document.getElementById("btnResume"),
+  btnStop: document.getElementById("btnStop"),
+  btnDemo: document.getElementById("btnDemo"),
+  btnClear: document.getElementById("btnClear"),
+  dot: document.getElementById("dot"),
+  statusTxt: document.getElementById("statusTxt"),
+  statusSub: document.getElementById("statusSub")
+};
+
+var voices = [];
+var utter = null;
+var sentences = [];       // [{start,end}]
+var activeSentence = -1;
+var mode = "idle";        // idle | speaking | paused | novoice | unsupported | error
+var noVoices = false;
+
+function lsGet(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||"null"); }catch(e){ return null; } }
+function lsSet(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      txt: el.txt.value, rate: el.rate.value, pitch: el.pitch.value,
+      volume: el.volume.value, voice: el.voiceSel.value
+    }));
+  }catch(e){}
+}
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+// ---- sentence splitting with indices ----
+function buildSentences(text){
+  var res=[], start=0, i=0, n=text.length;
+  while(i<n){
+    var c=text[i];
+    if(c==="."||c==="!"||c==="?"){
+      var j=i+1;
+      while(j<n && (text[j]==="."||text[j]==="!"||text[j]==="?")) j++;
+      if(j>=n || /\s/.test(text[j])){
+        res.push({start:start, end:j});
+        while(j<n && /\s/.test(text[j])) j++;
+        start=j; i=j; continue;
+      }
+      i=j; continue;
+    }
+    i++;
+  }
+  if(start<n) res.push({start:start, end:n});
+  return res.filter(function(s){ return text.slice(s.start,s.end).trim().length>0; });
+}
+
+function renderReading(){
+  var text = el.txt.value;
+  sentences = buildSentences(text);
+  if(!text.trim()){
+    el.reading.innerHTML = '<span style="color:var(--dim)">Nothing to read yet — type or load the demo text.</span>';
+    return;
+  }
+  var html="", pos=0;
+  for(var i=0;i<sentences.length;i++){
+    var s=sentences[i];
+    if(s.start>pos) html += esc(text.slice(pos,s.start));
+    html += '<span class="sent" data-i="'+i+'">'+esc(text.slice(s.start,s.end))+'</span>';
+    pos=s.end;
+  }
+  if(pos<text.length) html += esc(text.slice(pos));
+  el.reading.innerHTML = html;
+  // pre-highlight first sentence as a static preview when idle
+  if(mode==="idle" && sentences.length){ setActiveSentence(0, false); }
+}
+
+function setActiveSentence(idx, scroll){
+  activeSentence = idx;
+  var spans = el.reading.querySelectorAll(".sent");
+  for(var i=0;i<spans.length;i++){
+    spans[i].classList.remove("active");
+    if(i < idx) spans[i].classList.add("done"); else spans[i].classList.remove("done");
+  }
+  if(idx>=0 && idx<spans.length){
+    spans[idx].classList.add("active");
+    if(scroll){ try{ spans[idx].scrollIntoView({block:"nearest"}); }catch(e){} }
+  }
+}
+function clearHighlight(){
+  activeSentence = -1;
+  var spans = el.reading.querySelectorAll(".sent");
+  for(var i=0;i<spans.length;i++){ spans[i].classList.remove("active","done"); }
+}
+
+function sentenceAtChar(ci){
+  for(var i=0;i<sentences.length;i++){
+    if(ci>=sentences[i].start && ci<sentences[i].end) return i;
+  }
+  // between sentences: pick the next upcoming one
+  for(var j=0;j<sentences.length;j++){ if(sentences[j].start>ci) return j; }
+  return sentences.length? sentences.length-1 : -1;
+}
+
+// ---- status ----
+function setStatus(name, sub){
+  mode = name;
+  var map = {
+    idle:["IDLE","idle"], speaking:["SPEAKING","speaking"], paused:["PAUSED","paused"],
+    error:["ERROR","error"], novoice:["NO VOICES","novoice"], unsupported:["UNSUPPORTED","novoice"]
+  };
+  var m = map[name] || map.idle;
+  el.statusTxt.childNodes[0].nodeValue = m[0];
+  el.dot.className = "dot " + m[1];
+  el.statusSub.textContent = sub || "";
+  updateButtons();
+}
+function updateButtons(){
+  var canSpeak = synthOK && !noVoices;
+  el.btnPlay.disabled = !canSpeak || mode==="speaking";
+  el.btnPause.disabled = !canSpeak || mode!=="speaking";
+  el.btnResume.disabled = !canSpeak || mode!=="paused";
+  el.btnStop.disabled = !canSpeak || (mode!=="speaking" && mode!=="paused");
+  var dis = !canSpeak;
+  el.rate.disabled = dis; el.pitch.disabled = dis; el.volume.disabled = dis;
+  el.voiceSel.disabled = dis;
+}
+
+// ---- voices ----
+function loadVoices(){
+  if(!synthOK) return;
+  var v = [];
+  try{ v = synth.getVoices() || []; }catch(e){ v = []; }
+  if(!v.length) return; // wait for voiceschanged
+  voices = v;
+  noVoices = false;
+  el.notice.classList.remove("show");
+  var saved = lsGet();
+  var wanted = saved && saved.voice;
+  var html = "";
+  var def = -1;
+  for(var i=0;i<voices.length;i++){
+    var label = voices[i].name + " (" + voices[i].lang + ")" + (voices[i]["default"]?" ★":"");
+    html += '<option value="'+esc(voices[i].name)+'">'+esc(label)+'</option>';
+    if(voices[i].name===wanted) def=i;
+    else if(def<0 && voices[i]["default"]) def=i;
+    else if(def<0 && /en[-_]/i.test(voices[i].lang)) def=i;
+  }
+  el.voiceSel.innerHTML = html;
+  if(def>=0) el.voiceSel.selectedIndex = def;
+  if(mode==="novoice"||mode==="idle") setStatus("idle", voices.length + " voice" + (voices.length===1?"":"s") + " available");
+  updateButtons();
+}
+
+function markNoVoices(){
+  if(!synthOK){
+    noVoices = true;
+    el.voiceSel.innerHTML = '<option>No speech engine</option>';
+    el.notice.classList.add("show");
+    el.notice.innerHTML = "<b>Speech synthesis is not supported</b> by this browser. The controls below are shown for preview but are disabled. The reading view still highlights sentences as a demo.";
+    setStatus("unsupported", "speechSynthesis API missing");
+    return;
+  }
+  if(voices.length) return;
+  noVoices = true;
+  el.voiceSel.innerHTML = '<option>No voices available</option>';
+  el.notice.classList.add("show");
+  el.notice.innerHTML = "<b>No speech voices are installed</b> in this browser/environment. Everything is styled and ready — plug in a system voice and reload to hear it. Sentence highlighting still previews below.";
+  setStatus("novoice", "0 voices found");
+}
+
+// ---- transport ----
+function buildUtterance(){
+  var u = new SpeechSynthesisUtterance(el.txt.value);
+  var vname = el.voiceSel.value;
+  for(var i=0;i<voices.length;i++){ if(voices[i].name===vname){ u.voice = voices[i]; break; } }
+  u.rate = parseFloat(el.rate.value)||1;
+  u.pitch = parseFloat(el.pitch.value)||1;
+  u.volume = parseFloat(el.volume.value);
+  if(isNaN(u.volume)) u.volume = 1;
+  u.onstart = function(){ setStatus("speaking","now reading"); if(sentences.length) setActiveSentence(0,true); };
+  u.onboundary = function(e){
+    try{
+      if(typeof e.charIndex === "number"){
+        var idx = sentenceAtChar(e.charIndex);
+        if(idx>=0 && idx!==activeSentence) setActiveSentence(idx,true);
+      }
+    }catch(err){}
+  };
+  u.onend = function(){
+    if(sentences.length) setActiveSentence(sentences.length-1,false);
+    setStatus("idle","finished");
+    setTimeout(function(){ if(mode==="idle") clearHighlight(); if(sentences.length) setActiveSentence(0,false); }, 900);
+  };
+  u.onpause = function(){ setStatus("paused","paused"); };
+  u.onresume = function(){ setStatus("speaking","resumed"); };
+  u.onerror = function(ev){
+    if(ev && ev.error==="canceled" || ev && ev.error==="interrupted"){ return; }
+    setStatus("error", (ev&&ev.error)? String(ev.error) : "playback error");
+  };
+  return u;
+}
+
+function play(){
+  if(!synthOK || noVoices) return;
+  if(!el.txt.value.trim()){ setStatus("idle","nothing to speak"); return; }
+  try{ synth.cancel(); }catch(e){}
+  renderReading();
+  utter = buildUtterance();
+  try{ synth.speak(utter); setStatus("speaking","starting…"); }
+  catch(e){ setStatus("error","could not start"); }
+}
+function pause(){
+  if(!synthOK) return;
+  try{ if(synth.speaking && !synth.paused){ synth.pause(); setStatus("paused","paused"); } }catch(e){}
+}
+function resume(){
+  if(!synthOK) return;
+  try{ if(synth.paused){ synth.resume(); setStatus("speaking","resumed"); } }catch(e){}
+}
+function stop(){
+  if(!synthOK) return;
+  try{ synth.cancel(); }catch(e){}
+  setStatus("idle","stopped");
+  clearHighlight();
+  if(sentences.length) setActiveSentence(0,false);
+}
+
+// ---- events ----
+el.btnPlay.addEventListener("click", play);
+el.btnPause.addEventListener("click", pause);
+el.btnResume.addEventListener("click", resume);
+el.btnStop.addEventListener("click", stop);
+el.btnDemo.addEventListener("click", function(){
+  stop(); el.txt.value = DEMO; renderReading(); lsSet();
+});
+el.btnClear.addEventListener("click", function(){
+  stop(); el.txt.value = ""; renderReading(); lsSet();
+});
+el.txt.addEventListener("input", function(){
+  if(mode==="speaking"||mode==="paused") stop();
+  renderReading(); lsSet();
+});
+function sliderVals(){
+  el.rateV.textContent = (parseFloat(el.rate.value)).toFixed(2) + "x";
+  el.pitchV.textContent = (parseFloat(el.pitch.value)).toFixed(2);
+  el.volumeV.textContent = Math.round(parseFloat(el.volume.value)*100) + "%";
+}
+["rate","pitch","volume"].forEach(function(k){
+  el[k].addEventListener("input", function(){ sliderVals(); lsSet(); });
+});
+el.voiceSel.addEventListener("change", lsSet);
+window.addEventListener("beforeunload", function(){ try{ if(synth) synth.cancel(); }catch(e){} });
+
+// ---- init ----
+(function init(){
+  var saved = lsGet();
+  if(saved){
+    el.txt.value = (typeof saved.txt==="string" && saved.txt!=="") ? saved.txt : DEMO;
+    if(saved.rate) el.rate.value = saved.rate;
+    if(saved.pitch) el.pitch.value = saved.pitch;
+    if(saved.volume!==undefined) el.volume.value = saved.volume;
+  } else {
+    el.txt.value = DEMO;
+  }
+  sliderVals();
+  renderReading();
+
+  if(!synthOK){ markNoVoices(); return; }
+  setStatus("idle","loading voices…");
+  loadVoices();
+  try{ synth.onvoiceschanged = loadVoices; }catch(e){}
+  // some engines populate late; poll a few times then give up gracefully
+  var tries = 0;
+  var iv = setInterval(function(){
+    tries++;
+    if(voices.length){ clearInterval(iv); return; }
+    loadVoices();
+    if(voices.length){ clearInterval(iv); return; }
+    if(tries >= 10){ clearInterval(iv); markNoVoices(); }
+  }, 250);
+  updateButtons();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Words — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f1a;
+    --accent: #00ff9d;
+    --correct: #00e08a;
+    --present: #ffcf40;
+    --absent: #2c2c44;
+    --tile-border: #34345a;
+    --panel: #191930;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: #e8e8ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 8px 10px 16px;
+    overflow-x: hidden;
+  }
+  a.back {
+    position: fixed;
+    top: 10px; left: 12px;
+    color: #8888c0;
+    text-decoration: none;
+    font-size: 13px;
+    letter-spacing: 1px;
+    z-index: 50;
+    padding: 4px 8px;
+    border: 1px solid #2a2a4a;
+    border-radius: 6px;
+    background: rgba(15,15,26,.8);
+  }
+  a.back:hover { color: var(--accent); border-color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+  h1 {
+    margin-top: 4px;
+    font-size: clamp(20px, 4.5vmin, 34px);
+    letter-spacing: 5px;
+    color: var(--accent);
+    text-shadow: 0 0 8px var(--accent), 0 0 24px rgba(0,255,157,.5);
+    text-transform: uppercase;
+  }
+  .statsbar {
+    display: flex;
+    gap: 8px;
+    margin: 6px 0 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid #2a2a4a;
+    border-radius: 8px;
+    padding: 3px 10px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: #9a9ac8;
+    box-shadow: 0 0 10px rgba(0,255,157,.08) inset;
+  }
+  .stat b { color: var(--accent); font-size: 14px; margin-left: 4px; text-shadow: 0 0 6px var(--accent); }
+  #board {
+    display: grid;
+    grid-template-rows: repeat(6, auto);
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+  .row { display: grid; grid-template-columns: repeat(5, auto); gap: 5px; }
+  .tile {
+    width: clamp(30px, 6.4vmin, 56px);
+    height: clamp(30px, 6.4vmin, 56px);
+    border: 2px solid var(--tile-border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(16px, 3.6vmin, 30px);
+    font-weight: bold;
+    text-transform: uppercase;
+    background: #14142a;
+    transition: transform .22s ease, background-color .1s, border-color .1s;
+  }
+  .tile.filled { border-color: var(--accent); animation: pop .12s ease; box-shadow: 0 0 8px rgba(0,255,157,.25); }
+  .tile.flip { transform: rotateX(90deg); }
+  .tile.correct { background: var(--correct); border-color: var(--correct); color: #04140c; box-shadow: 0 0 12px rgba(0,224,138,.7); }
+  .tile.present { background: var(--present); border-color: var(--present); color: #201800; box-shadow: 0 0 12px rgba(255,207,64,.6); }
+  .tile.absent  { background: var(--absent);  border-color: var(--absent);  color: #77779a; }
+  @keyframes pop { 50% { transform: scale(1.12); } }
+  .row.shake { animation: shake .45s; }
+  @keyframes shake {
+    10%,90% { transform: translateX(-2px); }
+    20%,80% { transform: translateX(4px); }
+    30%,50%,70% { transform: translateX(-6px); }
+    40%,60% { transform: translateX(6px); }
+  }
+  #toast {
+    position: fixed;
+    top: 56px; left: 50%;
+    transform: translateX(-50%);
+    background: #e8e8ff;
+    color: #0f0f1a;
+    font-weight: bold;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    letter-spacing: 1px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s;
+    z-index: 60;
+  }
+  #toast.show { opacity: 1; }
+  #kb { display: flex; flex-direction: column; gap: 5px; align-items: center; width: 100%; max-width: 520px; }
+  .kbrow { display: flex; gap: 4px; justify-content: center; width: 100%; }
+  .key {
+    flex: 1;
+    max-width: 44px;
+    height: clamp(34px, 6.5vh, 50px);
+    background: #23233d;
+    border: 1px solid #34345a;
+    border-radius: 5px;
+    color: #d8d8f8;
+    font-family: inherit;
+    font-weight: bold;
+    font-size: clamp(11px, 2.4vmin, 15px);
+    cursor: pointer;
+    text-transform: uppercase;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    transition: background .1s, box-shadow .1s;
+  }
+  .key.wide { max-width: 68px; flex: 1.6; font-size: 10px; }
+  .key:hover { border-color: var(--accent); box-shadow: 0 0 8px rgba(0,255,157,.35); }
+  .key:active { transform: scale(.94); }
+  .key.correct { background: var(--correct); color: #04140c; border-color: var(--correct); box-shadow: 0 0 8px rgba(0,224,138,.5); }
+  .key.present { background: var(--present); color: #201800; border-color: var(--present); }
+  .key.absent  { background: #17172a; color: #55557a; border-color: #22223a; }
+  #overlay {
+    position: fixed; inset: 0;
+    background: rgba(10,10,20,.88);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s;
+    z-index: 100;
+  }
+  #overlay.show { opacity: 1; pointer-events: auto; }
+  .panel {
+    background: var(--panel);
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+    box-shadow: 0 0 30px rgba(0,255,157,.4), 0 0 80px rgba(0,255,157,.15);
+    padding: 26px 34px;
+    text-align: center;
+    max-width: 92vw;
+  }
+  .panel h2 {
+    color: var(--accent);
+    letter-spacing: 4px;
+    font-size: 24px;
+    text-shadow: 0 0 12px var(--accent);
+    margin-bottom: 10px;
+  }
+  .panel .word { font-size: 20px; letter-spacing: 6px; color: #fff; margin: 8px 0 14px; text-shadow: 0 0 10px #fff; }
+  .panel .sub { color: #9a9ac8; font-size: 13px; margin-bottom: 16px; line-height: 1.7; }
+  .panel .sub b { color: var(--accent); }
+  .btn {
+    background: var(--accent);
+    color: #04140c;
+    border: none;
+    font-family: inherit;
+    font-weight: bold;
+    font-size: 15px;
+    letter-spacing: 2px;
+    padding: 11px 26px;
+    border-radius: 6px;
+    cursor: pointer;
+    box-shadow: 0 0 14px rgba(0,255,157,.6);
+    text-transform: uppercase;
+  }
+  .btn:hover { box-shadow: 0 0 24px rgba(0,255,157,.9); }
+  @media (max-height: 560px) {
+    h1 { margin-top: 0; font-size: 18px; }
+    .statsbar { margin: 3px 0 5px; }
+    #board { gap: 3px; margin-bottom: 6px; }
+    .row { gap: 3px; }
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<h1>Pixel Words</h1>
+<div class="statsbar">
+  <div class="stat">STREAK<b id="s-streak">0</b></div>
+  <div class="stat">BEST<b id="s-best">0</b></div>
+  <div class="stat">WINS<b id="s-wins">0</b></div>
+  <div class="stat">PLAYED<b id="s-played">0</b></div>
+</div>
+<div id="board"></div>
+<div id="kb"></div>
+<div id="toast"></div>
+<div id="overlay">
+  <div class="panel">
+    <h2 id="ov-title">YOU WIN</h2>
+    <div class="word" id="ov-word">PIXEL</div>
+    <div class="sub" id="ov-sub"></div>
+    <button class="btn" id="ov-again">Play Again</button>
+  </div>
+</div>
+<script>
+(function () {
+  "use strict";
+  var ANSWERS_STR = "ABOUT ABOVE ABUSE ACTOR ACUTE ADMIT ADOPT ADULT AFTER AGAIN AGENT AGREE AHEAD ALARM ALBUM ALERT ALIEN ALIGN ALIKE ALIVE ALLOW ALONE ALONG ALTER ANGEL ANGER ANGLE ANGRY ANKLE APART APPLE APPLY ARENA ARGUE ARISE ARMOR ARRAY ARROW ASIDE ASSET AUDIO AUDIT AVOID AWAKE AWARD AWARE BADGE BAKER BASIC BATCH BEACH BEARD BEAST BEGIN BEING BELLY BELOW BENCH BERRY BIRTH BLACK BLADE BLAME BLANK BLAST BLAZE BLEND BLESS BLIND BLOCK BLOOD BLOOM BOARD BONUS BOOST BOOTH BOUND BRAIN BRAND BRAVE BREAD BREAK BRICK BRIDE BRIEF BRING BROAD BROWN BRUSH BUILD BUNCH BURST BUYER CABIN CABLE CANDY CARGO CARRY CATCH CAUSE CHAIN CHAIR CHALK CHAMP CHAOS CHARM CHART CHASE CHEAP CHECK CHEEK CHEER CHESS CHEST CHIEF CHILD CHILL CHIME CHOIR CHORD CHOSE CIVIL CLAIM CLASH CLASS CLEAN CLEAR CLERK CLICK CLIFF CLIMB CLOCK CLOSE CLOTH CLOUD COACH COAST COLOR COMET COMIC CORAL COUCH COUGH COUNT COURT COVER CRAFT CRANE CRASH CRAZY CREAM CRIME CRISP CROSS CROWD CROWN CRUSH CURVE CYCLE DAILY DAIRY DANCE DEALT DEBUT DECAY DELAY DELTA DENSE DEPTH DERBY DEVIL DIARY DIGIT DINER DIRTY DODGE DONOR DOUBT DOZEN DRAFT DRAIN DRAMA DREAM DRESS DRIFT DRILL DRINK DRIVE DRONE DROVE DRYER DUSTY DWELL EAGER EAGLE EARLY EARTH EIGHT ELBOW ELDER ELECT ELITE EMPTY ENEMY ENJOY ENTER ENTRY EQUAL ERROR ESSAY EVENT EVERY EXACT EXIST EXTRA FABLE FAINT FAIRY FAITH FALSE FANCY FATAL FAULT FAVOR FEAST FENCE FERRY FEVER FIBER FIELD FIFTH FIFTY FIGHT FINAL FIRST FLAME FLASH FLEET FLESH FLINT FLOAT FLOCK FLOOD FLOOR FLOUR FLUID FLUTE FOCUS FORCE FORGE FORTH FORTY FORUM FOUND FRAME FRAUD FRESH FRONT FROST FRUIT FUNNY GHOST GIANT GIVEN GLASS GLOBE GLORY GLOVE GRACE GRADE GRAIN GRAND GRANT GRAPE GRAPH GRASP GRASS GRAVE GREAT GREEN GREET GRIEF GRILL GRIND GROUP GROVE GROWN GUARD GUESS GUEST GUIDE HAPPY HARSH HEART HEAVY HEDGE HELLO HENCE HOBBY HONEY HONOR HORSE HOTEL HOUSE HUMAN HUMID HUMOR HURRY IDEAL IMAGE IMPLY INDEX INNER INPUT ISSUE IVORY JELLY JEWEL JOINT JOLLY JUDGE JUICE JUICY KNEEL KNIFE KNOCK KNOWN LABEL LABOR LARGE LASER LATER LAUGH LAYER LEARN LEASE LEAST LEAVE LEGAL LEMON LEVEL LIGHT LIMIT LINEN LIVER LOCAL LODGE LOGIC LOOSE LORRY LOVER LOWER LOYAL LUCKY LUNAR LUNCH LYRIC MAGIC MAJOR MAKER MANGO MAPLE MARCH MATCH MAYBE MAYOR MEANT MEDAL MEDIA MELON MERCY MERGE MERIT METAL METER MICRO MIDST MIGHT MINOR MINUS MIXED MODEL MONEY MONTH MORAL MOTOR MOUNT MOUSE MOUTH MOVIE MUSIC NAVAL NERVE NEVER NEWLY NIGHT NOBLE NOISE NORTH NOVEL NURSE OCCUR OCEAN OFFER OFTEN OLIVE ONION OPERA ORBIT ORDER ORGAN OTHER OUGHT OUNCE OUTER OWNER OXIDE OZONE PAINT PANEL PANIC PAPER PARTY PASTA PATCH PAUSE PEACE PEACH PEARL PEDAL PENNY PHASE PHONE PHOTO PIANO PIECE PILOT PINCH PITCH PIXEL PIZZA PLACE PLAIN PLANE PLANT PLATE PLAZA POINT POLAR PORCH POUND POWER PRESS PRICE PRIDE PRIME PRINT PRIZE PROOF PROUD PROVE PULSE PUNCH PUPIL PURSE QUEEN QUERY QUEST QUEUE QUICK QUIET QUILT QUOTE RADAR RADIO RAINY RAISE RALLY RANCH RANGE RAPID RATIO REACH REACT READY REALM REBEL REFER REIGN RELAX REPLY RHYME RIDER RIDGE RIGHT RIGID RISKY RIVAL RIVER ROAST ROBIN ROBOT ROCKY ROGUE ROMAN ROUGH ROUND ROUTE ROYAL RUGBY RULER RURAL SADLY SAINT SALAD SALON SANDY SAUCE SCALE SCARE SCARF SCENE SCENT SCOPE SCORE SCOUT SCRAP SCREW SENSE SERVE SEVEN SHADE SHAKE SHALL SHAME SHAPE SHARE SHARK SHARP SHEEP SHEET SHELF SHELL SHIFT SHINE SHINY SHIRT SHOCK SHORE SHORT SHOUT SHOWN SIEGE SIGHT SIGMA SILLY SINCE SIXTH SIXTY SKILL SKIRT SKULL SLEEP SLICE SLIDE SLOPE SMALL SMART SMELL SMILE SMOKE SNACK SNAKE SOLAR SOLID SOLVE SORRY SOUND SOUTH SPACE SPARE SPARK SPEAK SPEED SPELL SPEND SPICE SPICY SPINE SPLIT SPOKE SPOON SPORT SPRAY STAFF STAGE STAIR STAKE STAMP STAND STARE START STATE STEAK STEAL STEAM STEEL STEEP STEER STICK STIFF STILL STING STOCK STONE STOOD STORE STORM STORY STOVE STRAP STRAW STRIP STUCK STUDY STUFF STYLE SUGAR SUITE SUNNY SUPER SWEAR SWEAT SWEEP SWEET SWIFT SWING SWORD TABLE TAKEN TASTE TEACH TEETH TEMPO TENSE TENTH THANK THEFT THEME THERE THESE THICK THIEF THING THINK THIRD THOSE THREE THREW THROW THUMB TIGER TIGHT TIMER TITLE TOAST TODAY TOKEN TOOTH TOPIC TORCH TOTAL TOUCH TOUGH TOWEL TOWER TOXIC TRACE TRACK TRADE TRAIL TRAIN TRAIT TRASH TREAT TREND TRIAL TRIBE TRICK TRIED TROOP TRUCK TRULY TRUNK TRUST TRUTH TULIP TWICE TWIST ULTRA UNCLE UNDER UNION UNITE UNITY UNTIL UPPER UPSET URBAN USAGE USUAL VAGUE VALID VALUE VAPOR VAULT VENUE VERSE VIDEO VIGOR VILLA VINYL VIRUS VISIT VITAL VIVID VOCAL VOICE VOTER WAGON WAIST WATCH WATER WEARY WEIGH WEIRD WHALE WHEAT WHEEL WHERE WHICH WHILE WHITE WHOLE WHOSE WIDEN WIDOW WIDTH WINDY WITCH WOMAN WORLD WORRY WORSE WORST WORTH WOUND WOVEN WRIST WRITE WRONG WROTE YACHT YEAST YIELD YOUNG YOUTH ZEBRA";
+  var EXTRA_STR = "ABIDE ACORN ADORE AGILE AISLE ALGAE ALLEY ALLOY ALOFT ALOUD ALPHA AMBER AMEND AMPLE AMUSE ANIME ANNEX ANVIL AORTA APRON APTLY ARBOR ARDOR AROMA AROSE ASHEN ASKEW ATLAS ATTIC AVAIL AVERT AWAIT AWFUL AXIOM BACON BADLY BAGEL BALMY BANJO BARGE BARON BASAL BASIL BASIN BASIS BATON BEADY BEECH BEEFY BEGAN BEGUN BEIGE BELCH BERTH BEVEL BIBLE BICEP BINGE BINGO BIOME BIRCH BISON BLAND BLARE BLEAK BLEAT BLEED BLEEP BLIMP BLISS BLITZ BLOAT BLOKE BLOND BLOWN BLUFF BLUNT BLURB BLURT BLUSH BOAST BOGUS BONGO BOOZE BORAX BOSSY BOTCH BOUGH BOXER BRACE BRAID BRAKE BRASH BRASS BRAWL BRAWN BREED BRIBE BRINE BRINK BRISK BROIL BROKE BROOK BROOM BROTH BRUNT BRUTE BUDGE BUGGY BUGLE BULGE BULKY BULLY BUNNY BUSHY BUXOM CACHE CACTI CADET CAMEL CAMEO CANAL CANOE CANON CAPER CARAT CARVE CEASE CEDAR CELLO CHAFF CHANT CHARD CHEAT CHEWY CHICK CHIDE CHILI CHIRP CHOKE CHOMP CHORE CHUCK CHUNK CHURN CIDER CIGAR CINCH CIRCA CLACK CLAMP CLANG CLANK CLASP CLEAT CLEFT CLING CLINK CLOAK CLONE CLOVE CLOWN CLUCK CLUMP CLUNG COBRA COCOA COLON COMBO COMMA CONCH CONDO CORNY COVEN COWER CRAMP CRANK CRATE CRAVE CRAWL CREAK CREED CREEK CREEP CREPE CREPT CREST CRICK CRIED CRIER CROAK CROCK CRONE CRONY CROOK CRUDE CRUEL CRUMB CRUST CRYPT CUBIC CUMIN CURLY CURRY CURSE CURVY CYNIC DADDY DAISY DANDY DATUM DAUNT DEBIT DECAL DECOR DECOY DEITY DEMON DENIM DETER DEUCE DICEY DIMLY DINGO DINGY DISCO DITCH DITTO DIVER DIZZY DOGMA DOING DOLLY DOUGH DOWDY DOWNY DOWRY DRAKE DRANK DRAPE DRAWL DRAWN DREAD DROLL DROOL DROOP DROSS DRUID DUCHY DULLY DUMMY DUMPY DUNCE DUSKY DUVET DWARF DWELT EASEL EATEN EBONY EDICT EERIE EGRET EJECT ELEGY ELFIN ELOPE ELUDE EMAIL EMBED EMBER EMCEE ENACT ENDOW ENSUE ENVOY EPOCH EPOXY ERASE ERODE ETHIC ETHOS EVADE EVOKE EXALT EXCEL EXERT EXILE EXPEL EXTOL EXULT FARCE FATTY FAUNA FEIGN FELLA FELON FEMUR FERAL FETCH FETUS FEWER FIEND FIERY FILET FILTH FINCH FISHY FIZZY FJORD FLAIL FLAIR FLAKE FLAKY FLANK FLARE FLECK FLICK FLING FLIRT FLOSS FLOWN FLUFF FLUKE FLUNG FLUNK FLUSH FOAMY FOCAL FOGGY FOLIO FORAY FOYER FRAIL FREAK FRIED FRILL FRISK FRIZZ FROCK FROND FROTH FROWN FROZE FUDGE FUNGI FUNKY FUROR FURRY FUSSY FUZZY GAFFE GAILY GAMER GAMMA GAUDY GAUGE GAUNT GAUZE GAVEL GAWKY GECKO GEEKY GENIE GENRE GIDDY GIVER GIZMO GLADE GLAND GLARE GLAZE GLEAM GLEAN GLIDE GLINT GLOAT GLOOM GLOSS GNASH GNOME GODLY GOING GOLEM GONER GOOEY GOOFY GORGE GOUGE GOURD GRAFT GRAVY GRAZE GRIME GRIMY GRIPE GROAN GROIN GROOM GROPE GROSS GROUT GROWL GRUEL GRUFF GRUNT GUAVA GUILD GUILE GUILT GUISE GULCH GULLY GUMBO GUPPY GUSTO GUSTY HABIT HAIRY HANDY HARDY HASTE HASTY HATCH HAUNT HAVEN HAVOC HAZEL HEFTY HEIST HELIX HERON HILLY HINGE HIPPO HITCH HOARD HOIST HOLLY HOMER HORDE HOTLY HOUND HOVER HOWDY HUMUS HUNCH HUSKY HYDRA HYENA ICING IDIOM IDLER IGLOO IMBUE INANE INEPT INERT INFER INGOT INLAY INLET IONIC IRATE IRONY ITCHY JAUNT JAZZY JERKY JETTY JIFFY JOKER JOUST JUMBO JUMPY JUNTA JUROR KARMA KAYAK KAZOO KEBAB KHAKI KIOSK KITTY KNACK KNAVE KNEAD KNELT KOALA KRILL LADEN LADLE LAGER LANCE LANKY LAPEL LAPSE LARVA LASSO LATCH LATTE LEAFY LEAKY LEAPT LEASH LEDGE LEECH LEFTY LEGGY LEMUR LEPER LEVER LIBEL LIKEN LILAC LIMBO LINER LINGO LIVID LLAMA LOAMY LOATH LOBBY LOFTY LOGIN LOOPY LOTUS LOUSY LOWLY LUMPY LUNGE LURCH LURID LYMPH MACAW MACHO MACRO MADAM MADLY MAGMA MAIZE MAMBO MANIA MANIC MANOR MARSH MASON MAUVE MAXIM MEALY MEATY MECCA MEDIC MELEE MERRY METRO MIDGE MIMIC MINCE MINER MINTY MIRTH MISER MISTY MOCHA MODAL MODEM MOGUL MOIST MOLAR MOLDY MOODY MOOSE MORPH MOSSY MOTEL MOTIF MOTTO MOUND MOURN MOWER MUCKY MUDDY MULCH MUMMY MUNCH MURAL MURKY MUSHY MUSKY MUSTY MYRRH NADIR NANNY NASAL NASTY NATAL NAVEL NEEDY NEIGH NEWER NICER NICHE NIECE NIFTY NINJA NINTH NOBLY NOISY NOMAD NOOSE NOTCH NUDGE NUTTY NYLON NYMPH OAKEN OASIS OCTAL ODDLY OLDEN OLDER OMEGA ONSET OPTIC OTTER OUTDO OVARY OVERT OVOID OWING OXBOW PADDY PAGAN PALER PANDA PANSY PAPAL PARKA PARRY PASTE PASTY PATIO PATSY PAYEE PAYER PENAL PERCH PERIL PERKY PESKY PESTO PETAL PETTY PHONY PICKY PIETY PIGGY PILAF PINEY PINKY PINTO PIPER PIQUE PIVOT PLAID PLANK PLEAD PLEAT PLIED PLUCK PLUMB PLUME PLUMP PLUNK PLUSH POISE POKER POLKA POLYP POOCH POPPY POSER POSIT POSSE POUCH POUTY PRANK PRAWN PREEN PRICK PRIMO PRIOR PRISM PRIVY PROBE PRONE PRONG PROSE PROWL PROXY PRUNE PSALM PUDGY PUFFY PULPY PUPPY PUREE PURGE PUTTY PYGMY QUACK QUAIL QUAKE QUALM QUART QUASH QUELL QUILL QUIRK QUITE QUOTA RABBI RABID RACER RADII RAJAH RAMEN RASPY RATTY RAVEN RAYON RAZOR REBAR REBUS REBUT RECAP RECUR REEDY REHAB RELAY RELIC REMIT RENAL RENEW REPAY REPEL RERUN RESET RESIN RETRO RETRY REUSE REVEL REVUE RHINO RIFLE RINSE RIPEN RISEN RISER RITZY ROACH RODEO ROOMY ROOST ROTOR ROUSE ROVER ROWDY ROWER RUDDY RUMBA RUMOR RUPEE RUSTY SALSA SALTY SALVE SALVO SAPPY SASSY SATIN SATYR SAUNA SAVOR SAVVY SCALD SCALP SCAMP SCANT SCARY SCOFF SCOLD SCONE SCOOP SCOOT SCORN SCOWL SCRAM SCRUB SCUBA SCUFF SEDAN SEEDY SEGUE SEIZE SEPIA SERUM SETUP SHACK SHADY SHAFT SHAKY SHALE SHANK SHAWL SHEAR SHEEN SHEIK SHIED SHOAL SHONE SHOOK SHOVE SHRED SHREW SHRUB SHRUG SHUCK SHUSH SHYLY SIEVE SILKY SINEW SIREN SISSY SKATE SKIER SKIFF SKIMP SKUNK SLACK SLAIN SLANG SLANT SLASH SLATE SLEEK SLEET SLICK SLIMY SLING SLINK SLOSH SLOTH SLUMP SLUNG SLURP SLUSH SLYLY SMACK SMASH SMEAR SMIRK SMITE SMITH SMOCK SMOKY SNAIL SNARE SNARL SNEAK SNEER SNIDE SNIFF SNIPE SNOOP SNORE SNORT SNOUT SNOWY SNUCK SNUFF SOAPY SOBER SOGGY SONAR SONIC SOOTH SOOTY SPADE SPANK SPASM SPAWN SPEAR SPECK SPIEL SPIKE SPIKY SPILL SPILT SPIRE SPITE SPLAT SPOIL SPOOF SPOOK SPOOL SPORE SPOUT SPREE SPRIG SPUNK SPURN SPURT SQUAD SQUAT SQUIB STAIN STALE STALK STALL STANK STASH STAVE STEAD STEED STEIN STERN STILT STINK STINT STOIC STOKE STOMP STONY STOOL STOOP STOUT STRAY STRUM STRUT STUMP STUNG STUNK STUNT SUAVE SULKY SULLY SUMAC SURGE SURLY SUSHI SWAMI SWAMP SWARM SWASH SWATH SWELL SWEPT SWILL SWINE SWIRL SWISH SWOON SWOOP SWORE SWORN SWUNG SYNOD SYRUP TABBY TACIT TACKY TAFFY TALLY TALON TAMER TANGO TANGY TAPER TAPIR TARDY TAROT TATTY TAUNT TAWNY TEARY TEASE TEDDY TEMPT TEPEE TEPID TERSE TESTY THETA THIGH THORN THUMP THYME TIARA TIBIA TIDAL TILDE TIPSY TITAN TONAL TONIC TOPAZ TORSO TOTEM TOXIN TRACT TRAMP TRAWL TREAD TRIAD TRITE TROLL TROPE TROUT TROVE TRUCE TRYST TUBBY TULLE TUMOR TUNIC TURBO TUTOR TWANG TWEAK TWEED TWEET TWIRL TWINE UDDER ULCER UMBRA UNCUT UNDID UNDUE UNFIT UNIFY UNLIT UNMET UNTIE UNZIP UPEND USHER USURP UTTER VALET VALOR VALVE VAPID VAUNT VEGAN VENOM VERGE VERVE VICAR VIGIL VIPER VIRAL VISOR VISTA VIXEN VODKA VOGUE VOILA VOMIT VOUCH VOWEL VYING WACKY WAFER WALTZ WARTY WASTE WEAVE WEDGE WEEDY WELCH WELSH WHACK WHARF WHIFF WHINE WHIRL WHISK WIDER WIELD WIMPY WINCE WINCH WISER WISPY WITTY WOKEN WOODY WOOZY WORDY WRACK WRATH WREAK WRECK WREST WRING WRUNG WRYLY YEARN YODEL YOKEL YUMMY ZESTY ZONAL";
+  var ANSWERS = ANSWERS_STR.trim().split(/\s+/);
+  var VALID = new Set(ANSWERS.concat(EXTRA_STR.trim().split(/\s+/)));
+
+  // ---------- audio ----------
+  var actx = null;
+  function initAudio() {
+    if (!actx) {
+      try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; }
+    }
+    if (actx && actx.state === "suspended") actx.resume();
+  }
+  document.addEventListener("pointerdown", initAudio, { once: true });
+  document.addEventListener("keydown", initAudio, { once: true });
+  function beep(freq, dur, type, vol) {
+    if (!actx) return;
+    try {
+      dur = dur || 0.06; type = type || "square"; vol = vol || 0.035;
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+      o.connect(g); g.connect(actx.destination);
+      o.start(); o.stop(actx.currentTime + dur);
+    } catch (e) { /* ignore */ }
+  }
+
+  // ---------- stats ----------
+  var STORE_KEY = "wizzed-pixel-words";
+  var stats = { played: 0, wins: 0, streak: 0, best: 0 };
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (raw) { var p = JSON.parse(raw); if (p && typeof p === "object") stats = Object.assign(stats, p); }
+  } catch (e) { /* ignore */ }
+  function saveStats() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(stats)); } catch (e) { /* ignore */ }
+  }
+  function renderStats() {
+    document.getElementById("s-streak").textContent = stats.streak;
+    document.getElementById("s-best").textContent = stats.best;
+    document.getElementById("s-wins").textContent = stats.wins;
+    document.getElementById("s-played").textContent = stats.played;
+  }
+
+  // ---------- board ----------
+  var boardEl = document.getElementById("board");
+  var tiles = []; // [row][col]
+  var rowsEls = [];
+  (function buildBoard() {
+    for (var r = 0; r < 6; r++) {
+      var row = document.createElement("div");
+      row.className = "row";
+      var tr = [];
+      for (var c = 0; c < 5; c++) {
+        var t = document.createElement("div");
+        t.className = "tile";
+        row.appendChild(t);
+        tr.push(t);
+      }
+      boardEl.appendChild(row);
+      rowsEls.push(row);
+      tiles.push(tr);
+    }
+  })();
+
+  // ---------- keyboard ----------
+  var kbEl = document.getElementById("kb");
+  var keyEls = {};
+  (function buildKb() {
+    var rows = [["Q","W","E","R","T","Y","U","I","O","P"],
+                ["A","S","D","F","G","H","J","K","L"],
+                ["ENTER","Z","X","C","V","B","N","M","DEL"]];
+    rows.forEach(function (r) {
+      var rowEl = document.createElement("div");
+      rowEl.className = "kbrow";
+      r.forEach(function (k) {
+        var b = document.createElement("button");
+        b.className = "key" + (k.length > 1 ? " wide" : "");
+        b.textContent = k === "DEL" ? "⌫" : k;
+        b.setAttribute("data-key", k);
+        b.addEventListener("click", function () { handleKey(k); });
+        rowEl.appendChild(b);
+        if (k.length === 1) keyEls[k] = b;
+      });
+      kbEl.appendChild(rowEl);
+    });
+  })();
+
+  // ---------- game state ----------
+  var answer = "", curRow = 0, curCol = 0, grid, finished = false, revealing = false;
+  var toastTimer = null;
+
+  function newGame() {
+    answer = ANSWERS[Math.floor(Math.random() * ANSWERS.length)];
+    curRow = 0; curCol = 0; finished = false; revealing = false;
+    grid = [];
+    for (var r = 0; r < 6; r++) {
+      grid.push(["", "", "", "", ""]);
+      for (var c = 0; c < 5; c++) {
+        tiles[r][c].textContent = "";
+        tiles[r][c].className = "tile";
+      }
+    }
+    Object.keys(keyEls).forEach(function (k) { keyEls[k].className = "key"; });
+    document.getElementById("overlay").classList.remove("show");
+  }
+
+  function toast(msg) {
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove("show"); }, 1400);
+  }
+
+  function shakeRow(r) {
+    var el = rowsEls[r];
+    el.classList.remove("shake");
+    void el.offsetWidth;
+    el.classList.add("shake");
+    beep(110, 0.15, "sawtooth", 0.05);
+  }
+
+  function handleKey(k) {
+    if (finished || revealing) return;
+    if (k === "ENTER") { submitGuess(); return; }
+    if (k === "DEL") {
+      if (curCol > 0) {
+        curCol--;
+        grid[curRow][curCol] = "";
+        tiles[curRow][curCol].textContent = "";
+        tiles[curRow][curCol].classList.remove("filled");
+        beep(180, 0.04);
+      }
+      return;
+    }
+    if (/^[A-Z]$/.test(k) && curCol < 5) {
+      grid[curRow][curCol] = k;
+      tiles[curRow][curCol].textContent = k;
+      tiles[curRow][curCol].classList.add("filled");
+      curCol++;
+      beep(440 + curCol * 40, 0.04);
+    }
+  }
+
+  function statusesFor(guess) {
+    var st = ["absent", "absent", "absent", "absent", "absent"];
+    var counts = {};
+    var i;
+    for (i = 0; i < 5; i++) {
+      var ch = answer[i];
+      counts[ch] = (counts[ch] || 0) + 1;
+    }
+    for (i = 0; i < 5; i++) {
+      if (guess[i] === answer[i]) { st[i] = "correct"; counts[guess[i]]--; }
+    }
+    for (i = 0; i < 5; i++) {
+      if (st[i] === "correct") continue;
+      if (counts[guess[i]] > 0) { st[i] = "present"; counts[guess[i]]--; }
+    }
+    return st;
+  }
+
+  var KEY_RANK = { absent: 1, present: 2, correct: 3 };
+  function paintKey(letter, status) {
+    var el = keyEls[letter];
+    if (!el) return;
+    var cur = el.getAttribute("data-status");
+    if (cur && KEY_RANK[cur] >= KEY_RANK[status]) return;
+    el.setAttribute("data-status", status);
+    el.className = "key " + status;
+  }
+
+  function submitGuess() {
+    if (curCol < 5) { toast("NOT ENOUGH LETTERS"); shakeRow(curRow); return; }
+    var guess = grid[curRow].join("");
+    if (!VALID.has(guess)) { toast("NOT IN WORD LIST"); shakeRow(curRow); return; }
+    revealing = true;
+    var st = statusesFor(guess);
+    var r = curRow;
+    st.forEach(function (s, i) {
+      setTimeout(function () {
+        var tile = tiles[r][i];
+        tile.classList.add("flip");
+        beep(s === "correct" ? 660 : s === "present" ? 520 : 300, 0.06, "triangle");
+        setTimeout(function () {
+          tile.classList.remove("flip", "filled");
+          tile.classList.add(s);
+        }, 160);
+      }, i * 230);
+    });
+    setTimeout(function () {
+      st.forEach(function (s, i) { paintKey(guess[i], s); });
+      revealing = false;
+      if (guess === answer) { endGame(true); return; }
+      curRow++; curCol = 0;
+      if (curRow >= 6) endGame(false);
+    }, 5 * 230 + 250);
+  }
+
+  var WIN_WORDS = ["GENIUS!", "MAGNIFICENT!", "IMPRESSIVE!", "SPLENDID!", "GREAT!", "PHEW!"];
+  function endGame(won) {
+    finished = true;
+    stats.played++;
+    if (won) {
+      stats.wins++;
+      stats.streak++;
+      if (stats.streak > stats.best) stats.best = stats.streak;
+      var seq = [523, 659, 784, 1047];
+      seq.forEach(function (f, i) { setTimeout(function () { beep(f, 0.12, "square", 0.05); }, i * 110); });
+    } else {
+      stats.streak = 0;
+      [300, 240, 180].forEach(function (f, i) { setTimeout(function () { beep(f, 0.18, "sawtooth", 0.05); }, i * 150); });
+    }
+    saveStats();
+    renderStats();
+    setTimeout(function () {
+      document.getElementById("ov-title").textContent = won ? WIN_WORDS[Math.min(curRow, 5)] : "GAME OVER";
+      document.getElementById("ov-word").textContent = answer;
+      document.getElementById("ov-sub").innerHTML = won
+        ? "Solved in <b>" + (curRow + 1) + "/6</b> &nbsp;|&nbsp; Streak <b>" + stats.streak + "</b> &nbsp;|&nbsp; Best <b>" + stats.best + "</b>"
+        : "The word was above. Streak reset. Best streak <b>" + stats.best + "</b>";
+      document.getElementById("overlay").classList.add("show");
+    }, won ? 600 : 500);
+  }
+
+  document.getElementById("ov-again").addEventListener("click", function () {
+    beep(520, 0.06);
+    newGame();
+  });
+
+  window.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    var k = e.key;
+    if (k === "Enter") {
+      if (document.getElementById("overlay").classList.contains("show")) {
+        newGame();
+      } else {
+        handleKey("ENTER");
+      }
+      e.preventDefault();
+    } else if (k === "Backspace") {
+      handleKey("DEL");
+      e.preventDefault();
+    } else if (/^[a-zA-Z]$/.test(k)) {
+      handleKey(k.toUpperCase());
+    }
+  });
+
+  renderStats();
+  newGame();
+})();
+</script>
+</body>
+</html>

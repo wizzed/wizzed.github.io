@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simon Says — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --neon: #a06bff; }
+  body {
+    background: #0f0f1a;
+    background-image: radial-gradient(ellipse at 50% -20%, rgba(160,107,255,.09), transparent 60%);
+    color: #e8ddff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 8px 12px 20px;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+    overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px; z-index: 60;
+    color: #7a7a9a; text-decoration: none; font-size: 13px;
+    padding: 4px 8px; border: 1px solid #2a2a4a; border-radius: 6px;
+    background: rgba(15,15,26,.8);
+  }
+  a.back:hover { color: var(--neon); border-color: var(--neon); }
+  h1 {
+    margin: 10px 0 4px; font-size: clamp(22px, 5vmin, 34px); letter-spacing: 6px;
+    color: var(--neon);
+    text-shadow: 0 0 8px var(--neon), 0 0 28px rgba(160,107,255,.5);
+  }
+  .sub { color: #6f5f96; font-size: 12px; letter-spacing: 3px; margin-bottom: 10px; }
+  .hud { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; justify-content: center; }
+  .stat {
+    background: #161222; border: 2px solid #3b2f5e; border-radius: 8px;
+    padding: 4px 12px; min-width: 92px; text-align: center;
+  }
+  .stat .lbl { display: block; font-size: 10px; letter-spacing: 2px; color: #6f5f96; }
+  .stat .val { display: block; font-size: 20px; font-weight: bold; color: var(--neon); text-shadow: 0 0 6px rgba(160,107,255,.7); }
+  #simon {
+    position: relative;
+    width: min(58vmin, 340px, calc(100vw - 28px));
+    aspect-ratio: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 12px;
+    padding: 14px;
+    background: #161222;
+    border-radius: 50%;
+    border: 4px solid var(--neon);
+    box-shadow: 0 0 20px rgba(160,107,255,.4), 0 0 70px rgba(160,107,255,.13), inset 0 0 30px rgba(0,0,0,.7);
+  }
+  .pad {
+    cursor: pointer;
+    border: 3px solid;
+    transition: filter .1s, box-shadow .1s;
+    filter: brightness(.45) saturate(.8);
+  }
+  .pad:hover { filter: brightness(.6); }
+  .pad.lit { filter: brightness(1.25) saturate(1.2); }
+  #p0 { background: #17c964; border-color: #7dffb5; border-radius: 100% 12% 12% 12%; }
+  #p1 { background: #f31260; border-color: #ff8fb3; border-radius: 12% 100% 12% 12%; }
+  #p2 { background: #f5a524; border-color: #ffd88f; border-radius: 12% 12% 12% 100%; }
+  #p3 { background: #3b82f6; border-color: #9cc5ff; border-radius: 12% 12% 100% 12%; }
+  #p0.lit { box-shadow: 0 0 26px #17c964, 0 0 60px rgba(23,201,100,.6); }
+  #p1.lit { box-shadow: 0 0 26px #f31260, 0 0 60px rgba(243,18,96,.6); }
+  #p2.lit { box-shadow: 0 0 26px #f5a524, 0 0 60px rgba(245,165,36,.6); }
+  #p3.lit { box-shadow: 0 0 26px #3b82f6, 0 0 60px rgba(59,130,246,.6); }
+  #center {
+    position: absolute; left: 50%; top: 50%;
+    width: 44%; aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+    background: #0f0f1a;
+    border: 4px solid var(--neon);
+    border-radius: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px;
+    box-shadow: 0 0 18px rgba(160,107,255,.5), inset 0 0 18px rgba(0,0,0,.8);
+    z-index: 5;
+  }
+  #roundNum { font-size: clamp(22px, 8vmin, 40px); font-weight: bold; color: var(--neon); text-shadow: 0 0 10px var(--neon); line-height: 1; }
+  #status { font-size: 10px; letter-spacing: 2px; color: #9c8ac4; text-align: center; padding: 0 6px; }
+  #simon.your-turn #center { border-color: #58ffa0; box-shadow: 0 0 22px rgba(88,255,160,.6), inset 0 0 18px rgba(0,0,0,.8); }
+  #simon.your-turn #roundNum { color: #58ffa0; text-shadow: 0 0 10px #58ffa0; }
+  .controls { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; justify-content: center; align-items: center; }
+  button {
+    font-family: inherit; font-size: 13px; font-weight: bold; letter-spacing: 2px;
+    color: var(--neon); background: #161222;
+    border: 2px solid var(--neon); border-radius: 8px;
+    padding: 8px 18px; cursor: pointer;
+    box-shadow: 0 0 10px rgba(160,107,255,.25);
+    text-shadow: 0 0 6px rgba(160,107,255,.6);
+  }
+  button:hover { background: #241a3d; box-shadow: 0 0 18px rgba(160,107,255,.5); }
+  button:active { transform: translateY(1px); }
+  .toggle {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    font-size: 12px; letter-spacing: 2px; color: #9c8ac4;
+    border: 2px solid #3b2f5e; border-radius: 8px; padding: 8px 12px;
+    background: #161222;
+  }
+  .toggle .sw {
+    width: 34px; height: 16px; border-radius: 10px; background: #2a2244;
+    position: relative; transition: background .2s;
+  }
+  .toggle .sw::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #6f5f96; transition: left .2s, background .2s;
+  }
+  .toggle.on { color: #ff5c8a; border-color: #ff5c8a; }
+  .toggle.on .sw { background: #55182c; }
+  .toggle.on .sw::after { left: 20px; background: #ff5c8a; box-shadow: 0 0 8px #ff5c8a; }
+  .tip { margin-top: 12px; color: #574d75; font-size: 11px; letter-spacing: 1px; text-align: center; max-width: 460px; }
+  .overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(8,8,16,.85); backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .overlay.hidden { display: none; }
+  .panel {
+    background: #161222; border: 3px solid var(--neon); border-radius: 14px;
+    padding: 28px 36px; text-align: center; max-width: 90vw;
+    box-shadow: 0 0 30px rgba(160,107,255,.5), 0 0 90px rgba(160,107,255,.2);
+    animation: pop .3s cubic-bezier(.3,1.5,.5,1);
+  }
+  @keyframes pop { from { transform: scale(.7); opacity: 0; } }
+  .panel h2 { color: #ff5c8a; letter-spacing: 5px; font-size: 26px; text-shadow: 0 0 12px #ff5c8a; margin-bottom: 12px; }
+  .panel p { color: #cbbcf0; margin: 6px 0; font-size: 14px; }
+  .panel .newbest { color: #ffe14d; text-shadow: 0 0 10px rgba(255,225,77,.8); letter-spacing: 2px; font-weight: bold; }
+  .panel button { margin-top: 16px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>SIMON SAYS</h1>
+<div class="sub">WATCH · REMEMBER · REPEAT</div>
+<div class="hud">
+  <div class="stat"><span class="lbl">ROUND</span><span class="val" id="round">—</span></div>
+  <div class="stat"><span class="lbl">BEST STREAK</span><span class="val" id="best">0</span></div>
+</div>
+<div id="simon">
+  <div class="pad" id="p0"></div>
+  <div class="pad" id="p1"></div>
+  <div class="pad" id="p2"></div>
+  <div class="pad" id="p3"></div>
+  <div id="center">
+    <div id="roundNum">·</div>
+    <div id="status">PRESS START</div>
+  </div>
+</div>
+<div class="controls">
+  <button id="startBtn">▶ START</button>
+  <div class="toggle" id="strictToggle"><span>STRICT</span><span class="sw"></span></div>
+</div>
+<div class="tip">The pads play a growing melody — echo it back. It gets faster every round. Strict mode: one mistake ends the run. Keys 1–4 work too.</div>
+
+<div id="overlay" class="overlay hidden">
+  <div class="panel">
+    <h2>GAME OVER</h2>
+    <p id="overStats"></p>
+    <p class="newbest" id="overBest" style="display:none">★ NEW BEST STREAK ★</p>
+    <button id="retryBtn">PLAY AGAIN</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var SLUG = 'wizzed-simon';
+  var TONES = [392.0, 329.63, 261.63, 196.0]; // G4 E4 C4 G3
+  var pads = [0,1,2,3].map(function(i){ return document.getElementById('p' + i); });
+  var simonEl  = document.getElementById('simon');
+  var roundEl  = document.getElementById('round');
+  var bestEl   = document.getElementById('best');
+  var roundNum = document.getElementById('roundNum');
+  var statusEl = document.getElementById('status');
+  var startBtn = document.getElementById('startBtn');
+  var strictToggle = document.getElementById('strictToggle');
+  var overlay  = document.getElementById('overlay');
+  var overStats = document.getElementById('overStats');
+  var overBest  = document.getElementById('overBest');
+
+  var seq = [], pos = 0;
+  var state = 'idle';       // idle | playing | input | over
+  var strict = false;
+  var best = 0, prevBest = 0;
+  var timeouts = [];
+
+  /* ---------- audio ---------- */
+  var AC = null;
+  function ac(){
+    if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ AC = null; } }
+    if (AC && AC.state === 'suspended') AC.resume();
+    return AC;
+  }
+  function tone(freq, dur, type, vol){
+    var c = ac(); if (!c) return;
+    var t = c.currentTime;
+    var o = c.createOscillator(), g = c.createGain();
+    o.type = type || 'square'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol || 0.06, t + 0.01);
+    g.gain.setValueAtTime(vol || 0.06, t + dur - 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  function buzz(){
+    var c = ac(); if (!c) return;
+    var t = c.currentTime;
+    var o = c.createOscillator(), g = c.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(120, t);
+    o.frequency.exponentialRampToValueAtTime(55, t + 0.4);
+    g.gain.setValueAtTime(0.08, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + 0.5);
+  }
+
+  /* ---------- storage ---------- */
+  function loadBest(){
+    try { var s = JSON.parse(localStorage.getItem(SLUG)) || {}; return s.best || 0; }
+    catch(e){ return 0; }
+  }
+  function saveBest(b){ try { localStorage.setItem(SLUG, JSON.stringify({ best: b })); } catch(e){} }
+
+  /* ---------- helpers ---------- */
+  function later(fn, ms){ timeouts.push(setTimeout(fn, ms)); }
+  function clearTimers(){ timeouts.forEach(clearTimeout); timeouts = []; }
+
+  function litDur(){ return Math.max(160, 420 - seq.length * 18); }
+  function gapDur(){ return Math.max(90, 220 - seq.length * 8); }
+
+  function flash(i, dur){
+    pads[i].classList.add('lit');
+    tone(TONES[i], Math.min(dur, 400) / 1000, 'square', 0.06);
+    later(function(){ pads[i].classList.remove('lit'); }, dur);
+  }
+
+  function setStatus(txt, num){
+    statusEl.textContent = txt;
+    if (num !== undefined) roundNum.textContent = num;
+  }
+
+  function playSequence(){
+    state = 'playing';
+    simonEl.classList.remove('your-turn');
+    setStatus('WATCH...', seq.length);
+    roundEl.textContent = seq.length;
+    var d = litDur(), g = gapDur();
+    seq.forEach(function(padIdx, i){
+      later(function(){ flash(padIdx, d); }, 500 + i * (d + g));
+    });
+    later(function(){
+      state = 'input';
+      pos = 0;
+      simonEl.classList.add('your-turn');
+      setStatus('YOUR TURN');
+    }, 500 + seq.length * (d + g));
+  }
+
+  function extend(){
+    seq.push(Math.floor(Math.random() * 4));
+    playSequence();
+  }
+
+  function startGame(){
+    clearTimers();
+    overlay.classList.add('hidden');
+    ac(); // unlock audio on this user gesture
+    prevBest = best;
+    seq = [];
+    startBtn.textContent = '⟳ RESTART';
+    extend();
+  }
+
+  function padPress(i){
+    if (state === 'idle' || state === 'over'){
+      // free-play twinkle so the board feels alive pre-game
+      flash(i, 180);
+      return;
+    }
+    if (state !== 'input') return;
+    if (i === seq[pos]){
+      flash(i, 200);
+      pos++;
+      if (pos === seq.length){
+        state = 'playing';
+        simonEl.classList.remove('your-turn');
+        var streak = seq.length;
+        roundEl.textContent = streak;
+        if (streak > best){ best = streak; bestEl.textContent = best; saveBest(best); }
+        setStatus('GOOD!');
+        later(extend, 850);
+      }
+    } else {
+      wrong(i);
+    }
+  }
+
+  function wrong(i){
+    buzz();
+    pads.forEach(function(p){ p.classList.add('lit'); });
+    later(function(){ pads.forEach(function(p){ p.classList.remove('lit'); }); }, 350);
+    var completed = seq.length - 1;
+    if (strict){
+      state = 'over';
+      simonEl.classList.remove('your-turn');
+      setStatus('GAME OVER', '×');
+      overStats.textContent = 'Streak: ' + completed + ' round' + (completed === 1 ? '' : 's') + ' (strict mode)';
+      overBest.style.display = (completed > 0 && completed > prevBest) ? 'block' : 'none';
+      later(function(){ overlay.classList.remove('hidden'); }, 700);
+    } else {
+      state = 'playing';
+      simonEl.classList.remove('your-turn');
+      setStatus('OOPS — WATCH AGAIN');
+      later(playSequence, 1100);
+    }
+  }
+
+  /* ---------- wiring ---------- */
+  pads.forEach(function(p, i){
+    p.addEventListener('pointerdown', function(ev){ ev.preventDefault(); padPress(i); });
+  });
+  document.addEventListener('keydown', function(e){
+    var k = { '1':0, '2':1, '3':2, '4':3 }[e.key];
+    if (k !== undefined) padPress(k);
+  });
+  startBtn.addEventListener('click', startGame);
+  document.getElementById('retryBtn').addEventListener('click', startGame);
+  strictToggle.addEventListener('click', function(){
+    strict = !strict;
+    strictToggle.classList.toggle('on', strict);
+    tone(strict ? 660 : 440, 0.08, 'square', 0.04);
+  });
+
+  /* idle attract shimmer */
+  var attractIdx = 0;
+  setInterval(function(){
+    if (state !== 'idle') return;
+    pads[attractIdx % 4].classList.add('lit');
+    (function(i){ setTimeout(function(){ pads[i].classList.remove('lit'); }, 260); })(attractIdx % 4);
+    attractIdx++;
+  }, 900);
+
+  best = loadBest();
+  bestEl.textContent = best;
+})();
+</script>
+</body>
+</html>

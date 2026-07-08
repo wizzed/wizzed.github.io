@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lights Out — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --neon: #ffd93b; }
+  body {
+    background: #0f0f1a;
+    background-image: radial-gradient(ellipse at 50% -20%, rgba(255,217,59,.07), transparent 60%);
+    color: #fff6d8;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 8px 12px 20px;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+    overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px; z-index: 60;
+    color: #7a7a9a; text-decoration: none; font-size: 13px;
+    padding: 4px 8px; border: 1px solid #2a2a4a; border-radius: 6px;
+    background: rgba(15,15,26,.8);
+  }
+  a.back:hover { color: var(--neon); border-color: var(--neon); }
+  h1 {
+    margin: 10px 0 4px; font-size: clamp(22px, 5vmin, 34px); letter-spacing: 6px;
+    color: var(--neon);
+    text-shadow: 0 0 8px var(--neon), 0 0 28px rgba(255,217,59,.45);
+  }
+  .sub { color: #8a7f52; font-size: 12px; letter-spacing: 3px; margin-bottom: 10px; }
+  .hud { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; justify-content: center; }
+  .stat {
+    background: #16150f; border: 2px solid #4a4021; border-radius: 8px;
+    padding: 4px 12px; min-width: 86px; text-align: center;
+  }
+  .stat .lbl { display: block; font-size: 10px; letter-spacing: 2px; color: #8a7f52; }
+  .stat .val { display: block; font-size: 20px; font-weight: bold; color: var(--neon); text-shadow: 0 0 6px rgba(255,217,59,.7); }
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    width: min(56vmin, 340px, calc(100vw - 28px));
+    aspect-ratio: 1;
+    padding: 10px;
+    background: #14130c;
+    border: 3px solid var(--neon);
+    border-radius: 14px;
+    box-shadow: 0 0 18px rgba(255,217,59,.3), 0 0 60px rgba(255,217,59,.1), inset 0 0 26px rgba(0,0,0,.7);
+  }
+  .cell {
+    border-radius: 9px;
+    background: #201d12;
+    border: 2px solid #3a3419;
+    cursor: pointer;
+    transition: background .15s, box-shadow .15s, border-color .15s;
+    box-shadow: inset 0 3px 8px rgba(0,0,0,.6);
+  }
+  .cell:hover { border-color: #6b5e2b; }
+  .cell.on {
+    background: radial-gradient(circle at 50% 38%, #fff7c4 0%, #ffd93b 55%, #d9a300 100%);
+    border-color: #ffe98a;
+    box-shadow: 0 0 14px rgba(255,217,59,.85), 0 0 34px rgba(255,217,59,.4), inset 0 2px 4px rgba(255,255,255,.5);
+  }
+  .cell.hintmark {
+    animation: hintPulse .7s ease-in-out infinite alternate;
+    border-color: #58e6ff !important;
+  }
+  @keyframes hintPulse {
+    from { box-shadow: 0 0 4px rgba(88,230,255,.6), inset 0 3px 8px rgba(0,0,0,.6); }
+    to   { box-shadow: 0 0 22px rgba(88,230,255,1), 0 0 44px rgba(88,230,255,.5), inset 0 3px 8px rgba(0,0,0,.4); }
+  }
+  .cell.on.hintmark {
+    animation: hintPulseOn .7s ease-in-out infinite alternate;
+  }
+  @keyframes hintPulseOn {
+    from { box-shadow: 0 0 10px rgba(88,230,255,.8); }
+    to   { box-shadow: 0 0 26px rgba(88,230,255,1), 0 0 50px rgba(88,230,255,.6); }
+  }
+  .controls { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+  button {
+    font-family: inherit; font-size: 13px; font-weight: bold; letter-spacing: 2px;
+    color: var(--neon); background: #16150f;
+    border: 2px solid var(--neon); border-radius: 8px;
+    padding: 8px 16px; cursor: pointer;
+    box-shadow: 0 0 10px rgba(255,217,59,.22);
+    text-shadow: 0 0 6px rgba(255,217,59,.6);
+  }
+  button:hover { background: #2b2510; box-shadow: 0 0 18px rgba(255,217,59,.45); }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .35; cursor: default; box-shadow: none; }
+  .tip { margin-top: 12px; color: #6b6244; font-size: 11px; letter-spacing: 1px; text-align: center; max-width: 480px; }
+  .overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(8,8,16,.85); backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .overlay.hidden { display: none; }
+  .panel {
+    background: #16150f; border: 3px solid var(--neon); border-radius: 14px;
+    padding: 28px 36px; text-align: center; max-width: 90vw;
+    box-shadow: 0 0 30px rgba(255,217,59,.5), 0 0 90px rgba(255,217,59,.18);
+    animation: pop .3s cubic-bezier(.3,1.5,.5,1);
+  }
+  @keyframes pop { from { transform: scale(.7); opacity: 0; } }
+  .panel h2 { color: var(--neon); letter-spacing: 5px; font-size: 26px; text-shadow: 0 0 12px var(--neon); margin-bottom: 12px; }
+  .panel p { color: #e0d5a0; margin: 6px 0; font-size: 14px; }
+  .panel .perfect { color: #58e6ff; text-shadow: 0 0 10px rgba(88,230,255,.8); letter-spacing: 2px; font-weight: bold; }
+  .panel button { margin-top: 16px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>LIGHTS OUT</h1>
+<div class="sub">TURN EVERY LIGHT OFF</div>
+<div class="hud">
+  <div class="stat"><span class="lbl">LEVEL</span><span class="val" id="level">1</span></div>
+  <div class="stat"><span class="lbl">MOVES</span><span class="val" id="moves">0</span></div>
+  <div class="stat"><span class="lbl">PAR</span><span class="val" id="par">3</span></div>
+  <div class="stat"><span class="lbl">BEST LVL</span><span class="val" id="best">1</span></div>
+</div>
+<div id="grid"></div>
+<div class="controls">
+  <button id="hintBtn">💡 HINT (3)</button>
+  <button id="resetBtn">⟳ RESET</button>
+  <button id="newBtn">NEW PUZZLE</button>
+</div>
+<div class="tip">Pressing a light toggles it and its neighbours. Clear the board to advance — hints mark a light that's part of a real solution.</div>
+
+<div id="overlay" class="overlay hidden">
+  <div class="panel">
+    <h2 id="winTitle">LEVEL CLEAR!</h2>
+    <p id="winStats"></p>
+    <p class="perfect" id="winPerfect" style="display:none">★ PERFECT — SOLVED AT PAR ★</p>
+    <button id="nextBtn">NEXT LEVEL →</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var SLUG = 'wizzed-lights-out';
+  var SIZE = 5, CELLS = SIZE * SIZE;
+  var gridEl  = document.getElementById('grid');
+  var levelEl = document.getElementById('level');
+  var movesEl = document.getElementById('moves');
+  var parEl   = document.getElementById('par');
+  var bestEl  = document.getElementById('best');
+  var hintBtn = document.getElementById('hintBtn');
+  var overlay = document.getElementById('overlay');
+  var winStats = document.getElementById('winStats');
+  var winPerfect = document.getElementById('winPerfect');
+
+  var lights = [];            // boolean per cell
+  var solution = {};          // set (object) of cell indexes that solve the puzzle
+  var initial = [];           // starting layout for reset
+  var initialSolution = {};
+  var level = 1, moves = 0, par = 3, hintsLeft = 3;
+  var cellEls = [];
+  var playing = true;
+
+  /* ---------- audio ---------- */
+  var AC = null;
+  function ac(){
+    if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ AC = null; } }
+    if (AC && AC.state === 'suspended') AC.resume();
+    return AC;
+  }
+  function beep(freq, dur, type, vol, when){
+    var c = ac(); if (!c) return;
+    dur = dur || 0.06; type = type || 'square'; vol = vol || 0.04; when = when || 0;
+    var t = c.currentTime + when;
+    var o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+
+  /* ---------- storage ---------- */
+  function loadSave(){
+    try { return JSON.parse(localStorage.getItem(SLUG)) || {}; } catch(e){ return {}; }
+  }
+  function persist(){
+    var s = loadSave();
+    s.level = level;
+    s.best = Math.max(s.best || 1, level);
+    try { localStorage.setItem(SLUG, JSON.stringify(s)); } catch(e){}
+    bestEl.textContent = s.best;
+  }
+
+  /* ---------- game ---------- */
+  function buildGrid(){
+    gridEl.innerHTML = '';
+    cellEls = [];
+    for (var i = 0; i < CELLS; i++){
+      var d = document.createElement('div');
+      d.className = 'cell';
+      (function(idx){
+        d.addEventListener('pointerdown', function(ev){ ev.preventDefault(); press(idx); });
+      })(i);
+      gridEl.appendChild(d);
+      cellEls.push(d);
+    }
+  }
+
+  function toggle(i){
+    lights[i] = !lights[i];
+    cellEls[i].classList.toggle('on', lights[i]);
+  }
+
+  function applyPress(i){
+    var x = i % SIZE, y = Math.floor(i / SIZE);
+    toggle(i);
+    if (x > 0)        toggle(i - 1);
+    if (x < SIZE - 1) toggle(i + 1);
+    if (y > 0)        toggle(i - SIZE);
+    if (y < SIZE - 1) toggle(i + SIZE);
+  }
+
+  function clearHints(){
+    for (var i = 0; i < CELLS; i++) cellEls[i].classList.remove('hintmark');
+  }
+
+  function press(i){
+    if (!playing) return;
+    clearHints();
+    applyPress(i);
+    // pressing a cell toggles its membership in the remaining solution set
+    if (solution[i]) delete solution[i]; else solution[i] = true;
+    moves++;
+    movesEl.textContent = moves;
+    beep(lights[i] ? 520 : 340, 0.05, 'square', 0.035);
+    if (isDark()) onWin();
+  }
+
+  function isDark(){
+    for (var i = 0; i < CELLS; i++) if (lights[i]) return false;
+    return true;
+  }
+
+  function pressCountForLevel(lv){
+    return Math.min(2 + lv, 13);
+  }
+
+  function generate(){
+    lights = [];
+    for (var i = 0; i < CELLS; i++){ lights.push(false); cellEls[i].classList.remove('on'); }
+    solution = {};
+    var want = pressCountForLevel(level);
+    var pool = [];
+    for (var j = 0; j < CELLS; j++) pool.push(j);
+    // shuffle pool
+    for (var k = pool.length - 1; k > 0; k--){
+      var r = Math.floor(Math.random() * (k + 1));
+      var tmp = pool[k]; pool[k] = pool[r]; pool[r] = tmp;
+    }
+    for (var p = 0; p < want; p++){
+      applyPress(pool[p]);
+      solution[pool[p]] = true;
+    }
+    if (isDark()){ generate(); return; }   // quiet pattern fluke — regenerate
+    par = want;
+    initial = lights.slice();
+    initialSolution = {};
+    for (var s in solution) initialSolution[s] = true;
+  }
+
+  function startLevel(fresh){
+    playing = true;
+    moves = 0; hintsLeft = 3;
+    movesEl.textContent = '0';
+    hintBtn.textContent = '💡 HINT (3)';
+    hintBtn.disabled = false;
+    levelEl.textContent = level;
+    overlay.classList.add('hidden');
+    clearHints();
+    if (fresh) generate();
+    else {
+      // restore initial layout
+      for (var i = 0; i < CELLS; i++){
+        lights[i] = initial[i];
+        cellEls[i].classList.toggle('on', lights[i]);
+      }
+      solution = {};
+      for (var s in initialSolution) solution[s] = true;
+    }
+    parEl.textContent = par;
+    persist();
+  }
+
+  function onWin(){
+    playing = false;
+    [440, 554, 659, 880].forEach(function(f, i){ beep(f, 0.15, 'square', 0.05, i * 0.11); });
+    winStats.textContent = 'Level ' + level + ' cleared in ' + moves + ' moves (par ' + par + ')';
+    winPerfect.style.display = (moves <= par) ? 'block' : 'none';
+    setTimeout(function(){ overlay.classList.remove('hidden'); }, 300);
+  }
+
+  function hint(){
+    if (!playing || hintsLeft <= 0) return;
+    var keys = Object.keys(solution);
+    if (keys.length === 0) return;
+    clearHints();
+    var pick = keys[Math.floor(Math.random() * keys.length)];
+    cellEls[+pick].classList.add('hintmark');
+    hintsLeft--;
+    hintBtn.textContent = '💡 HINT (' + hintsLeft + ')';
+    if (hintsLeft === 0) hintBtn.disabled = true;
+    beep(700, 0.09, 'triangle', 0.045);
+  }
+
+  hintBtn.addEventListener('click', hint);
+  document.getElementById('resetBtn').addEventListener('click', function(){
+    beep(220, 0.07, 'sawtooth', 0.03);
+    startLevel(false);
+  });
+  document.getElementById('newBtn').addEventListener('click', function(){
+    beep(300, 0.07, 'sawtooth', 0.03);
+    startLevel(true);
+  });
+  document.getElementById('nextBtn').addEventListener('click', function(){
+    level++;
+    startLevel(true);
+  });
+
+  /* ---------- boot ---------- */
+  buildGrid();
+  var save = loadSave();
+  level = Math.max(1, save.level || 1);
+  bestEl.textContent = save.best || 1;
+  startLevel(true);
+})();
+</script>
+</body>
+</html>

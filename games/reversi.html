@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reversi — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; }
+  body {
+    background: #0f0f1a;
+    color: #d9ffe9;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 8px 10px 16px; overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px; z-index: 60;
+    color: #7f7fa8; text-decoration: none; font-size: 12px; letter-spacing: 1px;
+    padding: 4px 9px; border: 1px solid #26264a; border-radius: 6px;
+    background: rgba(15,15,26,.85);
+  }
+  a.back:hover { color: #3cff8f; border-color: #3cff8f; box-shadow: 0 0 8px rgba(60,255,143,.4); }
+  h1 {
+    margin-top: 4px; font-size: clamp(17px, 3.6vmin, 26px); letter-spacing: 5px;
+    color: #eafff3; text-shadow: 0 0 8px #3cff8f, 0 0 24px rgba(60,255,143,.55);
+  }
+  .status { font-size: clamp(12px, 2.4vmin, 15px); letter-spacing: 1px; margin: 6px 0; min-height: 20px; color: #bfffdc; text-shadow: 0 0 6px rgba(60,255,143,.45); }
+  .countbar {
+    width: min(74vmin, calc(100vh - 250px), 400px); min-width: 220px;
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px;
+  }
+  .countbar .n { width: 30px; text-align: center; font-weight: bold; }
+  .countbar .nb { color: #b9c2ff; text-shadow: 0 0 6px rgba(120,140,255,.8); }
+  .countbar .nw { color: #fff; text-shadow: 0 0 6px rgba(255,255,255,.8); }
+  .bar {
+    flex: 1; height: 12px; border-radius: 6px; overflow: hidden; display: flex;
+    border: 1px solid #2c2c55; background: #14142a;
+  }
+  .bar .b { background: linear-gradient(180deg, #3a3a6e, #14142e); transition: width .4s ease; box-shadow: 0 0 8px rgba(120,140,255,.6) inset; }
+  .bar .w { background: linear-gradient(180deg, #ffffff, #b9c6d9); transition: width .4s ease; }
+  .boardwrap {
+    position: relative;
+    width: min(74vmin, calc(100vh - 250px), 400px);
+    min-width: 220px; aspect-ratio: 1;
+  }
+  #board {
+    display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
+    width: 100%; height: 100%; gap: 2px;
+    background: #0a2416; padding: 4px; border-radius: 10px;
+    border: 2px solid #1e5c38;
+    box-shadow: 0 0 18px rgba(60,255,143,.35), inset 0 0 28px rgba(60,255,143,.1);
+  }
+  .cell {
+    position: relative; background: linear-gradient(145deg, #123722, #0c2a1a);
+    border-radius: 3px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cell.hint::after {
+    content: ''; position: absolute; width: 38%; height: 38%;
+    border: 2px solid rgba(60,255,143,.75); border-radius: 50%;
+    box-shadow: 0 0 8px rgba(60,255,143,.5);
+    animation: pulse 1.3s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { transform: scale(.85); opacity: .55; } 50% { transform: scale(1.05); opacity: 1; } }
+  .cell.last::before {
+    content: ''; position: absolute; width: 16%; height: 16%; border-radius: 50%;
+    background: #3cff8f; box-shadow: 0 0 8px #3cff8f; z-index: 3;
+  }
+  .disc {
+    width: 80%; height: 80%; border-radius: 50%; z-index: 2;
+    transition: transform .14s linear;
+  }
+  .disc.bk { background: radial-gradient(circle at 34% 30%, #5a5a8c, #12122a 70%); box-shadow: 0 0 8px rgba(120,140,255,.55), inset 0 -3px 6px rgba(0,0,0,.7); }
+  .disc.wt { background: radial-gradient(circle at 34% 30%, #ffffff, #aebdd4 75%); box-shadow: 0 0 8px rgba(255,255,255,.55), inset 0 -3px 6px rgba(90,100,130,.6); }
+  .disc.pop { animation: pop .25s ease; }
+  @keyframes pop { from { transform: scale(.2); } to { transform: scale(1); } }
+  .disc.mid { transform: scaleX(.08); }
+  .hint-line { margin-top: 10px; font-size: 11px; color: #6f6f9a; letter-spacing: 1px; text-align: center; }
+  .hint-line span { color: #3cff8f; }
+  .overlay {
+    position: absolute; inset: 0; z-index: 40; border-radius: 10px;
+    background: rgba(8,16,12,.9);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    animation: fadein .3s ease;
+  }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  .overlay.hidden { display: none; }
+  .overlay .msg {
+    font-size: clamp(19px, 4.6vmin, 30px); letter-spacing: 4px; color: #eafff3; text-align: center; padding: 0 8px;
+    text-shadow: 0 0 10px #3cff8f, 0 0 30px rgba(60,255,143,.7);
+  }
+  .overlay .sub { font-size: 13px; color: #9ac8ac; letter-spacing: 2px; }
+  .overlay button {
+    font-family: inherit; font-size: 14px; letter-spacing: 3px; cursor: pointer;
+    background: #0e331e; color: #3cff8f; border: 2px solid #3cff8f; border-radius: 8px;
+    padding: 10px 22px; text-shadow: 0 0 6px #3cff8f;
+    box-shadow: 0 0 14px rgba(60,255,143,.5);
+  }
+  .overlay button:hover { background: #124d2b; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>REVERSI</h1>
+<div class="status" id="status">Your move — you play BLUE-BLACK</div>
+<div class="countbar">
+  <span class="n nb" id="cntB">2</span>
+  <div class="bar"><div class="b" id="barB" style="width:50%"></div><div class="w" id="barW" style="width:50%"></div></div>
+  <span class="n nw" id="cntW">2</span>
+</div>
+<div class="boardwrap">
+  <div id="board"></div>
+  <div id="overlay" class="overlay hidden">
+    <div class="msg" id="ovMsg">YOU WIN!</div>
+    <div class="sub" id="ovSub"></div>
+    <button id="again">PLAY AGAIN</button>
+  </div>
+</div>
+<div class="hint-line">glowing rings = legal moves · flip more discs than the AI · lifetime wins: <span id="tot">0</span></div>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- audio ---------- */
+  var AC = null;
+  function initAudio() {
+    if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } }
+    if (AC && AC.state === 'suspended') { AC.resume(); }
+  }
+  function sfx(freq, dur, type, vol, when) {
+    if (!AC) return;
+    try {
+      var t = AC.currentTime + (when || 0);
+      var o = AC.createOscillator(), g = AC.createGain();
+      o.type = type || 'square'; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol || 0.04, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.08));
+      o.connect(g); g.connect(AC.destination);
+      o.start(t); o.stop(t + (dur || 0.08) + 0.05);
+    } catch (e) { /* noop */ }
+  }
+  document.addEventListener('pointerdown', initAudio, true);
+  document.addEventListener('keydown', initAudio, true);
+
+  var LSKEY = 'wizzed-reversi';
+  function getWins() { try { return parseInt(localStorage.getItem(LSKEY), 10) || 0; } catch (e) { return 0; } }
+  function addWin() { try { localStorage.setItem(LSKEY, String(getWins() + 1)); } catch (e) { /* noop */ } }
+
+  /* ---------- state ---------- */
+  var BLACK = 1, WHITE = 2; /* human = BLACK, ai = WHITE */
+  var board, turn, over, busy;
+  var lastMove = null;
+  var DIRS = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+  var cellEls = [];
+  var timers = [];
+
+  var W = [
+    [120, -25, 20, 8, 8, 20, -25, 120],
+    [-25, -45, -4, -4, -4, -4, -45, -25],
+    [20, -4, 12, 2, 2, 12, -4, 20],
+    [8, -4, 2, 1, 1, 2, -4, 8],
+    [8, -4, 2, 1, 1, 2, -4, 8],
+    [20, -4, 12, 2, 2, 12, -4, 20],
+    [-25, -45, -4, -4, -4, -4, -45, -25],
+    [120, -25, 20, 8, 8, 20, -25, 120]
+  ];
+
+  var boardEl = $('board');
+  (function buildCells() {
+    for (var r = 0; r < 8; r++) {
+      for (var c = 0; c < 8; c++) {
+        var el = document.createElement('div');
+        el.className = 'cell';
+        el.setAttribute('data-r', String(r));
+        el.setAttribute('data-c', String(c));
+        el.addEventListener('click', onCellClick);
+        boardEl.appendChild(el);
+        cellEls.push(el);
+      }
+    }
+  })();
+
+  function cellEl(r, c) { return cellEls[r * 8 + c]; }
+
+  function clearTimers() {
+    for (var i = 0; i < timers.length; i++) clearTimeout(timers[i]);
+    timers = [];
+  }
+  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+
+  function newGame() {
+    clearTimers();
+    board = [];
+    for (var r = 0; r < 8; r++) { board.push([0, 0, 0, 0, 0, 0, 0, 0]); }
+    board[3][3] = WHITE; board[3][4] = BLACK;
+    board[4][3] = BLACK; board[4][4] = WHITE;
+    turn = BLACK; over = false; busy = false; lastMove = null;
+    $('overlay').classList.add('hidden');
+    renderAll();
+    updateUI();
+  }
+
+  /* ---------- rules ---------- */
+  function flipsFor(b, r, c, p) {
+    if (b[r][c] !== 0) return [];
+    var opp = (p === BLACK) ? WHITE : BLACK;
+    var out = [];
+    for (var d = 0; d < 8; d++) {
+      var dr = DIRS[d][0], dc = DIRS[d][1];
+      var rr = r + dr, cc = c + dc;
+      var run = [];
+      while (rr >= 0 && rr < 8 && cc >= 0 && cc < 8 && b[rr][cc] === opp) {
+        run.push([rr, cc]);
+        rr += dr; cc += dc;
+      }
+      if (run.length && rr >= 0 && rr < 8 && cc >= 0 && cc < 8 && b[rr][cc] === p) {
+        out = out.concat(run);
+      }
+    }
+    return out;
+  }
+
+  function legalMoves(b, p) {
+    var out = [];
+    for (var r = 0; r < 8; r++) {
+      for (var c = 0; c < 8; c++) {
+        var f = flipsFor(b, r, c, p);
+        if (f.length) out.push({ r: r, c: c, flips: f });
+      }
+    }
+    return out;
+  }
+
+  function counts(b) {
+    var nb = 0, nw = 0;
+    for (var r = 0; r < 8; r++) {
+      for (var c = 0; c < 8; c++) {
+        if (b[r][c] === BLACK) nb++;
+        else if (b[r][c] === WHITE) nw++;
+      }
+    }
+    return { b: nb, w: nw };
+  }
+
+  /* ---------- rendering ---------- */
+  function renderAll() {
+    for (var r = 0; r < 8; r++) {
+      for (var c = 0; c < 8; c++) {
+        var el = cellEl(r, c);
+        el.innerHTML = '';
+        el.classList.remove('hint', 'last');
+        if (board[r][c] !== 0) {
+          var d = document.createElement('div');
+          d.className = 'disc ' + (board[r][c] === BLACK ? 'bk' : 'wt');
+          el.appendChild(d);
+        }
+      }
+    }
+  }
+
+  function placeDisc(r, c, p) {
+    var el = cellEl(r, c);
+    el.innerHTML = '';
+    var d = document.createElement('div');
+    d.className = 'disc pop ' + (p === BLACK ? 'bk' : 'wt');
+    el.appendChild(d);
+  }
+
+  function flipDisc(r, c, p, delay) {
+    later(function () {
+      var el = cellEl(r, c);
+      var d = el.firstChild;
+      if (!d) return;
+      d.classList.add('mid');
+      sfx(300 + Math.random() * 120, 0.04, 'triangle', 0.025);
+      later(function () {
+        d.classList.remove('bk', 'wt');
+        d.classList.add(p === BLACK ? 'bk' : 'wt');
+        d.classList.remove('mid');
+      }, 140);
+    }, delay);
+  }
+
+  function showHints() {
+    for (var i = 0; i < cellEls.length; i++) cellEls[i].classList.remove('hint');
+    if (over || turn !== BLACK) return;
+    var mv = legalMoves(board, BLACK);
+    for (var k = 0; k < mv.length; k++) cellEl(mv[k].r, mv[k].c).classList.add('hint');
+  }
+
+  function markLast() {
+    for (var i = 0; i < cellEls.length; i++) cellEls[i].classList.remove('last');
+    if (lastMove) cellEl(lastMove[0], lastMove[1]).classList.add('last');
+  }
+
+  function updateBar() {
+    var ct = counts(board);
+    $('cntB').textContent = String(ct.b);
+    $('cntW').textContent = String(ct.w);
+    var total = ct.b + ct.w;
+    var pb = (total === 0) ? 50 : (ct.b / total) * 100;
+    $('barB').style.width = pb + '%';
+    $('barW').style.width = (100 - pb) + '%';
+  }
+
+  function updateUI(msg) {
+    updateBar();
+    markLast();
+    showHints();
+    $('tot').textContent = String(getWins());
+    if (msg) { $('status').textContent = msg; return; }
+    if (over) return;
+    $('status').textContent = (turn === BLACK) ? 'Your move — place a dark disc' : 'AI (white) is thinking…';
+  }
+
+  /* ---------- turn flow ---------- */
+  function onCellClick(e) {
+    if (over || busy || turn !== BLACK) return;
+    var r = parseInt(e.currentTarget.getAttribute('data-r'), 10);
+    var c = parseInt(e.currentTarget.getAttribute('data-c'), 10);
+    var f = flipsFor(board, r, c, BLACK);
+    if (!f.length) { sfx(160, 0.06, 'sawtooth', 0.03); return; }
+    doMove(r, c, BLACK, f);
+  }
+
+  function doMove(r, c, p, flips) {
+    busy = true;
+    board[r][c] = p;
+    lastMove = [r, c];
+    placeDisc(r, c, p);
+    sfx(p === BLACK ? 620 : 460, 0.06, 'square', 0.045);
+    for (var i = 0; i < flips.length; i++) {
+      var fr = flips[i][0], fc = flips[i][1];
+      board[fr][fc] = p;
+      var dist = Math.max(Math.abs(fr - r), Math.abs(fc - c));
+      flipDisc(fr, fc, p, 80 + dist * 70);
+    }
+    var maxDist = 1;
+    for (i = 0; i < flips.length; i++) {
+      var d2 = Math.max(Math.abs(flips[i][0] - r), Math.abs(flips[i][1] - c));
+      if (d2 > maxDist) maxDist = d2;
+    }
+    later(function () { busy = false; nextTurn(); }, 260 + maxDist * 70);
+  }
+
+  function nextTurn() {
+    var opp = (turn === BLACK) ? WHITE : BLACK;
+    var oppMoves = legalMoves(board, opp);
+    if (oppMoves.length) {
+      turn = opp;
+      updateUI();
+      if (turn === WHITE && !over) scheduleAI();
+      return;
+    }
+    var myMoves = legalMoves(board, turn);
+    if (myMoves.length) {
+      var passer = (opp === BLACK) ? 'You have' : 'AI has';
+      updateUI(passer + ' no moves — pass! ' + (turn === BLACK ? 'You go again.' : 'AI goes again.'));
+      sfx(240, 0.15, 'sawtooth', 0.04);
+      later(function () {
+        updateUI();
+        if (turn === WHITE && !over) scheduleAI();
+      }, 1300);
+      return;
+    }
+    endGame();
+  }
+
+  function scheduleAI() {
+    busy = true;
+    later(function () {
+      if (over) return;
+      var mv = aiPick();
+      if (!mv) { busy = false; nextTurn(); return; }
+      doMove(mv.r, mv.c, WHITE, mv.flips);
+    }, 750);
+  }
+
+  /* ---------- AI: greedy + positional weights ---------- */
+  function aiPick() {
+    var moves = legalMoves(board, WHITE);
+    if (!moves.length) return null;
+    var empties = 64 - counts(board).b - counts(board).w;
+    var best = -Infinity, bestList = [];
+    for (var i = 0; i < moves.length; i++) {
+      var m = moves[i];
+      var s = W[m.r][m.c] + m.flips.length * (empties <= 10 ? 10 : 2);
+      /* avoid gifting a corner: penalize moves next to an open corner */
+      if (empties > 10) {
+        var corners = [[0, 0], [0, 7], [7, 0], [7, 7]];
+        for (var k = 0; k < 4; k++) {
+          var cr = corners[k][0], cc = corners[k][1];
+          if (board[cr][cc] === 0 && Math.abs(m.r - cr) <= 1 && Math.abs(m.c - cc) <= 1 && !(m.r === cr && m.c === cc)) {
+            s -= 30;
+          }
+        }
+      }
+      if (s > best + 0.001) { best = s; bestList = [m]; }
+      else if (Math.abs(s - best) <= 0.001) { bestList.push(m); }
+    }
+    return bestList[Math.floor(Math.random() * bestList.length)];
+  }
+
+  /* ---------- game end ---------- */
+  function endGame() {
+    over = true;
+    busy = false;
+    var ct = counts(board);
+    var msg, sub;
+    if (ct.b > ct.w) {
+      msg = 'YOU WIN!';
+      addWin();
+      sfx(523, 0.1, 'square', 0.05, 0); sfx(659, 0.1, 'square', 0.05, 0.1); sfx(784, 0.18, 'square', 0.05, 0.2);
+    } else if (ct.w > ct.b) {
+      msg = 'AI WINS';
+      sfx(300, 0.12, 'sawtooth', 0.05, 0); sfx(210, 0.22, 'sawtooth', 0.05, 0.14);
+    } else {
+      msg = 'DRAW';
+      sfx(392, 0.1, 'triangle', 0.05, 0); sfx(392, 0.1, 'triangle', 0.05, 0.12);
+    }
+    sub = 'Final territory  ' + ct.b + ' – ' + ct.w;
+    updateUI(msg + '  ·  ' + ct.b + ' – ' + ct.w);
+    later(function () {
+      $('ovMsg').textContent = msg;
+      $('ovSub').textContent = sub;
+      $('overlay').classList.remove('hidden');
+      $('tot').textContent = String(getWins());
+    }, 800);
+  }
+
+  $('again').addEventListener('click', function () {
+    sfx(660, 0.06, 'square', 0.04);
+    newGame();
+  });
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && !$('overlay').classList.contains('hidden')) {
+      e.preventDefault();
+      newGame();
+    }
+  });
+  window.addEventListener('resize', function () { /* fluid CSS layout */ });
+
+  newGame();
+})();
+</script>
+</body>
+</html>

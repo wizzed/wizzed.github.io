@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dice Roller 3D – Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #0f0f1a; overflow: hidden; color: #cfe9ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+  }
+  canvas { display: block; }
+  a.back {
+    position: fixed; top: 12px; left: 12px; z-index: 30;
+    color: #7f8fc0; text-decoration: none; font-size: 13px;
+    background: rgba(12,12,32,0.7); border: 1px solid #26264d;
+    padding: 5px 10px; border-radius: 6px;
+  }
+  a.back:hover { color: #4ff3ff; border-color: #4ff3ff; }
+  #hud {
+    position: fixed; top: 12px; right: 12px; z-index: 20; text-align: right;
+    font-size: 13px; color: #9fd8ff; text-shadow: 0 0 8px #2288ff;
+    background: rgba(10,10,28,0.66); border: 1px solid #23234a;
+    padding: 8px 12px; border-radius: 8px; pointer-events: none;
+  }
+  #hud .b { color: #ffd34f; text-shadow: 0 0 10px #ff9a00; }
+  #title {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 20; font-size: 15px; letter-spacing: 3px; color: #4ff3ff;
+    text-shadow: 0 0 14px #00c8ff; pointer-events: none; white-space: nowrap;
+  }
+  #total {
+    position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%);
+    z-index: 20; text-align: center; pointer-events: none;
+    font-size: clamp(20px, 4vw, 34px); color: #eafcff;
+    text-shadow: 0 0 18px #00e5ff, 0 0 40px #0077ff;
+    opacity: 0; transition: opacity 0.4s;
+  }
+  #total.show { opacity: 1; }
+  #total .sub { font-size: 13px; color: #7fb8d8; text-shadow: 0 0 8px #004a88; margin-top: 2px; }
+  #controls {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    z-index: 25; display: flex; gap: 10px; align-items: center;
+    background: rgba(10,10,28,0.75); border: 1px solid #23234a;
+    padding: 10px 14px; border-radius: 12px;
+  }
+  #controls button {
+    font-family: inherit; cursor: pointer; border-radius: 8px;
+    background: #101030; color: #9fd8ff; border: 1px solid #2c2c5e;
+    font-size: 15px; padding: 8px 12px;
+  }
+  #controls button:hover { border-color: #4ff3ff; color: #4ff3ff; }
+  #roll-btn {
+    font-weight: bold; letter-spacing: 2px; padding: 8px 26px !important;
+    color: #0a0a18 !important; background: #29e6a7 !important; border: none !important;
+    box-shadow: 0 0 16px #29e6a788; font-size: 16px !important;
+  }
+  #roll-btn:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
+  #count-disp { min-width: 70px; text-align: center; font-size: 14px; color: #eafcff; text-shadow: 0 0 8px #0077ff; }
+  #hint {
+    position: fixed; bottom: 74px; left: 50%; transform: translateX(-50%);
+    z-index: 18; font-size: 11px; color: #56628f; pointer-events: none;
+    text-shadow: 0 0 6px #101040; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<div id="title">✦ DICE ROLLER 3D ✦</div>
+<div id="hud">BEST TOTAL <span class="b" id="best">0</span></div>
+<div id="total"><div id="total-main"></div><div class="sub" id="total-sub"></div></div>
+<div id="hint">click table / SPACE / R to roll</div>
+<div id="controls">
+  <button id="minus">−</button>
+  <div id="count-disp">3 DICE</div>
+  <button id="plus">＋</button>
+  <button id="roll-btn">ROLL</button>
+</div>
+<script src="../lib/three.min.js"></script>
+<script>
+'use strict';
+// ── Dice Roller 3D ─────────────────────────────────────────────────────────
+const SLUG = 'wizzed-dice-3d';
+let best = parseInt(localStorage.getItem(SLUG) || '0', 10) || 0;
+document.getElementById('best').textContent = best;
+
+const TABLE = 5.0;          // usable half-extent for dice centers
+const G = 26;               // gravity
+const DIE = 1.0;            // die edge length
+const HALF = DIE / 2;
+
+// ── Scene ──────────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f0f1a);
+scene.fog = new THREE.Fog(0x0f0f1a, 16, 42);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(0, 7, 9);
+camera.lookAt(0, 0.3, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ── Lights ─────────────────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0x334466, 1.1));
+scene.add(new THREE.HemisphereLight(0x7788ff, 0x120a24, 0.8));
+const sun = new THREE.DirectionalLight(0xfff0dd, 2.2);
+sun.position.set(6, 11, 4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 30;
+sun.shadow.camera.left = -9; sun.shadow.camera.right = 9;
+sun.shadow.camera.top = 9; sun.shadow.camera.bottom = -9;
+sun.shadow.radius = 4;
+scene.add(sun);
+const pinkPt = new THREE.PointLight(0xff44cc, 6, 22, 1.4);
+pinkPt.position.set(-7, 4.5, -6);
+scene.add(pinkPt);
+const cyanPt = new THREE.PointLight(0x22ccff, 6, 22, 1.4);
+cyanPt.position.set(7, 4.5, 6);
+scene.add(cyanPt);
+
+// ── Felt table + rails ─────────────────────────────────────────────────────
+function feltTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = '#0c2b26'; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 5200; i++) {
+    const v = Math.random();
+    g.fillStyle = v < 0.5 ? 'rgba(20,72,62,0.35)' : 'rgba(4,16,14,0.35)';
+    g.fillRect(Math.random() * 256, Math.random() * 256, 1.6, 1.6);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(3, 3);
+  return t;
+}
+const felt = new THREE.Mesh(
+  new THREE.BoxGeometry(TABLE * 2 + 2.4, 0.5, TABLE * 2 + 2.4),
+  new THREE.MeshStandardMaterial({ map: feltTexture(), color: 0x9adfd0, roughness: 0.95, metalness: 0 })
+);
+felt.position.y = -0.25;
+felt.receiveShadow = true;
+scene.add(felt);
+
+// dark floor far beneath
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(200, 200),
+  new THREE.MeshStandardMaterial({ color: 0x0a0a16, roughness: 1 })
+);
+floor.rotation.x = -Math.PI / 2; floor.position.y = -2.2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// neon rails
+const railMat = new THREE.MeshStandardMaterial({
+  color: 0x201040, emissive: 0x8822ff, emissiveIntensity: 0.9, roughness: 0.4
+});
+const railLen = TABLE * 2 + 2.4;
+[
+  { p: [0, 0.32, -(TABLE + 1.0)], s: [railLen, 0.66, 0.42] },
+  { p: [0, 0.32, TABLE + 1.0], s: [railLen, 0.66, 0.42] },
+  { p: [-(TABLE + 1.0), 0.32, 0], s: [0.42, 0.66, railLen] },
+  { p: [TABLE + 1.0, 0.32, 0], s: [0.42, 0.66, railLen] },
+].forEach(r => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(r.s[0], r.s[1], r.s[2]), railMat);
+  m.position.set(r.p[0], r.p[1], r.p[2]);
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m);
+});
+// corner glow posts
+[[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([sx, sz]) => {
+  const post = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.16, 0.16, 1.5, 10),
+    new THREE.MeshStandardMaterial({ color: 0x102040, emissive: 0x22ccff, emissiveIntensity: 1.4 })
+  );
+  post.position.set(sx * (TABLE + 1.0), 0.75, sz * (TABLE + 1.0));
+  scene.add(post);
+});
+
+// ── Dice faces (canvas pip textures) ───────────────────────────────────────
+const PIP = {
+  c: [64, 64], tl: [36, 36], tr: [92, 36], bl: [36, 92], br: [92, 92], ml: [36, 64], mr: [92, 64]
+};
+const LAYOUT = {
+  1: ['c'], 2: ['tl', 'br'], 3: ['tl', 'c', 'br'],
+  4: ['tl', 'tr', 'bl', 'br'], 5: ['tl', 'tr', 'c', 'bl', 'br'],
+  6: ['tl', 'tr', 'ml', 'mr', 'bl', 'br']
+};
+function faceTexture(n) {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#141430'; g.fillRect(0, 0, 128, 128);
+  g.strokeStyle = 'rgba(90,240,255,0.7)'; g.lineWidth = 5;
+  roundRect(g, 6, 6, 116, 116, 18); g.stroke();
+  g.strokeStyle = 'rgba(40,80,160,0.5)'; g.lineWidth = 2;
+  roundRect(g, 13, 13, 102, 102, 14); g.stroke();
+  LAYOUT[n].forEach(k => {
+    const [x, y] = PIP[k];
+    g.shadowColor = '#4ff3ff'; g.shadowBlur = 14;
+    const grad = g.createRadialGradient(x - 3, y - 3, 2, x, y, 12);
+    grad.addColorStop(0, '#eaffff'); grad.addColorStop(1, '#19c8e8');
+    g.fillStyle = grad;
+    g.beginPath(); g.arc(x, y, 12, 0, Math.PI * 2); g.fill();
+    g.shadowBlur = 0;
+  });
+  const t = new THREE.CanvasTexture(c);
+  t.anisotropy = 4;
+  return t;
+}
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+// BoxGeometry material order: +x, -x, +y, -y, +z, -z  (opposite faces sum to 7)
+const FACE_VALUES = [1, 6, 2, 5, 3, 4];
+const FACE_NORMALS = [
+  new THREE.Vector3(1, 0, 0), new THREE.Vector3(-1, 0, 0),
+  new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, -1, 0),
+  new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, -1)
+];
+const dieMats = FACE_VALUES.map(v => {
+  const tex = faceTexture(v);
+  return new THREE.MeshStandardMaterial({
+    map: tex, roughness: 0.32, metalness: 0.15,
+    emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.5
+  });
+});
+const dieGeo = new THREE.BoxGeometry(DIE, DIE, DIE);
+
+// 24 axis-aligned orientations
+const AXES6 = FACE_NORMALS;
+const ORIENTS = [];
+for (const x of AXES6) for (const y of AXES6) {
+  if (Math.abs(x.dot(y)) > 0.5) continue;
+  const z = new THREE.Vector3().crossVectors(x, y);
+  ORIENTS.push(new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z)));
+}
+function nearestOrient(q) {
+  let bestQ = ORIENTS[0], bd = -1;
+  for (const o of ORIENTS) {
+    const d = Math.abs(q.dot(o));
+    if (d > bd) { bd = d; bestQ = o; }
+  }
+  const t = bestQ.clone();
+  if (q.dot(t) < 0) t.set(-t.x, -t.y, -t.z, -t.w);
+  return t;
+}
+const _n = new THREE.Vector3();
+function topValue(q) {
+  let bestV = 1, bd = -2;
+  for (let i = 0; i < 6; i++) {
+    _n.copy(FACE_NORMALS[i]).applyQuaternion(q);
+    if (_n.y > bd) { bd = _n.y; bestV = FACE_VALUES[i]; }
+  }
+  return bestV;
+}
+
+// ── Dice state ─────────────────────────────────────────────────────────────
+let dice = [];
+let diceCount = 3;
+let rolling = false;
+
+function makeDie() {
+  const mesh = new THREE.Mesh(dieGeo, dieMats);
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  scene.add(mesh);
+  return {
+    mesh,
+    vel: new THREE.Vector3(),
+    angVel: new THREE.Vector3(),
+    settled: true, settling: false, onFloor: true,
+    snap: null, value: 1
+  };
+}
+function setDiceCount(n) {
+  if (rolling) return;
+  diceCount = Math.max(1, Math.min(6, n));
+  document.getElementById('count-disp').textContent = diceCount + (diceCount === 1 ? ' DIE ' : ' DICE');
+  while (dice.length > diceCount) { const d = dice.pop(); scene.remove(d.mesh); }
+  while (dice.length < diceCount) dice.push(makeDie());
+  restDice();
+}
+function restDice() {
+  // arrange settled dice neatly
+  dice.forEach((d, i) => {
+    const col = i % 3, row = Math.floor(i / 3);
+    d.mesh.position.set((col - 1) * 1.6, HALF, (row - 0.5) * 1.6);
+    d.mesh.quaternion.copy(ORIENTS[(i * 7) % 24]);
+    d.vel.set(0, 0, 0); d.angVel.set(0, 0, 0);
+    d.settled = true; d.settling = false;
+    d.value = topValue(d.mesh.quaternion);
+  });
+  showTotal(false); // arranged, not rolled — don't record a best
+}
+
+function roll() {
+  if (rolling) return;
+  rolling = true;
+  document.getElementById('roll-btn').disabled = true;
+  document.getElementById('total').classList.remove('show');
+  dice.forEach((d, i) => {
+    d.settled = false; d.settling = false; d.snap = null;
+    d.mesh.position.set(
+      -2.2 + i * 1.05 + (Math.random() - 0.5) * 0.5,
+      3.4 + Math.random() * 1.6 + i * 0.35,
+      3.6 + Math.random() * 0.8
+    );
+    d.mesh.quaternion.setFromEuler(new THREE.Euler(
+      Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, Math.random() * Math.PI * 2
+    ));
+    d.vel.set((Math.random() - 0.5) * 3.5, 0.6 + Math.random() * 1.2, -(7.5 + Math.random() * 3.5));
+    d.angVel.set(
+      (Math.random() - 0.5) * 22, (Math.random() - 0.5) * 22, (Math.random() - 0.5) * 22
+    );
+  });
+}
+
+function showTotal(recordBest = true) {
+  const vals = dice.map(d => d.value);
+  const total = vals.reduce((a, b) => a + b, 0);
+  document.getElementById('total-main').textContent = 'TOTAL  ' + total;
+  document.getElementById('total-sub').textContent =
+    vals.length > 1 ? vals.join(' + ') + ' = ' + total : '';
+  document.getElementById('total').classList.add('show');
+  if (recordBest && total > best) {
+    best = total;
+    localStorage.setItem(SLUG, String(best));
+    document.getElementById('best').textContent = best;
+    document.getElementById('total-main').textContent = 'TOTAL  ' + total + '  ★ BEST!';
+  }
+}
+
+// ── Physics ────────────────────────────────────────────────────────────────
+const tmpQ = new THREE.Quaternion();
+const tmpV = new THREE.Vector3();
+
+function stepPhysics(dt) {
+  let allSettled = true;
+  for (const d of dice) {
+    if (d.settled) continue;
+    allSettled = false;
+
+    if (d.settling) {
+      d.mesh.quaternion.slerp(d.snap, 1 - Math.exp(-11 * dt));
+      d.mesh.position.y += (HALF - d.mesh.position.y) * (1 - Math.exp(-11 * dt));
+      d.vel.multiplyScalar(Math.exp(-8 * dt));
+      d.mesh.position.x += d.vel.x * dt;
+      d.mesh.position.z += d.vel.z * dt;
+      if (d.mesh.quaternion.angleTo(d.snap) < 0.02) {
+        d.mesh.quaternion.copy(d.snap);
+        d.mesh.position.y = HALF;
+        d.vel.set(0, 0, 0); d.angVel.set(0, 0, 0);
+        d.settled = true;
+        d.value = topValue(d.mesh.quaternion);
+      }
+      continue;
+    }
+
+    // integrate
+    d.vel.y -= G * dt;
+    d.mesh.position.addScaledVector(d.vel, dt);
+    const w = d.angVel.length();
+    if (w > 0.0001) {
+      tmpQ.setFromAxisAngle(tmpV.copy(d.angVel).normalize(), w * dt);
+      d.mesh.quaternion.premultiply(tmpQ).normalize();
+    }
+
+    // floor
+    d.onFloor = false;
+    if (d.mesh.position.y < HALF) {
+      d.mesh.position.y = HALF;
+      d.onFloor = true;
+      if (d.vel.y < 0) {
+        if (d.vel.y < -1.4) {
+          d.vel.y *= -0.42;
+          d.angVel.multiplyScalar(0.8);
+          d.angVel.x += (Math.random() - 0.5) * 4;
+          d.angVel.z += (Math.random() - 0.5) * 4;
+        } else d.vel.y = 0;
+      }
+      // friction
+      const f = Math.exp(-3.2 * dt);
+      d.vel.x *= f; d.vel.z *= f;
+      d.angVel.multiplyScalar(Math.exp(-2.6 * dt));
+    }
+
+    // rails
+    if (d.mesh.position.x > TABLE) { d.mesh.position.x = TABLE; d.vel.x *= -0.5; }
+    if (d.mesh.position.x < -TABLE) { d.mesh.position.x = -TABLE; d.vel.x *= -0.5; }
+    if (d.mesh.position.z > TABLE) { d.mesh.position.z = TABLE; d.vel.z *= -0.5; }
+    if (d.mesh.position.z < -TABLE) { d.mesh.position.z = -TABLE; d.vel.z *= -0.5; }
+
+    // settle trigger
+    if (d.onFloor && d.vel.length() < 0.55 && d.angVel.length() < 1.6) {
+      d.snap = nearestOrient(d.mesh.quaternion);
+      d.settling = true;
+    }
+  }
+
+  // die-die collisions (sphere approximation)
+  for (let i = 0; i < dice.length; i++) {
+    for (let j = i + 1; j < dice.length; j++) {
+      const a = dice[i], b = dice[j];
+      if (a.settled && b.settled) continue;
+      const dv = tmpV.copy(a.mesh.position).sub(b.mesh.position);
+      const dist = dv.length();
+      const minD = 1.12;
+      if (dist < minD && dist > 0.0001) {
+        dv.divideScalar(dist);
+        const push = (minD - dist) / 2;
+        if (!a.settled) a.mesh.position.addScaledVector(dv, a.settled ? 0 : (b.settled ? push * 2 : push));
+        if (!b.settled) b.mesh.position.addScaledVector(dv, -(a.settled ? push * 2 : push));
+        const rel = (a.vel.x - b.vel.x) * dv.x + (a.vel.y - b.vel.y) * dv.y + (a.vel.z - b.vel.z) * dv.z;
+        if (rel < 0) {
+          const imp = -rel * 0.72;
+          if (!a.settled) { a.vel.addScaledVector(dv, imp); a.angVel.x += (Math.random() - 0.5) * 5; a.angVel.z += (Math.random() - 0.5) * 5; }
+          if (!b.settled) { b.vel.addScaledVector(dv, -imp); b.angVel.x += (Math.random() - 0.5) * 5; b.angVel.z += (Math.random() - 0.5) * 5; }
+        }
+      }
+    }
+  }
+
+  if (rolling && allSettled) {
+    rolling = false;
+    document.getElementById('roll-btn').disabled = false;
+    showTotal();
+  }
+}
+
+// ── UI wiring ──────────────────────────────────────────────────────────────
+document.getElementById('roll-btn').addEventListener('click', roll);
+document.getElementById('minus').addEventListener('click', () => setDiceCount(diceCount - 1));
+document.getElementById('plus').addEventListener('click', () => setDiceCount(diceCount + 1));
+renderer.domElement.addEventListener('pointerdown', () => roll());
+addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyR') { e.preventDefault(); roll(); }
+  if (e.code === 'ArrowLeft') setDiceCount(diceCount - 1);
+  if (e.code === 'ArrowRight') setDiceCount(diceCount + 1);
+});
+
+// ── Loop ───────────────────────────────────────────────────────────────────
+setDiceCount(3);
+let lastT = 0;
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const t = ts / 1000;
+  const dt = Math.min((ts - lastT) / 1000, 0.033);
+  lastT = ts;
+
+  stepPhysics(dt);
+
+  // idle camera drift
+  const a = t * 0.07 + Math.sin(t * 0.11) * 0.12;
+  camera.position.set(Math.sin(a) * 9.2, 6.8 + Math.sin(t * 0.19) * 0.45, Math.cos(a) * 9.2);
+  camera.lookAt(0, 0.2, 0);
+
+  // gentle light pulse
+  pinkPt.intensity = 6 + Math.sin(t * 1.3) * 1.6;
+  cyanPt.intensity = 6 + Math.cos(t * 1.1) * 1.6;
+
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

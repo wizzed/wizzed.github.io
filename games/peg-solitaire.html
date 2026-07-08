@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Peg Solitaire — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; }
+  body {
+    background: #0f0f1a;
+    color: #d6eaff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 8px 10px 16px; overflow-x: hidden;
+    touch-action: manipulation;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px; z-index: 60;
+    color: #7f7fa8; text-decoration: none; font-size: 12px; letter-spacing: 1px;
+    padding: 4px 9px; border: 1px solid #26264a; border-radius: 6px;
+    background: rgba(15,15,26,.85);
+  }
+  a.back:hover { color: #4da6ff; border-color: #4da6ff; box-shadow: 0 0 8px rgba(77,166,255,.4); }
+  h1 {
+    margin-top: 4px; font-size: clamp(17px, 3.6vmin, 26px); letter-spacing: 4px;
+    color: #e8f4ff; text-shadow: 0 0 8px #4da6ff, 0 0 24px rgba(77,166,255,.55);
+  }
+  .topbar { display: flex; gap: 8px; align-items: center; margin: 6px 0; flex-wrap: wrap; justify-content: center; }
+  .chip {
+    background: #14142a; border: 1px solid #2c2c55; border-radius: 8px;
+    padding: 4px 12px; font-size: 11px; letter-spacing: 1px; color: #9a9ac8;
+  }
+  .chip b { color: #4da6ff; text-shadow: 0 0 8px #4da6ff; font-size: 15px; }
+  .topbar button {
+    font-family: inherit; font-size: 11px; letter-spacing: 2px; cursor: pointer;
+    background: #16162e; color: #4da6ff; border: 1px solid #1d3d61;
+    padding: 5px 12px; border-radius: 6px;
+  }
+  .topbar button:hover { border-color: #4da6ff; box-shadow: 0 0 8px rgba(77,166,255,.4); }
+  .topbar button:disabled { opacity: .35; cursor: default; box-shadow: none; }
+  .status { font-size: clamp(12px, 2.4vmin, 15px); letter-spacing: 1px; margin: 2px 0 8px; min-height: 20px; color: #b8dcff; text-shadow: 0 0 6px rgba(77,166,255,.45); text-align: center; }
+  .boardwrap {
+    position: relative;
+    width: min(72vmin, calc(100vh - 235px), 410px);
+    min-width: 230px; aspect-ratio: 1;
+    background: radial-gradient(circle at 50% 40%, #17172f, #0d0d1c 80%);
+    border: 2px solid #1d3d61; border-radius: 14px;
+    box-shadow: 0 0 18px rgba(77,166,255,.35), inset 0 0 30px rgba(77,166,255,.07);
+    padding: 3%;
+    touch-action: none;
+  }
+  #board {
+    width: 100%; height: 100%;
+    display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(7, 1fr);
+  }
+  .hole { position: relative; display: flex; align-items: center; justify-content: center; }
+  .hole.off { visibility: hidden; }
+  .hole::before {
+    content: ''; position: absolute; width: 62%; height: 62%; border-radius: 50%;
+    background: #0a0a16;
+    box-shadow: inset 0 3px 6px rgba(0,0,0,.9), inset 0 -1px 2px rgba(77,166,255,.25);
+  }
+  .hole.center::before { box-shadow: inset 0 3px 6px rgba(0,0,0,.9), 0 0 0 2px rgba(77,166,255,.35), 0 0 8px rgba(77,166,255,.3); }
+  .hole.tgt { cursor: pointer; }
+  .hole.tgt::after {
+    content: ''; position: absolute; width: 46%; height: 46%; border-radius: 50%;
+    border: 2px solid #7fe7ff; box-shadow: 0 0 10px rgba(127,231,255,.8);
+    animation: pulse 1.2s ease-in-out infinite; z-index: 2;
+  }
+  @keyframes pulse { 0%,100% { transform: scale(.8); opacity: .5; } 50% { transform: scale(1.05); opacity: 1; } }
+  .peg {
+    position: relative; width: 68%; height: 68%; border-radius: 50%; z-index: 3; cursor: grab;
+    background: radial-gradient(circle at 34% 30%, #a8d4ff, #2277dd 60%, #124a99);
+    box-shadow: 0 2px 6px rgba(0,0,0,.6), 0 0 8px rgba(77,166,255,.5), inset 0 -3px 5px rgba(0,10,40,.6);
+  }
+  .peg.sel {
+    box-shadow: 0 2px 6px rgba(0,0,0,.6), 0 0 16px 4px #7fe7ff, inset 0 -3px 5px rgba(0,10,40,.6);
+    background: radial-gradient(circle at 34% 30%, #d0f4ff, #37a2ff 60%, #1a66c4);
+  }
+  .peg.lift { opacity: .25; }
+  .fly {
+    position: absolute; border-radius: 50%; z-index: 20; pointer-events: none;
+    background: radial-gradient(circle at 34% 30%, #d0f4ff, #37a2ff 60%, #1a66c4);
+    box-shadow: 0 4px 10px rgba(0,0,0,.7), 0 0 14px rgba(127,231,255,.8);
+    transition: left .18s ease, top .18s ease;
+  }
+  .ghost {
+    position: fixed; border-radius: 50%; z-index: 100; pointer-events: none;
+    background: radial-gradient(circle at 34% 30%, #d0f4ff, #37a2ff 60%, #1a66c4);
+    box-shadow: 0 6px 14px rgba(0,0,0,.7), 0 0 16px rgba(127,231,255,.9);
+    opacity: .9;
+  }
+  .hint-line { margin-top: 10px; font-size: 11px; color: #6f6f9a; letter-spacing: 1px; text-align: center; }
+  .hint-line span { color: #4da6ff; }
+  .overlay {
+    position: absolute; inset: 0; z-index: 40; border-radius: 12px;
+    background: rgba(8,10,20,.9);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    animation: fadein .3s ease;
+  }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  .overlay.hidden { display: none; }
+  .overlay .msg {
+    font-size: clamp(19px, 4.6vmin, 30px); letter-spacing: 3px; color: #e8f4ff; text-align: center; padding: 0 8px;
+    text-shadow: 0 0 10px #4da6ff, 0 0 30px rgba(77,166,255,.7);
+  }
+  .overlay .sub { font-size: 12px; color: #8aa8c8; letter-spacing: 2px; text-align: center; }
+  .overlay button {
+    font-family: inherit; font-size: 14px; letter-spacing: 3px; cursor: pointer;
+    background: #0e2233; color: #7fc4ff; border: 2px solid #4da6ff; border-radius: 8px;
+    padding: 10px 22px; text-shadow: 0 0 6px #4da6ff;
+    box-shadow: 0 0 14px rgba(77,166,255,.5);
+  }
+  .overlay button:hover { background: #123249; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>PEG SOLITAIRE</h1>
+<div class="topbar">
+  <div class="chip">PEGS <b id="pegCnt">32</b></div>
+  <button id="undoBtn" disabled>UNDO</button>
+  <button id="restartBtn">RESTART</button>
+  <div class="chip">MOVES <b id="movCnt">0</b></div>
+</div>
+<div class="status" id="status">Jump pegs over each other — finish with one peg in the center</div>
+<div class="boardwrap" id="wrap">
+  <div id="board"></div>
+  <div id="overlay" class="overlay hidden">
+    <div class="msg" id="ovMsg">PERFECT!</div>
+    <div class="sub" id="ovSub"></div>
+    <button id="again">PLAY AGAIN</button>
+  </div>
+</div>
+<div class="hint-line">click or drag a peg, land in a glowing hole · U undo · R restart · perfect clears: <span id="tot">0</span></div>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- audio ---------- */
+  var AC = null;
+  function initAudio() {
+    if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } }
+    if (AC && AC.state === 'suspended') { AC.resume(); }
+  }
+  function sfx(freq, dur, type, vol, when) {
+    if (!AC) return;
+    try {
+      var t = AC.currentTime + (when || 0);
+      var o = AC.createOscillator(), g = AC.createGain();
+      o.type = type || 'square'; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol || 0.04, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.08));
+      o.connect(g); g.connect(AC.destination);
+      o.start(t); o.stop(t + (dur || 0.08) + 0.05);
+    } catch (e) { /* noop */ }
+  }
+  document.addEventListener('pointerdown', initAudio, true);
+  document.addEventListener('keydown', initAudio, true);
+
+  var LSKEY = 'wizzed-peg-solitaire';
+  function getWins() { try { return parseInt(localStorage.getItem(LSKEY), 10) || 0; } catch (e) { return 0; } }
+  function addWin() { try { localStorage.setItem(LSKEY, String(getWins() + 1)); } catch (e) { /* noop */ } }
+
+  /* ---------- state ---------- */
+  var N = 7;
+  var board;             /* -1 invalid, 0 empty, 1 peg */
+  var selected = null;   /* {r,c} */
+  var undoStack = [];
+  var over = false, busy = false;
+  var DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+  var boardEl = $('board'), wrapEl = $('wrap');
+  var cellEls = [];
+
+  function validCell(r, c) { return (r >= 2 && r <= 4) || (c >= 2 && c <= 4); }
+
+  (function buildBoard() {
+    for (var r = 0; r < N; r++) {
+      for (var c = 0; c < N; c++) {
+        var el = document.createElement('div');
+        el.className = 'hole' + (validCell(r, c) ? '' : ' off') + ((r === 3 && c === 3) ? ' center' : '');
+        el.setAttribute('data-r', String(r));
+        el.setAttribute('data-c', String(c));
+        boardEl.appendChild(el);
+        cellEls.push(el);
+      }
+    }
+  })();
+  function cellEl(r, c) { return cellEls[r * N + c]; }
+
+  function newGame() {
+    board = [];
+    for (var r = 0; r < N; r++) {
+      var row = [];
+      for (var c = 0; c < N; c++) {
+        row.push(validCell(r, c) ? 1 : -1);
+      }
+      board.push(row);
+    }
+    board[3][3] = 0;
+    selected = null;
+    undoStack = [];
+    over = false; busy = false;
+    $('overlay').classList.add('hidden');
+    renderAll();
+    updateHud();
+    $('status').textContent = 'Jump pegs over each other — finish with one peg in the center';
+  }
+
+  /* ---------- rendering ---------- */
+  function renderCell(r, c) {
+    var el = cellEl(r, c);
+    var peg = el.querySelector('.peg');
+    if (board[r][c] === 1) {
+      if (!peg) {
+        peg = document.createElement('div');
+        peg.className = 'peg';
+        el.appendChild(peg);
+      }
+      peg.classList.toggle('sel', !!(selected && selected.r === r && selected.c === c));
+      peg.classList.remove('lift');
+    } else if (peg) {
+      el.removeChild(peg);
+    }
+  }
+
+  function renderAll() {
+    for (var r = 0; r < N; r++) {
+      for (var c = 0; c < N; c++) {
+        if (board[r][c] === -1) continue;
+        renderCell(r, c);
+      }
+    }
+    renderTargets();
+  }
+
+  function renderTargets() {
+    for (var i = 0; i < cellEls.length; i++) cellEls[i].classList.remove('tgt');
+    if (!selected || over) return;
+    var js = jumpsFrom(selected.r, selected.c);
+    for (i = 0; i < js.length; i++) cellEl(js[i].tr, js[i].tc).classList.add('tgt');
+  }
+
+  function updateHud() {
+    $('pegCnt').textContent = String(countPegs());
+    $('movCnt').textContent = String(undoStack.length);
+    $('undoBtn').disabled = undoStack.length === 0 || over;
+    $('tot').textContent = String(getWins());
+  }
+
+  /* ---------- rules ---------- */
+  function countPegs() {
+    var n = 0;
+    for (var r = 0; r < N; r++) {
+      for (var c = 0; c < N; c++) { if (board[r][c] === 1) n++; }
+    }
+    return n;
+  }
+
+  function jumpsFrom(r, c) {
+    var out = [];
+    if (board[r][c] !== 1) return out;
+    for (var d = 0; d < 4; d++) {
+      var or_ = r + DIRS[d][0], oc = c + DIRS[d][1];
+      var tr = r + 2 * DIRS[d][0], tc = c + 2 * DIRS[d][1];
+      if (tr < 0 || tr >= N || tc < 0 || tc >= N) continue;
+      if (board[tr][tc] === 0 && board[or_][oc] === 1) out.push({ or: or_, oc: oc, tr: tr, tc: tc });
+    }
+    return out;
+  }
+
+  function anyMoves() {
+    for (var r = 0; r < N; r++) {
+      for (var c = 0; c < N; c++) {
+        if (board[r][c] === 1 && jumpsFrom(r, c).length) return true;
+      }
+    }
+    return false;
+  }
+
+  /* ---------- moves ---------- */
+  function doJump(fr, fc, j, animateFrom) {
+    busy = true;
+    selected = null;
+    renderTargets();
+    /* fly animation */
+    var fromRect = cellEl(fr, fc).getBoundingClientRect();
+    var toRect = cellEl(j.tr, j.tc).getBoundingClientRect();
+    var wrapRect = wrapEl.getBoundingClientRect();
+    var size = fromRect.width * 0.68;
+    var fly = document.createElement('div');
+    fly.className = 'fly';
+    fly.style.width = size + 'px';
+    fly.style.height = size + 'px';
+    var startRect = animateFrom || fromRect;
+    fly.style.left = (startRect.left - wrapRect.left + (startRect.width - size) / 2) + 'px';
+    fly.style.top = (startRect.top - wrapRect.top + (startRect.height - size) / 2) + 'px';
+    wrapEl.appendChild(fly);
+    /* source peg vanishes right away */
+    board[fr][fc] = 0;
+    renderCell(fr, fc);
+    sfx(520, 0.05, 'square', 0.045);
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        fly.style.left = (toRect.left - wrapRect.left + (toRect.width - size) / 2) + 'px';
+        fly.style.top = (toRect.top - wrapRect.top + (toRect.height - size) / 2) + 'px';
+      });
+    });
+    setTimeout(function () {
+      if (fly.parentNode) fly.parentNode.removeChild(fly);
+      board[j.or][j.oc] = 0;
+      board[j.tr][j.tc] = 1;
+      renderCell(j.or, j.oc);
+      renderCell(j.tr, j.tc);
+      undoStack.push({ fr: fr, fc: fc, or: j.or, oc: j.oc, tr: j.tr, tc: j.tc });
+      sfx(300, 0.07, 'triangle', 0.05);
+      busy = false;
+      updateHud();
+      checkEnd();
+    }, 200);
+  }
+
+  function undo() {
+    if (over || busy || !undoStack.length) return;
+    var m = undoStack.pop();
+    board[m.fr][m.fc] = 1;
+    board[m.or][m.oc] = 1;
+    board[m.tr][m.tc] = 0;
+    selected = null;
+    renderAll();
+    updateHud();
+    sfx(360, 0.06, 'square', 0.04);
+    $('status').textContent = 'Move undone.';
+  }
+
+  function checkEnd() {
+    var n = countPegs();
+    if (n === 1) {
+      over = true;
+      updateHud();
+      var center = board[3][3] === 1;
+      var msg, sub;
+      if (center) {
+        addWin();
+        msg = 'PERFECT!';
+        sub = 'One peg, dead center — a true classic clear';
+        sfx(523, 0.1, 'square', 0.05, 0); sfx(659, 0.1, 'square', 0.05, 0.1); sfx(784, 0.1, 'square', 0.05, 0.2); sfx(1047, 0.25, 'square', 0.05, 0.3);
+      } else {
+        msg = 'SO CLOSE!';
+        sub = 'One peg left — but not in the center hole';
+        sfx(523, 0.1, 'square', 0.05, 0); sfx(659, 0.2, 'square', 0.05, 0.12);
+      }
+      showOverlay(msg, sub);
+      return;
+    }
+    if (!anyMoves()) {
+      over = true;
+      updateHud();
+      sfx(300, 0.12, 'sawtooth', 0.05, 0); sfx(210, 0.24, 'sawtooth', 0.05, 0.14);
+      showOverlay('NO MOVES LEFT', n + ' pegs remain — try a different path');
+      return;
+    }
+    $('status').textContent = n + ' pegs left — keep jumping!';
+  }
+
+  function showOverlay(msg, sub) {
+    $('tot').textContent = String(getWins());
+    setTimeout(function () {
+      $('ovMsg').textContent = msg;
+      $('ovSub').textContent = sub;
+      $('overlay').classList.remove('hidden');
+    }, 600);
+  }
+
+  /* ---------- input: tap + drag ---------- */
+  var drag = null; /* {r,c,startX,startY,ghost,wasSelected} */
+
+  function cellFromEvent(e) {
+    var t = document.elementFromPoint(e.clientX, e.clientY);
+    while (t && t !== document.body) {
+      if (t.classList && t.classList.contains('hole') && !t.classList.contains('off')) return t;
+      t = t.parentNode;
+    }
+    return null;
+  }
+
+  boardEl.addEventListener('pointerdown', function (e) {
+    if (over || busy) return;
+    var cell = cellFromEvent(e);
+    if (!cell) return;
+    e.preventDefault();
+    var r = parseInt(cell.getAttribute('data-r'), 10);
+    var c = parseInt(cell.getAttribute('data-c'), 10);
+    if (board[r][c] === 1) {
+      var wasSel = !!(selected && selected.r === r && selected.c === c);
+      var js = jumpsFrom(r, c);
+      if (!js.length) {
+        $('status').textContent = 'That peg has no legal jumps.';
+        sfx(160, 0.07, 'sawtooth', 0.035);
+        selected = null;
+        renderAll();
+        return;
+      }
+      selected = { r: r, c: c };
+      renderAll();
+      $('status').textContent = 'Drop it in a glowing hole.';
+      sfx(600, 0.04, 'square', 0.035);
+      drag = { r: r, c: c, startX: e.clientX, startY: e.clientY, ghost: null, wasSelected: wasSel };
+    } else if (board[r][c] === 0 && selected) {
+      var js2 = jumpsFrom(selected.r, selected.c);
+      for (var i = 0; i < js2.length; i++) {
+        if (js2[i].tr === r && js2[i].tc === c) {
+          doJump(selected.r, selected.c, js2[i]);
+          return;
+        }
+      }
+      $('status').textContent = 'You can only land in a glowing hole.';
+      sfx(160, 0.07, 'sawtooth', 0.035);
+    }
+  });
+
+  document.addEventListener('pointermove', function (e) {
+    if (!drag || over || busy) return;
+    var dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+    if (!drag.ghost && (dx * dx + dy * dy) > 64) {
+      var cell = cellEl(drag.r, drag.c);
+      var rect = cell.getBoundingClientRect();
+      var size = rect.width * 0.72;
+      var g = document.createElement('div');
+      g.className = 'ghost';
+      g.style.width = size + 'px';
+      g.style.height = size + 'px';
+      document.body.appendChild(g);
+      drag.ghost = g;
+      drag.size = size;
+      var peg = cell.querySelector('.peg');
+      if (peg) peg.classList.add('lift');
+    }
+    if (drag.ghost) {
+      drag.ghost.style.left = (e.clientX - drag.size / 2) + 'px';
+      drag.ghost.style.top = (e.clientY - drag.size / 2) + 'px';
+    }
+  });
+
+  document.addEventListener('pointerup', function (e) {
+    if (!drag) return;
+    var d = drag;
+    drag = null;
+    if (d.ghost) {
+      d.ghost.parentNode.removeChild(d.ghost);
+      var srcCell = cellEl(d.r, d.c);
+      var peg = srcCell.querySelector('.peg');
+      if (peg) peg.classList.remove('lift');
+      if (over || busy) return;
+      var cell = cellFromEvent(e);
+      if (cell) {
+        var r = parseInt(cell.getAttribute('data-r'), 10);
+        var c = parseInt(cell.getAttribute('data-c'), 10);
+        var js = jumpsFrom(d.r, d.c);
+        for (var i = 0; i < js.length; i++) {
+          if (js[i].tr === r && js[i].tc === c) {
+            doJump(d.r, d.c, js[i], srcCell.getBoundingClientRect());
+            return;
+          }
+        }
+      }
+      $('status').textContent = 'You can only land in a glowing hole.';
+      sfx(160, 0.07, 'sawtooth', 0.035);
+    } else if (d.wasSelected) {
+      /* tap on an already-selected peg: deselect */
+      selected = null;
+      renderAll();
+      $('status').textContent = 'Peg deselected.';
+    }
+  });
+
+  document.addEventListener('pointercancel', function () {
+    if (!drag) return;
+    if (drag.ghost && drag.ghost.parentNode) drag.ghost.parentNode.removeChild(drag.ghost);
+    var peg = cellEl(drag.r, drag.c).querySelector('.peg');
+    if (peg) peg.classList.remove('lift');
+    drag = null;
+  });
+
+  /* ---------- controls ---------- */
+  $('undoBtn').addEventListener('click', undo);
+  $('restartBtn').addEventListener('click', function () { sfx(620, 0.05, 'square', 0.04); newGame(); });
+  $('again').addEventListener('click', function () { sfx(660, 0.06, 'square', 0.04); newGame(); });
+  document.addEventListener('keydown', function (e) {
+    if (!$('overlay').classList.contains('hidden')) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); newGame(); }
+      return;
+    }
+    if (e.key === 'u' || e.key === 'U') undo();
+    else if (e.key === 'r' || e.key === 'R') newGame();
+  });
+  window.addEventListener('resize', function () { /* fluid CSS layout; fly anims recompute rects per move */ });
+
+  newGame();
+})();
+</script>
+</body>
+</html>

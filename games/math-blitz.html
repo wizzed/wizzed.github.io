@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Math Blitz — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f1a;
+    --accent: #ffd60a;
+    --accent-dim: rgba(255,214,10,.35);
+    --good: #00ff9d;
+    --bad: #ff4060;
+    --panel: #191930;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: #e8e8ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 8px 12px 16px;
+    overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px;
+    color: #8888c0; text-decoration: none; font-size: 13px; letter-spacing: 1px;
+    padding: 4px 8px; border: 1px solid #2a2a4a; border-radius: 6px;
+    background: rgba(15,15,26,.8); z-index: 50;
+  }
+  a.back:hover { color: var(--accent); border-color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+  h1 {
+    margin-top: 2px;
+    font-size: clamp(20px, 4.5vmin, 34px);
+    letter-spacing: 5px;
+    color: var(--accent);
+    text-shadow: 0 0 8px var(--accent), 0 0 26px var(--accent-dim);
+    text-transform: uppercase;
+  }
+  #hud { display: flex; gap: 8px; margin: 5px 0 8px; flex-wrap: wrap; justify-content: center; }
+  .hudbox {
+    background: var(--panel); border: 1px solid #2a2a4a; border-radius: 8px;
+    padding: 3px 12px; font-size: 10px; letter-spacing: 1px; color: #9a9ac8; text-align: center; min-width: 72px;
+  }
+  .hudbox b { display: block; color: var(--accent); font-size: 17px; text-shadow: 0 0 8px var(--accent); }
+  .hudbox b.hot { color: var(--bad); text-shadow: 0 0 8px var(--bad); }
+  #arena {
+    width: 100%; max-width: 460px;
+    background: var(--panel);
+    border: 1px solid #2a2a4a;
+    border-radius: 12px;
+    box-shadow: 0 0 18px rgba(255,214,10,.1);
+    padding: 14px 16px 12px;
+    text-align: center;
+    position: relative;
+  }
+  #tierlabel { font-size: 10px; letter-spacing: 3px; color: #8888c0; }
+  #tierlabel b { color: var(--accent); }
+  #question {
+    font-size: clamp(28px, 7vmin, 46px);
+    font-weight: bold;
+    letter-spacing: 3px;
+    color: #fff;
+    text-shadow: 0 0 14px var(--accent);
+    margin: 8px 0 4px;
+    min-height: 1.2em;
+  }
+  #answer {
+    font-size: clamp(24px, 6vmin, 38px);
+    font-weight: bold;
+    letter-spacing: 4px;
+    min-height: 1.25em;
+    color: var(--accent);
+    text-shadow: 0 0 12px var(--accent);
+  }
+  #answer .caret { animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  #arena.good-flash { animation: goodflash .35s; }
+  #arena.bad-flash { animation: badflash .5s; }
+  @keyframes goodflash { 30% { box-shadow: 0 0 34px rgba(0,255,157,.8); border-color: var(--good); } }
+  @keyframes badflash {
+    20%,60% { transform: translateX(-7px); box-shadow: 0 0 30px rgba(255,64,96,.8); border-color: var(--bad); }
+    40%,80% { transform: translateX(7px); }
+  }
+  #qbar { height: 8px; background: #23233d; border-radius: 4px; overflow: hidden; margin-top: 8px; }
+  #qfill { height: 100%; width: 100%; background: var(--good); box-shadow: 0 0 10px var(--good); }
+  #feedback { min-height: 18px; font-size: 12px; letter-spacing: 1px; margin-top: 6px; color: #9a9ac8; }
+  #feedback.good { color: var(--good); text-shadow: 0 0 8px var(--good); }
+  #feedback.bad { color: var(--bad); text-shadow: 0 0 8px var(--bad); }
+  #startbtn {
+    background: var(--accent); color: #221c00; border: none; font-family: inherit;
+    font-weight: bold; font-size: 17px; letter-spacing: 3px; padding: 12px 34px;
+    border-radius: 8px; cursor: pointer; text-transform: uppercase; margin: 10px 0 6px;
+    box-shadow: 0 0 18px var(--accent-dim);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { box-shadow: 0 0 34px var(--accent); } }
+  #pad {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    width: 100%; max-width: 460px;
+    margin-top: 10px;
+  }
+  .pk {
+    height: clamp(40px, 8vh, 58px);
+    background: #23233d; border: 1px solid #34345a; border-radius: 7px;
+    color: #e8e8ff; font-family: inherit; font-weight: bold;
+    font-size: clamp(16px, 3.4vmin, 22px);
+    cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  }
+  .pk:hover { border-color: var(--accent); box-shadow: 0 0 8px var(--accent-dim); }
+  .pk:active { transform: scale(.93); }
+  .pk.enter { grid-row: span 2; background: rgba(255,214,10,.14); border-color: var(--accent); color: var(--accent); font-size: 14px; height: auto; }
+  .pk.util { color: #9a9ac8; font-size: 15px; }
+  #overlay {
+    position: fixed; inset: 0; background: rgba(10,10,20,.9);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 100;
+  }
+  #overlay.show { opacity: 1; pointer-events: auto; }
+  .panel2 {
+    background: var(--panel); border: 2px solid var(--accent); border-radius: 12px;
+    box-shadow: 0 0 30px var(--accent-dim), 0 0 80px rgba(255,214,10,.12);
+    padding: 24px 32px; text-align: center; max-width: 92vw;
+  }
+  .panel2 h2 { color: var(--accent); letter-spacing: 4px; font-size: 24px; text-shadow: 0 0 12px var(--accent); margin-bottom: 8px; }
+  .report { display: grid; grid-template-columns: repeat(2, minmax(110px, 1fr)); gap: 8px; margin: 12px 0 14px; }
+  .rp { background: #14142a; border: 1px solid #2a2a4a; border-radius: 8px; padding: 8px 10px; font-size: 10px; letter-spacing: 1px; color: #9a9ac8; }
+  .rp b { display: block; color: var(--accent); font-size: 19px; text-shadow: 0 0 8px var(--accent); margin-top: 2px; }
+  .panel2 .note { color: #9a9ac8; font-size: 12px; margin-bottom: 12px; }
+  .panel2 .note b { color: var(--accent); }
+  .btn {
+    background: var(--accent); color: #221c00; border: none; font-family: inherit;
+    font-weight: bold; font-size: 15px; letter-spacing: 2px; padding: 11px 26px;
+    border-radius: 6px; cursor: pointer; text-transform: uppercase;
+    box-shadow: 0 0 14px var(--accent-dim);
+  }
+  .btn:hover { box-shadow: 0 0 26px var(--accent); }
+  @media (max-height: 560px) {
+    h1 { font-size: 18px; }
+    #question { margin: 4px 0 2px; }
+    .pk { height: 36px; }
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<h1>Math Blitz</h1>
+<div id="hud">
+  <div class="hudbox">SCORE<b id="h-score">0</b></div>
+  <div class="hudbox">TIME<b id="h-time">90</b></div>
+  <div class="hudbox">STREAK<b id="h-streak">0</b></div>
+  <div class="hudbox">MULTI<b id="h-mult">x1</b></div>
+  <div class="hudbox">BEST<b id="h-best">0</b></div>
+</div>
+<div id="arena">
+  <div id="tierlabel">TIER <b id="h-tier">1</b> — ADD &amp; SUBTRACT</div>
+  <div id="question">7 + 5 = ?</div>
+  <div id="answer"><span class="caret">_</span></div>
+  <button id="startbtn">▶ Start 90s Blitz</button>
+  <div id="qbar"><div id="qfill"></div></div>
+  <div id="feedback">Answer before the green bar empties!</div>
+</div>
+<div id="pad">
+  <button class="pk" data-k="7">7</button>
+  <button class="pk" data-k="8">8</button>
+  <button class="pk" data-k="9">9</button>
+  <button class="pk enter" data-k="ENTER">ENTER<br>↵</button>
+  <button class="pk" data-k="4">4</button>
+  <button class="pk" data-k="5">5</button>
+  <button class="pk" data-k="6">6</button>
+  <button class="pk" data-k="1">1</button>
+  <button class="pk" data-k="2">2</button>
+  <button class="pk" data-k="3">3</button>
+  <button class="pk enter" data-k="DEL" style="grid-row: span 2; background:#23233d; color:#9a9ac8; border-color:#34345a;">⌫</button>
+  <button class="pk util" data-k="CLR">CLR</button>
+  <button class="pk" data-k="0">0</button>
+  <button class="pk util" data-k="NEG">±</button>
+</div>
+<div id="overlay">
+  <div class="panel2">
+    <h2>BLITZ REPORT</h2>
+    <div class="report">
+      <div class="rp">FINAL SCORE<b id="r-score">0</b></div>
+      <div class="rp">CORRECT<b id="r-correct">0</b></div>
+      <div class="rp">ACCURACY<b id="r-acc">0%</b></div>
+      <div class="rp">BEST STREAK<b id="r-streak">0</b></div>
+      <div class="rp">TOP TIER<b id="r-tier">1</b></div>
+      <div class="rp">ALL-TIME BEST<b id="r-best">0</b></div>
+    </div>
+    <div class="note" id="r-note"></div>
+    <button class="btn" id="ov-again">Play Again</button>
+  </div>
+</div>
+<script>
+(function () {
+  "use strict";
+  // keep physical Enter/Space from re-triggering the last clicked button
+  document.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("button") : null;
+    if (b) b.blur();
+  });
+  // ---------- audio ----------
+  var actx = null;
+  function initAudio() {
+    if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; } }
+    if (actx && actx.state === "suspended") actx.resume();
+  }
+  document.addEventListener("pointerdown", initAudio, { once: true });
+  document.addEventListener("keydown", initAudio, { once: true });
+  function beep(freq, dur, type, vol) {
+    if (!actx) return;
+    try {
+      dur = dur || 0.06; type = type || "square"; vol = vol || 0.035;
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+      o.connect(g); g.connect(actx.destination);
+      o.start(); o.stop(actx.currentTime + dur);
+    } catch (e) { /* ignore */ }
+  }
+
+  // ---------- storage ----------
+  var STORE_KEY = "wizzed-math-blitz";
+  var store = { best: 0, games: 0 };
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (raw) { var p = JSON.parse(raw); if (p && typeof p === "object") store = Object.assign(store, p); }
+  } catch (e) { /* ignore */ }
+  function saveStore() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) { /* ignore */ } }
+
+  // ---------- helpers ----------
+  function rnd(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+
+  var TIER_NAMES = ["ADD & SUBTRACT", "TIMES TABLES", "DIVISION JOINS", "BIG NUMBERS", "HEAVY DUTY", "MAXIMUM BLITZ"];
+
+  function genProblem(tier) {
+    var ops;
+    if (tier === 1) ops = ["+", "-"];
+    else if (tier === 2) ops = ["+", "-", "×"];
+    else ops = ["+", "-", "×", "÷"];
+    var op = ops[rnd(0, ops.length - 1)];
+    var a, b, ans;
+    var addMax = [10, 20, 50, 99, 149, 299][Math.min(tier, 6) - 1];
+    var mulMax = [5, 5, 9, 12, 15, 19][Math.min(tier, 6) - 1];
+    if (op === "+") {
+      a = rnd(1, addMax); b = rnd(1, addMax); ans = a + b;
+    } else if (op === "-") {
+      a = rnd(1, addMax); b = rnd(1, addMax);
+      if (b > a) { var t = a; a = b; b = t; }
+      ans = a - b;
+    } else if (op === "×") {
+      a = rnd(2, mulMax); b = rnd(2, mulMax); ans = a * b;
+    } else {
+      b = rnd(2, mulMax); ans = rnd(2, mulMax); a = b * ans;
+    }
+    return { text: a + " " + op + " " + b + " = ?", ans: ans };
+  }
+
+  // ---------- state ----------
+  var RUN_SECONDS = 90;
+  var running = false, locked = false;
+  var runStart = 0, qStart = 0, qDur = 8000;
+  var rafId = 0;
+  var score = 0, streak = 0, bestStreak = 0, correct = 0, wrongOrTimeout = 0, topTier = 1;
+  var problem = null;
+  var answerStr = "";
+
+  var qEl = document.getElementById("question");
+  var ansEl = document.getElementById("answer");
+  var fbEl = document.getElementById("feedback");
+  var arenaEl = document.getElementById("arena");
+  var qfillEl = document.getElementById("qfill");
+
+  function currentTier() { return Math.min(6, 1 + Math.floor(correct / 5)); }
+  function currentMult() { return Math.min(5, 1 + Math.floor(streak / 3)); }
+
+  function renderHud() {
+    document.getElementById("h-score").textContent = score;
+    var st = document.getElementById("h-streak");
+    st.textContent = streak;
+    st.className = streak >= 6 ? "hot" : "";
+    document.getElementById("h-mult").textContent = "x" + currentMult();
+    document.getElementById("h-best").textContent = store.best;
+    var tier = currentTier();
+    document.getElementById("tierlabel").innerHTML = 'TIER <b id="h-tier">' + tier + "</b> — " + TIER_NAMES[tier - 1];
+  }
+
+  function renderAnswer() {
+    ansEl.innerHTML = (answerStr === "" ? "" : answerStr) + '<span class="caret">_</span>';
+  }
+
+  function nextQuestion() {
+    var tier = currentTier();
+    if (tier > topTier) topTier = tier;
+    problem = genProblem(tier);
+    qEl.textContent = problem.text;
+    answerStr = "";
+    renderAnswer();
+    qDur = Math.max(3500, 8200 - (tier - 1) * 900);
+    qStart = performance.now();
+    locked = false;
+    renderHud();
+  }
+
+  function flash(kind, msg) {
+    arenaEl.classList.remove("good-flash", "bad-flash");
+    void arenaEl.offsetWidth;
+    arenaEl.classList.add(kind === "good" ? "good-flash" : "bad-flash");
+    fbEl.textContent = msg;
+    fbEl.className = kind;
+  }
+
+  function submit() {
+    if (!running || locked || answerStr === "" || answerStr === "-") return;
+    var val = parseInt(answerStr, 10);
+    if (val === problem.ans) {
+      var pts = (5 + currentTier() * 5) * currentMult();
+      score += pts;
+      streak++;
+      if (streak > bestStreak) bestStreak = streak;
+      correct++;
+      flash("good", "+" + pts + " pts" + (currentMult() > 1 ? "  (x" + currentMult() + " multi)" : ""));
+      beep(660 + streak * 30, 0.07, "square", 0.04);
+      nextQuestion();
+    } else {
+      wrongOrTimeout++;
+      streak = 0;
+      flash("bad", "WRONG — answer was " + problem.ans);
+      beep(150, 0.2, "sawtooth", 0.05);
+      lockThenNext();
+    }
+  }
+
+  function timeoutQuestion() {
+    wrongOrTimeout++;
+    streak = 0;
+    flash("bad", "TIME! — answer was " + problem.ans);
+    beep(120, 0.25, "sawtooth", 0.05);
+    lockThenNext();
+  }
+
+  function lockThenNext() {
+    locked = true;
+    renderHud();
+    setTimeout(function () { if (running) nextQuestion(); }, 750);
+  }
+
+  function loop(now) {
+    if (!running) return;
+    var elapsed = (now - runStart) / 1000;
+    var left = Math.max(0, RUN_SECONDS - elapsed);
+    var timeEl = document.getElementById("h-time");
+    timeEl.textContent = Math.ceil(left);
+    timeEl.className = left <= 10 ? "hot" : "";
+    if (!locked) {
+      var qfrac = Math.max(0, 1 - (now - qStart) / qDur);
+      qfillEl.style.width = (qfrac * 100) + "%";
+      qfillEl.style.background = qfrac < 0.3 ? "#ff4060" : "#00ff9d";
+      qfillEl.style.boxShadow = "0 0 10px " + (qfrac < 0.3 ? "#ff4060" : "#00ff9d");
+      if (qfrac <= 0) timeoutQuestion();
+    }
+    if (left <= 0) { endRun(); return; }
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function startRun() {
+    running = true; locked = false;
+    score = 0; streak = 0; bestStreak = 0; correct = 0; wrongOrTimeout = 0; topTier = 1;
+    runStart = performance.now();
+    document.getElementById("startbtn").style.display = "none";
+    document.getElementById("overlay").classList.remove("show");
+    fbEl.textContent = "GO!";
+    fbEl.className = "good";
+    beep(880, 0.1, "square", 0.05);
+    nextQuestion();
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function endRun() {
+    running = false;
+    cancelAnimationFrame(rafId);
+    var answered = correct + wrongOrTimeout;
+    var acc = answered ? Math.round(correct / answered * 100) : 0;
+    var isBest = score > store.best;
+    if (isBest) store.best = score;
+    store.games++;
+    saveStore();
+    [523, 659, 784, 1047].forEach(function (f, i) { setTimeout(function () { beep(f, 0.12, "square", 0.05); }, i * 110); });
+    document.getElementById("r-score").textContent = score;
+    document.getElementById("r-correct").textContent = correct + "/" + answered;
+    document.getElementById("r-acc").textContent = acc + "%";
+    document.getElementById("r-streak").textContent = bestStreak;
+    document.getElementById("r-tier").textContent = topTier;
+    document.getElementById("r-best").textContent = store.best;
+    document.getElementById("r-note").innerHTML = isBest
+      ? "★ NEW ALL-TIME BEST SCORE ★"
+      : "Games played: <b>" + store.games + "</b> — beat <b>" + store.best + "</b> next run!";
+    document.getElementById("overlay").classList.add("show");
+    document.getElementById("startbtn").style.display = "";
+    qEl.textContent = "7 + 5 = ?";
+    fbEl.textContent = "Answer before the green bar empties!";
+    fbEl.className = "";
+    qfillEl.style.width = "100%";
+    renderHud();
+  }
+
+  function handleKey(k) {
+    if (!running) {
+      if (k === "ENTER") startRun();
+      return;
+    }
+    if (locked) return;
+    if (k === "ENTER") { submit(); return; }
+    if (k === "DEL") { answerStr = answerStr.slice(0, -1); renderAnswer(); beep(200, 0.03, "square", 0.02); return; }
+    if (k === "CLR") { answerStr = ""; renderAnswer(); return; }
+    if (k === "NEG") {
+      answerStr = answerStr.indexOf("-") === 0 ? answerStr.slice(1) : "-" + answerStr;
+      renderAnswer();
+      return;
+    }
+    if (/^[0-9]$/.test(k) && answerStr.replace("-", "").length < 5) {
+      answerStr += k;
+      renderAnswer();
+      beep(500, 0.03, "square", 0.02);
+    }
+  }
+
+  document.querySelectorAll(".pk").forEach(function (b) {
+    b.addEventListener("click", function () { handleKey(b.getAttribute("data-k")); });
+  });
+  document.getElementById("startbtn").addEventListener("click", startRun);
+  document.getElementById("ov-again").addEventListener("click", startRun);
+
+  window.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Enter") { handleKey("ENTER"); e.preventDefault(); }
+    else if (e.key === "Backspace") { handleKey("DEL"); e.preventDefault(); }
+    else if (e.key === "-") handleKey("NEG");
+    else if (/^[0-9]$/.test(e.key)) handleKey(e.key);
+  });
+
+  renderHud();
+})();
+</script>
+</body>
+</html>

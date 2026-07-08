@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Synth Piano · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#00e5ff; --accent-soft:rgba(0,229,255,.5);
+  --panel:#141425; --line:#26264a; --text:#e8f6ff; --dim:#7f8fb0;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:16px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+#rack{
+  max-width:900px; margin:6px auto 0; padding:0 12px;
+}
+.controls{
+  display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; justify-content:center;
+  background:var(--panel); border:2px solid var(--line); padding:8px 10px;
+  box-shadow:0 0 0 1px #000, 0 0 18px rgba(0,229,255,.10);
+}
+.ctl{ display:flex; align-items:center; gap:6px; font-size:11px; letter-spacing:1px; color:var(--dim); }
+.ctl b{ color:var(--accent); font-weight:normal; min-width:34px; text-align:right; }
+select,button{
+  font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer;
+  background:#101024; color:var(--text); border:1px solid var(--line); padding:5px 8px;
+}
+button:hover,select:hover{ border-color:var(--accent); }
+button.on{
+  border-color:var(--accent); color:#fff; background:#0a2a33;
+  box-shadow:0 0 10px var(--accent-soft); text-shadow:0 0 6px var(--accent);
+}
+input[type=range]{ width:86px; accent-color:#00e5ff; }
+#vizWrap{
+  margin-top:10px; background:#0a0a14; border:2px solid var(--line);
+  border-bottom:none; box-shadow:0 0 0 1px #000;
+}
+canvas#viz{ display:block; width:100%; height:140px; }
+#keyboard{
+  position:relative; height:190px; user-select:none; touch-action:none;
+  border:2px solid var(--line); border-top:1px solid var(--line);
+  background:#05050c; box-shadow:0 0 0 1px #000, 0 6px 30px rgba(0,229,255,.12);
+}
+.key{ position:absolute; top:0; cursor:pointer; touch-action:none; }
+.key.white{
+  height:100%; background:linear-gradient(#dfe4f2,#b9c1d8);
+  border:1px solid #05050c; border-radius:0 0 4px 4px; z-index:1;
+}
+.key.black{
+  height:60%; background:linear-gradient(#2a2a3e,#0c0c16);
+  border:1px solid #000; border-radius:0 0 3px 3px; z-index:2;
+}
+.key.active.white{ background:linear-gradient(#9ff6ff,#28d5ee); box-shadow:0 0 18px var(--accent), inset 0 0 12px rgba(255,255,255,.7); }
+.key.active.black{ background:linear-gradient(#0e5f70,#00b7cc); box-shadow:0 0 18px var(--accent); }
+.key .lab{
+  position:absolute; bottom:5px; left:0; right:0; text-align:center;
+  font-size:10px; color:#3a3f58; pointer-events:none;
+}
+.key.black .lab{ color:#8f9ab8; bottom:4px; font-size:9px; }
+.key .nname{
+  position:absolute; bottom:18px; left:0; right:0; text-align:center;
+  font-size:8px; color:#7c86a6; pointer-events:none;
+}
+#hint{ text-align:center; font-size:10px; color:var(--dim); letter-spacing:1px; margin-top:8px; }
+@media (max-width:640px){
+  .ctl b{ min-width:28px; }
+  #keyboard{ height:150px; }
+  canvas#viz{ height:100px; }
+}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>SYNTH PIANO</h1>
+  <div class="sub">2-OCTAVE WEBAUDIO SYNTHESIZER</div>
+</header>
+<div id="rack">
+  <div class="controls">
+    <div class="ctl">WAVE
+      <select id="waveSel">
+        <option value="sine">SINE</option>
+        <option value="square">SQUARE</option>
+        <option value="sawtooth" selected>SAW</option>
+        <option value="triangle">TRIANGLE</option>
+      </select>
+    </div>
+    <div class="ctl">ATK <input type="range" id="atk" min="1" max="800" value="15"><b id="atkVal">15ms</b></div>
+    <div class="ctl">REL <input type="range" id="rel" min="30" max="2500" value="400"><b id="relVal">0.4s</b></div>
+    <div class="ctl">VOL <input type="range" id="vol" min="0" max="100" value="60"><b id="volVal">60%</b></div>
+    <div class="ctl">OCT
+      <button id="octDown">&minus;</button><b id="octVal">C4</b><button id="octUp">+</button>
+    </div>
+    <button id="sustainBtn">SUSTAIN [SPACE]</button>
+    <button id="demoBtn">&#9654; DEMO SONG</button>
+  </div>
+  <div id="vizWrap"><canvas id="viz"></canvas></div>
+  <div id="keyboard"></div>
+  <div id="hint">PLAY WITH MOUSE / TOUCH &middot; KEYS: A S D F G H J K L ; (SHARPS: W E T Y U O P) &middot; Z / X = OCTAVE</div>
+</div>
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-synth-piano';
+var NUM_KEYS=25;
+var BLACKS=[1,3,6,8,10];
+var NOTE_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+var KEYMAP={'a':0,'w':1,'s':2,'e':3,'d':4,'f':5,'t':6,'g':7,'y':8,'h':9,'u':10,'j':11,
+            'k':12,'o':13,'l':14,'p':15,';':16};
+
+var settings={wave:'sawtooth',attack:15,release:400,volume:60,octave:4,sustain:false};
+try{
+  var raw=localStorage.getItem(LS_KEY);
+  if(raw){ var o=JSON.parse(raw); if(o&&typeof o==='object') settings=Object.assign(settings,o); }
+}catch(e){}
+function persist(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(settings)); }catch(e){} }
+
+/* ---------- audio ---------- */
+var actx=null, master=null;
+function ensureAudio(){
+  if(!actx){
+    var AC=window.AudioContext||window.webkitAudioContext;
+    actx=new AC();
+    master=actx.createGain();
+    master.gain.value=settings.volume/100*0.6;
+    var comp=actx.createDynamicsCompressor();
+    master.connect(comp); comp.connect(actx.destination);
+  }
+  if(actx.state==='suspended') actx.resume();
+}
+function freqOf(i){
+  var midi=12*(settings.octave+1)+i;
+  return 440*Math.pow(2,(midi-69)/12);
+}
+var voices={}; /* index -> {osc,g,held} */
+function noteOn(i,vel){
+  ensureAudio();
+  if(voices[i]){ voices[i].held=true; return; }
+  var t=actx.currentTime;
+  var osc=actx.createOscillator();
+  osc.type=settings.wave;
+  osc.frequency.value=freqOf(i);
+  var g=actx.createGain();
+  var peak=(vel||0.32);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.linearRampToValueAtTime(peak,t+Math.max(settings.attack/1000,0.002));
+  osc.connect(g); g.connect(master);
+  osc.start();
+  voices[i]={osc:osc,g:g,held:true};
+  keyEls[i]&&keyEls[i].classList.add('active');
+}
+function releaseVoice(i){
+  var v=voices[i];
+  if(!v) return;
+  var t=actx.currentTime;
+  var relS=Math.max(settings.release/1000,0.03);
+  v.g.gain.cancelScheduledValues(t);
+  v.g.gain.setValueAtTime(v.g.gain.value,t);
+  v.g.gain.setTargetAtTime(0.0001,t,relS/4);
+  try{ v.osc.stop(t+relS+0.3); }catch(e){}
+  delete voices[i];
+  keyEls[i]&&keyEls[i].classList.remove('active');
+}
+function noteOff(i){
+  var v=voices[i];
+  if(!v) return;
+  v.held=false;
+  if(settings.sustain) return; /* pedal holds it */
+  releaseVoice(i);
+}
+function releaseUnheld(){
+  for(var k in voices){ if(!voices[k].held) releaseVoice(parseInt(k,10)); }
+}
+
+/* ---------- build keyboard ---------- */
+var kb=document.getElementById('keyboard');
+var keyEls=[];
+var KEYCHARS={};
+for(var kk in KEYMAP) KEYCHARS[KEYMAP[kk]]=kk;
+function whiteCountBefore(i){
+  var n=0;
+  for(var j=0;j<i;j++) if(BLACKS.indexOf(j%12)===-1) n++;
+  return n;
+}
+var totalWhites=whiteCountBefore(NUM_KEYS);
+function buildKeys(){
+  kb.innerHTML=''; keyEls=[];
+  var wW=100/totalWhites;
+  for(var i=0;i<NUM_KEYS;i++){
+    var st=i%12;
+    var isBlack=BLACKS.indexOf(st)!==-1;
+    var el=document.createElement('div');
+    el.className='key '+(isBlack?'black':'white');
+    if(isBlack){
+      var bw=wW*0.62;
+      el.style.left=(whiteCountBefore(i+1)*wW-bw/2)+'%';
+      el.style.width=bw+'%';
+    }else{
+      el.style.left=(whiteCountBefore(i)*wW)+'%';
+      el.style.width=wW+'%';
+    }
+    var lab=document.createElement('div');
+    lab.className='lab';
+    lab.textContent=(KEYCHARS[i]||'').toUpperCase();
+    el.appendChild(lab);
+    if(!isBlack&&st===0){
+      var nn=document.createElement('div');
+      nn.className='nname';
+      nn.textContent='C'+(settings.octave+Math.floor(i/12));
+      el.appendChild(nn);
+    }
+    el.dataset.i=String(i);
+    kb.appendChild(el);
+    keyEls.push(el);
+  }
+}
+function refreshLabels(){
+  for(var i=0;i<NUM_KEYS;i++){
+    var nn=keyEls[i].querySelector('.nname');
+    if(nn) nn.textContent='C'+(settings.octave+Math.floor(i/12));
+  }
+}
+
+/* pointer play with glissando */
+var pointerNotes={}; /* pointerId -> note index */
+kb.addEventListener('pointerdown',function(e){
+  var el=e.target.closest('.key');
+  if(!el) return;
+  e.preventDefault();
+  var i=parseInt(el.dataset.i,10);
+  pointerNotes[e.pointerId]=i;
+  noteOn(i);
+});
+kb.addEventListener('pointerover',function(e){
+  if(!(e.buttons&1)) return;
+  var el=e.target.closest('.key');
+  if(!el) return;
+  var i=parseInt(el.dataset.i,10);
+  var prev=pointerNotes[e.pointerId];
+  if(prev===i) return;
+  if(prev!==undefined) noteOff(prev);
+  pointerNotes[e.pointerId]=i;
+  noteOn(i);
+});
+function pointerEnd(e){
+  var i=pointerNotes[e.pointerId];
+  if(i!==undefined){ noteOff(i); delete pointerNotes[e.pointerId]; }
+}
+window.addEventListener('pointerup',pointerEnd);
+window.addEventListener('pointercancel',pointerEnd);
+
+/* ---------- computer keyboard ---------- */
+var downKeys={};
+document.addEventListener('keydown',function(e){
+  if(e.repeat) return;
+  var tag=(e.target&&e.target.tagName)||'';
+  if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA') return;
+  var k=e.key.toLowerCase();
+  if(k===' '){ e.preventDefault(); setSustain(!settings.sustain); return; }
+  if(k==='z'){ shiftOct(-1); return; }
+  if(k==='x'){ shiftOct(1); return; }
+  if(KEYMAP.hasOwnProperty(k)&&!downKeys[k]){
+    downKeys[k]=true;
+    noteOn(KEYMAP[k]);
+  }
+});
+document.addEventListener('keyup',function(e){
+  var k=e.key.toLowerCase();
+  if(KEYMAP.hasOwnProperty(k)){
+    downKeys[k]=false;
+    noteOff(KEYMAP[k]);
+  }
+});
+
+/* ---------- controls ---------- */
+var waveSel=document.getElementById('waveSel');
+var atk=document.getElementById('atk'), rel=document.getElementById('rel'), vol=document.getElementById('vol');
+var atkVal=document.getElementById('atkVal'), relVal=document.getElementById('relVal'), volVal=document.getElementById('volVal');
+var octVal=document.getElementById('octVal');
+var sustainBtn=document.getElementById('sustainBtn');
+
+function syncUI(){
+  waveSel.value=settings.wave;
+  atk.value=settings.attack; atkVal.textContent=settings.attack+'ms';
+  rel.value=settings.release; relVal.textContent=(settings.release/1000).toFixed(1)+'s';
+  vol.value=settings.volume; volVal.textContent=settings.volume+'%';
+  octVal.textContent='C'+settings.octave;
+  sustainBtn.classList.toggle('on',settings.sustain);
+}
+waveSel.addEventListener('change',function(){ settings.wave=this.value; persist(); });
+atk.addEventListener('input',function(){ settings.attack=+this.value; atkVal.textContent=settings.attack+'ms'; persist(); });
+rel.addEventListener('input',function(){ settings.release=+this.value; relVal.textContent=(settings.release/1000).toFixed(1)+'s'; persist(); });
+vol.addEventListener('input',function(){
+  settings.volume=+this.value; volVal.textContent=settings.volume+'%';
+  if(master) master.gain.value=settings.volume/100*0.6;
+  persist();
+});
+function shiftOct(d){
+  var n=Math.min(6,Math.max(2,settings.octave+d));
+  if(n===settings.octave) return;
+  for(var i in voices) releaseVoice(parseInt(i,10));
+  settings.octave=n; refreshLabels(); syncUI(); persist();
+}
+document.getElementById('octDown').addEventListener('click',function(){ shiftOct(-1); });
+document.getElementById('octUp').addEventListener('click',function(){ shiftOct(1); });
+function setSustain(v){
+  settings.sustain=v;
+  sustainBtn.classList.toggle('on',v);
+  if(!v) releaseUnheld();
+  persist();
+}
+sustainBtn.addEventListener('click',function(){ setSustain(!settings.sustain); });
+
+/* ---------- demo song (Ode to Joy) ---------- */
+var demoBtn=document.getElementById('demoBtn');
+var demoTimers=[]; var demoPlaying=false;
+var SONG=(function(){
+  var seq=[4,4,5,7,7,5,4,2,0,0,2,4,[4,1.5],[2,.5],[2,2],
+           4,4,5,7,7,5,4,2,0,0,2,4,[2,1.5],[0,.5],[0,2]];
+  var out=[], t=0;
+  seq.forEach(function(n){
+    var note=Array.isArray(n)?n[0]:n;
+    var dur=Array.isArray(n)?n[1]:1;
+    out.push([note,t,dur]); t+=dur;
+  });
+  return out;
+})();
+function stopDemo(){
+  demoTimers.forEach(clearTimeout);
+  demoTimers=[]; demoPlaying=false;
+  demoBtn.classList.remove('on');
+  demoBtn.innerHTML='&#9654; DEMO SONG';
+  for(var i in voices) releaseVoice(parseInt(i,10));
+}
+demoBtn.addEventListener('click',function(){
+  if(demoPlaying){ stopDemo(); return; }
+  ensureAudio();
+  demoPlaying=true;
+  demoBtn.classList.add('on');
+  demoBtn.innerHTML='&#9632; STOP';
+  var beat=380;
+  SONG.forEach(function(n){
+    var idx=n[0], start=n[1]*beat, dur=Math.max(n[2]*beat-60,120);
+    demoTimers.push(setTimeout(function(){ noteOn(idx,0.3); },start));
+    demoTimers.push(setTimeout(function(){
+      var v=voices[idx];
+      if(v){ v.held=false; releaseVoice(idx); }
+    },start+dur));
+  });
+  var end=SONG[SONG.length-1];
+  demoTimers.push(setTimeout(stopDemo,(end[1]+end[2])*beat+600));
+});
+
+/* ---------- visualizer ---------- */
+var viz=document.getElementById('viz');
+var vctx=viz.getContext('2d');
+function sizeViz(){
+  viz.width=viz.clientWidth*(window.devicePixelRatio||1);
+  viz.height=viz.clientHeight*(window.devicePixelRatio||1);
+}
+sizeViz();
+window.addEventListener('resize',sizeViz);
+function keyCenterX(i){
+  var el=keyEls[i];
+  if(!el) return 0;
+  return (el.offsetLeft+el.offsetWidth/2)/kb.offsetWidth*viz.width;
+}
+function frame(){
+  /* scroll existing pixels up + fade */
+  vctx.globalCompositeOperation='source-over';
+  vctx.drawImage(viz,0,-3);
+  vctx.fillStyle='rgba(10,10,20,0.10)';
+  vctx.fillRect(0,0,viz.width,viz.height);
+  /* draw active notes at the bottom */
+  for(var k in voices){
+    var i=parseInt(k,10);
+    var x=keyCenterX(i);
+    var w=Math.max(viz.width/60,4);
+    var hue=180+(i/NUM_KEYS)*140;
+    vctx.fillStyle='hsla('+hue+',100%,62%,0.95)';
+    vctx.shadowColor='hsl('+hue+',100%,62%)';
+    vctx.shadowBlur=14;
+    vctx.fillRect(x-w/2,viz.height-6,w,6);
+    vctx.shadowBlur=0;
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- init ---------- */
+buildKeys();
+syncUI();
+/* pre-paint viz so it isn't pitch black on load */
+(function(){
+  vctx.fillStyle='#0a0a14';
+  vctx.fillRect(0,0,viz.width,viz.height);
+  for(var i=0;i<26;i++){
+    var x=Math.random()*viz.width, y=Math.random()*viz.height;
+    var hue=180+Math.random()*140;
+    vctx.fillStyle='hsla('+hue+',100%,60%,'+(0.10+Math.random()*0.35)+')';
+    vctx.shadowColor='hsl('+hue+',100%,60%)';
+    vctx.shadowBlur=10;
+    vctx.fillRect(x,y,Math.max(viz.width/60,4),3+Math.random()*14);
+  }
+  vctx.shadowBlur=0;
+})();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

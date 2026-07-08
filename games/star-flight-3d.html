@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Flight – Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #0f0f1a; overflow: hidden; color: #cfe9ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  canvas { display: block; }
+  a.back {
+    position: fixed; top: 12px; left: 12px; z-index: 40;
+    color: #7f8fc0; text-decoration: none; font-size: 13px;
+    background: rgba(12,12,32,0.7); border: 1px solid #26264d;
+    padding: 5px 10px; border-radius: 6px;
+  }
+  a.back:hover { color: #4ff3ff; border-color: #4ff3ff; }
+  #hud {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 30; display: flex; gap: 20px; pointer-events: none;
+    background: rgba(10,10,28,0.6); border: 1px solid #23234a;
+    padding: 7px 16px; border-radius: 8px; font-size: 13px;
+    color: #9fd8ff; text-shadow: 0 0 8px #2288ff; white-space: nowrap;
+  }
+  #hud b { color: #ffd34f; text-shadow: 0 0 10px #ff9a00; font-weight: normal; }
+  #hud .sh { color: #29e6a7; text-shadow: 0 0 10px #0aa877; }
+  #bonus {
+    position: fixed; top: 26%; left: 50%; transform: translateX(-50%);
+    z-index: 30; font-size: 20px; color: #4ff3ff; pointer-events: none;
+    text-shadow: 0 0 16px #00c8ff; opacity: 0; transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  #hint {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 25; font-size: 11px; color: #56628f; pointer-events: none;
+    text-shadow: 0 0 6px #101040; white-space: nowrap;
+  }
+  .overlay {
+    position: fixed; inset: 0; z-index: 50; display: flex;
+    align-items: center; justify-content: center; pointer-events: none;
+  }
+  .overlay .panel {
+    pointer-events: all; text-align: center; max-width: 430px;
+    background: rgba(10,10,30,0.82); border: 1px solid #3a2a7a;
+    border-radius: 14px; padding: 26px 34px;
+    box-shadow: 0 0 40px rgba(80,40,255,0.25);
+  }
+  .overlay h1 { font-size: 26px; letter-spacing: 4px; color: #4ff3ff; text-shadow: 0 0 18px #00c8ff; margin-bottom: 10px; }
+  .overlay h1.red { color: #ff5577; text-shadow: 0 0 18px #ff2255; }
+  .overlay p { font-size: 13px; color: #8fa2d8; line-height: 1.7; margin-bottom: 14px; }
+  .overlay .big { font-size: 17px; color: #eafcff; text-shadow: 0 0 12px #00c8ff; }
+  .overlay button {
+    font-family: inherit; font-size: 15px; font-weight: bold; letter-spacing: 2px;
+    padding: 10px 30px; border: none; border-radius: 8px; cursor: pointer;
+    background: #29e6a7; color: #0a0a18; box-shadow: 0 0 18px #29e6a788;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<div id="hud">
+  <span>SCORE <b id="score">0</b></span>
+  <span>SPEED <b id="speed">0</b></span>
+  <span class="sh">SHIELD <span id="shield">◈</span></span>
+  <span>BEST <b id="best">0</b></span>
+</div>
+<div id="bonus"></div>
+<div id="hint">move mouse / drag to steer · dodge asteroids · graze them for bonus</div>
+<div class="overlay" id="start-ov">
+  <div class="panel">
+    <h1>STAR FLIGHT</h1>
+    <p>Thread the endless asteroid field.<br>
+    Steer with mouse or touch — your ship banks into the turn.<br>
+    Near-misses score bonus points. Grab <span style="color:#29e6a7">◈ shields</span> to survive a hit.<br>
+    Speed only ever increases…</p>
+    <button id="start-btn">LAUNCH</button>
+  </div>
+</div>
+<div class="overlay" id="over-ov" style="display:none">
+  <div class="panel">
+    <h1 class="red">SHIP DESTROYED</h1>
+    <p class="big" id="over-stats"></p>
+    <p id="over-sub"></p>
+    <button id="restart-btn">FLY AGAIN (R)</button>
+  </div>
+</div>
+<script src="../lib/three.min.js"></script>
+<script>
+'use strict';
+// ── Star Flight ────────────────────────────────────────────────────────────
+const SLUG = 'wizzed-star-flight-3d';
+let best = parseInt(localStorage.getItem(SLUG) || '0', 10) || 0;
+document.getElementById('best').textContent = best;
+
+const XLIM = 8.5, YLIM = 4.6;
+
+// ── Scene ──────────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f0f1a);
+scene.fog = new THREE.FogExp2(0x0f0f1a, 0.0135);
+
+const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 400);
+camera.position.set(0, 1.6, 7);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// lights
+scene.add(new THREE.AmbientLight(0x333a66, 1.3));
+scene.add(new THREE.HemisphereLight(0x6688ff, 0x180a28, 0.9));
+const keyLight = new THREE.DirectionalLight(0xaaccff, 1.6);
+keyLight.position.set(4, 8, 6);
+scene.add(keyLight);
+const engineLight = new THREE.PointLight(0x33ddff, 8, 14, 1.5);
+scene.add(engineLight);
+
+// ── Nebula sprites ─────────────────────────────────────────────────────────
+function nebulaTexture(col) {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(128, 128, 8, 128, 128, 128);
+  grad.addColorStop(0, col + 'aa');
+  grad.addColorStop(0.5, col + '44');
+  grad.addColorStop(1, col + '00');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 256, 256);
+  return new THREE.CanvasTexture(c);
+}
+const nebulae = [];
+[['#7722ff', -60, 25, -180, 190], ['#2266ff', 70, -20, -200, 230], ['#ff2299', 10, 45, -220, 170], ['#00ccaa', -80, -35, -210, 150]]
+  .forEach(([col, x, y, z, s]) => {
+    const mat = new THREE.SpriteMaterial({
+      map: nebulaTexture(col), transparent: true, opacity: 0.5, depthWrite: false, fog: false
+    });
+    const sp = new THREE.Sprite(mat);
+    sp.position.set(x, y, z);
+    sp.scale.set(s, s, 1);
+    scene.add(sp);
+    nebulae.push(sp);
+  });
+
+// ── Starfield ──────────────────────────────────────────────────────────────
+const STARS = 900;
+const starGeo = new THREE.BufferGeometry();
+const starPos = new Float32Array(STARS * 3);
+for (let i = 0; i < STARS; i++) {
+  starPos[i * 3] = (Math.random() - 0.5) * 120;
+  starPos[i * 3 + 1] = (Math.random() - 0.5) * 70;
+  starPos[i * 3 + 2] = -Math.random() * 250 + 10;
+}
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
+  color: 0xbaccff, size: 0.35, sizeAttenuation: true, transparent: true, opacity: 0.9, fog: false
+}));
+scene.add(stars);
+
+// ── Ship ───────────────────────────────────────────────────────────────────
+const ship = new THREE.Group();
+{
+  const hullMat = new THREE.MeshStandardMaterial({
+    color: 0x2a3a66, emissive: 0x1133aa, emissiveIntensity: 0.5, metalness: 0.8, roughness: 0.25
+  });
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.7, 8), hullMat);
+  nose.rotation.x = -Math.PI / 2;
+  nose.position.z = -0.3;
+  ship.add(nose);
+  const wingMat = new THREE.MeshStandardMaterial({
+    color: 0x16204a, emissive: 0x22ccff, emissiveIntensity: 0.8, metalness: 0.7, roughness: 0.3
+  });
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.07, 0.75), wingMat);
+  wing.position.z = 0.35;
+  ship.add(wing);
+  const finMat = new THREE.MeshStandardMaterial({
+    color: 0x16204a, emissive: 0xff33aa, emissiveIntensity: 0.9, metalness: 0.7, roughness: 0.3
+  });
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.62, 0.6), finMat);
+  fin.position.set(0, 0.34, 0.42);
+  ship.add(fin);
+  const engine = new THREE.Mesh(
+    new THREE.SphereGeometry(0.2, 10, 10),
+    new THREE.MeshBasicMaterial({ color: 0x66eeff })
+  );
+  engine.position.z = 0.72;
+  ship.add(engine);
+  ship.userData.engine = engine;
+}
+scene.add(ship);
+
+// shield bubble
+const shieldMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(1.35, 18, 18),
+  new THREE.MeshBasicMaterial({ color: 0x29e6a7, transparent: true, opacity: 0.16, side: THREE.DoubleSide })
+);
+ship.add(shieldMesh);
+
+// engine trail particles
+const TRAIL = 60;
+const trailGeo = new THREE.BufferGeometry();
+const trailPos = new Float32Array(TRAIL * 3);
+trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
+const trail = new THREE.Points(trailGeo, new THREE.PointsMaterial({
+  color: 0x55eeff, size: 0.22, transparent: true, opacity: 0.75, sizeAttenuation: true
+}));
+scene.add(trail);
+const trailData = [];
+for (let i = 0; i < TRAIL; i++) trailData.push({ x: 0, y: -999, z: 0, life: 0 });
+
+// ── Asteroids ──────────────────────────────────────────────────────────────
+function rockGeometry() {
+  const g = new THREE.IcosahedronGeometry(1, 1);
+  const p = g.getAttribute('position');
+  const uniq = {};
+  for (let i = 0; i < p.count; i++) {
+    const key = p.getX(i).toFixed(3) + ',' + p.getY(i).toFixed(3) + ',' + p.getZ(i).toFixed(3);
+    if (!(key in uniq)) uniq[key] = 0.72 + Math.random() * 0.55;
+    const m = uniq[key];
+    p.setXYZ(i, p.getX(i) * m, p.getY(i) * m, p.getZ(i) * m);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+const rockGeos = [rockGeometry(), rockGeometry(), rockGeometry(), rockGeometry()];
+const rockMats = [
+  new THREE.MeshStandardMaterial({ color: 0x6a5a70, roughness: 0.95, metalness: 0.08, emissive: 0x180a28, emissiveIntensity: 0.6 }),
+  new THREE.MeshStandardMaterial({ color: 0x54607a, roughness: 0.95, metalness: 0.08, emissive: 0x0a1430, emissiveIntensity: 0.6 }),
+  new THREE.MeshStandardMaterial({ color: 0x705a52, roughness: 0.95, metalness: 0.08, emissive: 0x220e14, emissiveIntensity: 0.6 }),
+];
+const AST_N = 42;
+const asteroids = [];
+function spawnAst(a, initial) {
+  a.r = 0.9 + Math.random() * 2.0;
+  a.mesh.scale.setScalar(a.r);
+  a.mesh.position.set(
+    (Math.random() - 0.5) * 2 * (XLIM + 8),
+    (Math.random() - 0.5) * 2 * (YLIM + 5),
+    initial ? -20 - Math.random() * 200 : -190 - Math.random() * 60
+  );
+  a.spin.set((Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 1.6);
+  a.drift = (Math.random() - 0.5) * 1.4;
+  a.passed = false;
+}
+for (let i = 0; i < AST_N; i++) {
+  const mesh = new THREE.Mesh(
+    rockGeos[i % rockGeos.length],
+    rockMats[i % rockMats.length]
+  );
+  const a = { mesh, r: 1, spin: new THREE.Vector3(), drift: 0, passed: false };
+  spawnAst(a, true);
+  scene.add(mesh);
+  asteroids.push(a);
+}
+
+// ── Pickups ────────────────────────────────────────────────────────────────
+const pickups = [];
+function spawnPickup() {
+  const g = new THREE.Group();
+  const torus = new THREE.Mesh(
+    new THREE.TorusGeometry(0.55, 0.09, 10, 24),
+    new THREE.MeshStandardMaterial({ color: 0x29e6a7, emissive: 0x11cc88, emissiveIntensity: 2.2 })
+  );
+  g.add(torus);
+  const core = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.26),
+    new THREE.MeshBasicMaterial({ color: 0xbaffe8 })
+  );
+  g.add(core);
+  g.position.set((Math.random() - 0.5) * 2 * XLIM, (Math.random() - 0.5) * 2 * YLIM, -200);
+  scene.add(g);
+  pickups.push({ mesh: g, core });
+}
+
+// ── Explosion particles ────────────────────────────────────────────────────
+const boomParts = [];
+function explode(pos, color, count, spd) {
+  for (let i = 0; i < count; i++) {
+    const s = 0.08 + Math.random() * 0.2;
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(s, s, s),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 })
+    );
+    m.position.copy(pos);
+    const v = new THREE.Vector3(
+      (Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)
+    ).normalize().multiplyScalar(spd * (0.4 + Math.random()));
+    scene.add(m);
+    boomParts.push({ mesh: m, vel: v, life: 1 });
+  }
+  const fl = new THREE.PointLight(color, 30, 26, 1.4);
+  fl.position.copy(pos);
+  scene.add(fl);
+  setTimeout(() => scene.remove(fl), 180);
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+let playing = false, gameOver = false;
+let score = 0, dist = 0, speed = 24, shields = 1, invuln = 0;
+let pickupTimer = 5;
+let targetX = 0, targetY = 1;
+let shake = 0;
+
+function updateHud() {
+  document.getElementById('score').textContent = Math.floor(score);
+  document.getElementById('speed').textContent = Math.floor(speed);
+  document.getElementById('shield').textContent = shields > 0 ? '◈'.repeat(shields) : '—';
+  document.getElementById('best').textContent = best;
+}
+
+let bonusTmr = null;
+function flashBonus(txt) {
+  const el = document.getElementById('bonus');
+  el.textContent = txt;
+  el.style.opacity = '1';
+  clearTimeout(bonusTmr);
+  bonusTmr = setTimeout(() => { el.style.opacity = '0'; }, 700);
+}
+
+function reset() {
+  score = 0; dist = 0; speed = 24; shields = 1; invuln = 0; pickupTimer = 5;
+  ship.position.set(0, 0, 0);
+  ship.visible = true;
+  gameOver = false;
+  asteroids.forEach(a => spawnAst(a, true));
+  pickups.forEach(p => scene.remove(p.mesh));
+  pickups.length = 0;
+  updateHud();
+}
+function startGame() {
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  reset();
+  playing = true;
+  document.getElementById('start-ov').style.display = 'none';
+  document.getElementById('over-ov').style.display = 'none';
+}
+function endGame() {
+  gameOver = true;
+  ship.visible = false;
+  explode(ship.position.clone(), 0xff6633, 60, 14);
+  explode(ship.position.clone(), 0x55eeff, 30, 9);
+  shake = 1.2;
+  const s = Math.floor(score);
+  if (s > best) { best = s; localStorage.setItem(SLUG, String(best)); }
+  document.getElementById('over-stats').textContent = 'SCORE ' + s + '  ·  BEST ' + best;
+  document.getElementById('over-sub').textContent = s >= best && s > 0 ? '★ New record! ★' : 'The belt claims another pilot.';
+  updateHud();
+  setTimeout(() => { document.getElementById('over-ov').style.display = 'flex'; }, 900);
+}
+
+// ── Input ──────────────────────────────────────────────────────────────────
+function steer(cx, cy) {
+  targetX = ((cx / innerWidth) * 2 - 1) * XLIM;
+  targetY = -((cy / innerHeight) * 2 - 1) * YLIM;
+}
+addEventListener('pointermove', e => steer(e.clientX, e.clientY));
+addEventListener('pointerdown', e => {
+  if (e.target.closest('.panel') || e.target.closest('a')) return;
+  steer(e.clientX, e.clientY);
+  if (!playing) startGame();
+  else if (gameOver) startGame();
+});
+addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'Enter') {
+    e.preventDefault();
+    if (!playing || gameOver) startGame();
+  }
+  if (e.code === 'KeyR') startGame();
+});
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('restart-btn').addEventListener('click', startGame);
+
+// ── Loop ───────────────────────────────────────────────────────────────────
+updateHud();
+let lastT = 0;
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const t = ts / 1000;
+  const dt = Math.min((ts - lastT) / 1000, 0.05);
+  lastT = ts;
+
+  const active = playing && !gameOver;
+
+  // speed ramp + score
+  if (active) {
+    speed = Math.min(95, speed + dt * 0.9);
+    dist += speed * dt;
+    score += speed * dt * 0.12;
+    if (invuln > 0) invuln -= dt;
+  }
+  const worldSpeed = active ? speed : 10; // slow drift on menu
+
+  // ship steering
+  if (active) {
+    const px = ship.position.x, py = ship.position.y;
+    ship.position.x += (targetX - px) * Math.min(1, dt * 6);
+    ship.position.y += (targetY - py) * Math.min(1, dt * 6);
+    const vx = (ship.position.x - px) / Math.max(dt, 0.001);
+    const vy = (ship.position.y - py) / Math.max(dt, 0.001);
+    ship.rotation.z += (-vx * 0.045 - ship.rotation.z) * Math.min(1, dt * 8);
+    ship.rotation.x += (vy * 0.02 - ship.rotation.x) * Math.min(1, dt * 8);
+    ship.visible = invuln > 0 ? (Math.floor(t * 12) % 2 === 0) : true;
+  } else if (!gameOver) {
+    // idle bob on menu
+    ship.position.x += (Math.sin(t * 0.7) * 1.6 - ship.position.x) * Math.min(1, dt * 2);
+    ship.position.y += (Math.sin(t * 1.1) * 0.8 - ship.position.y) * Math.min(1, dt * 2);
+    ship.rotation.z = Math.sin(t * 0.9) * 0.25;
+  }
+  shieldMesh.visible = shields > 0 && ship.visible;
+  shieldMesh.material.opacity = 0.1 + 0.05 * shields + Math.sin(t * 5) * 0.03;
+  ship.userData.engine.scale.setScalar(1 + Math.sin(t * 22) * 0.25);
+  engineLight.position.copy(ship.position);
+  engineLight.position.z += 1.1;
+
+  // trail
+  {
+    const idx = Math.floor(ts / 30) % TRAIL;
+    const d = trailData[idx];
+    d.x = ship.position.x + (Math.random() - 0.5) * 0.15;
+    d.y = ship.position.y + (Math.random() - 0.5) * 0.15;
+    d.z = ship.position.z + 0.8;
+    d.life = 1;
+    const pos = trail.geometry.getAttribute('position');
+    for (let i = 0; i < TRAIL; i++) {
+      const td = trailData[i];
+      td.z += worldSpeed * dt * 0.9;
+      td.life -= dt * 1.8;
+      pos.setXYZ(i, td.x, td.life > 0 ? td.y : -999, td.z);
+    }
+    pos.needsUpdate = true;
+  }
+
+  // starfield scroll
+  {
+    const pos = stars.geometry.getAttribute('position');
+    for (let i = 0; i < STARS; i++) {
+      let z = pos.getZ(i) + worldSpeed * dt * 0.55;
+      if (z > 10) z -= 260;
+      pos.setZ(i, z);
+    }
+    pos.needsUpdate = true;
+  }
+
+  // asteroids
+  for (const a of asteroids) {
+    a.mesh.position.z += worldSpeed * dt;
+    a.mesh.position.x += a.drift * dt;
+    a.mesh.rotation.x += a.spin.x * dt;
+    a.mesh.rotation.y += a.spin.y * dt;
+    a.mesh.rotation.z += a.spin.z * dt;
+    if (a.mesh.position.z > 12) { spawnAst(a, false); continue; }
+
+    if (active && invuln <= 0) {
+      const dx = a.mesh.position.x - ship.position.x;
+      const dy = a.mesh.position.y - ship.position.y;
+      const dz = a.mesh.position.z - ship.position.z;
+      const rr = a.r + 0.62;
+      if (dz > -rr && dz < rr && dx * dx + dy * dy < rr * rr) {
+        // hit!
+        if (shields > 0) {
+          shields--;
+          explode(a.mesh.position.clone(), 0x29e6a7, 26, 10);
+          spawnAst(a, false);
+          invuln = 1.4;
+          shake = 0.7;
+          flashBonus('SHIELD DOWN!');
+          updateHud();
+        } else {
+          endGame();
+        }
+      } else if (!a.passed && a.mesh.position.z > ship.position.z) {
+        a.passed = true;
+        const d2 = Math.sqrt(dx * dx + dy * dy);
+        if (d2 < a.r + 2.6) {
+          const pts = 50;
+          score += pts;
+          flashBonus('NEAR MISS +' + pts);
+        }
+      }
+    }
+  }
+
+  // pickups
+  if (active) {
+    pickupTimer -= dt;
+    if (pickupTimer <= 0) { spawnPickup(); pickupTimer = 6 + Math.random() * 5; }
+  }
+  for (let i = pickups.length - 1; i >= 0; i--) {
+    const p = pickups[i];
+    p.mesh.position.z += worldSpeed * dt;
+    p.mesh.rotation.y = t * 2.4;
+    p.core.rotation.x = t * 3;
+    if (p.mesh.position.z > 10) { scene.remove(p.mesh); pickups.splice(i, 1); continue; }
+    if (active && p.mesh.position.distanceTo(ship.position) < 1.7) {
+      scene.remove(p.mesh); pickups.splice(i, 1);
+      if (shields < 3) { shields++; flashBonus('◈ SHIELD +1'); }
+      else { score += 150; flashBonus('◈ +150'); }
+      updateHud();
+    }
+  }
+
+  // explosion particles
+  for (let i = boomParts.length - 1; i >= 0; i--) {
+    const p = boomParts[i];
+    p.life -= dt * 1.1;
+    p.mesh.position.addScaledVector(p.vel, dt);
+    p.mesh.position.z += worldSpeed * dt * 0.3;
+    p.mesh.rotation.x += dt * 5;
+    p.mesh.rotation.y += dt * 4;
+    p.mesh.material.opacity = Math.max(0, p.life);
+    if (p.life <= 0) { scene.remove(p.mesh); boomParts.splice(i, 1); }
+  }
+
+  // nebula drift
+  nebulae.forEach((n, i) => {
+    n.material.rotation += dt * 0.012 * (i % 2 ? 1 : -1);
+  });
+
+  // camera follows ship, with shake
+  if (shake > 0) shake = Math.max(0, shake - dt * 2);
+  const sx = (Math.random() - 0.5) * shake * 0.6;
+  const sy = (Math.random() - 0.5) * shake * 0.6;
+  camera.position.x += (ship.position.x * 0.5 + sx - camera.position.x) * Math.min(1, dt * 5);
+  camera.position.y += (ship.position.y * 0.5 + 1.4 + sy - camera.position.y) * Math.min(1, dt * 5);
+  camera.lookAt(ship.position.x * 0.7, ship.position.y * 0.7, -12);
+
+  if (active) updateHud();
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connect Four — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; }
+  body {
+    background: #0f0f1a;
+    color: #ffeecc;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 8px 10px 16px; overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px; z-index: 60;
+    color: #7f7fa8; text-decoration: none; font-size: 12px; letter-spacing: 1px;
+    padding: 4px 9px; border: 1px solid #26264a; border-radius: 6px;
+    background: rgba(15,15,26,.85);
+  }
+  a.back:hover { color: #ffd23f; border-color: #ffd23f; box-shadow: 0 0 8px rgba(255,210,63,.4); }
+  h1 {
+    margin-top: 4px; font-size: clamp(17px, 3.6vmin, 26px); letter-spacing: 4px;
+    color: #fff6e0; text-shadow: 0 0 8px #ffd23f, 0 0 24px rgba(255,210,63,.55);
+  }
+  .controls { display: flex; gap: 6px; margin: 8px 0 4px; flex-wrap: wrap; justify-content: center; }
+  .controls button {
+    font-family: inherit; font-size: 11px; letter-spacing: 2px; cursor: pointer;
+    background: #16162e; color: #9a9ac8; border: 1px solid #2c2c55;
+    padding: 6px 12px; border-radius: 6px;
+  }
+  .controls button.on {
+    color: #ffd23f; border-color: #ffd23f;
+    box-shadow: 0 0 10px rgba(255,210,63,.5), inset 0 0 8px rgba(255,210,63,.15);
+    text-shadow: 0 0 6px #ffd23f;
+  }
+  .status {
+    display: flex; align-items: center; gap: 8px; margin: 4px 0 6px; min-height: 20px;
+    font-size: clamp(12px, 2.4vmin, 15px); letter-spacing: 1px;
+  }
+  .dot { width: 13px; height: 13px; border-radius: 50%; }
+  .dot.p1 { background: #ff3d6e; box-shadow: 0 0 8px #ff3d6e; }
+  .dot.p2 { background: #ffd23f; box-shadow: 0 0 8px #ffd23f; }
+  .stage { position: relative; }
+  canvas { display: block; touch-action: manipulation; }
+  .score { display: flex; gap: 10px; margin-top: 8px; }
+  .sc {
+    background: #14142a; border: 1px solid #2c2c55; border-radius: 8px;
+    padding: 5px 12px; font-size: 10px; letter-spacing: 2px; text-align: center; color: #9a9ac8;
+  }
+  .sc b { display: block; font-size: 18px; margin-top: 1px; }
+  .sc.p1 b { color: #ff3d6e; text-shadow: 0 0 8px #ff3d6e; }
+  .sc.p2 b { color: #ffd23f; text-shadow: 0 0 8px #ffd23f; }
+  .hint { margin-top: 8px; font-size: 11px; color: #6f6f9a; letter-spacing: 1px; text-align: center; }
+  .hint span { color: #ffd23f; }
+  .overlay {
+    position: absolute; inset: 0; z-index: 40; border-radius: 12px;
+    background: rgba(10,10,22,.88);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    animation: fadein .3s ease;
+  }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  .overlay.hidden { display: none; }
+  .overlay .msg {
+    font-size: clamp(20px, 5vmin, 32px); letter-spacing: 4px; color: #fff6e0; text-align: center; padding: 0 10px;
+    text-shadow: 0 0 10px #ffd23f, 0 0 30px rgba(255,210,63,.7);
+  }
+  .overlay .sub { font-size: 12px; color: #9a9ac8; letter-spacing: 2px; }
+  .overlay button {
+    font-family: inherit; font-size: 14px; letter-spacing: 3px; cursor: pointer;
+    background: #33290e; color: #ffd23f; border: 2px solid #ffd23f; border-radius: 8px;
+    padding: 10px 22px; text-shadow: 0 0 6px #ffd23f;
+    box-shadow: 0 0 14px rgba(255,210,63,.5);
+  }
+  .overlay button:hover { background: #4d3d12; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>CONNECT FOUR</h1>
+<div class="controls">
+  <button id="modeAi" class="on">VS AI</button>
+  <button id="mode2p">2 PLAYER</button>
+  <button id="newBtn">NEW GAME</button>
+</div>
+<div class="status"><span class="dot p1" id="turnDot"></span><span id="status">Your turn — drop a red disc</span></div>
+<div class="stage">
+  <canvas id="cv" width="490" height="490"></canvas>
+  <div id="overlay" class="overlay hidden">
+    <div class="msg" id="ovMsg">YOU WIN!</div>
+    <div class="sub" id="ovSub"></div>
+    <button id="again">PLAY AGAIN</button>
+  </div>
+</div>
+<div class="score">
+  <div class="sc p1"><span id="lbl1">YOU</span><b id="s1">0</b></div>
+  <div class="sc p2"><span id="lbl2">AI</span><b id="s2">0</b></div>
+</div>
+<div class="hint">click / tap a column · ←→ + enter · lifetime wins: <span id="tot">0</span></div>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- audio ---------- */
+  var AC = null;
+  function initAudio() {
+    if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } }
+    if (AC && AC.state === 'suspended') { AC.resume(); }
+  }
+  function sfx(freq, dur, type, vol, when) {
+    if (!AC) return;
+    try {
+      var t = AC.currentTime + (when || 0);
+      var o = AC.createOscillator(), g = AC.createGain();
+      o.type = type || 'square'; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol || 0.04, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.08));
+      o.connect(g); g.connect(AC.destination);
+      o.start(t); o.stop(t + (dur || 0.08) + 0.05);
+    } catch (e) { /* noop */ }
+  }
+  document.addEventListener('pointerdown', initAudio, true);
+  document.addEventListener('keydown', initAudio, true);
+
+  var LSKEY = 'wizzed-connect-four';
+  function getWins() { try { return parseInt(localStorage.getItem(LSKEY), 10) || 0; } catch (e) { return 0; } }
+  function addWin() { try { localStorage.setItem(LSKEY, String(getWins() + 1)); } catch (e) { /* noop */ } }
+
+  /* ---------- state ---------- */
+  var COLS = 7, ROWS = 6;
+  var grid, turn, over, busy, mode = 'ai';
+  var winCells = [];
+  var scores = { p1: 0, p2: 0 };
+  var hoverCol = -1, kbCol = 3;
+  var anim = null; /* {col,row,player,y,vy,bounced} */
+  var aiTimer = null;
+
+  var C1 = '#ff3d6e', C2 = '#ffd23f';
+  var cv = $('cv'), ctx = cv.getContext('2d');
+  var cell = 70, boardTop = 70;
+  var mask = document.createElement('canvas');
+
+  function newGame() {
+    if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
+    grid = [];
+    for (var r = 0; r < ROWS; r++) { grid.push([0, 0, 0, 0, 0, 0, 0]); }
+    turn = 1; over = false; busy = false; anim = null; winCells = [];
+    $('overlay').classList.add('hidden');
+    updateStatus();
+  }
+
+  function updateStatus() {
+    var dot = $('turnDot');
+    dot.className = 'dot ' + (turn === 1 ? 'p1' : 'p2');
+    var s;
+    if (mode === 'ai') {
+      s = (turn === 1) ? 'Your turn — drop a red disc' : 'AI is thinking…';
+    } else {
+      s = (turn === 1) ? 'Player 1 — red to drop' : 'Player 2 — yellow to drop';
+    }
+    $('status').textContent = s;
+  }
+
+  /* ---------- sizing ---------- */
+  function resize() {
+    var availW = Math.min(window.innerWidth - 24, 560);
+    var availH = window.innerHeight - 225;
+    if (availH < 180) availH = 180;
+    cell = Math.floor(Math.min(availW / COLS, availH / (ROWS + 1)));
+    if (cell < 26) cell = 26;
+    cv.width = cell * COLS;
+    cv.height = cell * (ROWS + 1);
+    boardTop = cell;
+    buildMask();
+  }
+
+  function buildMask() {
+    mask.width = cell * COLS;
+    mask.height = cell * ROWS;
+    var m = mask.getContext('2d');
+    m.clearRect(0, 0, mask.width, mask.height);
+    /* board plate */
+    m.fillStyle = '#22224e';
+    roundRect(m, 0, 0, mask.width, mask.height, cell * 0.18);
+    m.fill();
+    /* punch holes */
+    m.globalCompositeOperation = 'destination-out';
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        m.beginPath();
+        m.arc(c * cell + cell / 2, r * cell + cell / 2, cell * 0.38, 0, Math.PI * 2);
+        m.fill();
+      }
+    }
+    m.globalCompositeOperation = 'source-over';
+    /* hole rims + plate edge glow */
+    m.strokeStyle = 'rgba(255,210,63,.25)';
+    m.lineWidth = 1.5;
+    for (r = 0; r < ROWS; r++) {
+      for (c = 0; c < COLS; c++) {
+        m.beginPath();
+        m.arc(c * cell + cell / 2, r * cell + cell / 2, cell * 0.38, 0, Math.PI * 2);
+        m.stroke();
+      }
+    }
+    m.strokeStyle = '#ffd23f';
+    m.lineWidth = 2.5;
+    m.shadowColor = '#ffd23f';
+    m.shadowBlur = 10;
+    roundRect(m, 1.5, 1.5, mask.width - 3, mask.height - 3, cell * 0.18);
+    m.stroke();
+    m.shadowBlur = 0;
+  }
+
+  function roundRect(g, x, y, w, h, rad) {
+    g.beginPath();
+    g.moveTo(x + rad, y);
+    g.arcTo(x + w, y, x + w, y + h, rad);
+    g.arcTo(x + w, y + h, x, y + h, rad);
+    g.arcTo(x, y + h, x, y, rad);
+    g.arcTo(x, y, x + w, y, rad);
+    g.closePath();
+  }
+
+  /* ---------- rendering ---------- */
+  function drawDisc(x, y, player, scale, glow) {
+    var rr = cell * 0.38 * (scale || 1);
+    var col = (player === 1) ? C1 : C2;
+    ctx.save();
+    if (glow) { ctx.shadowColor = col; ctx.shadowBlur = cell * 0.35; }
+    var grad = ctx.createRadialGradient(x - rr * 0.3, y - rr * 0.35, rr * 0.15, x, y, rr);
+    grad.addColorStop(0, (player === 1) ? '#ff8aa6' : '#fff0b0');
+    grad.addColorStop(1, col);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, rr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.35)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, rr * 0.62, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function colX(c) { return c * cell + cell / 2; }
+  function rowY(r) { return boardTop + r * cell + cell / 2; }
+
+  var lastT = 0;
+  function frame(t) {
+    var dt = Math.min((t - lastT) / 1000, 0.05);
+    lastT = t;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+
+    /* hover column tint */
+    var previewCol = (hoverCol >= 0) ? hoverCol : kbCol;
+    if (!over && !anim && !(mode === 'ai' && turn === 2) && previewCol >= 0) {
+      ctx.fillStyle = 'rgba(255,210,63,.06)';
+      ctx.fillRect(previewCol * cell, 0, cell, cv.height);
+    }
+
+    /* placed discs */
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        if (grid[r][c] !== 0) {
+          var isWin = false;
+          for (var k = 0; k < winCells.length; k++) {
+            if (winCells[k][0] === r && winCells[k][1] === c) { isWin = true; break; }
+          }
+          var sc = isWin ? (1 + 0.1 * Math.sin(t / 130)) : 1;
+          drawDisc(colX(c), rowY(r), grid[r][c], sc, isWin);
+        }
+      }
+    }
+
+    /* falling disc physics */
+    if (anim) {
+      anim.vy += cell * 38 * dt;
+      anim.y += anim.vy * dt;
+      var targetY = rowY(anim.row);
+      if (anim.y >= targetY) {
+        anim.y = targetY;
+        if (!anim.bounced && anim.vy > cell * 3) {
+          anim.vy = -anim.vy * 0.28;
+          anim.bounced = true;
+          sfx(150 + anim.row * 20, 0.05, 'triangle', 0.05);
+        } else {
+          landDisc();
+        }
+      }
+      if (anim) drawDisc(colX(anim.col), anim.y, anim.player);
+    }
+
+    /* board mask over discs */
+    ctx.drawImage(mask, 0, boardTop);
+
+    /* floating preview disc */
+    if (!over && !anim && !(mode === 'ai' && turn === 2) && previewCol >= 0) {
+      ctx.globalAlpha = 0.85;
+      drawDisc(colX(previewCol), cell / 2, turn, 0.9);
+      ctx.globalAlpha = 1;
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- moves ---------- */
+  function nextRow(b, col) {
+    for (var r = ROWS - 1; r >= 0; r--) { if (b[r][col] === 0) return r; }
+    return -1;
+  }
+
+  function drop(col) {
+    if (over || anim || col < 0 || col >= COLS) return;
+    var row = nextRow(grid, col);
+    if (row < 0) { sfx(160, 0.08, 'sawtooth', 0.04); return; }
+    anim = { col: col, row: row, player: turn, y: cell / 2, vy: cell * 2, bounced: false };
+    sfx(500 + col * 30, 0.05, 'square', 0.04);
+  }
+
+  function landDisc() {
+    grid[anim.row][anim.col] = anim.player;
+    sfx(180, 0.09, 'triangle', 0.06);
+    anim = null;
+    var win = findWin(grid);
+    if (win) {
+      winCells = win.cells;
+      over = true;
+      endGame(win.player);
+      return;
+    }
+    if (boardFull(grid)) {
+      over = true;
+      endGame(0);
+      return;
+    }
+    turn = (turn === 1) ? 2 : 1;
+    updateStatus();
+    if (mode === 'ai' && turn === 2) {
+      busy = true;
+      aiTimer = setTimeout(function () {
+        aiTimer = null;
+        busy = false;
+        if (!over) drop(bestMove(grid));
+      }, 350);
+    }
+  }
+
+  function boardFull(b) {
+    for (var c = 0; c < COLS; c++) { if (b[0][c] === 0) return false; }
+    return true;
+  }
+
+  function findWin(b) {
+    var dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        var p = b[r][c];
+        if (p === 0) continue;
+        for (var d = 0; d < 4; d++) {
+          var dr = dirs[d][0], dc = dirs[d][1];
+          var cellsArr = [[r, c]];
+          for (var k = 1; k < 4; k++) {
+            var nr = r + dr * k, nc = c + dc * k;
+            if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || b[nr][nc] !== p) break;
+            cellsArr.push([nr, nc]);
+          }
+          if (cellsArr.length === 4) return { player: p, cells: cellsArr };
+        }
+      }
+    }
+    return null;
+  }
+
+  function endGame(winner) {
+    var msg, sub;
+    if (winner === 0) {
+      msg = 'DRAW'; sub = 'The board is full';
+      sfx(392, 0.1, 'triangle', 0.05, 0); sfx(392, 0.1, 'triangle', 0.05, 0.12);
+    } else if (mode === 'ai') {
+      if (winner === 1) {
+        scores.p1++; addWin();
+        msg = 'YOU WIN!'; sub = 'Four in a row!';
+        sfx(523, 0.1, 'square', 0.05, 0); sfx(659, 0.1, 'square', 0.05, 0.1); sfx(784, 0.18, 'square', 0.05, 0.2);
+      } else {
+        scores.p2++;
+        msg = 'AI WINS'; sub = 'Better luck next drop';
+        sfx(300, 0.12, 'sawtooth', 0.05, 0); sfx(210, 0.22, 'sawtooth', 0.05, 0.14);
+      }
+    } else {
+      if (winner === 1) { scores.p1++; msg = 'RED WINS!'; } else { scores.p2++; msg = 'YELLOW WINS!'; }
+      sub = 'Four in a row!';
+      sfx(523, 0.1, 'square', 0.05, 0); sfx(659, 0.1, 'square', 0.05, 0.1); sfx(784, 0.18, 'square', 0.05, 0.2);
+    }
+    $('status').textContent = msg;
+    updateScore();
+    setTimeout(function () {
+      $('ovMsg').textContent = msg;
+      $('ovSub').textContent = sub + '  ·  ' + scores.p1 + ' – ' + scores.p2;
+      $('overlay').classList.remove('hidden');
+    }, 1100);
+  }
+
+  function updateScore() {
+    $('s1').textContent = String(scores.p1);
+    $('s2').textContent = String(scores.p2);
+    $('tot').textContent = String(getWins());
+    $('lbl1').textContent = (mode === 'ai') ? 'YOU' : 'PLAYER 1';
+    $('lbl2').textContent = (mode === 'ai') ? 'AI' : 'PLAYER 2';
+  }
+
+  /* ---------- AI: minimax + alpha-beta ---------- */
+  var ORDER = [3, 2, 4, 1, 5, 0, 6];
+
+  function cloneB(b) {
+    var out = [];
+    for (var r = 0; r < ROWS; r++) out.push(b[r].slice());
+    return out;
+  }
+
+  function winsFor(b, p) {
+    var w = findWin(b);
+    return !!(w && w.player === p);
+  }
+
+  function scoreWindow(a0, a1, a2, a3, p) {
+    var opp = (p === 1) ? 2 : 1;
+    var cp = 0, co = 0, ce = 0;
+    var arr = [a0, a1, a2, a3];
+    for (var i = 0; i < 4; i++) {
+      if (arr[i] === p) cp++;
+      else if (arr[i] === opp) co++;
+      else ce++;
+    }
+    if (cp === 4) return 10000;
+    if (cp === 3 && ce === 1) return 60;
+    if (cp === 2 && ce === 2) return 8;
+    if (co === 3 && ce === 1) return -90;
+    if (co === 4) return -10000;
+    return 0;
+  }
+
+  function evaluate(b, p) {
+    var s = 0, r, c;
+    for (r = 0; r < ROWS; r++) { if (b[r][3] === p) s += 5; }
+    for (r = 0; r < ROWS; r++) {
+      for (c = 0; c < COLS - 3; c++) s += scoreWindow(b[r][c], b[r][c + 1], b[r][c + 2], b[r][c + 3], p);
+    }
+    for (r = 0; r < ROWS - 3; r++) {
+      for (c = 0; c < COLS; c++) s += scoreWindow(b[r][c], b[r + 1][c], b[r + 2][c], b[r + 3][c], p);
+    }
+    for (r = 0; r < ROWS - 3; r++) {
+      for (c = 0; c < COLS - 3; c++) s += scoreWindow(b[r][c], b[r + 1][c + 1], b[r + 2][c + 2], b[r + 3][c + 3], p);
+    }
+    for (r = 3; r < ROWS; r++) {
+      for (c = 0; c < COLS - 3; c++) s += scoreWindow(b[r][c], b[r - 1][c + 1], b[r - 2][c + 2], b[r - 3][c + 3], p);
+    }
+    return s;
+  }
+
+  function minimax(b, depth, alpha, beta, maximizing) {
+    if (winsFor(b, 2)) return 1000000 + depth * 1000;
+    if (winsFor(b, 1)) return -1000000 - depth * 1000;
+    if (boardFull(b)) return 0;
+    if (depth === 0) return evaluate(b, 2);
+    var i, col, row, nb, v;
+    if (maximizing) {
+      var best = -Infinity;
+      for (i = 0; i < ORDER.length; i++) {
+        col = ORDER[i];
+        row = nextRow(b, col);
+        if (row < 0) continue;
+        nb = cloneB(b); nb[row][col] = 2;
+        v = minimax(nb, depth - 1, alpha, beta, false);
+        if (v > best) best = v;
+        if (best > alpha) alpha = best;
+        if (alpha >= beta) break;
+      }
+      return best;
+    }
+    var worst = Infinity;
+    for (i = 0; i < ORDER.length; i++) {
+      col = ORDER[i];
+      row = nextRow(b, col);
+      if (row < 0) continue;
+      nb = cloneB(b); nb[row][col] = 1;
+      v = minimax(nb, depth - 1, alpha, beta, true);
+      if (v < worst) worst = v;
+      if (worst < beta) beta = worst;
+      if (alpha >= beta) break;
+    }
+    return worst;
+  }
+
+  function bestMove(b) {
+    var best = -Infinity, bestCols = [3];
+    for (var i = 0; i < ORDER.length; i++) {
+      var col = ORDER[i];
+      var row = nextRow(b, col);
+      if (row < 0) continue;
+      var nb = cloneB(b);
+      nb[row][col] = 2;
+      var v = minimax(nb, 4, -Infinity, Infinity, false);
+      if (v > best) { best = v; bestCols = [col]; }
+      else if (v === best) { bestCols.push(col); }
+    }
+    return bestCols[Math.floor(Math.random() * bestCols.length)];
+  }
+
+  /* ---------- input ---------- */
+  function eventCol(e) {
+    var rect = cv.getBoundingClientRect();
+    var x = ((e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX) - rect.left;
+    var c = Math.floor(x / (rect.width / COLS));
+    return Math.max(0, Math.min(COLS - 1, c));
+  }
+
+  cv.addEventListener('mousemove', function (e) { hoverCol = eventCol(e); });
+  cv.addEventListener('mouseleave', function () { hoverCol = -1; });
+  cv.addEventListener('click', function (e) {
+    if (busy || (mode === 'ai' && turn === 2)) return;
+    drop(eventCol(e));
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (!$('overlay').classList.contains('hidden')) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); newGame(); }
+      return;
+    }
+    if (e.key === 'ArrowLeft') { kbCol = Math.max(0, kbCol - 1); hoverCol = -1; }
+    else if (e.key === 'ArrowRight') { kbCol = Math.min(COLS - 1, kbCol + 1); hoverCol = -1; }
+    else if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (busy || (mode === 'ai' && turn === 2)) return;
+      drop(hoverCol >= 0 ? hoverCol : kbCol);
+    }
+  });
+
+  /* ---------- controls ---------- */
+  function setMode(m) {
+    mode = m;
+    $('modeAi').classList.toggle('on', m === 'ai');
+    $('mode2p').classList.toggle('on', m === '2p');
+    scores = { p1: 0, p2: 0 };
+    updateScore();
+    newGame();
+    sfx(620, 0.05, 'square', 0.04);
+  }
+  $('modeAi').addEventListener('click', function () { setMode('ai'); });
+  $('mode2p').addEventListener('click', function () { setMode('2p'); });
+  $('newBtn').addEventListener('click', function () { newGame(); sfx(620, 0.05, 'square', 0.04); });
+  $('again').addEventListener('click', function () { newGame(); sfx(660, 0.06, 'square', 0.04); });
+
+  window.addEventListener('resize', resize);
+
+  /* ---------- boot ---------- */
+  newGame();
+  resize();
+  updateScore();
+  requestAnimationFrame(function (t) { lastT = t; requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>

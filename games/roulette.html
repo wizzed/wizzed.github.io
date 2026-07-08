@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Roulette — Wizzed Arcade</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--acc:#b14dff}
+  html,body{min-height:100%}
+  body{
+    background:#0f0f1a;
+    background-image:radial-gradient(ellipse 110% 80% at 50% -15%, rgba(177,77,255,.12), transparent 60%),
+      radial-gradient(ellipse 90% 55% at 50% 115%, rgba(20,60,35,.5), transparent 70%);
+    color:#e9d5ff;font-family:'Courier New',ui-monospace,Menlo,monospace;
+    min-height:100vh;user-select:none;-webkit-user-select:none;overflow-x:hidden;
+  }
+  a.back{position:fixed;top:8px;left:10px;z-index:50;color:#d29bff;text-decoration:none;
+    font-size:12px;letter-spacing:1px;opacity:.7;border:1px solid rgba(177,77,255,.35);
+    padding:3px 8px;border-radius:6px;background:rgba(15,15,26,.8)}
+  a.back:hover{opacity:1;box-shadow:0 0 10px rgba(177,77,255,.5)}
+  header{text-align:center;padding:8px 90px 0}
+  h1{font-size:clamp(14px,2.4vw,22px);letter-spacing:4px;color:var(--acc);
+    text-shadow:0 0 10px rgba(177,77,255,.9),0 0 30px rgba(177,77,255,.4)}
+  .sub{font-size:10px;letter-spacing:2px;color:#8a5cb8;margin-top:2px}
+  #layout{display:flex;gap:14px;justify-content:center;align-items:flex-start;flex-wrap:wrap;
+    max-width:1020px;margin:6px auto 0;padding:0 10px 16px}
+  #left{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:6px}
+  #wheelcv{border-radius:50%;box-shadow:0 0 26px rgba(177,77,255,.35)}
+  #history{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;min-height:24px;max-width:290px}
+  .hist{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:bold;color:#fff;border:1px solid rgba(255,255,255,.4)}
+  .hist.r{background:#c01834}.hist.b{background:#14141f}.hist.g{background:#0f7a3d}
+  .hlabel{font-size:9px;letter-spacing:2px;color:#8a5cb8}
+  #right{flex:1 1 430px;max-width:560px;display:flex;flex-direction:column;gap:8px}
+  #board{display:grid;grid-template-columns:32px repeat(12,minmax(22px,1fr)) 38px;
+    grid-auto-rows:minmax(25px,auto);gap:3px}
+  .bcell{position:relative;border:1px solid rgba(177,77,255,.45);border-radius:4px;
+    display:flex;align-items:center;justify-content:center;font-size:clamp(9px,1.4vw,12px);
+    cursor:pointer;color:#fff;background:rgba(20,20,34,.7);min-height:25px;font-weight:bold}
+  .bcell:hover{outline:1px solid #fff;box-shadow:0 0 8px rgba(177,77,255,.7)}
+  .bcell.red{background:linear-gradient(180deg,#d21f3c,#8e1128)}
+  .bcell.black{background:linear-gradient(180deg,#23232f,#0a0a12)}
+  .bcell.green{background:linear-gradient(180deg,#15914a,#0a5c2d)}
+  .bcell.out{background:rgba(30,20,50,.8);color:#d8b8ff}
+  .bcell.win{animation:cellwin .5s ease 4}
+  @keyframes cellwin{50%{background:#ffd750;color:#241302;box-shadow:0 0 16px #ffd750}}
+  .bchip{position:absolute;top:-6px;right:-5px;min-width:20px;height:20px;border-radius:50%;
+    background:#ffd750;color:#241302;font-size:9px;font-weight:bold;display:flex;align-items:center;
+    justify-content:center;border:2px dashed rgba(120,70,0,.8);z-index:3;padding:0 2px;
+    box-shadow:0 2px 4px rgba(0,0,0,.6)}
+  .ctrls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
+  .chip{width:40px;height:40px;border-radius:50%;cursor:pointer;font-weight:bold;font-size:11px;
+    display:flex;align-items:center;justify-content:center;color:#fff;
+    border:4px dashed rgba(255,255,255,.75);box-shadow:0 3px 6px rgba(0,0,0,.6),inset 0 0 0 3px rgba(0,0,0,.25)}
+  .chip.c1{background:#7f8c8d}.chip.c5{background:#c0392b}.chip.c25{background:#1d8a4e}.chip.c100{background:#20639b}
+  .chip.sel{transform:translateY(-4px) scale(1.12);box-shadow:0 0 14px rgba(255,255,255,.8),0 3px 6px rgba(0,0,0,.6)}
+  button{font-family:inherit;font-size:12px;letter-spacing:1px;cursor:pointer;font-weight:bold;
+    color:#20083a;background:var(--acc);border:0;border-radius:8px;padding:9px 16px;
+    box-shadow:0 0 12px rgba(177,77,255,.45)}
+  button:hover{box-shadow:0 0 20px rgba(177,77,255,.95)}
+  button:disabled{opacity:.3;cursor:default;box-shadow:none}
+  button.ghost{background:transparent;color:#d29bff;border:1px solid rgba(177,77,255,.5)}
+  button.spin{background:#3dff8f;color:#052813;box-shadow:0 0 12px rgba(61,255,143,.5);
+    font-size:14px;padding:11px 24px}
+  button.spin:hover{box-shadow:0 0 24px rgba(61,255,143,1)}
+  .pill{border:1px solid rgba(177,77,255,.4);border-radius:8px;padding:5px 12px;font-size:12px;
+    background:rgba(0,0,0,.4);white-space:nowrap}
+  .pill b{color:#fff}
+  #msg{text-align:center;min-height:20px;font-size:clamp(11px,2vw,15px);letter-spacing:1px;
+    color:var(--acc);text-shadow:0 0 8px rgba(177,77,255,.7)}
+  #msg.win{color:#7dffb5;text-shadow:0 0 12px rgba(125,255,181,.9)}
+  #msg.lose{color:#ff6b6b;text-shadow:0 0 10px rgba(255,107,107,.8)}
+  #broke{position:fixed;inset:0;z-index:90;background:rgba(5,5,12,.87);display:none;
+    align-items:center;justify-content:center;text-align:center}
+  #broke .box{border:1px solid var(--acc);border-radius:12px;padding:24px 30px;background:#1a0a2e;
+    box-shadow:0 0 30px rgba(177,77,255,.4)}
+  #broke h2{color:#ff6b6b;letter-spacing:2px;margin-bottom:8px}
+  #broke p{font-size:12px;margin-bottom:14px}
+  @media (max-height:560px){header{padding-top:4px}}
+  @media (max-width:600px){header{padding:32px 10px 0}h1{letter-spacing:2px}}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>◉ PIXEL ROULETTE ◉</h1>
+  <div class="sub">EUROPEAN · SINGLE ZERO · STRAIGHT PAYS 35:1</div>
+</header>
+<div id="layout">
+  <div id="left">
+    <canvas id="wheelcv" width="280" height="280"></canvas>
+    <div class="hlabel">LAST 10</div>
+    <div id="history"></div>
+  </div>
+  <div id="right">
+    <div id="board"></div>
+    <div id="msg">PLACE YOUR BETS</div>
+    <div class="ctrls">
+      <div class="chip c1" data-v="1">1</div>
+      <div class="chip c5 sel" data-v="5">5</div>
+      <div class="chip c25" data-v="25">25</div>
+      <div class="chip c100" data-v="100">100</div>
+      <button id="spinBtn" class="spin">SPIN</button>
+      <button id="undoBtn" class="ghost">UNDO</button>
+      <button id="clearBtn" class="ghost">CLEAR</button>
+      <button id="rebetBtn" class="ghost" style="display:none">REBET</button>
+    </div>
+    <div class="ctrls" style="margin:0">
+      <span class="pill">BANK <b id="bank">1000</b></span>
+      <span class="pill">ON TABLE <b id="staked">0</b></span>
+      <span class="pill" id="winPill" style="display:none">WIN <b id="winV">0</b></span>
+    </div>
+  </div>
+</div>
+<div id="broke"><div class="box">
+  <h2>BANK EMPTY</h2><p>Rien ne va plus... permanently?</p>
+  <button id="resetBank">RESET BANK TO 1000</button>
+</div></div>
+<script>
+'use strict';
+(function(){
+var KEY='wizzed-roulette';
+function el(id){return document.getElementById(id);}
+
+var bank=1000;
+try{var v=parseInt(localStorage.getItem(KEY)||'',10);if(!isNaN(v))bank=v;}catch(e){}
+function saveBank(){try{localStorage.setItem(KEY,String(bank));}catch(e){}}
+
+// audio
+var AC=null,interacted=false;
+window.addEventListener('pointerdown',function(){interacted=true;},{capture:true});
+window.addEventListener('keydown',function(){interacted=true;},{capture:true});
+function beep(f,d,t,vl){
+  if(!interacted)return;
+  try{
+    if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==='suspended')AC.resume();
+    var o=AC.createOscillator(),g=AC.createGain();
+    o.type=t||'square';o.frequency.value=f;
+    g.gain.setValueAtTime(vl||0.05,AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+d);
+    o.connect(g);g.connect(AC.destination);
+    o.start();o.stop(AC.currentTime+d+0.02);
+  }catch(e){}
+}
+function sChip(){beep(900,.05,'square',.04);}
+function sTick(){beep(1400,.02,'square',.015);}
+function sClack(){beep(300,.1,'square',.06);}
+function sWin(){[659,784,1046,1318].forEach(function(f,i){setTimeout(function(){beep(f,.14,'triangle',.06);},i*100);});}
+function sLose(){beep(170,.25,'sawtooth',.04);}
+
+var ORDER=[0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+var RED={};[1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36].forEach(function(n){RED[n]=true;});
+var STEP=Math.PI*2/37;
+function idxOf(n){return ORDER.indexOf(n);}
+function colorOf(n){return n===0?'g':(RED[n]?'r':'b');}
+
+// ------- bets -------
+var denom=5,bets={},placeStack=[],lastBets=null,spinning=false,history=[];
+function totalStaked(){var s=0;Object.keys(bets).forEach(function(k){s+=bets[k];});return s;}
+function covers(key,n){
+  if(key.charAt(0)==='n')return +key.slice(1)===n;
+  if(n===0)return false;
+  switch(key){
+    case 'red':return !!RED[n];
+    case 'black':return !RED[n];
+    case 'odd':return n%2===1;
+    case 'even':return n%2===0;
+    case 'low':return n<=18;
+    case 'high':return n>=19;
+    case 'doz1':return n<=12;
+    case 'doz2':return n>=13&&n<=24;
+    case 'doz3':return n>=25;
+    case 'col1':return n%3===1;
+    case 'col2':return n%3===2;
+    case 'col3':return n%3===0;
+  }
+  return false;
+}
+function multOf(key){
+  if(key.charAt(0)==='n')return 35;
+  if(key.indexOf('doz')===0||key.indexOf('col')===0)return 2;
+  return 1;
+}
+function placeBet(key){
+  if(spinning)return;
+  if(bank<denom){setMsg('NOT ENOUGH CHIPS','lose');return;}
+  bank-=denom;
+  bets[key]=(bets[key]||0)+denom;
+  placeStack.push({key:key,v:denom});
+  sChip();
+  renderBets();hud();
+  setMsg('BET '+totalStaked()+' ON TABLE');
+}
+function undoBet(){
+  if(spinning||!placeStack.length)return;
+  var p=placeStack.pop();
+  bets[p.key]-=p.v;
+  if(bets[p.key]<=0)delete bets[p.key];
+  bank+=p.v;sChip();
+  renderBets();hud();
+}
+function clearBets(){
+  if(spinning)return;
+  bank+=totalStaked();
+  bets={};placeStack=[];
+  renderBets();hud();
+  setMsg('PLACE YOUR BETS');
+}
+function rebet(){
+  if(spinning||!lastBets)return;
+  var need=0;Object.keys(lastBets).forEach(function(k){need+=lastBets[k];});
+  if(need<=0||bank<need)return;
+  clearBets();
+  bank-=need;
+  bets={};placeStack=[];
+  Object.keys(lastBets).forEach(function(k){
+    bets[k]=lastBets[k];
+    placeStack.push({key:k,v:lastBets[k]});
+  });
+  sChip();renderBets();hud();
+  setMsg('REBET '+need+' ON TABLE');
+}
+
+// ------- board DOM -------
+function buildBoard(){
+  var b=el('board');
+  function cell(txt,key,cls,col,row){
+    var d=document.createElement('div');
+    d.className='bcell '+cls;
+    d.textContent=txt;
+    d.dataset.bet=key;
+    if(col)d.style.gridColumn=col;
+    if(row)d.style.gridRow=row;
+    d.addEventListener('click',function(){placeBet(key);});
+    b.appendChild(d);
+    return d;
+  }
+  cell('0','n0','green','1','1 / span 3');
+  for(var n=1;n<=36;n++){
+    var row=3-((n-1)%3);
+    var col=2+Math.floor((n-1)/3);
+    cell(String(n),'n'+n,RED[n]?'red':'black',String(col),String(row));
+  }
+  cell('2:1','col3','out','14','1');
+  cell('2:1','col2','out','14','2');
+  cell('2:1','col1','out','14','3');
+  cell('1st 12','doz1','out','2 / span 4','4');
+  cell('2nd 12','doz2','out','6 / span 4','4');
+  cell('3rd 12','doz3','out','10 / span 4','4');
+  cell('1-18','low','out','2 / span 2','5');
+  cell('EVEN','even','out','4 / span 2','5');
+  cell('RED','red','red','6 / span 2','5');
+  cell('BLACK','black','black','8 / span 2','5');
+  cell('ODD','odd','out','10 / span 2','5');
+  cell('19-36','high','out','12 / span 2','5');
+}
+function renderBets(){
+  document.querySelectorAll('.bcell').forEach(function(c){
+    var old=c.querySelector('.bchip');
+    if(old)old.remove();
+    var amt=bets[c.dataset.bet];
+    if(amt){
+      var s=document.createElement('span');
+      s.className='bchip';
+      s.textContent=amt;
+      c.appendChild(s);
+    }
+  });
+}
+function flashWinners(n){
+  document.querySelectorAll('.bcell').forEach(function(c){
+    c.classList.remove('win');
+    if(covers(c.dataset.bet,n)||c.dataset.bet==='n'+n){
+      if(c.dataset.bet==='n'+n||bets[c.dataset.bet])c.classList.add('win');
+    }
+  });
+  setTimeout(function(){
+    document.querySelectorAll('.bcell.win').forEach(function(c){c.classList.remove('win');});
+  },2200);
+}
+function hud(){
+  el('bank').textContent=bank;
+  el('staked').textContent=totalStaked();
+  el('rebetBtn').style.display=(lastBets&&!spinning&&!totalStaked())?'':'none';
+  if(bank<1&&totalStaked()===0&&!spinning)el('broke').style.display='flex';
+}
+function setMsg(t,cls){var m=el('msg');m.textContent=t;m.className=cls||'';}
+
+// ------- wheel canvas -------
+var cv=el('wheelcv'),ctx=cv.getContext('2d');
+var SIZE=280,DPR=1;
+var wheelAngle=Math.random()*Math.PI*2,winIdx=Math.floor(Math.random()*37);
+var ballAngle=0,ballR=0.72,idle=true;
+function sizeWheel(){
+  var avail=Math.min(window.innerWidth-30,340);
+  if(window.innerWidth>720)avail=Math.min(avail,Math.max(220,Math.min(300,window.innerHeight-190)));
+  SIZE=Math.max(180,Math.floor(avail));
+  DPR=window.devicePixelRatio||1;
+  cv.style.width=SIZE+'px';cv.style.height=SIZE+'px';
+  cv.width=Math.floor(SIZE*DPR);cv.height=Math.floor(SIZE*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+function drawWheel(){
+  var W=SIZE,cx=W/2,cy=W/2,R=W/2-3;
+  ctx.clearRect(0,0,W,W);
+  // outer gold rim
+  ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);
+  ctx.fillStyle='#241a10';ctx.fill();
+  ctx.lineWidth=3;ctx.strokeStyle='#c9a227';ctx.stroke();
+  // ball track
+  ctx.beginPath();ctx.arc(cx,cy,R*0.965,0,Math.PI*2);
+  ctx.strokeStyle='rgba(201,162,39,.35)';ctx.lineWidth=1;ctx.stroke();
+  // pockets
+  var rOut=R*0.86,rIn=R*0.52;
+  for(var i=0;i<37;i++){
+    var a0=wheelAngle+i*STEP-STEP/2,a1=a0+STEP;
+    var n=ORDER[i];
+    ctx.beginPath();
+    ctx.arc(cx,cy,rOut,a0,a1);
+    ctx.arc(cx,cy,rIn,a1,a0,true);
+    ctx.closePath();
+    ctx.fillStyle=n===0?'#0f7a3d':(RED[n]?'#b81830':'#14141f');
+    ctx.fill();
+    ctx.strokeStyle='rgba(201,162,39,.55)';
+    ctx.lineWidth=1;
+    ctx.stroke();
+  }
+  // numbers
+  ctx.fillStyle='#fff';
+  ctx.font='bold '+Math.max(8,Math.round(R*0.085))+'px "Courier New",monospace';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  for(var j=0;j<37;j++){
+    var a=wheelAngle+j*STEP;
+    var tx=cx+Math.cos(a)*R*0.765,ty=cy+Math.sin(a)*R*0.765;
+    ctx.save();
+    ctx.translate(tx,ty);
+    ctx.rotate(a+Math.PI/2);
+    ctx.fillText(String(ORDER[j]),0,0);
+    ctx.restore();
+  }
+  // hub
+  ctx.beginPath();ctx.arc(cx,cy,rIn*0.96,0,Math.PI*2);
+  ctx.fillStyle='#1b1426';ctx.fill();
+  ctx.lineWidth=2;ctx.strokeStyle='#c9a227';ctx.stroke();
+  for(var k=0;k<4;k++){
+    var sa=wheelAngle*1.0+k*Math.PI/2;
+    ctx.beginPath();
+    ctx.moveTo(cx+Math.cos(sa)*rIn*0.2,cy+Math.sin(sa)*rIn*0.2);
+    ctx.lineTo(cx+Math.cos(sa)*rIn*0.9,cy+Math.sin(sa)*rIn*0.9);
+    ctx.strokeStyle='#c9a227';ctx.lineWidth=3;ctx.stroke();
+  }
+  ctx.beginPath();ctx.arc(cx,cy,rIn*0.22,0,Math.PI*2);
+  ctx.fillStyle='#c9a227';ctx.fill();
+  // winning number readout in hub
+  if(history.length&&idle){
+    ctx.fillStyle='#fff';
+    ctx.font='bold '+Math.round(R*0.14)+'px "Courier New",monospace';
+    ctx.fillText(String(history[0].n),cx,cy-rIn*0.55);
+  }
+  // ball
+  var bx=cx+Math.cos(ballAngle)*R*ballR,by=cy+Math.sin(ballAngle)*R*ballR;
+  ctx.beginPath();ctx.arc(bx,by,Math.max(4,R*0.045),0,Math.PI*2);
+  ctx.fillStyle='#fff';
+  ctx.shadowColor='#fff';ctx.shadowBlur=8;
+  ctx.fill();
+  ctx.shadowBlur=0;
+}
+
+// ------- spin animation -------
+var anim=null;
+function easeOutCubic(t){return 1-Math.pow(1-t,3);}
+function easeOutQuart(t){return 1-Math.pow(1-t,4);}
+function spin(){
+  if(spinning)return;
+  if(totalStaked()<=0){setMsg('PLACE A BET FIRST');return;}
+  spinning=true;idle=false;
+  lastBets={};Object.keys(bets).forEach(function(k){lastBets[k]=bets[k];});
+  el('spinBtn').disabled=true;
+  el('winPill').style.display='none';
+  setMsg('NO MORE BETS...');
+  var win=Math.floor(Math.random()*37);
+  winIdx=idxOf(win);
+  var DUR=5400;
+  var wa0=wheelAngle,ba0=ballAngle;
+  var wAdd=Math.PI*2*(3+Math.random());
+  var fin=wa0+wAdd+winIdx*STEP;
+  var bTurns=Math.PI*2*7;
+  var B=ba0-fin;
+  B=B%(Math.PI*2);
+  B+=bTurns;
+  var start=performance.now();
+  var lastPocket=-1;
+  function frame(now){
+    var p=Math.min(1,(now-start)/DUR);
+    wheelAngle=wa0+wAdd*easeOutCubic(p);
+    ballAngle=ba0-B*easeOutQuart(p);
+    // radius: outer until 60%, then spiral in with bounces
+    if(p<0.6)ballR=0.93;
+    else{
+      var q=(p-0.6)/0.4;
+      ballR=0.93-(0.93-0.70)*Math.min(1,q*1.15);
+      if(q>0.3&&q<0.9)ballR+=0.02*Math.sin(q*28)*(1-q);
+    }
+    var rel=ballAngle-wheelAngle;
+    var pocket=Math.floor(((rel%(Math.PI*2))+Math.PI*2)%(Math.PI*2)/STEP);
+    if(pocket!==lastPocket){lastPocket=pocket;if(p>0.25)sTick();}
+    drawWheel();
+    if(p<1){anim=requestAnimationFrame(frame);}
+    else{
+      ballR=0.70;
+      ballAngle=wheelAngle+winIdx*STEP;
+      drawWheel();
+      sClack();
+      settle(win);
+    }
+  }
+  anim=requestAnimationFrame(frame);
+}
+function settle(n){
+  var ret=0,stake=totalStaked();
+  Object.keys(bets).forEach(function(k){
+    if(covers(k,n))ret+=bets[k]*(multOf(k)+1);
+  });
+  bank+=ret;saveBank();
+  history.unshift({n:n,c:colorOf(n)});
+  if(history.length>10)history.pop();
+  renderHistory();
+  flashWinners(n);
+  var cname=n===0?'GREEN':(RED[n]?'RED':'BLACK');
+  var net=ret-stake;
+  if(ret>0){
+    setMsg(n+' '+cname+' — WIN '+ret+' ('+(net>=0?'+':'')+net+')','win');
+    el('winV').textContent=ret;
+    el('winPill').style.display='';
+    sWin();
+  }else{
+    setMsg(n+' '+cname+' — NO WIN','lose');
+    sLose();
+  }
+  bets={};placeStack=[];
+  renderBets();
+  spinning=false;idle=true;
+  el('spinBtn').disabled=false;
+  hud();
+}
+function renderHistory(){
+  var h=el('history');
+  h.innerHTML='';
+  history.forEach(function(x){
+    var d=document.createElement('div');
+    d.className='hist '+x.c;
+    d.textContent=x.n;
+    h.appendChild(d);
+  });
+}
+
+// idle loop
+function idleLoop(){
+  if(idle){
+    wheelAngle+=0.0022;
+    ballAngle=wheelAngle+winIdx*STEP;
+    ballR=0.70;
+    drawWheel();
+  }
+  requestAnimationFrame(idleLoop);
+}
+
+// wire up
+document.querySelectorAll('.chip').forEach(function(c){
+  c.addEventListener('click',function(){
+    document.querySelectorAll('.chip').forEach(function(x){x.classList.remove('sel');});
+    c.classList.add('sel');
+    denom=+c.dataset.v;
+    sChip();
+  });
+});
+el('spinBtn').addEventListener('click',spin);
+el('undoBtn').addEventListener('click',undoBet);
+el('clearBtn').addEventListener('click',clearBets);
+el('rebetBtn').addEventListener('click',rebet);
+el('resetBank').addEventListener('click',function(){
+  bank=1000;saveBank();el('broke').style.display='none';hud();setMsg('PLACE YOUR BETS');
+});
+document.addEventListener('keydown',function(e){
+  var k=e.key.toLowerCase();
+  if(k===' '||k==='enter'){e.preventDefault();spin();}
+  else if(k==='u')undoBet();
+  else if(k==='c')clearBets();
+  else if(k==='r')rebet();
+});
+var rz=null;
+window.addEventListener('resize',function(){
+  clearTimeout(rz);
+  rz=setTimeout(function(){sizeWheel();drawWheel();},120);
+});
+
+buildBoard();
+sizeWheel();
+drawWheel();
+renderHistory();
+hud();
+idleLoop();
+})();
+</script>
+</body>
+</html>

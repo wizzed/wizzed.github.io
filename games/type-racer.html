@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Type Racer — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f1a;
+    --accent: #00e5ff;
+    --accent-dim: rgba(0,229,255,.35);
+    --good: #00ff9d;
+    --bad: #ff4060;
+    --panel: #191930;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: #e8e8ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 8px 12px 16px;
+    overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px;
+    color: #8888c0; text-decoration: none; font-size: 13px; letter-spacing: 1px;
+    padding: 4px 8px; border: 1px solid #2a2a4a; border-radius: 6px;
+    background: rgba(15,15,26,.8); z-index: 50;
+  }
+  a.back:hover { color: var(--accent); border-color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+  h1 {
+    margin-top: 2px;
+    font-size: clamp(20px, 4.5vmin, 34px);
+    letter-spacing: 5px;
+    color: var(--accent);
+    text-shadow: 0 0 8px var(--accent), 0 0 26px var(--accent-dim);
+    text-transform: uppercase;
+  }
+  #hud {
+    display: flex; gap: 10px; margin: 6px 0 8px; flex-wrap: wrap; justify-content: center; align-items: center;
+  }
+  .hudbox {
+    background: var(--panel); border: 1px solid #2a2a4a; border-radius: 8px;
+    padding: 4px 12px; font-size: 11px; letter-spacing: 1px; color: #9a9ac8; text-align: center; min-width: 78px;
+  }
+  .hudbox b { display: block; color: var(--accent); font-size: 18px; text-shadow: 0 0 8px var(--accent); }
+  .modebtn {
+    background: #23233d; border: 1px solid #34345a; color: #d8d8f8;
+    font-family: inherit; font-weight: bold; font-size: 12px; letter-spacing: 1px;
+    padding: 8px 14px; border-radius: 6px; cursor: pointer;
+    touch-action: manipulation;
+  }
+  .modebtn.active { background: var(--accent); color: #002a30; border-color: var(--accent); box-shadow: 0 0 12px var(--accent-dim); }
+  #textwrap {
+    width: 100%; max-width: 760px;
+    background: var(--panel);
+    border: 1px solid #2a2a4a;
+    border-radius: 12px;
+    box-shadow: 0 0 18px rgba(0,229,255,.1);
+    padding: 16px 18px;
+    cursor: text;
+    position: relative;
+  }
+  #prompt-label {
+    position: absolute; top: -9px; left: 14px;
+    background: var(--bg); color: #8888c0;
+    font-size: 10px; letter-spacing: 2px; padding: 0 6px;
+  }
+  #text {
+    font-size: clamp(15px, 2.6vmin, 20px);
+    line-height: 1.9;
+    letter-spacing: 1px;
+    word-break: break-word;
+    user-select: none;
+    -webkit-user-select: none;
+    min-height: 88px;
+    max-height: 34vh;
+    overflow: hidden;
+  }
+  #text span { border-radius: 2px; }
+  #text span.ok { color: var(--good); text-shadow: 0 0 6px rgba(0,255,157,.5); }
+  #text span.err { color: #fff; background: rgba(255,64,96,.45); text-shadow: 0 0 6px var(--bad); }
+  #text span.cur { background: var(--accent); color: #002a30; box-shadow: 0 0 10px var(--accent); animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { background: #2a2a4a; color: #e8e8ff; box-shadow: none; } }
+  #timebar { height: 6px; background: #23233d; border-radius: 3px; margin-top: 12px; overflow: hidden; }
+  #timefill { height: 100%; width: 100%; background: var(--accent); box-shadow: 0 0 10px var(--accent); transition: width .2s linear; }
+  #hint { color: #66668f; font-size: 11px; letter-spacing: 1px; margin: 8px 0 6px; text-align: center; }
+  #mobileInput { position: absolute; opacity: 0; left: -9999px; top: 0; height: 1px; width: 1px; }
+  /* on-screen keyboard */
+  #kb { display: flex; flex-direction: column; gap: 4px; align-items: center; width: 100%; max-width: 620px; margin-top: 2px; }
+  .kbrow { display: flex; gap: 4px; justify-content: center; width: 100%; }
+  .key {
+    flex: 1; max-width: 52px; height: clamp(30px, 5.4vh, 42px);
+    background: #23233d; border: 1px solid #34345a; border-radius: 5px;
+    color: #d8d8f8; font-family: inherit; font-weight: bold;
+    font-size: clamp(11px, 2.2vmin, 14px);
+    cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  }
+  .key:hover { border-color: var(--accent); box-shadow: 0 0 8px var(--accent-dim); }
+  .key:active { transform: scale(.93); }
+  .key.space { max-width: 240px; flex: 6; }
+  .key.wide { max-width: 84px; flex: 2; font-size: 10px; }
+  #overlay {
+    position: fixed; inset: 0; background: rgba(10,10,20,.9);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 100;
+  }
+  #overlay.show { opacity: 1; pointer-events: auto; }
+  .panel2 {
+    background: var(--panel); border: 2px solid var(--accent); border-radius: 12px;
+    box-shadow: 0 0 30px var(--accent-dim), 0 0 80px rgba(0,229,255,.12);
+    padding: 20px 28px; text-align: center; max-width: 94vw; max-height: 94vh; overflow: auto;
+  }
+  .panel2 h2 { color: var(--accent); letter-spacing: 4px; font-size: 22px; text-shadow: 0 0 12px var(--accent); margin-bottom: 6px; }
+  .panel2 .sub { color: #9a9ac8; font-size: 13px; margin: 8px 0 12px; line-height: 1.7; }
+  .panel2 .sub b { color: var(--accent); }
+  .charts { display: flex; gap: 16px; justify-content: center; align-items: center; flex-wrap: wrap; }
+  .chartbox { background: #14142a; border: 1px solid #2a2a4a; border-radius: 8px; padding: 8px; }
+  .chartbox .cap { font-size: 10px; color: #8888c0; letter-spacing: 2px; margin-top: 4px; }
+  .btn {
+    background: var(--accent); color: #002a30; border: none; font-family: inherit;
+    font-weight: bold; font-size: 15px; letter-spacing: 2px; padding: 11px 26px;
+    border-radius: 6px; cursor: pointer; text-transform: uppercase; margin-top: 14px;
+    box-shadow: 0 0 14px var(--accent-dim);
+  }
+  .btn:hover { box-shadow: 0 0 26px var(--accent); }
+  @media (max-height: 600px) {
+    #text { line-height: 1.6; min-height: 60px; }
+    #kb .key { height: 28px; }
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<h1>Type Racer</h1>
+<div id="hud">
+  <button class="modebtn active" id="mode30">30s</button>
+  <button class="modebtn" id="mode60">60s</button>
+  <div class="hudbox">TIME<b id="h-time">30</b></div>
+  <div class="hudbox">WPM<b id="h-wpm">0</b></div>
+  <div class="hudbox">ACCURACY<b id="h-acc">100%</b></div>
+  <div class="hudbox">BEST<b id="h-best">0</b></div>
+</div>
+<div id="textwrap">
+  <span id="prompt-label">START TYPING TO BEGIN</span>
+  <div id="text"></div>
+  <div id="timebar"><div id="timefill"></div></div>
+  <input id="mobileInput" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-hidden="true">
+</div>
+<div id="hint">Type the text above — the clock starts on your first key. Tap the text on mobile to open your keyboard.</div>
+<div id="kb"></div>
+<div id="overlay">
+  <div class="panel2">
+    <h2>RACE COMPLETE</h2>
+    <div class="charts">
+      <div class="chartbox"><canvas id="gauge" width="220" height="140"></canvas><div class="cap">WPM GAUGE</div></div>
+      <div class="chartbox"><canvas id="history" width="260" height="140"></canvas><div class="cap">LAST 10 RUNS (WPM)</div></div>
+    </div>
+    <div class="sub" id="ov-sub"></div>
+    <button class="btn" id="ov-again">Race Again</button>
+  </div>
+</div>
+<script>
+(function () {
+  "use strict";
+  // keep physical Enter/Space from re-triggering the last clicked button
+  document.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("button") : null;
+    if (b) b.blur();
+  });
+  var PARAGRAPHS = [
+    "The neon sign flickered over the empty arcade as the last player chased one final high score before closing time. Every coin counted now.",
+    "Typing fast is a skill built from rhythm and patience. Keep your eyes on the words, trust your fingers, and let each sentence flow like water.",
+    "A lighthouse stands alone at the edge of the rocks, sweeping its beam across the dark water while ships pass safely in the distance below.",
+    "The little robot rolled across the workshop floor, beeping softly as it sorted screws into tiny labeled drawers with surprising care and speed.",
+    "Fresh coffee has a way of turning a slow gray morning into something hopeful. The first sip is warm, bitter, and somehow full of plans.",
+    "High in the mountains the air grows thin and clean, and the trail narrows to a ribbon of stone that climbers follow toward the bright summit.",
+    "The ocean covers most of our planet, yet we have mapped more of the surface of Mars than the deep trenches that hide beneath the waves.",
+    "Somewhere beyond the last streetlight, the night sky opens into a field of stars, each one a distant sun with stories we will never hear.",
+    "Deserts seem empty at noon, but at dusk they wake up. Foxes trot between dunes, beetles march over cooling sand, and owls glide overhead.",
+    "A good library is a quiet machine for time travel. Pick a shelf, pull a spine, and suddenly you are centuries away from the ticking clock.",
+    "The old train rattled through the valley, past sleeping farms and misty fields, carrying its passengers toward the glow of the waking city.",
+    "In a small garden, patience is the main tool. Seeds vanish into the soil and, after weeks of quiet work, return as rows of green surprise.",
+    "Early computers filled entire rooms and hummed like refrigerators, yet the phone in your pocket now outthinks them a million times over.",
+    "Storm clouds stacked up over the plains all afternoon, and by evening the first fat drops of rain hit the dust like tiny silver coins.",
+    "Music can carry a memory better than any photograph. A few notes from an old song and an entire summer comes rushing back in full color.",
+    "Chess rewards the patient mind. Every piece has a purpose, every square a price, and the best move is often the one you almost ignored.",
+    "Baking bread is honest work. Flour, water, salt, and time turn into a golden loaf that fills the whole kitchen with a warm, toasted smell.",
+    "At midnight the city becomes a circuit board, rivers of red and white light tracing its streets while towers blink slowly at the moon.",
+    "The river never hurries, yet it carved this entire canyon. Grain by grain, year by year, soft water taught hard stone a lesson in patience.",
+    "A bicycle is a quiet miracle of balance. Two thin wheels, a frame, and a rider become one smooth machine gliding down the morning road.",
+    "Penguins march across the ice in long wobbling lines, trading the comfort of the colony for the cold sea where they fly underwater.",
+    "Under the sleeping volcano, pressure builds for centuries. Then one bright morning the mountain clears its throat and rewrites the map.",
+    "Old maps are full of brave guesses. Cartographers drew sea monsters in the blank spaces and hoped nobody would ever check their work.",
+    "Photography is the art of noticing. The light was always there, sliding down the wall at sunset. The camera just taught you to see it.",
+    "In autumn the trees spend their savings all at once, throwing gold and crimson into the wind before standing bare against the frost.",
+    "The market opens at dawn with a clatter of crates. Vendors stack oranges into perfect pyramids and call out prices to the sleepy street.",
+    "Sailing is a long conversation with the wind. Trim the sheet, ease the tiller, and listen as the hull hums its low song through the swell.",
+    "Glaciers are rivers that forgot how to hurry. They grind valleys out of granite while moving slower than the hour hand of a clock.",
+    "A single bee visits hundreds of flowers a day, flying miles for a cargo of nectar smaller than a raindrop, and the hive turns it to gold.",
+    "The comet returns every few decades, dragging its silver tail across the night while astronomers and children stay up late to watch.",
+    "Inside the old radio, a warm orange glow lit the tubes as distant voices crossed oceans of static to arrive in one small kitchen.",
+    "The marathon crowd roared at the final turn. Legs of lead, lungs on fire, the runner fixed her eyes on the banner and simply refused to stop.",
+    "Deep in the server room, ten thousand tiny lights blink in the dark, moving messages between strangers on opposite sides of the world.",
+    "Winter mornings ask for courage. The floor is cold, the blankets are heavy, and the day waits outside like a dog ready for its walk."
+  ];
+
+  // ---------- audio ----------
+  var actx = null;
+  function initAudio() {
+    if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; } }
+    if (actx && actx.state === "suspended") actx.resume();
+  }
+  document.addEventListener("pointerdown", initAudio, { once: true });
+  document.addEventListener("keydown", initAudio, { once: true });
+  function beep(freq, dur, type, vol) {
+    if (!actx) return;
+    try {
+      dur = dur || 0.05; type = type || "square"; vol = vol || 0.025;
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+      o.connect(g); g.connect(actx.destination);
+      o.start(); o.stop(actx.currentTime + dur);
+    } catch (e) { /* ignore */ }
+  }
+
+  // ---------- storage ----------
+  var STORE_KEY = "wizzed-type-racer";
+  var store = { best: 0, history: [] };
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (raw) { var p = JSON.parse(raw); if (p && typeof p === "object") store = Object.assign(store, p); }
+    if (!Array.isArray(store.history)) store.history = [];
+  } catch (e) { /* ignore */ }
+  function saveStore() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) { /* ignore */ } }
+
+  // ---------- state ----------
+  var mode = 30;
+  var chars = [];        // span elements for current paragraph
+  var target = "";       // current paragraph text
+  var pos = 0;           // index in current paragraph
+  var started = false, finished = false;
+  var startTime = 0, timeLeft = mode;
+  var correctChars = 0;  // total correct chars typed (across paragraphs)
+  var totalKeys = 0, correctKeys = 0;
+  var tickInterval = null;
+  var usedParas = [];
+
+  var textEl = document.getElementById("text");
+  var mobileInput = document.getElementById("mobileInput");
+
+  function pickParagraph() {
+    if (usedParas.length >= PARAGRAPHS.length) usedParas = [];
+    var idx;
+    do { idx = Math.floor(Math.random() * PARAGRAPHS.length); } while (usedParas.indexOf(idx) >= 0);
+    usedParas.push(idx);
+    return PARAGRAPHS[idx];
+  }
+
+  function loadParagraph() {
+    target = pickParagraph();
+    pos = 0;
+    textEl.innerHTML = "";
+    chars = [];
+    target.split("").forEach(function (ch) {
+      var s = document.createElement("span");
+      s.textContent = ch;
+      textEl.appendChild(s);
+      chars.push(s);
+    });
+    if (chars.length) chars[0].classList.add("cur");
+  }
+
+  function resetRun() {
+    started = false; finished = false;
+    timeLeft = mode;
+    correctChars = 0; totalKeys = 0; correctKeys = 0;
+    if (tickInterval) { clearInterval(tickInterval); tickInterval = null; }
+    usedParas = [];
+    loadParagraph();
+    document.getElementById("h-time").textContent = mode;
+    document.getElementById("h-wpm").textContent = "0";
+    document.getElementById("h-acc").textContent = "100%";
+    document.getElementById("h-best").textContent = store.best;
+    document.getElementById("timefill").style.width = "100%";
+    document.getElementById("prompt-label").textContent = "START TYPING TO BEGIN";
+    document.getElementById("overlay").classList.remove("show");
+  }
+
+  function startClock() {
+    started = true;
+    startTime = performance.now();
+    document.getElementById("prompt-label").textContent = "GO!";
+    tickInterval = setInterval(function () {
+      var elapsed = (performance.now() - startTime) / 1000;
+      timeLeft = Math.max(0, mode - elapsed);
+      document.getElementById("h-time").textContent = Math.ceil(timeLeft);
+      document.getElementById("timefill").style.width = (timeLeft / mode * 100) + "%";
+      updateLive();
+      if (timeLeft <= 0) endRun();
+    }, 150);
+  }
+
+  function liveWpm() {
+    var elapsedMin = started ? (performance.now() - startTime) / 60000 : 0;
+    if (elapsedMin <= 0.005) return 0;
+    return Math.round((correctChars / 5) / elapsedMin);
+  }
+  function liveAcc() {
+    if (totalKeys === 0) return 100;
+    return Math.round(correctKeys / totalKeys * 100);
+  }
+  function updateLive() {
+    document.getElementById("h-wpm").textContent = liveWpm();
+    document.getElementById("h-acc").textContent = liveAcc() + "%";
+  }
+
+  function typeChar(ch) {
+    if (finished) return;
+    if (!started) startClock();
+    if (pos >= chars.length) return;
+    totalKeys++;
+    var expected = target[pos];
+    var span = chars[pos];
+    span.classList.remove("cur");
+    if (ch === expected) {
+      span.classList.add("ok");
+      correctKeys++; correctChars++;
+      beep(600 + Math.random() * 120, 0.025, "square", 0.015);
+    } else {
+      span.classList.add("err");
+      beep(160, 0.07, "sawtooth", 0.035);
+    }
+    pos++;
+    if (pos >= chars.length) {
+      loadParagraph();
+    } else {
+      chars[pos].classList.add("cur");
+      span.scrollIntoView({ block: "nearest" });
+    }
+    updateLive();
+  }
+
+  function backspace() {
+    if (finished || !started || pos === 0) return;
+    if (pos < chars.length) chars[pos].classList.remove("cur");
+    pos--;
+    var span = chars[pos];
+    if (span.classList.contains("ok")) correctChars--;
+    span.classList.remove("ok", "err");
+    span.classList.add("cur");
+    updateLive();
+  }
+
+  // ---------- end screen ----------
+  function endRun() {
+    finished = true;
+    clearInterval(tickInterval); tickInterval = null;
+    var wpm = liveWpm();
+    var acc = liveAcc();
+    var isBest = wpm > store.best;
+    if (isBest) store.best = wpm;
+    store.history.push({ wpm: wpm, acc: acc, mode: mode, t: Date.now() });
+    if (store.history.length > 10) store.history = store.history.slice(-10);
+    saveStore();
+    [523, 659, 784].forEach(function (f, i) { setTimeout(function () { beep(f, 0.12, "square", 0.05); }, i * 120); });
+    document.getElementById("ov-sub").innerHTML =
+      "<b>" + wpm + "</b> WPM &nbsp;|&nbsp; <b>" + acc + "%</b> accuracy &nbsp;|&nbsp; <b>" +
+      correctChars + "</b> chars in " + mode + "s" +
+      (isBest ? "<br>★ NEW PERSONAL BEST ★" : "<br>Personal best: <b>" + store.best + "</b> WPM");
+    document.getElementById("h-best").textContent = store.best;
+    drawGauge(wpm);
+    drawHistory();
+    document.getElementById("overlay").classList.add("show");
+  }
+
+  function drawGauge(wpm) {
+    var cv = document.getElementById("gauge");
+    var c = cv.getContext("2d");
+    c.clearRect(0, 0, cv.width, cv.height);
+    var cx = 110, cy = 118, r = 86;
+    var a0 = Math.PI, a1 = 2 * Math.PI;
+    var maxW = 150;
+    var frac = Math.min(1, wpm / maxW);
+    // track
+    c.lineWidth = 12; c.lineCap = "round";
+    c.strokeStyle = "#23233d";
+    c.beginPath(); c.arc(cx, cy, r, a0, a1); c.stroke();
+    // value
+    c.strokeStyle = "#00e5ff";
+    c.shadowColor = "#00e5ff"; c.shadowBlur = 12;
+    c.beginPath(); c.arc(cx, cy, r, a0, a0 + (a1 - a0) * frac); c.stroke();
+    c.shadowBlur = 0;
+    // ticks
+    c.fillStyle = "#8888c0"; c.font = "9px monospace"; c.textAlign = "center";
+    for (var v = 0; v <= maxW; v += 30) {
+      var a = a0 + (a1 - a0) * v / maxW;
+      c.fillText(String(v), cx + Math.cos(a) * (r - 22), cy + Math.sin(a) * (r - 22) + 3);
+    }
+    // needle value
+    c.fillStyle = "#00e5ff"; c.font = "bold 26px monospace";
+    c.shadowColor = "#00e5ff"; c.shadowBlur = 10;
+    c.fillText(String(wpm), cx, cy - 14);
+    c.shadowBlur = 0;
+    c.fillStyle = "#8888c0"; c.font = "10px monospace";
+    c.fillText("WPM", cx, cy);
+  }
+
+  function drawHistory() {
+    var cv = document.getElementById("history");
+    var c = cv.getContext("2d");
+    c.clearRect(0, 0, cv.width, cv.height);
+    var runs = store.history.slice(-10);
+    if (!runs.length) return;
+    var maxW = Math.max(60, Math.max.apply(null, runs.map(function (r) { return r.wpm; })));
+    var padL = 26, padB = 18, padT = 10;
+    var w = cv.width - padL - 8, h = cv.height - padB - padT;
+    // axis
+    c.strokeStyle = "#2a2a4a"; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(padL, padT); c.lineTo(padL, padT + h); c.lineTo(padL + w, padT + h); c.stroke();
+    c.fillStyle = "#8888c0"; c.font = "9px monospace"; c.textAlign = "right";
+    c.fillText(String(maxW), padL - 3, padT + 8);
+    c.fillText("0", padL - 3, padT + h);
+    var bw = w / runs.length;
+    runs.forEach(function (r, i) {
+      var bh = Math.max(2, r.wpm / maxW * h);
+      var x = padL + i * bw + bw * 0.18;
+      var last = i === runs.length - 1;
+      c.fillStyle = last ? "#00e5ff" : "rgba(0,229,255,.35)";
+      if (last) { c.shadowColor = "#00e5ff"; c.shadowBlur = 8; }
+      c.fillRect(x, padT + h - bh, bw * 0.64, bh);
+      c.shadowBlur = 0;
+      c.fillStyle = "#8888c0"; c.textAlign = "center"; c.font = "8px monospace";
+      c.fillText(String(r.wpm), x + bw * 0.32, padT + h - bh - 3);
+    });
+  }
+
+  // ---------- input wiring ----------
+  window.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (document.getElementById("overlay").classList.contains("show")) {
+      if (e.key === "Enter") { resetRun(); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "Backspace") { backspace(); e.preventDefault(); return; }
+    if (e.key.length === 1) {
+      if (e.target === mobileInput) return; // handled by input event
+      typeChar(e.key);
+      if (e.key === " ") e.preventDefault();
+    }
+  });
+
+  // mobile: tap text -> focus hidden input
+  document.getElementById("textwrap").addEventListener("click", function () {
+    mobileInput.focus({ preventScroll: true });
+  });
+  mobileInput.addEventListener("input", function () {
+    var v = mobileInput.value;
+    mobileInput.value = "";
+    for (var i = 0; i < v.length; i++) typeChar(v[i]);
+  });
+  // Backspace (even while mobileInput is focused) bubbles to the window keydown handler.
+
+  // on-screen keyboard
+  (function buildKb() {
+    var kbEl = document.getElementById("kb");
+    var rows = [
+      ["q","w","e","r","t","y","u","i","o","p"],
+      ["a","s","d","f","g","h","j","k","l",";"],
+      ["z","x","c","v","b","n","m",",",".","-"],
+      ["SHIFT","SPACE","DEL"]
+    ];
+    var shift = false;
+    var shiftBtn = null;
+    rows.forEach(function (r) {
+      var rowEl = document.createElement("div");
+      rowEl.className = "kbrow";
+      r.forEach(function (k) {
+        var b = document.createElement("button");
+        b.className = "key" + (k === "SPACE" ? " space" : (k.length > 1 ? " wide" : ""));
+        b.textContent = k === "SPACE" ? "␣" : (k === "DEL" ? "⌫" : k);
+        b.addEventListener("click", function () {
+          if (k === "DEL") { backspace(); return; }
+          if (k === "SHIFT") {
+            shift = !shift;
+            shiftBtn.style.borderColor = shift ? "#00e5ff" : "#34345a";
+            return;
+          }
+          var ch = k === "SPACE" ? " " : (shift ? k.toUpperCase() : k);
+          typeChar(ch);
+          if (shift) { shift = false; shiftBtn.style.borderColor = "#34345a"; }
+        });
+        if (k === "SHIFT") shiftBtn = b;
+        rowEl.appendChild(b);
+      });
+      kbEl.appendChild(rowEl);
+    });
+  })();
+
+  document.getElementById("mode30").addEventListener("click", function () {
+    mode = 30;
+    this.classList.add("active");
+    document.getElementById("mode60").classList.remove("active");
+    resetRun();
+  });
+  document.getElementById("mode60").addEventListener("click", function () {
+    mode = 60;
+    this.classList.add("active");
+    document.getElementById("mode30").classList.remove("active");
+    resetRun();
+  });
+  document.getElementById("ov-again").addEventListener("click", function () {
+    beep(520, 0.06);
+    resetRun();
+  });
+
+  window.addEventListener("resize", function () {
+    if (document.getElementById("overlay").classList.contains("show")) {
+      var last = store.history[store.history.length - 1];
+      if (last) { drawGauge(last.wpm); drawHistory(); }
+    }
+  });
+
+  resetRun();
+})();
+</script>
+</body>
+</html>

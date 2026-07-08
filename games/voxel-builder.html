@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voxel Builder – Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #0f0f1a; overflow: hidden; color: #cfe9ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  canvas { display: block; }
+  a.back {
+    position: fixed; top: 12px; left: 12px; z-index: 40;
+    color: #7f8fc0; text-decoration: none; font-size: 13px;
+    background: rgba(12,12,32,0.7); border: 1px solid #26264d;
+    padding: 5px 10px; border-radius: 6px;
+  }
+  a.back:hover { color: #4ff3ff; border-color: #4ff3ff; }
+  #hud {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 30; display: flex; gap: 18px; pointer-events: none;
+    background: rgba(10,10,28,0.6); border: 1px solid #23234a;
+    padding: 7px 16px; border-radius: 8px; font-size: 13px;
+    color: #9fd8ff; text-shadow: 0 0 8px #2288ff; white-space: nowrap;
+  }
+  #hud b { color: #ffd34f; text-shadow: 0 0 10px #ff9a00; font-weight: normal; }
+  #bar {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 30; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    justify-content: center; max-width: 96vw;
+    background: rgba(10,10,28,0.78); border: 1px solid #23234a;
+    padding: 8px 12px; border-radius: 12px;
+  }
+  .sw {
+    width: 26px; height: 26px; border-radius: 6px; cursor: pointer;
+    border: 2px solid #22224a;
+  }
+  .sw.sel { border-color: #ffffff; box-shadow: 0 0 10px currentColor; }
+  #bar button {
+    font-family: inherit; font-size: 11px; cursor: pointer; letter-spacing: 1px;
+    background: #101030; color: #9fd8ff; border: 1px solid #2c2c5e;
+    border-radius: 7px; padding: 6px 9px;
+  }
+  #bar button:hover { border-color: #4ff3ff; color: #4ff3ff; }
+  #bar button.on { border-color: #29e6a7; color: #29e6a7; box-shadow: 0 0 8px #29e6a755; }
+  #bar button.danger.on { border-color: #ff5577; color: #ff5577; box-shadow: 0 0 8px #ff557755; }
+  #bar .sep { width: 1px; height: 24px; background: #2c2c5e; }
+  #toast {
+    position: fixed; bottom: 68px; left: 50%; transform: translateX(-50%);
+    z-index: 35; font-size: 13px; color: #29e6a7; text-shadow: 0 0 10px #0aa877;
+    opacity: 0; transition: opacity 0.25s; pointer-events: none; white-space: nowrap;
+  }
+  #hint {
+    position: fixed; top: 46px; left: 50%; transform: translateX(-50%);
+    z-index: 25; font-size: 11px; color: #56628f; pointer-events: none;
+    text-shadow: 0 0 6px #101040; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<div id="hud">
+  <span>VOXEL BUILDER</span>
+  <span>BLOCKS <b id="count">0</b></span>
+  <span id="mode-lab">MODE <b>BUILD</b></span>
+</div>
+<div id="hint">click: place · right-click: erase · drag: orbit · scroll: zoom · 1-8 colors · Q type · X mode</div>
+<div id="toast"></div>
+<div id="bar">
+  <div id="palette" style="display:flex;gap:6px"></div>
+  <div class="sep"></div>
+  <button id="type-cube" class="on">▣ CUBE</button>
+  <button id="type-slab">▭ SLAB</button>
+  <div class="sep"></div>
+  <button id="mode-btn" class="danger">✖ ERASE: OFF</button>
+  <div class="sep"></div>
+  <button id="save-btn">SAVE</button>
+  <button id="load-btn">LOAD</button>
+  <button id="clear-btn">CLEAR</button>
+  <button id="demo-btn">DEMO</button>
+</div>
+<script src="../lib/three.min.js"></script>
+<script>
+'use strict';
+// ── Voxel Builder ──────────────────────────────────────────────────────────
+const SLUG = 'wizzed-voxel-builder';
+const GRID = 24, MAXY = 16;
+const OFF = GRID / 2;   // world = cell - OFF + 0.5
+
+const PALETTE = ['#ff3355', '#ff9933', '#ffee33', '#33ff77', '#33ffee', '#3377ff', '#aa55ff', '#ff55dd'];
+
+// ── Scene ──────────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f0f1a);
+scene.fog = new THREE.Fog(0x0f0f1a, 40, 110);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 300);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+scene.add(new THREE.AmbientLight(0x38406e, 1.15));
+scene.add(new THREE.HemisphereLight(0x8899ff, 0x140a26, 0.75));
+const sun = new THREE.DirectionalLight(0xfff0dd, 2.0);
+sun.position.set(18, 26, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 4; sun.shadow.camera.far = 80;
+sun.shadow.camera.left = -22; sun.shadow.camera.right = 22;
+sun.shadow.camera.top = 22; sun.shadow.camera.bottom = -22;
+scene.add(sun);
+const fillPt = new THREE.PointLight(0x6644ff, 20, 60, 1.6);
+fillPt.position.set(-14, 16, -14);
+scene.add(fillPt);
+
+// ground
+const ground = new THREE.Mesh(
+  new THREE.BoxGeometry(GRID, 0.5, GRID),
+  new THREE.MeshStandardMaterial({ color: 0x141430, roughness: 0.9 })
+);
+ground.position.y = -0.25;
+ground.receiveShadow = true;
+scene.add(ground);
+const apron = new THREE.Mesh(
+  new THREE.PlaneGeometry(220, 220),
+  new THREE.MeshStandardMaterial({ color: 0x0b0b18, roughness: 1 })
+);
+apron.rotation.x = -Math.PI / 2;
+apron.position.y = -0.5;
+scene.add(apron);
+const gridHelper = new THREE.GridHelper(GRID, GRID, 0x3355aa, 0x1c1c44);
+gridHelper.position.y = 0.012;
+scene.add(gridHelper);
+// neon rim around the plot
+{
+  const rimGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(-OFF, 0.03, -OFF), new THREE.Vector3(OFF, 0.03, -OFF),
+    new THREE.Vector3(OFF, 0.03, OFF), new THREE.Vector3(-OFF, 0.03, OFF),
+    new THREE.Vector3(-OFF, 0.03, -OFF)
+  ]);
+  scene.add(new THREE.Line(rimGeo, new THREE.LineBasicMaterial({ color: 0x4ff3ff })));
+}
+// stars
+{
+  const pts = [];
+  for (let i = 0; i < 500; i++) {
+    const v = new THREE.Vector3().randomDirection().multiplyScalar(90 + Math.random() * 80);
+    v.y = Math.abs(v.y) + 4;
+    pts.push(v.x, v.y, v.z);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8899ee, size: 0.55 })));
+}
+
+// ── Block store ────────────────────────────────────────────────────────────
+const cubeGeo = new THREE.BoxGeometry(0.96, 0.96, 0.96);
+const slabGeo = new THREE.BoxGeometry(0.96, 0.48, 0.96);
+const cubeEdges = new THREE.EdgesGeometry(cubeGeo);
+const slabEdges = new THREE.EdgesGeometry(slabGeo);
+const edgeMat = new THREE.LineBasicMaterial({ color: 0x0a0a16, transparent: true, opacity: 0.5 });
+const matCache = PALETTE.map(hex => new THREE.MeshStandardMaterial({
+  color: new THREE.Color(hex),
+  emissive: new THREE.Color(hex),
+  emissiveIntensity: 0.22,
+  roughness: 0.45, metalness: 0.1
+}));
+
+const blocksGroup = new THREE.Group();
+scene.add(blocksGroup);
+const blocks = new Map();  // "x,y,z" → { c, t, mesh }
+
+function keyOf(x, y, z) { return x + ',' + y + ',' + z; }
+function inBounds(x, y, z) { return x >= 0 && x < GRID && z >= 0 && z < GRID && y >= 0 && y < MAXY; }
+function cellToWorld(x, y, z, t) {
+  return new THREE.Vector3(x - OFF + 0.5, t === 1 ? y + 0.24 : y + 0.5, z - OFF + 0.5);
+}
+
+function placeBlock(x, y, z, c, t, silent) {
+  if (!inBounds(x, y, z)) return false;
+  const k = keyOf(x, y, z);
+  if (blocks.has(k)) return false;
+  const mesh = new THREE.Mesh(t === 1 ? slabGeo : cubeGeo, matCache[c]);
+  mesh.position.copy(cellToWorld(x, y, z, t));
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  mesh.userData = { x, y, z, c, t, key: k };
+  mesh.add(new THREE.LineSegments(t === 1 ? slabEdges : cubeEdges, edgeMat));
+  blocksGroup.add(mesh);
+  blocks.set(k, { c, t, mesh });
+  if (!silent) updateCount();
+  return true;
+}
+function removeBlockAt(x, y, z) {
+  const k = keyOf(x, y, z);
+  const b = blocks.get(k);
+  if (!b) return false;
+  blocksGroup.remove(b.mesh);
+  blocks.delete(k);
+  updateCount();
+  return true;
+}
+function clearBlocks() {
+  blocks.forEach(b => blocksGroup.remove(b.mesh));
+  blocks.clear();
+  updateCount();
+}
+function updateCount() {
+  document.getElementById('count').textContent = blocks.size;
+}
+
+// ── Default demo build: house + tree + path ────────────────────────────────
+function buildDemo() {
+  clearBlocks();
+  // house walls (blue), rect x 6..11, z 8..12, y 0..2
+  for (let y = 0; y <= 2; y++)
+    for (let x = 6; x <= 11; x++)
+      for (let z = 8; z <= 12; z++) {
+        const perim = (x === 6 || x === 11 || z === 8 || z === 12);
+        if (!perim) continue;
+        // door on front (z=12) two wide, two tall
+        if (z === 12 && (x === 8 || x === 9) && y <= 1) continue;
+        // windows
+        if (y === 1 && ((x === 6 && z === 10) || (x === 11 && z === 10))) continue;
+        placeBlock(x, y, z, 5, 0, true);
+      }
+  // roof (red), stepped pyramid
+  for (let x = 6; x <= 11; x++) for (let z = 8; z <= 12; z++) placeBlock(x, 3, z, 0, 0, true);
+  for (let x = 7; x <= 10; x++) for (let z = 9; z <= 11; z++) placeBlock(x, 4, z, 0, 0, true);
+  for (let x = 8; x <= 9; x++) placeBlock(x, 5, 10, 0, 1, true);
+  // lantern by the door (cyan slab + yellow cube)
+  placeBlock(11, 0, 14, 4, 1, true);
+  placeBlock(6, 0, 14, 4, 1, true);
+  // path (yellow slabs)
+  [[8, 13], [9, 13], [8, 14], [9, 14], [8, 15], [9, 15]].forEach(([x, z]) => placeBlock(x, 0, z, 2, 1, true));
+  // tree: trunk (orange) + leaves (green)
+  const tx = 16, tz = 9;
+  for (let y = 0; y <= 2; y++) placeBlock(tx, y, tz, 1, 0, true);
+  for (let x = tx - 1; x <= tx + 1; x++)
+    for (let z = tz - 1; z <= tz + 1; z++)
+      placeBlock(x, 3, z, 3, 0, true);
+  [[tx, 4, tz], [tx - 1, 4, tz], [tx + 1, 4, tz], [tx, 4, tz - 1], [tx, 4, tz + 1], [tx, 5, tz]]
+    .forEach(([x, y, z]) => placeBlock(x, y, z, 3, 0, true));
+  // a few floating accent voxels
+  placeBlock(3, 0, 5, 6, 0, true);
+  placeBlock(3, 1, 5, 7, 1, true);
+  placeBlock(20, 0, 18, 4, 0, true);
+  placeBlock(20, 1, 18, 4, 1, true);
+  updateCount();
+}
+
+// ── Save / load ────────────────────────────────────────────────────────────
+function saveBuild() {
+  const arr = [];
+  blocks.forEach((b, k) => {
+    const [x, y, z] = k.split(',').map(Number);
+    arr.push([x, y, z, b.c, b.t]);
+  });
+  try {
+    localStorage.setItem(SLUG, JSON.stringify({ v: 1, blocks: arr }));
+    toast('BUILD SAVED (' + arr.length + ' blocks)');
+  } catch (e) { toast('SAVE FAILED'); }
+}
+function loadBuild(silent) {
+  let data = null;
+  try { data = JSON.parse(localStorage.getItem(SLUG)); } catch (e) { data = null; }
+  if (!data || !Array.isArray(data.blocks)) {
+    if (!silent) toast('NO SAVED BUILD');
+    return false;
+  }
+  clearBlocks();
+  data.blocks.forEach(([x, y, z, c, t]) => {
+    if (inBounds(x, y, z) && c >= 0 && c < PALETTE.length) placeBlock(x, y, z, c, t === 1 ? 1 : 0, true);
+  });
+  updateCount();
+  if (!silent) toast('BUILD LOADED');
+  return true;
+}
+
+let toastTmr = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(toastTmr);
+  toastTmr = setTimeout(() => { el.style.opacity = '0'; }, 1400);
+}
+
+// ── Ghost highlight ────────────────────────────────────────────────────────
+const ghostMats = {
+  place: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, depthWrite: false }),
+  erase: new THREE.MeshBasicMaterial({ color: 0xff3344, transparent: true, opacity: 0.4, depthWrite: false })
+};
+const ghost = new THREE.Mesh(cubeGeo, ghostMats.place);
+ghost.visible = false;
+const ghostEdge = new THREE.LineSegments(cubeEdges, new THREE.LineBasicMaterial({ color: 0xffffff }));
+ghost.add(ghostEdge);
+scene.add(ghost);
+// face marker: a bright quad on the hovered face
+const faceMark = new THREE.Mesh(
+  new THREE.PlaneGeometry(0.98, 0.98),
+  new THREE.MeshBasicMaterial({ color: 0x4ff3ff, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false })
+);
+faceMark.visible = false;
+scene.add(faceMark);
+
+// ── State / UI ─────────────────────────────────────────────────────────────
+let colorIdx = 4;
+let typeIdx = 0;    // 0 cube, 1 slab
+let eraseMode = false;
+
+const palEl = document.getElementById('palette');
+PALETTE.forEach((hex, i) => {
+  const d = document.createElement('div');
+  d.className = 'sw' + (i === colorIdx ? ' sel' : '');
+  d.style.background = hex;
+  d.style.color = hex;
+  d.title = 'color ' + (i + 1);
+  d.addEventListener('click', () => setColor(i));
+  palEl.appendChild(d);
+});
+function setColor(i) {
+  colorIdx = i;
+  [...palEl.children].forEach((c, j) => c.classList.toggle('sel', j === i));
+  if (eraseMode) setErase(false);
+}
+function setType(t) {
+  typeIdx = t;
+  document.getElementById('type-cube').classList.toggle('on', t === 0);
+  document.getElementById('type-slab').classList.toggle('on', t === 1);
+  ghost.geometry = t === 1 ? slabGeo : cubeGeo;
+  ghostEdge.geometry = t === 1 ? slabEdges : cubeEdges;
+  if (eraseMode) setErase(false);
+}
+function setErase(on) {
+  eraseMode = on;
+  const btn = document.getElementById('mode-btn');
+  btn.textContent = on ? '✖ ERASE: ON' : '✖ ERASE: OFF';
+  btn.classList.toggle('on', on);
+  document.getElementById('mode-lab').innerHTML = 'MODE <b>' + (on ? 'ERASE' : 'BUILD') + '</b>';
+}
+document.getElementById('type-cube').addEventListener('click', () => setType(0));
+document.getElementById('type-slab').addEventListener('click', () => setType(1));
+document.getElementById('mode-btn').addEventListener('click', () => setErase(!eraseMode));
+document.getElementById('save-btn').addEventListener('click', saveBuild);
+document.getElementById('load-btn').addEventListener('click', () => loadBuild(false));
+document.getElementById('clear-btn').addEventListener('click', () => { clearBlocks(); toast('CLEARED'); });
+document.getElementById('demo-btn').addEventListener('click', () => { buildDemo(); toast('DEMO BUILD'); });
+
+addEventListener('keydown', e => {
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= 8) setColor(n - 1);
+  if (e.code === 'KeyQ' || e.code === 'KeyT') setType(typeIdx === 0 ? 1 : 0);
+  if (e.code === 'KeyX' || e.code === 'KeyE') setErase(!eraseMode);
+  if (e.code === 'KeyR') resetCamera();
+});
+
+// ── Camera orbit ───────────────────────────────────────────────────────────
+const cam = { theta: 0.75, phi: 1.05, radius: 27, target: new THREE.Vector3(0, 2.6, 0) };
+function resetCamera() {
+  cam.theta = 0.75; cam.phi = 1.05; cam.radius = 27;
+  cam.target.set(0, 2.6, 0);
+  toast('VIEW RESET');
+}
+function applyCamera() {
+  const sp = Math.sin(cam.phi), cp = Math.cos(cam.phi);
+  camera.position.set(
+    cam.target.x + cam.radius * sp * Math.sin(cam.theta),
+    cam.target.y + cam.radius * cp,
+    cam.target.z + cam.radius * sp * Math.cos(cam.theta)
+  );
+  camera.lookAt(cam.target);
+}
+
+// ── Pointer handling: hover raycast, click vs drag, pinch ──────────────────
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const pointers = new Map();
+let moved = 0, downButton = 0, lastPinch = 0;
+let lastInteract = -10;   // so auto-orbit runs from frame one
+let hover = null;         // { placeCell:{x,y,z}, hitBlock:{x,y,z}|null, point, normal }
+
+function raycastAt(cx, cy) {
+  ndc.set((cx / innerWidth) * 2 - 1, -(cy / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const hits = raycaster.intersectObjects([...blocksGroup.children, ground], false);
+  if (!hits.length) return null;
+  const h = hits[0];
+  if (h.object === ground) {
+    if (Math.abs(h.point.x) > OFF || Math.abs(h.point.z) > OFF) return null;
+    const x = Math.min(GRID - 1, Math.max(0, Math.floor(h.point.x + OFF)));
+    const z = Math.min(GRID - 1, Math.max(0, Math.floor(h.point.z + OFF)));
+    return { placeCell: { x, y: 0, z }, hitBlock: null, point: h.point, normal: new THREE.Vector3(0, 1, 0) };
+  }
+  const u = h.object.userData;
+  const n = h.face.normal;  // blocks are axis-aligned & unrotated
+  return {
+    placeCell: { x: u.x + Math.round(n.x), y: u.y + Math.round(n.y), z: u.z + Math.round(n.z) },
+    hitBlock: { x: u.x, y: u.y, z: u.z, t: u.t },
+    point: h.point, normal: n.clone()
+  };
+}
+
+function updateHover(cx, cy) {
+  hover = raycastAt(cx, cy);
+  const erase = eraseMode;
+  if (!hover || (erase && !hover.hitBlock)) {
+    ghost.visible = false; faceMark.visible = false;
+    return;
+  }
+  if (erase) {
+    const hb = hover.hitBlock;
+    ghost.geometry = hb.t === 1 ? slabGeo : cubeGeo;
+    ghostEdge.geometry = hb.t === 1 ? slabEdges : cubeEdges;
+    ghost.material = ghostMats.erase;
+    ghostEdge.material.color.set(0xff5566);
+    ghost.position.copy(cellToWorld(hb.x, hb.y, hb.z, hb.t));
+    ghost.scale.setScalar(1.05);
+    ghost.visible = true;
+    faceMark.visible = false;
+  } else {
+    const pc = hover.placeCell;
+    const ok = inBounds(pc.x, pc.y, pc.z) && !blocks.has(keyOf(pc.x, pc.y, pc.z));
+    ghost.geometry = typeIdx === 1 ? slabGeo : cubeGeo;
+    ghostEdge.geometry = typeIdx === 1 ? slabEdges : cubeEdges;
+    ghost.material = ghostMats.place;
+    ghost.material.color.set(ok ? PALETTE[colorIdx] : '#666677');
+    ghostEdge.material.color.set(ok ? PALETTE[colorIdx] : '#666677');
+    ghost.position.copy(cellToWorld(pc.x, pc.y, pc.z, typeIdx));
+    ghost.scale.setScalar(1.0);
+    ghost.visible = ok;
+    // face marker snapped to the hovered cell face
+    const n = hover.normal;
+    faceMark.scale.set(1, 1, 1);
+    if (hover.hitBlock) {
+      const hb = hover.hitBlock;
+      const c = cellToWorld(hb.x, hb.y, hb.z, hb.t);
+      const half = { x: 0.48, y: hb.t === 1 ? 0.24 : 0.48, z: 0.48 };
+      const ax = Math.abs(n.x) > 0.5 ? 'x' : (Math.abs(n.y) > 0.5 ? 'y' : 'z');
+      faceMark.position.copy(c).addScaledVector(n, half[ax] + 0.02);
+      if (hb.t === 1 && ax !== 'y') faceMark.scale.set(1, 0.5, 1);
+    } else {
+      faceMark.position.set(hover.placeCell.x - OFF + 0.5, 0.02, hover.placeCell.z - OFF + 0.5);
+    }
+    faceMark.lookAt(faceMark.position.clone().add(n));
+    faceMark.material.color.set(PALETTE[colorIdx]);
+    faceMark.visible = true;
+  }
+}
+
+renderer.domElement.addEventListener('pointerdown', e => {
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  moved = 0;
+  downButton = e.button;
+  lastInteract = performance.now() / 1000;
+  if (pointers.size === 2) {
+    const p = [...pointers.values()];
+    lastPinch = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+  }
+});
+addEventListener('pointermove', e => {
+  if (pointers.has(e.pointerId)) {
+    const prev = pointers.get(e.pointerId);
+    const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+    moved += Math.abs(dx) + Math.abs(dy);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    lastInteract = performance.now() / 1000;
+    if (pointers.size === 1) {
+      cam.theta -= dx * 0.0055;
+      cam.phi -= dy * 0.0055;
+      cam.phi = Math.max(0.12, Math.min(1.52, cam.phi));
+    } else if (pointers.size === 2) {
+      const p = [...pointers.values()];
+      const pinch = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+      if (lastPinch > 0) {
+        cam.radius *= lastPinch / Math.max(1, pinch);
+        cam.radius = Math.max(7, Math.min(70, cam.radius));
+      }
+      lastPinch = pinch;
+    }
+  }
+  updateHover(e.clientX, e.clientY);
+});
+function pointerUp(e) {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.delete(e.pointerId);
+  lastPinch = 0;
+  if (moved < 7) {
+    updateHover(e.clientX, e.clientY);
+    if (!hover) return;
+    const wantErase = eraseMode || downButton === 2;
+    if (wantErase) {
+      if (hover.hitBlock) removeBlockAt(hover.hitBlock.x, hover.hitBlock.y, hover.hitBlock.z);
+    } else if (downButton === 0) {
+      const pc = hover.placeCell;
+      placeBlock(pc.x, pc.y, pc.z, colorIdx, typeIdx, false);
+    }
+    updateHover(e.clientX, e.clientY);
+  }
+}
+addEventListener('pointerup', pointerUp);
+addEventListener('pointercancel', e => { pointers.delete(e.pointerId); lastPinch = 0; });
+renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+renderer.domElement.addEventListener('wheel', e => {
+  e.preventDefault();
+  lastInteract = performance.now() / 1000;
+  cam.radius *= (1 + Math.sign(e.deltaY) * 0.1);
+  cam.radius = Math.max(7, Math.min(70, cam.radius));
+}, { passive: false });
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+if (!loadBuild(true)) buildDemo();
+updateCount();
+
+let lastT = 0;
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const t = ts / 1000;
+  const dt = Math.min((ts - lastT) / 1000, 0.05);
+  lastT = ts;
+
+  // gentle auto-orbit when idle
+  if (pointers.size === 0 && t - lastInteract > 6 || t < 0.5 && lastInteract < 0) {
+    cam.theta += dt * 0.07;
+  }
+  // pulse the fill light + ghost
+  fillPt.intensity = 20 + Math.sin(t * 1.7) * 5;
+  if (ghost.visible) ghostMats.place.opacity = 0.24 + Math.sin(t * 6) * 0.08;
+
+  applyCamera();
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

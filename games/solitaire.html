@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klondike Solitaire — Wizzed Arcade</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--acc:#3dff8f;--cw:70px;--ch:101px;--felt:#0d3321}
+  html,body{min-height:100%}
+  body{
+    background:#0f0f1a;
+    background-image:radial-gradient(ellipse 120% 90% at 50% -20%, rgba(61,255,143,.10), transparent 60%),
+      radial-gradient(ellipse 80% 60% at 50% 110%, rgba(13,80,45,.35), transparent 70%);
+    color:#d8ffe9;font-family:'Courier New',ui-monospace,Menlo,monospace;
+    overflow-x:hidden;user-select:none;-webkit-user-select:none;
+  }
+  a.back{position:fixed;top:8px;left:10px;z-index:50;color:#7dffb5;text-decoration:none;
+    font-size:12px;letter-spacing:1px;opacity:.7;border:1px solid rgba(61,255,143,.35);
+    padding:3px 8px;border-radius:6px;background:rgba(15,15,26,.8)}
+  a.back:hover{opacity:1;box-shadow:0 0 10px rgba(61,255,143,.5)}
+  header{display:flex;align-items:center;justify-content:center;gap:14px;padding:8px 90px 4px;flex-wrap:wrap}
+  h1{font-size:clamp(14px,2.4vw,22px);letter-spacing:3px;color:var(--acc);
+     text-shadow:0 0 8px rgba(61,255,143,.8),0 0 24px rgba(61,255,143,.4);white-space:nowrap}
+  .stats{display:flex;gap:10px;font-size:12px;align-items:center;flex-wrap:wrap;justify-content:center}
+  .stat{border:1px solid rgba(61,255,143,.3);border-radius:6px;padding:2px 8px;background:rgba(0,0,0,.35);
+    color:#a8ffd0;white-space:nowrap}
+  .stat b{color:#fff}
+  .stat.gold{border-color:rgba(255,214,102,.5);color:#ffe9a8}
+  button{font-family:inherit;font-size:11px;letter-spacing:1px;cursor:pointer;color:#0f0f1a;
+    background:var(--acc);border:0;border-radius:6px;padding:5px 10px;font-weight:bold;
+    box-shadow:0 0 10px rgba(61,255,143,.4)}
+  button:hover{box-shadow:0 0 18px rgba(61,255,143,.9)}
+  button:disabled{opacity:.35;cursor:default;box-shadow:none}
+  button.ghost{background:transparent;color:#7dffb5;border:1px solid rgba(61,255,143,.5)}
+  #board{max-width:980px;margin:0 auto;padding:4px 8px 30px;position:relative}
+  .row{display:grid;grid-template-columns:repeat(7,var(--cw));justify-content:center;gap:var(--gap);margin-bottom:12px}
+  .pile{position:relative;width:var(--cw);border-radius:8px}
+  .slot{position:absolute;inset:0;height:var(--ch);border:1.5px dashed rgba(61,255,143,.35);border-radius:8px;
+    display:flex;align-items:center;justify-content:center;color:rgba(61,255,143,.4);
+    font-size:calc(var(--cw)*.45);background:rgba(13,51,33,.35)}
+  .pile.stock .slot{cursor:pointer}
+  .pile.stock .slot:hover{border-color:var(--acc)}
+  .card{position:absolute;left:0;width:var(--cw);height:var(--ch);perspective:700px;cursor:pointer;
+    touch-action:none;z-index:1}
+  .card .in{position:relative;width:100%;height:100%;transform-style:preserve-3d;}
+  .card .f{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+    border-radius:7px;overflow:hidden}
+  .card .face{background:linear-gradient(155deg,#fdfdff 0%,#e9ecf5 100%);border:1px solid #9aa;
+    color:#15152a;box-shadow:0 2px 6px rgba(0,0,0,.55)}
+  .card .face.red{color:#d21f3c}
+  .card .back{transform:rotateY(180deg);border:1px solid rgba(61,255,143,.7);
+    background:repeating-linear-gradient(45deg,#0d2438 0 6px,#123152 6px 12px);
+    box-shadow:inset 0 0 0 3px #0f0f1a,inset 0 0 12px rgba(61,255,143,.5),0 2px 6px rgba(0,0,0,.55)}
+  .card.down .in{transform:rotateY(180deg)}
+  .card.flip .in{animation:flipin .4s ease both}
+  @keyframes flipin{from{transform:rotateY(180deg)}to{transform:rotateY(0)}}
+  .tl,.br{position:absolute;font-weight:bold;font-size:calc(var(--cw)*.24);line-height:1.05;text-align:center}
+  .tl{top:3px;left:4px}
+  .br{bottom:3px;right:4px;transform:rotate(180deg)}
+  .mid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:calc(var(--cw)*.52)}
+  .card.sel .face{outline:2px solid var(--acc);box-shadow:0 0 14px rgba(61,255,143,.9)}
+  #drag{position:fixed;left:0;top:0;z-index:100;pointer-events:none;filter:drop-shadow(0 8px 12px rgba(0,0,0,.6))}
+  #drag .card{position:absolute;cursor:grabbing}
+  #winlay{position:fixed;inset:0;z-index:80;display:none}
+  #winlay canvas{position:absolute;inset:0;width:100%;height:100%}
+  #winmsg{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);text-align:center;z-index:81}
+  #winmsg h2{font-size:clamp(28px,7vw,64px);color:var(--acc);letter-spacing:6px;
+    text-shadow:0 0 12px rgba(61,255,143,1),0 0 40px rgba(61,255,143,.6);animation:pulse 1s infinite alternate}
+  @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.06)}}
+  #winmsg p{color:#ffe9a8;margin:8px 0 14px;font-size:14px}
+  #broke{position:fixed;inset:0;z-index:90;background:rgba(5,5,12,.85);display:none;
+    align-items:center;justify-content:center;text-align:center}
+  #broke .box{border:1px solid var(--acc);border-radius:12px;padding:24px 30px;background:#0f1a14;
+    box-shadow:0 0 30px rgba(61,255,143,.4)}
+  #broke h2{color:#ff6b6b;margin-bottom:8px;letter-spacing:2px}
+  #broke p{font-size:12px;color:#a8ffd0;margin-bottom:14px}
+  #toast{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(13,51,33,.95);
+    border:1px solid var(--acc);color:#d8ffe9;padding:6px 14px;border-radius:8px;font-size:12px;
+    opacity:0;transition:opacity .3s;pointer-events:none;z-index:60;white-space:nowrap}
+  @media (max-width:600px){header{padding:32px 10px 4px}h1{letter-spacing:2px}}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>♠ KLONDIKE SOLITAIRE ♣</h1>
+  <div class="stats">
+    <span class="stat gold">CHIPS <b id="bank">1000</b></span>
+    <span class="stat">TIME <b id="time">0:00</b></span>
+    <span class="stat">MOVES <b id="moves">0</b></span>
+    <button id="undoBtn" class="ghost">UNDO</button>
+    <button id="autoBtn" style="display:none">AUTO ✦</button>
+    <button id="newBtn" class="ghost">NEW −52</button>
+  </div>
+</header>
+<div id="board">
+  <div class="row" id="toprow"></div>
+  <div class="row" id="tabrow"></div>
+</div>
+<div id="drag"></div>
+<div id="winlay"><canvas id="wincv"></canvas>
+  <div id="winmsg"><h2>YOU WIN!</h2><p id="winsub"></p><button id="winNew">DEAL AGAIN (−52)</button></div>
+</div>
+<div id="broke"><div class="box">
+  <h2>BANK BROKE</h2><p>Not enough chips for a new deal (52 needed).</p>
+  <button id="resetBank">RESET BANK TO 1000</button>
+</div></div>
+<div id="toast"></div>
+<script>
+'use strict';
+(function(){
+var KEY='wizzed-solitaire';
+var SUITS=['♠','♥','♦','♣'];
+var RANKS=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+function isRed(s){return s===1||s===2;}
+
+var bank=1000;
+try{var v=parseInt(localStorage.getItem(KEY)||'',10); if(!isNaN(v)) bank=v;}catch(e){}
+function saveBank(){try{localStorage.setItem(KEY,String(bank));}catch(e){}}
+
+// ---------- audio ----------
+var AC=null, interacted=false;
+window.addEventListener('pointerdown',function(){interacted=true;},{capture:true});
+window.addEventListener('keydown',function(){interacted=true;},{capture:true});
+function beep(freq,dur,type,vol){
+  if(!interacted) return;
+  try{
+    if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==='suspended') AC.resume();
+    var o=AC.createOscillator(),g=AC.createGain();
+    o.type=type||'square'; o.frequency.value=freq;
+    g.gain.setValueAtTime(vol||0.05,AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+dur);
+    o.connect(g); g.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime+dur+0.02);
+  }catch(e){}
+}
+function sMove(){beep(420,.08,'square',.04);}
+function sFlip(){beep(620,.06,'triangle',.05);}
+function sFound(){beep(880,.09,'triangle',.05); setTimeout(function(){beep(1318,.12,'triangle',.05);},70);}
+function sErr(){beep(140,.12,'sawtooth',.04);}
+function sWin(){[523,659,784,1046,1318].forEach(function(f,i){setTimeout(function(){beep(f,.22,'triangle',.06);},i*140);});}
+
+// ---------- state ----------
+var st=null, undoStack=[], moves=0, secs=0, timerId=null, cardSeq=0;
+var justFlipped={}, dealing=false, autoRunning=false, won=false;
+
+function mkDeck(){
+  var d=[],s,r;
+  for(s=0;s<4;s++)for(r=1;r<=13;r++)d.push({r:r,s:s,up:false,id:++cardSeq});
+  for(var i=d.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=d[i];d[i]=d[j];d[j]=t;}
+  return d;
+}
+function snapshot(){
+  undoStack.push({st:JSON.parse(JSON.stringify(st)),moves:moves,bank:bank});
+  if(undoStack.length>500) undoStack.shift();
+}
+function fmtTime(s){return Math.floor(s/60)+':'+('0'+(s%60)).slice(-2);}
+
+function newGame(){
+  if(bank<52){showBroke();return;}
+  bank-=52; saveBank();
+  won=false; autoRunning=false;
+  var deck=mkDeck();
+  st={stock:[],waste:[],found:[[],[],[],[]],tab:[[],[],[],[],[],[],[]]};
+  for(var c=0;c<7;c++){
+    for(var p=c;p<7;p++){
+      var card=deck.pop();
+      card.up=(p===c);
+      st.tab[p].push(card);
+    }
+  }
+  st.stock=deck;
+  moves=0; secs=0; undoStack=[]; justFlipped={};
+  if(timerId)clearInterval(timerId);
+  timerId=setInterval(function(){ if(!won){secs++; el('time').textContent=fmtTime(secs);} },1000);
+  el('winlay').style.display='none';
+  render();
+  animateDeal();
+}
+
+// ---------- rules ----------
+function canTab(card,pile){
+  if(!pile.length) return card.r===13;
+  var t=pile[pile.length-1];
+  return t.up && isRed(t.s)!==isRed(card.s) && t.r===card.r+1;
+}
+function canFound(card,f){
+  if(!f.length) return card.r===1;
+  var t=f[f.length-1];
+  return t.s===card.s && t.r===card.r-1;
+}
+function pileOf(type,idx){
+  if(type==='tab')return st.tab[idx];
+  if(type==='found')return st.found[idx];
+  if(type==='waste')return st.waste;
+  return st.stock;
+}
+function afterTabMove(pi){
+  var p=st.tab[pi];
+  if(p.length && !p[p.length-1].up){
+    p[p.length-1].up=true;
+    justFlipped[p[p.length-1].id]=true;
+    sFlip();
+  }
+}
+function applyMove(srcType,srcIdx,cardIdx,dstType,dstIdx){
+  var src=pileOf(srcType,srcIdx), dst=pileOf(dstType,dstIdx);
+  var stack=src.slice(cardIdx);
+  if(!stack.length)return false;
+  if(dstType==='found'){
+    if(stack.length!==1||!canFound(stack[0],dst))return false;
+  }else if(dstType==='tab'){
+    if(!canTab(stack[0],dst))return false;
+  }else return false;
+  snapshot();
+  src.length=cardIdx;
+  for(var i=0;i<stack.length;i++)dst.push(stack[i]);
+  if(srcType==='tab')afterTabMove(srcIdx);
+  if(dstType==='found'){bank+=5;saveBank();sFound();}
+  else if(srcType==='found'){bank-=5;saveBank();sMove();}
+  else sMove();
+  moves++;
+  renderAnimated();
+  checkWin();
+  return true;
+}
+function drawStock(){
+  snapshot();
+  if(st.stock.length){
+    var c=st.stock.pop(); c.up=true; justFlipped[c.id]=true;
+    st.waste.push(c); sFlip();
+  }else if(st.waste.length){
+    while(st.waste.length){var w=st.waste.pop(); w.up=false; st.stock.push(w);}
+    sMove();
+  }else{undoStack.pop();return;}
+  moves++;
+  renderAnimated();
+}
+function undo(){
+  if(!undoStack.length||dealing||autoRunning||won){sErr();return;}
+  var u=undoStack.pop();
+  st=u.st; moves=u.moves+1; bank=u.bank; saveBank();
+  justFlipped={};
+  sMove();
+  renderAnimated();
+}
+function autoTarget(srcType,srcIdx,cardIdx){
+  var src=pileOf(srcType,srcIdx);
+  var stack=src.slice(cardIdx);
+  var card=stack[0], i;
+  if(stack.length===1){
+    for(i=0;i<4;i++)if(canFound(card,st.found[i]))return{t:'found',i:i};
+  }
+  for(i=0;i<7;i++){
+    if(srcType==='tab'&&i===srcIdx)continue;
+    if(st.tab[i].length&&canTab(card,st.tab[i]))return{t:'tab',i:i};
+  }
+  for(i=0;i<7;i++){
+    if(srcType==='tab'&&i===srcIdx)continue;
+    if(!st.tab[i].length&&card.r===13){
+      if(srcType==='tab'&&cardIdx===0)continue; // pointless king shuffle
+      return{t:'tab',i:i};
+    }
+  }
+  return null;
+}
+function checkWin(){
+  var n=st.found[0].length+st.found[1].length+st.found[2].length+st.found[3].length;
+  el('autoBtn').style.display=(!won&&n<52&&st.stock.length===0&&st.waste.length===0&&allUp())?'':'none';
+  if(n===52&&!won)win();
+}
+function allUp(){
+  for(var i=0;i<7;i++)for(var j=0;j<st.tab[i].length;j++)if(!st.tab[i][j].up)return false;
+  return true;
+}
+function autoComplete(){
+  if(autoRunning)return;
+  autoRunning=true;
+  var iv=setInterval(function(){
+    var best=null,bi=-1;
+    for(var i=0;i<7;i++){
+      var p=st.tab[i];
+      if(!p.length)continue;
+      var c=p[p.length-1];
+      for(var f=0;f<4;f++){
+        if(canFound(c,st.found[f])&&(best===null||c.r<best.r)){best=c;bi=i;}
+      }
+    }
+    if(best===null){clearInterval(iv);autoRunning=false;checkWin();return;}
+    var p2=st.tab[bi];
+    for(var f2=0;f2<4;f2++){
+      if(canFound(best,st.found[f2])){
+        snapshot();
+        p2.pop(); st.found[f2].push(best);
+        bank+=5;saveBank();
+        moves++; sFound();
+        renderAnimated();
+        break;
+      }
+    }
+    var n=st.found[0].length+st.found[1].length+st.found[2].length+st.found[3].length;
+    if(n===52){clearInterval(iv);autoRunning=false;checkWin();}
+  },140);
+}
+
+// ---------- DOM ----------
+function el(id){return document.getElementById(id);}
+var CW=70,CH=101,GAP=8,UPOFF=28,DNOFF=10;
+
+function layout(){
+  var W=Math.min(window.innerWidth,980)-16;
+  var H=window.innerHeight-el('board').getBoundingClientRect().top-10;
+  var chByH=Math.max(60,(H-24)/4.35);
+  var cwByW=(W-6*GAP)/7;
+  CW=Math.floor(Math.max(40,Math.min(cwByW,chByH/1.45,110)));
+  CH=Math.floor(CW*1.45);
+  UPOFF=Math.max(16,Math.round(CH*.28));
+  DNOFF=Math.max(6,Math.round(CH*.12));
+  var rs=document.documentElement.style;
+  rs.setProperty('--cw',CW+'px');
+  rs.setProperty('--ch',CH+'px');
+  rs.setProperty('--gap',GAP+'px');
+}
+function cardEl(card,extra){
+  var d=document.createElement('div');
+  d.className='card '+(card.up?'up':'down')+(extra||'');
+  d.dataset.id=card.id;
+  var red=isRed(card.s);
+  d.innerHTML='<div class="in">'+
+    '<div class="f face'+(red?' red':'')+'">'+
+      '<span class="tl">'+RANKS[card.r-1]+'<br>'+SUITS[card.s]+'</span>'+
+      '<span class="mid">'+SUITS[card.s]+'</span>'+
+      '<span class="br">'+RANKS[card.r-1]+'<br>'+SUITS[card.s]+'</span>'+
+    '</div><div class="f back"></div></div>';
+  if(justFlipped[card.id]){d.classList.add('flip');delete justFlipped[card.id];}
+  return d;
+}
+function render(){
+  el('bank').textContent=bank;
+  el('moves').textContent=moves;
+  el('time').textContent=fmtTime(secs);
+  el('undoBtn').disabled=!undoStack.length;
+  var top=el('toprow'); top.innerHTML='';
+  // stock
+  var sp=document.createElement('div');
+  sp.className='pile stock'; sp.dataset.drop='stock';
+  sp.style.height=CH+'px';
+  sp.innerHTML='<div class="slot">'+(st.stock.length?'':'↺')+'</div>';
+  if(st.stock.length){
+    var sc=cardEl(st.stock[st.stock.length-1]);
+    sc.style.top='0px'; sp.appendChild(sc);
+  }
+  top.appendChild(sp);
+  // waste
+  var wp=document.createElement('div');
+  wp.className='pile waste'; wp.dataset.drop='waste';
+  wp.style.height=CH+'px';
+  wp.innerHTML='<div class="slot"></div>';
+  if(st.waste.length){
+    var wc=cardEl(st.waste[st.waste.length-1]);
+    wc.style.top='0px';
+    wc.dataset.loc='waste:0:'+(st.waste.length-1);
+    wp.appendChild(wc);
+  }
+  top.appendChild(wp);
+  // spacer
+  var gap=document.createElement('div'); gap.className='pile'; top.appendChild(gap);
+  // foundations
+  for(var f=0;f<4;f++){
+    var fp=document.createElement('div');
+    fp.className='pile found'; fp.dataset.drop='found-'+f;
+    fp.style.height=CH+'px';
+    fp.innerHTML='<div class="slot">'+SUITS[f]+'</div>';
+    if(st.found[f].length){
+      var fc=cardEl(st.found[f][st.found[f].length-1]);
+      fc.style.top='0px';
+      fc.dataset.loc='found:'+f+':'+(st.found[f].length-1);
+      fp.appendChild(fc);
+    }
+    top.appendChild(fp);
+  }
+  // tableau
+  var tr=el('tabrow'); tr.innerHTML='';
+  for(var t=0;t<7;t++){
+    var tp=document.createElement('div');
+    tp.className='pile tab'; tp.dataset.drop='tab-'+t;
+    tp.innerHTML='<div class="slot"></div>';
+    var y=0,h=CH;
+    for(var i=0;i<st.tab[t].length;i++){
+      var card=st.tab[t][i];
+      var ce=cardEl(card);
+      ce.style.top=y+'px'; ce.style.zIndex=i+1;
+      ce.dataset.loc='tab:'+t+':'+i;
+      tp.appendChild(ce);
+      h=y+CH;
+      y+=card.up?UPOFF:DNOFF;
+    }
+    tp.style.height=Math.max(CH,h)+'px';
+    tr.appendChild(tp);
+  }
+  checkWin();
+}
+function renderAnimated(){
+  var prev={};
+  document.querySelectorAll('#board .card').forEach(function(c){
+    prev[c.dataset.id]=c.getBoundingClientRect();
+  });
+  render();
+  document.querySelectorAll('#board .card').forEach(function(c){
+    var p=prev[c.dataset.id];
+    if(!p)return;
+    var n=c.getBoundingClientRect();
+    var dx=p.left-n.left, dy=p.top-n.top;
+    if(Math.abs(dx)>2||Math.abs(dy)>2){
+      c.style.transition='none';
+      c.style.transform='translate('+dx+'px,'+dy+'px)';
+      requestAnimationFrame(function(){
+        c.style.transition='transform .22s ease';
+        c.style.transform='';
+        setTimeout(function(){c.style.transition='';},260);
+      });
+    }
+  });
+}
+function animateDeal(){
+  dealing=true;
+  var stockPile=document.querySelector('.pile.stock');
+  var sr=stockPile.getBoundingClientRect();
+  var cards=[];
+  document.querySelectorAll('#tabrow .card').forEach(function(c){cards.push(c);});
+  cards.sort(function(a,b){
+    var la=a.dataset.loc.split(':'),lb=b.dataset.loc.split(':');
+    return (+la[2]-+lb[2])||(+la[1]-+lb[1]);
+  });
+  cards.forEach(function(c,i){
+    var r=c.getBoundingClientRect();
+    c.style.transition='none';
+    c.style.transform='translate('+(sr.left-r.left)+'px,'+(sr.top-r.top)+'px) rotate(-8deg)';
+    c.style.opacity='0';
+    setTimeout(function(){
+      c.style.transition='transform .3s ease, opacity .2s ease';
+      c.style.transform=''; c.style.opacity='1';
+    },40*i+60);
+  });
+  setTimeout(function(){
+    dealing=false;
+    cards.forEach(function(c){c.style.transition='';});
+  },40*cards.length+450);
+}
+
+// ---------- interaction ----------
+var drag=null;
+document.addEventListener('pointerdown',function(e){
+  if(dealing||autoRunning||won)return;
+  var cEl=e.target.closest('.card');
+  var dropEl=e.target.closest('[data-drop]');
+  if(!cEl&&dropEl&&dropEl.dataset.drop==='stock'){drawStock();return;}
+  if(!cEl)return;
+  if(!cEl.dataset.loc){ // stock top card
+    if(cEl.closest('.pile.stock')){drawStock();}
+    return;
+  }
+  var loc=cEl.dataset.loc.split(':');
+  var type=loc[0],pi=+loc[1],ci=+loc[2];
+  var pile=pileOf(type,pi);
+  if(ci>=pile.length)return;
+  if(!pile[ci].up)return;
+  if(type==='waste'){ci=st.waste.length-1;pi=0;}
+  drag={type:type,pi:pi,ci:ci,startX:e.clientX,startY:e.clientY,active:false,el:cEl,hidden:[]};
+  e.preventDefault();
+});
+document.addEventListener('pointermove',function(e){
+  if(!drag)return;
+  var dx=e.clientX-drag.startX, dy=e.clientY-drag.startY;
+  if(!drag.active){
+    if(Math.abs(dx)<6&&Math.abs(dy)<6)return;
+    startDrag(e);
+  }
+  var g=el('drag');
+  g.style.transform='translate('+(e.clientX-drag.offX)+'px,'+(e.clientY-drag.offY)+'px)';
+});
+document.addEventListener('pointerup',function(e){
+  if(!drag)return;
+  var d=drag; drag=null;
+  if(!d.active){ // click => auto move
+    var tgt=autoTarget(d.type,d.pi,d.ci);
+    if(tgt){applyMove(d.type,d.pi,d.ci,tgt.t,tgt.i);}
+    else sErr();
+    return;
+  }
+  el('drag').innerHTML='';
+  d.hidden.forEach(function(h){h.style.visibility='';});
+  var under=document.elementFromPoint(e.clientX,e.clientY);
+  var dropEl=under?under.closest('[data-drop]'):null;
+  var ok=false;
+  if(dropEl){
+    var dd=dropEl.dataset.drop.split('-');
+    if(dd[0]==='found')ok=applyMove(d.type,d.pi,d.ci,'found',+dd[1]);
+    else if(dd[0]==='tab')ok=applyMove(d.type,d.pi,d.ci,'tab',+dd[1]);
+  }
+  if(!ok){renderAnimated();sErr();}
+});
+function startDrag(e){
+  drag.active=true;
+  var pile=pileOf(drag.type,drag.pi);
+  var stack=pile.slice(drag.ci);
+  var r=drag.el.getBoundingClientRect();
+  drag.offX=drag.startX-r.left;
+  drag.offY=drag.startY-r.top;
+  var g=el('drag');
+  g.innerHTML='';
+  stack.forEach(function(card,i){
+    var ce=cardEl(card);
+    ce.style.top=(i*UPOFF)+'px';
+    g.appendChild(ce);
+  });
+  g.style.transform='translate('+(e.clientX-drag.offX)+'px,'+(e.clientY-drag.offY)+'px)';
+  // hide originals
+  var pileEl=drag.el.parentElement;
+  drag.hidden=[];
+  pileEl.querySelectorAll('.card').forEach(function(c){
+    if(!c.dataset.loc)return;
+    var idx=+c.dataset.loc.split(':')[2];
+    if(drag.type!=='waste'&&idx>=drag.ci){c.style.visibility='hidden';drag.hidden.push(c);}
+    if(drag.type==='waste'){c.style.visibility='hidden';drag.hidden.push(c);}
+  });
+}
+
+// ---------- win ----------
+function win(){
+  won=true;
+  if(timerId)clearInterval(timerId);
+  sWin();
+  el('winsub').textContent='Time '+fmtTime(secs)+'  ·  '+moves+' moves  ·  +260 chips earned';
+  el('winlay').style.display='block';
+  cascade();
+}
+function cascade(){
+  var cv=el('wincv');
+  cv.width=window.innerWidth; cv.height=window.innerHeight;
+  var ctx=cv.getContext('2d');
+  var founds=document.querySelectorAll('.pile.found');
+  var sprites=[],spawned=0;
+  var colors=['#15152a','#d21f3c','#d21f3c','#15152a'];
+  var spawnIv=setInterval(function(){
+    if(spawned>=52||!won){clearInterval(spawnIv);return;}
+    var f=spawned%4;
+    var fr=founds[f]?founds[f].getBoundingClientRect():{left:cv.width/2,top:50};
+    var r=13-Math.floor(spawned/4);
+    sprites.push({x:fr.left,y:fr.top,vx:(Math.random()*6+3)*(Math.random()<.5?-1:1),
+      vy:-(Math.random()*4+1),s:f,r:r});
+    spawned++;
+  },120);
+  (function tick(){
+    if(!won)return;
+    sprites.forEach(function(p){
+      p.vy+=0.45; p.x+=p.vx; p.y+=p.vy;
+      if(p.y>cv.height-CH){p.y=cv.height-CH;p.vy*=-0.75;}
+      ctx.fillStyle='#f2f2f8';
+      ctx.strokeStyle='#888';
+      roundRect(ctx,p.x,p.y,CW,CH,6);
+      ctx.fill();ctx.stroke();
+      ctx.fillStyle=colors[p.s];
+      ctx.font='bold '+Math.round(CW*.4)+'px "Courier New",monospace';
+      ctx.textAlign='center';
+      ctx.fillText(RANKS[p.r-1],p.x+CW/2,p.y+CH/2-4);
+      ctx.fillText(SUITS[p.s],p.x+CW/2,p.y+CH/2+CW*.38);
+    });
+    sprites=sprites.filter(function(p){return p.x>-CW-20&&p.x<cv.width+20;});
+    requestAnimationFrame(tick);
+  })();
+}
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+function showBroke(){el('broke').style.display='flex';}
+function toast(msg){
+  var t=el('toast');
+  t.textContent=msg;t.style.opacity='1';
+  clearTimeout(t._tm);
+  t._tm=setTimeout(function(){t.style.opacity='0';},1800);
+}
+
+// ---------- wire up ----------
+el('newBtn').addEventListener('click',function(){newGame();});
+el('winNew').addEventListener('click',function(){newGame();});
+el('undoBtn').addEventListener('click',undo);
+el('autoBtn').addEventListener('click',autoComplete);
+el('resetBank').addEventListener('click',function(){
+  bank=1000;saveBank();el('broke').style.display='none';newGame();toast('Bank reset to 1000');
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='u'||e.key==='U')undo();
+  else if(e.key==='n'||e.key==='N')newGame();
+  else if(e.key===' '||e.key==='d'||e.key==='D'){
+    if(!dealing&&!autoRunning&&!won){e.preventDefault();drawStock();}
+  }
+});
+var rzTm=null;
+window.addEventListener('resize',function(){
+  clearTimeout(rzTm);
+  rzTm=setTimeout(function(){layout();render();},120);
+});
+
+layout();
+newGame();
+})();
+</script>
+</body>
+</html>

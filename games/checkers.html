@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkers — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; }
+  body {
+    background: #0f0f1a;
+    color: #ffe8d1;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 8px 10px 16px; overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px; z-index: 60;
+    color: #7f7fa8; text-decoration: none; font-size: 12px; letter-spacing: 1px;
+    padding: 4px 9px; border: 1px solid #26264a; border-radius: 6px;
+    background: rgba(15,15,26,.85);
+  }
+  a.back:hover { color: #ff9f1c; border-color: #ff9f1c; box-shadow: 0 0 8px rgba(255,159,28,.4); }
+  h1 {
+    margin-top: 4px; font-size: clamp(17px, 3.6vmin, 26px); letter-spacing: 5px;
+    color: #fff3e2; text-shadow: 0 0 8px #ff9f1c, 0 0 24px rgba(255,159,28,.55);
+  }
+  .topbar { display: flex; gap: 10px; align-items: center; margin: 6px 0; flex-wrap: wrap; justify-content: center; }
+  .chip {
+    background: #14142a; border: 1px solid #2c2c55; border-radius: 8px;
+    padding: 4px 12px; font-size: 11px; letter-spacing: 1px; color: #9a9ac8;
+  }
+  .chip b { font-size: 15px; }
+  .chip.you b { color: #ff3d5a; text-shadow: 0 0 8px #ff3d5a; }
+  .chip.ai b { color: #e9edff; text-shadow: 0 0 8px rgba(233,237,255,.8); }
+  .topbar button {
+    font-family: inherit; font-size: 11px; letter-spacing: 2px; cursor: pointer;
+    background: #16162e; color: #ff9f1c; border: 1px solid #5e3d10;
+    padding: 5px 12px; border-radius: 6px;
+  }
+  .topbar button:hover { border-color: #ff9f1c; box-shadow: 0 0 8px rgba(255,159,28,.4); }
+  .status { font-size: clamp(12px, 2.4vmin, 15px); letter-spacing: 1px; margin: 2px 0 8px; min-height: 20px; color: #ffd9a8; text-shadow: 0 0 6px rgba(255,159,28,.45); text-align: center; }
+  .boardwrap {
+    position: relative;
+    width: min(74vmin, calc(100vh - 240px), 420px);
+    min-width: 230px; aspect-ratio: 1;
+    border: 2px solid #6b4514; border-radius: 8px;
+    box-shadow: 0 0 18px rgba(255,159,28,.35), inset 0 0 24px rgba(255,159,28,.06);
+    background: #0c0c18; padding: 4px;
+  }
+  #board {
+    position: relative; width: 100%; height: 100%;
+    display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
+    border-radius: 4px; overflow: hidden;
+  }
+  .sq { position: relative; }
+  .sq.light { background: #12122a; }
+  .sq.dark { background: linear-gradient(145deg, #23233f, #1a1a33); }
+  .sq.selsq { box-shadow: inset 0 0 0 2px #ff9f1c, inset 0 0 14px rgba(255,159,28,.5); }
+  .sq.tgt { cursor: pointer; }
+  .sq.tgt::after {
+    content: ''; position: absolute; left: 31%; top: 31%; width: 38%; height: 38%;
+    border: 2px solid #ffd23f; border-radius: 50%;
+    box-shadow: 0 0 10px rgba(255,210,63,.7);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { transform: scale(.8); opacity: .55; } 50% { transform: scale(1.1); opacity: 1; } }
+  #pieces { position: absolute; inset: 4px; pointer-events: none; }
+  .piece {
+    position: absolute; width: 12.5%; height: 12.5%;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: auto; cursor: pointer;
+    transition: left .27s ease, top .27s ease, opacity .3s ease, transform .3s ease;
+    z-index: 5;
+  }
+  .piece .pk {
+    width: 76%; height: 76%; border-radius: 50%; position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .piece.red .pk {
+    background: radial-gradient(circle at 34% 30%, #ff8ba0, #c41f3e 70%);
+    box-shadow: 0 0 8px rgba(255,61,90,.6), inset 0 -3px 5px rgba(0,0,0,.55), inset 0 0 0 3px rgba(255,255,255,.12);
+  }
+  .piece.blk .pk {
+    background: radial-gradient(circle at 34% 30%, #ffffff, #9aa5c4 75%);
+    box-shadow: 0 0 8px rgba(233,237,255,.55), inset 0 -3px 5px rgba(70,80,110,.6), inset 0 0 0 3px rgba(255,255,255,.35);
+  }
+  .piece.can .pk { box-shadow: 0 0 12px 2px rgba(255,159,28,.85), inset 0 -3px 5px rgba(0,0,0,.5); }
+  .piece.sel .pk { box-shadow: 0 0 16px 4px #ff9f1c, inset 0 -3px 5px rgba(0,0,0,.5); }
+  .piece.dead { opacity: 0; transform: scale(.2); }
+  .crown { display: none; font-size: clamp(10px, 4.4vmin, 24px); color: #ffd23f; text-shadow: 0 0 6px #ffd23f, 0 1px 1px #000; line-height: 1; }
+  .piece.king .crown { display: block; animation: crownpop .35s ease; }
+  @keyframes crownpop { from { transform: scale(0) rotate(-90deg); } to { transform: scale(1) rotate(0); } }
+  .hint-line { margin-top: 10px; font-size: 11px; color: #6f6f9a; letter-spacing: 1px; text-align: center; }
+  .hint-line span { color: #ff9f1c; }
+  .overlay {
+    position: absolute; inset: 0; z-index: 40; border-radius: 6px;
+    background: rgba(14,10,6,.9);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    animation: fadein .3s ease;
+  }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  .overlay.hidden { display: none; }
+  .overlay .msg {
+    font-size: clamp(19px, 4.6vmin, 30px); letter-spacing: 4px; color: #fff3e2; text-align: center; padding: 0 8px;
+    text-shadow: 0 0 10px #ff9f1c, 0 0 30px rgba(255,159,28,.7);
+  }
+  .overlay .sub { font-size: 12px; color: #c8a97a; letter-spacing: 2px; }
+  .overlay button {
+    font-family: inherit; font-size: 14px; letter-spacing: 3px; cursor: pointer;
+    background: #33230c; color: #ff9f1c; border: 2px solid #ff9f1c; border-radius: 8px;
+    padding: 10px 22px; text-shadow: 0 0 6px #ff9f1c;
+    box-shadow: 0 0 14px rgba(255,159,28,.5);
+  }
+  .overlay button:hover { background: #4d3512; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>CHECKERS</h1>
+<div class="topbar">
+  <div class="chip you">YOU <b id="cntYou">12</b></div>
+  <button id="newBtn">NEW GAME</button>
+  <div class="chip ai">AI <b id="cntAi">12</b></div>
+</div>
+<div class="status" id="status">Your move — pick a glowing red piece</div>
+<div class="boardwrap">
+  <div id="board"></div>
+  <div id="pieces"></div>
+  <div id="overlay" class="overlay hidden">
+    <div class="msg" id="ovMsg">YOU WIN!</div>
+    <div class="sub" id="ovSub"></div>
+    <button id="again">PLAY AGAIN</button>
+  </div>
+</div>
+<div class="hint-line">captures are forced · reach the far row to crown a king ♛ · lifetime wins: <span id="tot">0</span></div>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- audio ---------- */
+  var AC = null;
+  function initAudio() {
+    if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } }
+    if (AC && AC.state === 'suspended') { AC.resume(); }
+  }
+  function sfx(freq, dur, type, vol, when) {
+    if (!AC) return;
+    try {
+      var t = AC.currentTime + (when || 0);
+      var o = AC.createOscillator(), g = AC.createGain();
+      o.type = type || 'square'; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol || 0.04, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.08));
+      o.connect(g); g.connect(AC.destination);
+      o.start(t); o.stop(t + (dur || 0.08) + 0.05);
+    } catch (e) { /* noop */ }
+  }
+  document.addEventListener('pointerdown', initAudio, true);
+  document.addEventListener('keydown', initAudio, true);
+
+  var LSKEY = 'wizzed-checkers';
+  function getWins() { try { return parseInt(localStorage.getItem(LSKEY), 10) || 0; } catch (e) { return 0; } }
+  function addWin() { try { localStorage.setItem(LSKEY, String(getWins() + 1)); } catch (e) { /* noop */ } }
+
+  /* ---------- constants ----------
+     side 1 = human (red, bottom, moves up / row--)
+     side -1 = AI (pale, top, moves down / row++)
+     int board values: 0 empty, 1 red man, 2 red king, -1 ai man, -2 ai king */
+  var ALL4 = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+  var UP2 = [[-1, -1], [-1, 1]];
+  var DOWN2 = [[1, -1], [1, 1]];
+
+  /* ---------- state ---------- */
+  var grid;          /* 8x8 of piece|null */
+  var turn, over, busy;
+  var selected = null, lockedPiece = null, allowedHops = [];
+  var noCap = 0;
+  var timers = [];
+  var statusTimer = null;
+
+  var boardEl = $('board'), piecesEl = $('pieces');
+  var sqEls = [];
+
+  (function buildBoard() {
+    for (var r = 0; r < 8; r++) {
+      for (var c = 0; c < 8; c++) {
+        var s = document.createElement('div');
+        s.className = 'sq ' + (((r + c) % 2 === 1) ? 'dark' : 'light');
+        s.setAttribute('data-r', String(r));
+        s.setAttribute('data-c', String(c));
+        s.addEventListener('click', onSquareClick);
+        boardEl.appendChild(s);
+        sqEls.push(s);
+      }
+    }
+  })();
+  function sqEl(r, c) { return sqEls[r * 8 + c]; }
+
+  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+  function clearTimers() {
+    for (var i = 0; i < timers.length; i++) clearTimeout(timers[i]);
+    timers = [];
+  }
+
+  /* ---------- setup ---------- */
+  function makePiece(side, r, c) {
+    var el = document.createElement('div');
+    el.className = 'piece ' + (side === 1 ? 'red' : 'blk');
+    var pk = document.createElement('div');
+    pk.className = 'pk';
+    var cr = document.createElement('span');
+    cr.className = 'crown';
+    cr.textContent = '♛';
+    pk.appendChild(cr);
+    el.appendChild(pk);
+    var p = { el: el, side: side, king: false, r: r, c: c };
+    el.addEventListener('click', function (e) { e.stopPropagation(); onPieceClick(p); });
+    positionPiece(p);
+    piecesEl.appendChild(el);
+    return p;
+  }
+
+  function positionPiece(p) {
+    p.el.style.left = (p.c * 12.5) + '%';
+    p.el.style.top = (p.r * 12.5) + '%';
+  }
+
+  function newGame() {
+    clearTimers();
+    if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
+    piecesEl.innerHTML = '';
+    grid = [];
+    for (var r = 0; r < 8; r++) {
+      grid.push([null, null, null, null, null, null, null, null]);
+    }
+    for (r = 0; r < 8; r++) {
+      for (var c = 0; c < 8; c++) {
+        if ((r + c) % 2 !== 1) continue;
+        if (r < 3) grid[r][c] = makePiece(-1, r, c);
+        else if (r > 4) grid[r][c] = makePiece(1, r, c);
+      }
+    }
+    turn = 1; over = false; busy = false;
+    selected = null; lockedPiece = null; allowedHops = [];
+    noCap = 0;
+    $('overlay').classList.add('hidden');
+    clearMarks();
+    updateCounts();
+    $('tot').textContent = String(getWins());
+    beginPlayerTurn();
+  }
+
+  /* ---------- int-board helpers ---------- */
+  function ints() {
+    var b = [];
+    for (var r = 0; r < 8; r++) {
+      var row = [];
+      for (var c = 0; c < 8; c++) {
+        var p = grid[r][c];
+        row.push(p ? p.side * (p.king ? 2 : 1) : 0);
+      }
+      b.push(row);
+    }
+    return b;
+  }
+  function cloneB(b) {
+    var out = [];
+    for (var r = 0; r < 8; r++) out.push(b[r].slice());
+    return out;
+  }
+  function sgn(v) { return v > 0 ? 1 : (v < 0 ? -1 : 0); }
+
+  function dirsOf(v) {
+    if (Math.abs(v) === 2) return ALL4;
+    return v > 0 ? UP2 : DOWN2;
+  }
+
+  function jumpsFor(b, r, c) {
+    var v = b[r][c];
+    if (!v) return [];
+    var side = sgn(v);
+    var dirs = dirsOf(v);
+    var out = [];
+    for (var i = 0; i < dirs.length; i++) {
+      var dr = dirs[i][0], dc = dirs[i][1];
+      var tr = r + 2 * dr, tc = c + 2 * dc;
+      if (tr < 0 || tr > 7 || tc < 0 || tc > 7) continue;
+      if (b[tr][tc] !== 0) continue;
+      var mv = b[r + dr][c + dc];
+      if (mv !== 0 && sgn(mv) !== side) out.push({ r: tr, c: tc, or: r + dr, oc: c + dc });
+    }
+    return out;
+  }
+
+  function stepsFor(b, r, c) {
+    var v = b[r][c];
+    if (!v) return [];
+    var dirs = dirsOf(v);
+    var out = [];
+    for (var i = 0; i < dirs.length; i++) {
+      var tr = r + dirs[i][0], tc = c + dirs[i][1];
+      if (tr < 0 || tr > 7 || tc < 0 || tc > 7) continue;
+      if (b[tr][tc] === 0) out.push({ r: tr, c: tc, or: -1, oc: -1 });
+    }
+    return out;
+  }
+
+  function sideHasCapture(b, side) {
+    for (var r = 0; r < 8; r++) {
+      for (var c = 0; c < 8; c++) {
+        if (sgn(b[r][c]) === side && jumpsFor(b, r, c).length) return true;
+      }
+    }
+    return false;
+  }
+
+  /* full move sequences for AI search */
+  function dfsJumps(b, r, c, path, capd, out, from) {
+    var js = jumpsFor(b, r, c);
+    if (!js.length) {
+      if (path.length) out.push({ from: from, path: path.slice(), caps: capd.slice() });
+      return;
+    }
+    for (var i = 0; i < js.length; i++) {
+      var j = js[i];
+      var nb = cloneB(b);
+      var val = nb[r][c];
+      nb[r][c] = 0;
+      nb[j.or][j.oc] = 0;
+      var promoted = false;
+      if (Math.abs(val) === 1 && j.r === (val > 0 ? 0 : 7)) { val = val * 2; promoted = true; }
+      nb[j.r][j.c] = val;
+      path.push([j.r, j.c]);
+      capd.push([j.or, j.oc]);
+      if (promoted) {
+        out.push({ from: from, path: path.slice(), caps: capd.slice() });
+      } else {
+        dfsJumps(nb, j.r, j.c, path, capd, out, from);
+      }
+      path.pop();
+      capd.pop();
+    }
+  }
+
+  function genAll(b, side) {
+    var caps = [];
+    var r, c;
+    for (r = 0; r < 8; r++) {
+      for (c = 0; c < 8; c++) {
+        if (sgn(b[r][c]) !== side) continue;
+        if (jumpsFor(b, r, c).length) dfsJumps(b, r, c, [], [], caps, [r, c]);
+      }
+    }
+    if (caps.length) return caps;
+    var steps = [];
+    for (r = 0; r < 8; r++) {
+      for (c = 0; c < 8; c++) {
+        if (sgn(b[r][c]) !== side) continue;
+        var ss = stepsFor(b, r, c);
+        for (var i = 0; i < ss.length; i++) {
+          steps.push({ from: [r, c], path: [[ss[i].r, ss[i].c]], caps: [] });
+        }
+      }
+    }
+    return steps;
+  }
+
+  function applyMove(b, m) {
+    var nb = cloneB(b);
+    var v = nb[m.from[0]][m.from[1]];
+    nb[m.from[0]][m.from[1]] = 0;
+    for (var i = 0; i < m.caps.length; i++) nb[m.caps[i][0]][m.caps[i][1]] = 0;
+    var land = m.path[m.path.length - 1];
+    if (Math.abs(v) === 1 && land[0] === (v > 0 ? 0 : 7)) v = v * 2;
+    nb[land[0]][land[1]] = v;
+    return nb;
+  }
+
+  /* ---------- evaluation + minimax (positive = good for red/human) ---------- */
+  function evalB(b) {
+    var s = 0;
+    for (var r = 0; r < 8; r++) {
+      for (var c = 0; c < 8; c++) {
+        var v = b[r][c];
+        if (v === 0) continue;
+        var center = 3 - Math.max(Math.abs(r - 3.5), Math.abs(c - 3.5));
+        if (v === 1) s += 100 + (7 - r) * 3 + center;
+        else if (v === 2) s += 175 + center * 3;
+        else if (v === -1) s -= 100 + r * 3 + center;
+        else s -= 175 + center * 3;
+      }
+    }
+    return s;
+  }
+
+  function minimax(b, side, depth, alpha, beta) {
+    var moves = genAll(b, side);
+    if (!moves.length) return side === 1 ? (-99999 - depth) : (99999 + depth);
+    if (depth <= 0) return evalB(b);
+    var i, v;
+    if (side === 1) {
+      var best = -Infinity;
+      for (i = 0; i < moves.length; i++) {
+        v = minimax(applyMove(b, moves[i]), -1, depth - 1, alpha, beta);
+        if (v > best) best = v;
+        if (best > alpha) alpha = best;
+        if (alpha >= beta) break;
+      }
+      return best;
+    }
+    var worst = Infinity;
+    for (i = 0; i < moves.length; i++) {
+      v = minimax(applyMove(b, moves[i]), 1, depth - 1, alpha, beta);
+      if (v < worst) worst = v;
+      if (worst < beta) beta = worst;
+      if (alpha >= beta) break;
+    }
+    return worst;
+  }
+
+  function aiChoose(b) {
+    var moves = genAll(b, -1);
+    if (!moves.length) return null;
+    if (moves.length === 1) return moves[0];
+    var total = 0;
+    for (var r = 0; r < 8; r++) { for (var c = 0; c < 8; c++) { if (b[r][c] !== 0) total++; } }
+    var depth = total <= 8 ? 7 : 5;
+    var best = Infinity, bestList = [];
+    for (var i = 0; i < moves.length; i++) {
+      var v = minimax(applyMove(b, moves[i]), 1, depth - 1, -Infinity, Infinity);
+      if (v < best) { best = v; bestList = [moves[i]]; }
+      else if (v === best) { bestList.push(moves[i]); }
+    }
+    return bestList[Math.floor(Math.random() * bestList.length)];
+  }
+
+  /* ---------- DOM state helpers ---------- */
+  function clearMarks() {
+    for (var i = 0; i < sqEls.length; i++) sqEls[i].classList.remove('tgt', 'selsq');
+    var ps = piecesEl.querySelectorAll('.piece');
+    for (i = 0; i < ps.length; i++) ps[i].classList.remove('sel', 'can');
+  }
+
+  function setStatus(msg, temp) {
+    $('status').textContent = msg;
+    if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
+    if (temp) {
+      statusTimer = setTimeout(function () { defaultStatus(); }, 1400);
+    }
+  }
+
+  function defaultStatus() {
+    if (over) return;
+    if (turn === 1) {
+      var forced = sideHasCapture(ints(), 1);
+      $('status').textContent = lockedPiece ? 'Chain jump — keep capturing!' :
+        (forced ? 'Capture available — you must take it!' : 'Your move — pick a glowing red piece');
+    } else {
+      $('status').textContent = 'AI is thinking…';
+    }
+  }
+
+  function updateCounts() {
+    var you = 0, ai = 0;
+    for (var r = 0; r < 8; r++) {
+      for (var c = 0; c < 8; c++) {
+        var p = grid[r][c];
+        if (p) { if (p.side === 1) you++; else ai++; }
+      }
+    }
+    $('cntYou').textContent = String(you);
+    $('cntAi').textContent = String(ai);
+  }
+
+  function movePieceTo(p, r, c) {
+    grid[p.r][p.c] = null;
+    p.r = r; p.c = c;
+    grid[r][c] = p;
+    positionPiece(p);
+  }
+
+  function capturePiece(p) {
+    grid[p.r][p.c] = null;
+    p.el.classList.add('dead');
+    (function (el) { later(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 350); })(p.el);
+    updateCounts();
+  }
+
+  function maybePromote(p) {
+    if (p.king) return false;
+    if ((p.side === 1 && p.r === 0) || (p.side === -1 && p.r === 7)) {
+      p.king = true;
+      p.el.classList.add('king');
+      sfx(880, 0.08, 'square', 0.05, 0); sfx(1175, 0.14, 'square', 0.05, 0.09);
+      return true;
+    }
+    return false;
+  }
+
+  /* ---------- player turn ---------- */
+  function beginPlayerTurn() {
+    if (over) return;
+    busy = false;
+    selected = null; lockedPiece = null; allowedHops = [];
+    clearMarks();
+    var b = ints();
+    var forced = sideHasCapture(b, 1);
+    for (var r = 0; r < 8; r++) {
+      for (var c = 0; c < 8; c++) {
+        var p = grid[r][c];
+        if (!p || p.side !== 1) continue;
+        var ok = forced ? jumpsFor(b, r, c).length > 0 : stepsFor(b, r, c).length > 0;
+        if (ok) p.el.classList.add('can');
+      }
+    }
+    defaultStatus();
+  }
+
+  function onPieceClick(p) {
+    if (over || busy || turn !== 1) return;
+    if (p.side !== 1) { sfx(150, 0.06, 'sawtooth', 0.03); return; }
+    if (lockedPiece && p !== lockedPiece) {
+      setStatus('Finish the jump with the same piece!', true);
+      sfx(150, 0.08, 'sawtooth', 0.04);
+      return;
+    }
+    var b = ints();
+    var js = jumpsFor(b, p.r, p.c);
+    var hops;
+    if (lockedPiece) {
+      hops = js;
+    } else if (sideHasCapture(b, 1)) {
+      if (!js.length) {
+        setStatus('Capture is forced — pick a glowing piece!', true);
+        sfx(150, 0.08, 'sawtooth', 0.04);
+        return;
+      }
+      hops = js;
+    } else {
+      hops = stepsFor(b, p.r, p.c);
+    }
+    if (!hops.length) {
+      setStatus('That piece has no moves.', true);
+      sfx(150, 0.08, 'sawtooth', 0.04);
+      return;
+    }
+    selectPiece(p, hops);
+  }
+
+  function selectPiece(p, hops) {
+    /* keep .can glows, refresh sel/tgt marks */
+    for (var i = 0; i < sqEls.length; i++) sqEls[i].classList.remove('tgt', 'selsq');
+    var ps = piecesEl.querySelectorAll('.piece');
+    for (i = 0; i < ps.length; i++) ps[i].classList.remove('sel');
+    selected = p;
+    allowedHops = hops;
+    p.el.classList.add('sel');
+    sqEl(p.r, p.c).classList.add('selsq');
+    for (i = 0; i < hops.length; i++) sqEl(hops[i].r, hops[i].c).classList.add('tgt');
+    sfx(520, 0.05, 'square', 0.035);
+  }
+
+  function onSquareClick(e) {
+    if (over || busy || turn !== 1 || !selected) return;
+    var r = parseInt(e.currentTarget.getAttribute('data-r'), 10);
+    var c = parseInt(e.currentTarget.getAttribute('data-c'), 10);
+    for (var i = 0; i < allowedHops.length; i++) {
+      if (allowedHops[i].r === r && allowedHops[i].c === c) {
+        doPlayerHop(allowedHops[i]);
+        return;
+      }
+    }
+  }
+
+  function doPlayerHop(t) {
+    busy = true;
+    var p = selected;
+    clearMarks();
+    var isJump = t.or >= 0;
+    if (isJump) {
+      var victim = grid[t.or][t.oc];
+      if (victim) capturePiece(victim);
+      noCap = 0;
+      sfx(330, 0.09, 'square', 0.055);
+    } else {
+      noCap++;
+      sfx(440, 0.06, 'square', 0.045);
+    }
+    movePieceTo(p, t.r, t.c);
+    later(function () {
+      var promoted = maybePromote(p);
+      if (promoted) noCap = 0;
+      if (isJump && !promoted) {
+        var js = jumpsFor(ints(), p.r, p.c);
+        if (js.length) {
+          lockedPiece = p;
+          busy = false;
+          selectPiece(p, js);
+          setStatus('Chain jump — keep capturing!');
+          return;
+        }
+      }
+      selected = null; lockedPiece = null; allowedHops = [];
+      endTurn(-1);
+    }, 300);
+  }
+
+  /* ---------- AI turn ---------- */
+  function endTurn(nextSide) {
+    if (over) return;
+    turn = nextSide;
+    clearMarks();
+    if (noCap >= 60) { gameOver(0); return; }
+    var b = ints();
+    var moves = genAll(b, nextSide);
+    if (!moves.length) { gameOver(-nextSide); return; }
+    if (nextSide === -1) {
+      busy = true;
+      setStatus('AI is thinking…');
+      later(aiPlay, 500);
+    } else {
+      beginPlayerTurn();
+    }
+  }
+
+  function aiPlay() {
+    if (over) return;
+    var mv = aiChoose(ints());
+    if (!mv) { gameOver(1); return; }
+    var p = grid[mv.from[0]][mv.from[1]];
+    if (!p) { gameOver(1); return; }
+    if (mv.caps.length) noCap = 0; else noCap++;
+    var i = 0;
+    function hop() {
+      var step = mv.path[i];
+      var isJump = Math.abs(step[0] - p.r) === 2;
+      if (isJump) {
+        var or_ = (p.r + step[0]) / 2, oc = (p.c + step[1]) / 2;
+        var victim = grid[or_][oc];
+        if (victim) capturePiece(victim);
+        sfx(300, 0.09, 'square', 0.055);
+      } else {
+        sfx(400, 0.06, 'square', 0.04);
+      }
+      movePieceTo(p, step[0], step[1]);
+      i++;
+      later(function () {
+        if (i < mv.path.length) { hop(); return; }
+        if (maybePromote(p)) noCap = 0;
+        busy = false;
+        endTurn(1);
+      }, 310);
+    }
+    hop();
+  }
+
+  /* ---------- game over ---------- */
+  function gameOver(winner) {
+    over = true; busy = false;
+    clearMarks();
+    var msg, sub;
+    if (winner === 1) {
+      msg = 'YOU WIN!';
+      sub = 'The AI has no moves left';
+      addWin();
+      sfx(523, 0.1, 'square', 0.05, 0); sfx(659, 0.1, 'square', 0.05, 0.1); sfx(784, 0.2, 'square', 0.05, 0.2);
+    } else if (winner === -1) {
+      msg = 'AI WINS';
+      sub = 'You have no moves left';
+      sfx(300, 0.12, 'sawtooth', 0.05, 0); sfx(210, 0.24, 'sawtooth', 0.05, 0.14);
+    } else {
+      msg = 'DRAW';
+      sub = 'Too long with no captures';
+      sfx(392, 0.1, 'triangle', 0.05, 0); sfx(392, 0.1, 'triangle', 0.05, 0.12);
+    }
+    setStatus(msg);
+    $('tot').textContent = String(getWins());
+    later(function () {
+      $('ovMsg').textContent = msg;
+      $('ovSub').textContent = sub;
+      $('overlay').classList.remove('hidden');
+    }, 700);
+  }
+
+  /* ---------- controls ---------- */
+  $('newBtn').addEventListener('click', function () { sfx(620, 0.05, 'square', 0.04); newGame(); });
+  $('again').addEventListener('click', function () { sfx(660, 0.06, 'square', 0.04); newGame(); });
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && !$('overlay').classList.contains('hidden')) {
+      e.preventDefault();
+      newGame();
+    }
+  });
+  window.addEventListener('resize', function () { /* fluid CSS layout */ });
+
+  newGame();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>15 Puzzle — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --neon: #00e5ff; --neon-dim: #007a88; }
+  html, body { height: 100%; }
+  body {
+    background: #0f0f1a;
+    background-image: radial-gradient(ellipse at 50% -20%, rgba(0,229,255,.08), transparent 60%);
+    color: #d8f6ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 8px 12px 20px;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+    overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px; z-index: 60;
+    color: #7a7a9a; text-decoration: none; font-size: 13px;
+    padding: 4px 8px; border: 1px solid #2a2a4a; border-radius: 6px;
+    background: rgba(15,15,26,.8);
+  }
+  a.back:hover { color: var(--neon); border-color: var(--neon); }
+  h1 {
+    margin: 10px 0 4px; font-size: clamp(22px, 5vmin, 34px); letter-spacing: 6px;
+    color: var(--neon);
+    text-shadow: 0 0 8px var(--neon), 0 0 28px rgba(0,229,255,.5);
+  }
+  .sub { color: #5c7f8a; font-size: 12px; letter-spacing: 3px; margin-bottom: 10px; }
+  .hud {
+    display: flex; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; justify-content: center;
+  }
+  .stat {
+    background: #14142400; border: 2px solid #21324a; border-radius: 8px;
+    padding: 4px 12px; min-width: 92px; text-align: center;
+    box-shadow: 0 0 10px rgba(0,229,255,.10) inset;
+    background: #131322;
+  }
+  .stat .lbl { display: block; font-size: 10px; letter-spacing: 2px; color: #5c7f8a; }
+  .stat .val { display: block; font-size: 20px; font-weight: bold; color: var(--neon); text-shadow: 0 0 6px rgba(0,229,255,.7); }
+  #board {
+    position: relative;
+    width: min(56vmin, 360px, calc(100vw - 28px));
+    aspect-ratio: 1;
+    background: #131322;
+    border: 3px solid var(--neon);
+    border-radius: 12px;
+    box-shadow: 0 0 18px rgba(0,229,255,.35), 0 0 60px rgba(0,229,255,.12), inset 0 0 24px rgba(0,0,0,.6);
+    padding: 5px;
+  }
+  #board .inner { position: relative; width: 100%; height: 100%; }
+  .tile {
+    position: absolute; left: 0; top: 0;
+    width: calc(100% / var(--n)); height: calc(100% / var(--n));
+    padding: 3px;
+    transition: transform .13s cubic-bezier(.3,1.2,.5,1);
+    cursor: pointer;
+  }
+  #board.noanim .tile { transition: none; }
+  .tile > div {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: calc(min(56vmin, 360px) / var(--n) * .38); font-weight: bold;
+    background: linear-gradient(145deg, #1e3a4f, #12212e);
+    border: 2px solid #2c6a80;
+    border-radius: 8px;
+    color: #aef4ff;
+    text-shadow: 0 0 8px rgba(0,229,255,.9);
+    box-shadow: 0 0 6px rgba(0,229,255,.22), inset 0 2px 0 rgba(174,244,255,.15), inset 0 -3px 0 rgba(0,0,0,.4);
+  }
+  .tile:hover > div { border-color: var(--neon); box-shadow: 0 0 12px rgba(0,229,255,.5), inset 0 2px 0 rgba(174,244,255,.15); }
+  .tile.correct > div { border-color: #35d08a; color: #b8ffdf; text-shadow: 0 0 8px rgba(53,208,138,.9); }
+  .controls { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+  button {
+    font-family: inherit; font-size: 13px; font-weight: bold; letter-spacing: 2px;
+    color: var(--neon); background: #131322;
+    border: 2px solid var(--neon); border-radius: 8px;
+    padding: 8px 16px; cursor: pointer;
+    box-shadow: 0 0 10px rgba(0,229,255,.25);
+    text-shadow: 0 0 6px rgba(0,229,255,.6);
+  }
+  button:hover { background: #0d2b33; box-shadow: 0 0 18px rgba(0,229,255,.5); }
+  button:active { transform: translateY(1px); }
+  .tip { margin-top: 12px; color: #4d6a75; font-size: 11px; letter-spacing: 1px; text-align: center; }
+  .overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(8,8,16,.85); backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .overlay.hidden { display: none; }
+  .panel {
+    background: #131322; border: 3px solid var(--neon); border-radius: 14px;
+    padding: 28px 36px; text-align: center; max-width: 90vw;
+    box-shadow: 0 0 30px rgba(0,229,255,.5), 0 0 90px rgba(0,229,255,.2);
+    animation: pop .3s cubic-bezier(.3,1.5,.5,1);
+  }
+  @keyframes pop { from { transform: scale(.7); opacity: 0; } }
+  .panel h2 { color: var(--neon); letter-spacing: 5px; font-size: 26px; text-shadow: 0 0 12px var(--neon); margin-bottom: 12px; }
+  .panel p { color: #9fd4e0; margin: 6px 0; font-size: 14px; }
+  .panel .newbest { color: #ffe14d; text-shadow: 0 0 10px rgba(255,225,77,.8); letter-spacing: 2px; font-weight: bold; }
+  .panel button { margin-top: 16px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>15 PUZZLE</h1>
+<div class="sub">SLIDE THE TILES INTO ORDER</div>
+<div class="hud">
+  <div class="stat"><span class="lbl">MOVES</span><span class="val" id="moves">0</span></div>
+  <div class="stat"><span class="lbl">TIME</span><span class="val" id="time">0:00</span></div>
+  <div class="stat"><span class="lbl">BEST</span><span class="val" id="best">—</span></div>
+</div>
+<div id="board" style="--n:4"><div class="inner" id="inner"></div></div>
+<div class="controls">
+  <button id="shuffleBtn">⟳ SHUFFLE</button>
+  <button id="sizeBtn">EASY 3×3</button>
+</div>
+<div class="tip">Click / tap a tile in the gap's row or column · arrow keys slide too</div>
+
+<div id="overlay" class="overlay hidden">
+  <div class="panel">
+    <h2>SOLVED!</h2>
+    <p id="winStats"></p>
+    <p class="newbest" id="winBest" style="display:none">★ NEW BEST ★</p>
+    <button id="againBtn">PLAY AGAIN</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var SLUG = 'wizzed-fifteen';
+  var boardEl = document.getElementById('board');
+  var innerEl = document.getElementById('inner');
+  var movesEl = document.getElementById('moves');
+  var timeEl  = document.getElementById('time');
+  var bestEl  = document.getElementById('best');
+  var overlay = document.getElementById('overlay');
+  var winStats = document.getElementById('winStats');
+  var winBest = document.getElementById('winBest');
+
+  var N = 4;
+  var grid = [];        // grid[y][x] = value, 0 = blank
+  var tileEls = {};     // value -> element
+  var blank = {x:0,y:0};
+  var moves = 0, startTime = null, elapsed = 0, timerInt = null;
+  var playing = false;
+
+  /* ---------- audio ---------- */
+  var AC = null;
+  function ac(){
+    if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ AC = null; } }
+    if (AC && AC.state === 'suspended') AC.resume();
+    return AC;
+  }
+  function beep(freq, dur, type, vol, when){
+    var c = ac(); if (!c) return;
+    dur = dur || 0.06; type = type || 'square'; vol = vol || 0.04; when = when || 0;
+    var t = c.currentTime + when;
+    var o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  function winJingle(){
+    [523, 659, 784, 1047].forEach(function(f, i){ beep(f, 0.16, 'square', 0.05, i * 0.12); });
+  }
+
+  /* ---------- storage ---------- */
+  function loadBests(){
+    try { return JSON.parse(localStorage.getItem(SLUG)) || {}; } catch(e){ return {}; }
+  }
+  function saveBests(b){ try { localStorage.setItem(SLUG, JSON.stringify(b)); } catch(e){} }
+  function showBest(){
+    var b = loadBests()[N];
+    bestEl.textContent = b ? (b.moves + '') : '—';
+  }
+
+  /* ---------- helpers ---------- */
+  function fmtTime(s){
+    s = Math.floor(s);
+    return Math.floor(s/60) + ':' + ('0' + (s % 60)).slice(-2);
+  }
+  function tick(){
+    if (startTime !== null) {
+      elapsed = (Date.now() - startTime) / 1000;
+      timeEl.textContent = fmtTime(elapsed);
+    }
+  }
+
+  function setTilePos(el, x, y){
+    el.style.transform = 'translate(' + (x*100) + '%,' + (y*100) + '%)';
+  }
+
+  function buildBoard(){
+    boardEl.style.setProperty('--n', N);
+    innerEl.innerHTML = '';
+    tileEls = {};
+    grid = [];
+    for (var y = 0; y < N; y++){
+      grid.push([]);
+      for (var x = 0; x < N; x++){
+        var v = y * N + x + 1;
+        if (v === N * N) { v = 0; blank = {x:x, y:y}; }
+        grid[y].push(v);
+        if (v !== 0){
+          var el = document.createElement('div');
+          el.className = 'tile';
+          el.innerHTML = '<div>' + v + '</div>';
+          el.dataset.v = v;
+          setTilePos(el, x, y);
+          (function(val){
+            el.addEventListener('pointerdown', function(ev){ ev.preventDefault(); tryClickTile(val); });
+          })(v);
+          innerEl.appendChild(el);
+          tileEls[v] = el;
+        }
+      }
+    }
+    markCorrect();
+  }
+
+  function findTile(v){
+    for (var y = 0; y < N; y++) for (var x = 0; x < N; x++)
+      if (grid[y][x] === v) return {x:x, y:y};
+    return null;
+  }
+
+  function markCorrect(){
+    for (var y = 0; y < N; y++) for (var x = 0; x < N; x++){
+      var v = grid[y][x];
+      if (v !== 0) tileEls[v].classList.toggle('correct', v === y * N + x + 1);
+    }
+  }
+
+  /* Slide every tile between (tx,ty) and blank toward blank. Returns tiles moved. */
+  function slideFrom(tx, ty, animate){
+    var moved = 0;
+    if (tx === blank.x && ty !== blank.y){
+      var dy = blank.y > ty ? 1 : -1;
+      for (var y = blank.y - dy; dy > 0 ? y >= ty : y <= ty; y -= dy){
+        var v = grid[y][tx];
+        grid[y + dy][tx] = v; grid[y][tx] = 0;
+        setTilePos(tileEls[v], tx, y + dy);
+        moved++;
+      }
+      blank = {x: tx, y: ty};
+    } else if (ty === blank.y && tx !== blank.x){
+      var dx = blank.x > tx ? 1 : -1;
+      for (var x = blank.x - dx; dx > 0 ? x >= tx : x <= tx; x -= dx){
+        var v2 = grid[ty][x];
+        grid[ty][x + dx] = v2; grid[ty][x] = 0;
+        setTilePos(tileEls[v2], x + dx, ty);
+        moved++;
+      }
+      blank = {x: tx, y: ty};
+    }
+    if (moved && animate){
+      beep(240 + Math.random() * 60, 0.045, 'square', 0.035);
+    }
+    return moved;
+  }
+
+  function tryClickTile(v){
+    if (!playing) return;
+    var p = findTile(v);
+    if (!p) return;
+    var n = slideFrom(p.x, p.y, true);
+    if (n > 0) afterMove(n);
+  }
+
+  function afterMove(n){
+    moves += n;
+    movesEl.textContent = moves;
+    if (startTime === null){
+      startTime = Date.now();
+      if (timerInt) clearInterval(timerInt);
+      timerInt = setInterval(tick, 250);
+    }
+    markCorrect();
+    if (isSolved()) onWin();
+  }
+
+  function isSolved(){
+    for (var y = 0; y < N; y++) for (var x = 0; x < N; x++){
+      var want = (y === N-1 && x === N-1) ? 0 : y * N + x + 1;
+      if (grid[y][x] !== want) return false;
+    }
+    return true;
+  }
+
+  /* Shuffle by random blank moves — always solvable. */
+  function shuffle(){
+    boardEl.classList.add('noanim');
+    var last = -1;
+    var steps = N * N * 30;
+    for (var i = 0; i < steps; i++){
+      var dirs = [];
+      if (blank.y > 0     && last !== 2) dirs.push(0); // tile above moves down (blank up)
+      if (blank.y < N - 1 && last !== 0) dirs.push(2);
+      if (blank.x > 0     && last !== 3) dirs.push(1);
+      if (blank.x < N - 1 && last !== 1) dirs.push(3);
+      var d = dirs[Math.floor(Math.random() * dirs.length)];
+      var tx = blank.x + (d === 1 ? -1 : d === 3 ? 1 : 0);
+      var ty = blank.y + (d === 0 ? -1 : d === 2 ? 1 : 0);
+      slideFrom(tx, ty, false);
+      last = d;
+    }
+    if (isSolved()) { shuffle(); return; }
+    // force reflow so re-enabling transitions doesn't animate the scramble
+    void boardEl.offsetWidth;
+    boardEl.classList.remove('noanim');
+    markCorrect();
+  }
+
+  function newGame(){
+    if (timerInt) { clearInterval(timerInt); timerInt = null; }
+    moves = 0; startTime = null; elapsed = 0;
+    movesEl.textContent = '0';
+    timeEl.textContent = '0:00';
+    overlay.classList.add('hidden');
+    buildBoard();
+    shuffle();
+    playing = true;
+    showBest();
+  }
+
+  function onWin(){
+    playing = false;
+    if (timerInt) { clearInterval(timerInt); timerInt = null; }
+    tick();
+    var bests = loadBests();
+    var prev = bests[N];
+    var isBest = !prev || moves < prev.moves;
+    if (isBest){
+      bests[N] = { moves: moves, time: Math.floor(elapsed) };
+      saveBests(bests);
+    }
+    winStats.textContent = moves + ' moves · ' + fmtTime(elapsed) + ' · ' + N + '×' + N;
+    winBest.style.display = isBest ? 'block' : 'none';
+    showBest();
+    winJingle();
+    setTimeout(function(){ overlay.classList.remove('hidden'); }, 350);
+  }
+
+  /* ---------- input ---------- */
+  document.addEventListener('keydown', function(e){
+    if (!playing) return;
+    var tx = blank.x, ty = blank.y, hit = true;
+    switch (e.key){
+      case 'ArrowUp':    ty = blank.y + 1; break; // tile below slides up
+      case 'ArrowDown':  ty = blank.y - 1; break;
+      case 'ArrowLeft':  tx = blank.x + 1; break;
+      case 'ArrowRight': tx = blank.x - 1; break;
+      default: hit = false;
+    }
+    if (!hit) return;
+    e.preventDefault();
+    if (tx < 0 || ty < 0 || tx >= N || ty >= N) return;
+    var n = slideFrom(tx, ty, true);
+    if (n > 0) afterMove(n);
+  });
+
+  document.getElementById('shuffleBtn').addEventListener('click', function(){
+    beep(180, 0.08, 'sawtooth', 0.03);
+    newGame();
+  });
+  document.getElementById('sizeBtn').addEventListener('click', function(){
+    N = (N === 4) ? 3 : 4;
+    this.textContent = (N === 4) ? 'EASY 3×3' : 'HARD 4×4';
+    document.querySelector('h1').textContent = (N === 4) ? '15 PUZZLE' : '8 PUZZLE';
+    beep(500, 0.06, 'square', 0.03);
+    newGame();
+  });
+  document.getElementById('againBtn').addEventListener('click', function(){ newGame(); });
+
+  window.addEventListener('resize', function(){ /* layout is %-based; nothing to do */ });
+
+  newGame();
+})();
+</script>
+</body>
+</html>

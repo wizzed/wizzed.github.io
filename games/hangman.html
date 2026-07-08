@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neon Hangman — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f1a;
+    --accent: #ff3ec8;
+    --accent-dim: rgba(255,62,200,.35);
+    --good: #00ff9d;
+    --bad: #ff4060;
+    --panel: #191930;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: #e8e8ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 8px 12px 16px;
+    overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px;
+    color: #8888c0; text-decoration: none; font-size: 13px; letter-spacing: 1px;
+    padding: 4px 8px; border: 1px solid #2a2a4a; border-radius: 6px;
+    background: rgba(15,15,26,.8); z-index: 50;
+  }
+  a.back:hover { color: var(--accent); border-color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+  h1 {
+    margin-top: 2px;
+    font-size: clamp(20px, 4.5vmin, 34px);
+    letter-spacing: 5px;
+    color: var(--accent);
+    text-shadow: 0 0 8px var(--accent), 0 0 26px var(--accent-dim);
+    text-transform: uppercase;
+  }
+  .statsbar { display: flex; gap: 8px; margin: 5px 0 8px; flex-wrap: wrap; justify-content: center; }
+  .stat {
+    background: var(--panel); border: 1px solid #2a2a4a; border-radius: 8px;
+    padding: 3px 10px; font-size: 11px; letter-spacing: 1px; color: #9a9ac8;
+  }
+  .stat b { color: var(--accent); font-size: 14px; margin-left: 4px; text-shadow: 0 0 6px var(--accent); }
+  #layout {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 860px;
+  }
+  #gallowsWrap {
+    background: var(--panel);
+    border: 1px solid #2a2a4a;
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 0 18px rgba(255,62,200,.12);
+  }
+  canvas#gallows { display: block; }
+  #right { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 300px; flex: 1; max-width: 520px; }
+  #category {
+    font-size: 12px; letter-spacing: 3px; color: #9a9ac8; text-transform: uppercase;
+    border: 1px dashed var(--accent); border-radius: 6px; padding: 4px 12px;
+  }
+  #category b { color: var(--accent); text-shadow: 0 0 6px var(--accent); }
+  #lives { font-size: 12px; letter-spacing: 2px; color: #9a9ac8; }
+  #lives span { color: var(--bad); text-shadow: 0 0 6px var(--bad); font-size: 15px; }
+  #word { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; min-height: 44px; }
+  .slot {
+    width: clamp(24px, 5.4vmin, 40px);
+    height: clamp(32px, 6.6vmin, 50px);
+    border-bottom: 3px solid var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(18px, 4.4vmin, 30px);
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 10px var(--accent);
+    box-shadow: 0 8px 12px -10px var(--accent-dim);
+  }
+  .slot.missed { color: var(--bad); text-shadow: 0 0 10px var(--bad); border-bottom-color: var(--bad); }
+  .slot.revealpop { animation: pop .25s ease; }
+  @keyframes pop { 50% { transform: scale(1.25); } }
+  #word.shake { animation: shake .4s; }
+  @keyframes shake {
+    20%,60% { transform: translateX(-6px); }
+    40%,80% { transform: translateX(6px); }
+  }
+  #kb {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    gap: 5px;
+    width: 100%;
+    max-width: 440px;
+  }
+  .key {
+    height: clamp(32px, 6.4vh, 46px);
+    background: #23233d;
+    border: 1px solid #34345a;
+    border-radius: 5px;
+    color: #d8d8f8;
+    font-family: inherit;
+    font-weight: bold;
+    font-size: clamp(12px, 2.6vmin, 16px);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  .key:hover:not(:disabled) { border-color: var(--accent); box-shadow: 0 0 8px var(--accent-dim); }
+  .key:active:not(:disabled) { transform: scale(.93); }
+  .key:disabled { cursor: default; }
+  .key.good { background: rgba(0,255,157,.15); border-color: var(--good); color: var(--good); text-shadow: 0 0 6px var(--good); }
+  .key.bad { background: #17172a; border-color: #3a2030; color: #66334a; text-decoration: line-through; }
+  #overlay {
+    position: fixed; inset: 0; background: rgba(10,10,20,.88);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 100;
+  }
+  #overlay.show { opacity: 1; pointer-events: auto; }
+  .panel2 {
+    background: var(--panel);
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+    box-shadow: 0 0 30px var(--accent-dim), 0 0 80px rgba(255,62,200,.15);
+    padding: 26px 34px; text-align: center; max-width: 92vw;
+  }
+  .panel2 h2 { color: var(--accent); letter-spacing: 4px; font-size: 24px; text-shadow: 0 0 12px var(--accent); margin-bottom: 10px; }
+  .panel2 .word { font-size: 20px; letter-spacing: 5px; color: #fff; margin: 8px 0 14px; text-shadow: 0 0 10px #fff; }
+  .panel2 .sub { color: #9a9ac8; font-size: 13px; margin-bottom: 16px; line-height: 1.7; }
+  .panel2 .sub b { color: var(--accent); }
+  .btn {
+    background: var(--accent); color: #1a0412; border: none; font-family: inherit;
+    font-weight: bold; font-size: 15px; letter-spacing: 2px; padding: 11px 26px;
+    border-radius: 6px; cursor: pointer; text-transform: uppercase;
+    box-shadow: 0 0 14px var(--accent-dim);
+  }
+  .btn:hover { box-shadow: 0 0 26px var(--accent); }
+  @media (max-height: 560px) {
+    h1 { font-size: 18px; }
+    #layout { gap: 10px; }
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<h1>Neon Hangman</h1>
+<div class="statsbar">
+  <div class="stat">WINS<b id="s-wins">0</b></div>
+  <div class="stat">LOSSES<b id="s-losses">0</b></div>
+  <div class="stat">STREAK<b id="s-streak">0</b></div>
+  <div class="stat">BEST<b id="s-best">0</b></div>
+</div>
+<div id="layout">
+  <div id="gallowsWrap"><canvas id="gallows" width="240" height="280"></canvas></div>
+  <div id="right">
+    <div id="category">CATEGORY: <b id="cat-name">—</b></div>
+    <div id="lives">LIVES: <span id="lives-hearts">♥♥♥♥♥♥</span></div>
+    <div id="word"></div>
+    <div id="kb"></div>
+  </div>
+</div>
+<div id="overlay">
+  <div class="panel2">
+    <h2 id="ov-title">SAVED!</h2>
+    <div class="word" id="ov-word">WORD</div>
+    <div class="sub" id="ov-sub"></div>
+    <button class="btn" id="ov-again">Next Word</button>
+  </div>
+</div>
+<script>
+(function () {
+  "use strict";
+  // keep physical Enter/Space from re-triggering the last clicked button
+  document.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("button") : null;
+    if (b) b.blur();
+  });
+  var WORDS = {
+    "Animals": ["ELEPHANT","GIRAFFE","PENGUIN","DOLPHIN","KANGAROO","OCTOPUS","CHEETAH","LEOPARD","RACCOON","SQUIRREL","HEDGEHOG","FLAMINGO","OSTRICH","PANTHER","GORILLA","HAMSTER","RABBIT","TURTLE","MONKEY","JAGUAR","FALCON","BEAVER","WALRUS","TOUCAN","IGUANA","LOBSTER","PELICAN","BUFFALO","GAZELLE","MEERKAT","PLATYPUS","ARMADILLO","CHAMELEON","BUTTERFLY","SCORPION"],
+    "Food": ["SPAGHETTI","PANCAKE","BURRITO","LASAGNA","AVOCADO","BROCCOLI","PRETZEL","WAFFLE","MUFFIN","NOODLES","KETCHUP","MUSTARD","CUPCAKE","POPCORN","SANDWICH","COCONUT","PINEAPPLE","CHOCOLATE","STRAWBERRY","DUMPLING","OMELETTE","CROISSANT","MEATBALL","SUSHI","RAMEN","BAGEL","DONUT","CHEESE","YOGURT","GARLIC","GINGER","PEPPER","CINNAMON","OATMEAL","GUACAMOLE"],
+    "Tech": ["KEYBOARD","MONITOR","LAPTOP","BROWSER","FIREWALL","ROUTER","SERVER","PYTHON","ALGORITHM","DATABASE","INTERNET","WIRELESS","BLUETOOTH","PASSWORD","SOFTWARE","HARDWARE","PRINTER","SCANNER","WEBCAM","SPEAKER","CHARGER","SATELLITE","PROCESSOR","MEMORY","VIRTUAL","GADGET","ROBOT","DRONE","EMOJI","PODCAST"],
+    "Movie Genres": ["COMEDY","THRILLER","WESTERN","MUSICAL","ROMANCE","FANTASY","MYSTERY","HORROR","ACTION","ANIMATION","DOCUMENTARY","ADVENTURE","SUPERHERO","DRAMA","CRIME","BIOPIC","PARODY","NOIR"],
+    "Sports": ["BASKETBALL","BASEBALL","VOLLEYBALL","TENNIS","SOCCER","HOCKEY","CRICKET","RUGBY","BOXING","KARATE","ARCHERY","BOWLING","CYCLING","ROWING","SURFING","SKIING","SNOWBOARD","SKATEBOARD","MARATHON","GYMNASTICS","FENCING","CLIMBING","BADMINTON","WRESTLING","TRIATHLON"],
+    "Nature": ["VOLCANO","GLACIER","WATERFALL","CANYON","DESERT","JUNGLE","MEADOW","LAGOON","TUNDRA","SAVANNA","GEYSER","RAINBOW","THUNDER","LIGHTNING","BLIZZARD","TORNADO","HURRICANE","AVALANCHE","ISLAND","FOREST","MOUNTAIN","VALLEY","SWAMP","PRAIRIE","REEF"],
+    "Music": ["GUITAR","TRUMPET","SAXOPHONE","VIOLIN","DRUMMER","MELODY","RHYTHM","HARMONY","ORCHESTRA","CONCERT","PIANO","FLUTE","BANJO","CELLO","TROMBONE","CLARINET","UKULELE","HARMONICA","ACCORDION","KARAOKE"],
+    "Space": ["GALAXY","NEBULA","ASTEROID","COMET","METEOR","JUPITER","SATURN","NEPTUNE","MERCURY","TELESCOPE","ASTRONAUT","GRAVITY","ECLIPSE","SUPERNOVA","ROCKET","ORBIT","PLANET","COSMOS","UNIVERSE","QUASAR"]
+  };
+  var CATS = Object.keys(WORDS);
+  var MAX_WRONG = 6;
+
+  // ---------- audio ----------
+  var actx = null;
+  function initAudio() {
+    if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { actx = null; } }
+    if (actx && actx.state === "suspended") actx.resume();
+  }
+  document.addEventListener("pointerdown", initAudio, { once: true });
+  document.addEventListener("keydown", initAudio, { once: true });
+  function beep(freq, dur, type, vol) {
+    if (!actx) return;
+    try {
+      dur = dur || 0.06; type = type || "square"; vol = vol || 0.035;
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+      o.connect(g); g.connect(actx.destination);
+      o.start(); o.stop(actx.currentTime + dur);
+    } catch (e) { /* ignore */ }
+  }
+
+  // ---------- stats ----------
+  var STORE_KEY = "wizzed-hangman";
+  var stats = { wins: 0, losses: 0, streak: 0, best: 0 };
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (raw) { var p = JSON.parse(raw); if (p && typeof p === "object") stats = Object.assign(stats, p); }
+  } catch (e) { /* ignore */ }
+  function saveStats() { try { localStorage.setItem(STORE_KEY, JSON.stringify(stats)); } catch (e) { /* ignore */ } }
+  function renderStats() {
+    document.getElementById("s-wins").textContent = stats.wins;
+    document.getElementById("s-losses").textContent = stats.losses;
+    document.getElementById("s-streak").textContent = stats.streak;
+    document.getElementById("s-best").textContent = stats.best;
+  }
+
+  // ---------- canvas ----------
+  var canvas = document.getElementById("gallows");
+  var ctx = canvas.getContext("2d");
+  var animStart = 0, animParts = 0, rafId = 0;
+
+  // part geometry in a 240x280 design space; scaled at draw time
+  // Each part is a list of segments: ["line",x1,y1,x2,y2] or ["arc",cx,cy,r,a0,a1]
+  var GALLOWS = [
+    ["line", 30, 260, 150, 260],   // base
+    ["line", 60, 260, 60, 30],     // post
+    ["line", 60, 30, 170, 30],     // beam
+    ["line", 170, 30, 170, 62]     // rope
+  ];
+  var PARTS = [
+    [["arc", 170, 86, 24, 0, Math.PI * 2]],                 // head
+    [["line", 170, 110, 170, 178]],                          // body
+    [["line", 170, 126, 138, 158]],                          // left arm
+    [["line", 170, 126, 202, 158]],                          // right arm
+    [["line", 170, 178, 142, 224]],                          // left leg
+    [["line", 170, 178, 198, 224]]                           // right leg
+  ];
+
+  function sizeCanvas() {
+    var w = Math.min(280, Math.max(180, Math.floor(window.innerWidth * 0.32)));
+    if (window.innerWidth < 640) w = Math.min(240, window.innerWidth - 60);
+    var h = Math.round(w * 280 / 240);
+    var maxH = Math.max(160, Math.floor(window.innerHeight * 0.45));
+    if (h > maxH) { h = maxH; w = Math.round(h * 240 / 280); }
+    var dpr = window.devicePixelRatio || 1;
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    drawScene(1);
+  }
+
+  function drawSeg(seg, t) {
+    // t in [0,1] = fraction of this segment drawn
+    ctx.beginPath();
+    if (seg[0] === "line") {
+      var x1 = seg[1], y1 = seg[2], x2 = seg[3], y2 = seg[4];
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t);
+    } else {
+      ctx.arc(seg[1], seg[2], seg[3], seg[4], seg[4] + (seg[5] - seg[4]) * t);
+    }
+    ctx.stroke();
+  }
+
+  function drawScene(lastPartT) {
+    var dpr = window.devicePixelRatio || 1;
+    var sw = canvas.width / dpr, sh = canvas.height / dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, sw, sh);
+    ctx.save();
+    ctx.scale(sw / 240, sh / 280);
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    // gallows: dim cyan-purple frame
+    ctx.strokeStyle = "#5a5adf";
+    ctx.shadowColor = "#5a5adf";
+    ctx.shadowBlur = 8;
+    GALLOWS.forEach(function (seg) { drawSeg(seg, 1); });
+    // figure: hot pink neon
+    ctx.strokeStyle = "#ff3ec8";
+    ctx.shadowColor = "#ff3ec8";
+    ctx.shadowBlur = 14;
+    for (var i = 0; i < animParts; i++) {
+      var t = (i === animParts - 1) ? lastPartT : 1;
+      PARTS[i].forEach(function (seg) { drawSeg(seg, t); });
+    }
+    ctx.restore();
+  }
+
+  function animateNewPart() {
+    animStart = performance.now();
+    cancelAnimationFrame(rafId);
+    function step(now) {
+      var t = Math.min(1, (now - animStart) / 380);
+      drawScene(t);
+      if (t < 1) rafId = requestAnimationFrame(step);
+    }
+    rafId = requestAnimationFrame(step);
+  }
+
+  // ---------- game ----------
+  var word = "", category = "", guessed, wrong, finished = false;
+  var wordEl = document.getElementById("word");
+  var kbEl = document.getElementById("kb");
+  var keyEls = {};
+
+  (function buildKb() {
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(function (L) {
+      var b = document.createElement("button");
+      b.className = "key";
+      b.textContent = L;
+      b.addEventListener("click", function () { guess(L); });
+      kbEl.appendChild(b);
+      keyEls[L] = b;
+    });
+  })();
+
+  function newGame() {
+    category = CATS[Math.floor(Math.random() * CATS.length)];
+    var list = WORDS[category];
+    word = list[Math.floor(Math.random() * list.length)];
+    guessed = new Set();
+    wrong = 0;
+    finished = false;
+    animParts = 0;
+    document.getElementById("cat-name").textContent = category.toUpperCase();
+    renderLives();
+    renderWord();
+    Object.keys(keyEls).forEach(function (L) {
+      keyEls[L].disabled = false;
+      keyEls[L].className = "key";
+    });
+    document.getElementById("overlay").classList.remove("show");
+    drawScene(1);
+  }
+
+  function renderLives() {
+    var left = MAX_WRONG - wrong;
+    var s = "";
+    for (var i = 0; i < MAX_WRONG; i++) s += i < left ? "♥" : "♡";
+    document.getElementById("lives-hearts").textContent = s;
+  }
+
+  function renderWord(revealMissed) {
+    wordEl.innerHTML = "";
+    word.split("").forEach(function (ch) {
+      var d = document.createElement("div");
+      d.className = "slot";
+      if (guessed.has(ch)) {
+        d.textContent = ch;
+      } else if (revealMissed) {
+        d.textContent = ch;
+        d.classList.add("missed");
+      } else {
+        d.textContent = " ";
+      }
+      wordEl.appendChild(d);
+    });
+  }
+
+  function guess(L) {
+    if (finished || guessed.has(L) || keyEls[L].disabled) return;
+    keyEls[L].disabled = true;
+    if (word.indexOf(L) >= 0) {
+      guessed.add(L);
+      keyEls[L].classList.add("good");
+      beep(720, 0.08, "triangle", 0.05);
+      renderWord();
+      // pop revealed slots
+      var slots = wordEl.children;
+      for (var i = 0; i < word.length; i++) {
+        if (word[i] === L) slots[i].classList.add("revealpop");
+      }
+      var won = word.split("").every(function (ch) { return guessed.has(ch); });
+      if (won) endGame(true);
+    } else {
+      keyEls[L].classList.add("bad");
+      wrong++;
+      animParts = wrong;
+      animateNewPart();
+      renderLives();
+      wordEl.classList.remove("shake");
+      void wordEl.offsetWidth;
+      wordEl.classList.add("shake");
+      beep(140, 0.16, "sawtooth", 0.05);
+      if (wrong >= MAX_WRONG) endGame(false);
+    }
+  }
+
+  function endGame(won) {
+    finished = true;
+    if (won) {
+      stats.wins++;
+      stats.streak++;
+      if (stats.streak > stats.best) stats.best = stats.streak;
+      [523, 659, 784, 1047].forEach(function (f, i) { setTimeout(function () { beep(f, 0.12, "square", 0.05); }, i * 110); });
+    } else {
+      stats.losses++;
+      stats.streak = 0;
+      renderWord(true);
+      [300, 240, 180, 120].forEach(function (f, i) { setTimeout(function () { beep(f, 0.2, "sawtooth", 0.05); }, i * 160); });
+    }
+    saveStats();
+    renderStats();
+    setTimeout(function () {
+      document.getElementById("ov-title").textContent = won ? "SAVED!" : "HANGED!";
+      document.getElementById("ov-word").textContent = word;
+      document.getElementById("ov-sub").innerHTML = (won
+        ? "Category: <b>" + category + "</b> &nbsp;|&nbsp; Lives left <b>" + (MAX_WRONG - wrong) + "</b><br>Streak <b>" + stats.streak + "</b> &nbsp;|&nbsp; Wins <b>" + stats.wins + "</b> / Losses <b>" + stats.losses + "</b>"
+        : "Category: <b>" + category + "</b><br>Wins <b>" + stats.wins + "</b> / Losses <b>" + stats.losses + "</b> &nbsp;|&nbsp; Best streak <b>" + stats.best + "</b>");
+      document.getElementById("overlay").classList.add("show");
+    }, won ? 500 : 900);
+  }
+
+  document.getElementById("ov-again").addEventListener("click", function () {
+    beep(520, 0.06);
+    newGame();
+  });
+
+  window.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Enter" && document.getElementById("overlay").classList.contains("show")) {
+      newGame();
+      e.preventDefault();
+      return;
+    }
+    if (/^[a-zA-Z]$/.test(e.key)) guess(e.key.toUpperCase());
+  });
+
+  window.addEventListener("resize", sizeCanvas);
+
+  renderStats();
+  newGame();
+  sizeCanvas();
+})();
+</script>
+</body>
+</html>

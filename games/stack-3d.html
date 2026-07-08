@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stack Tower 3D – Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #0f0f1a; overflow: hidden; color: #cfe9ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  canvas { display: block; }
+  a.back {
+    position: fixed; top: 12px; left: 12px; z-index: 40;
+    color: #7f8fc0; text-decoration: none; font-size: 13px;
+    background: rgba(12,12,32,0.7); border: 1px solid #26264d;
+    padding: 5px 10px; border-radius: 6px;
+  }
+  a.back:hover { color: #4ff3ff; border-color: #4ff3ff; }
+  #score-big {
+    position: fixed; top: 46px; left: 50%; transform: translateX(-50%);
+    z-index: 30; font-size: clamp(34px, 7vw, 56px); pointer-events: none;
+    color: #eafcff; text-shadow: 0 0 22px #00c8ff, 0 0 60px #0055ff;
+  }
+  #hud {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 30; display: flex; gap: 18px; pointer-events: none;
+    font-size: 13px; color: #9fd8ff; text-shadow: 0 0 8px #2288ff; white-space: nowrap;
+  }
+  #hud b { color: #ffd34f; text-shadow: 0 0 10px #ff9a00; font-weight: normal; }
+  #combo {
+    position: fixed; top: 28%; left: 50%; transform: translateX(-50%);
+    z-index: 30; font-size: 19px; color: #29e6a7; pointer-events: none;
+    text-shadow: 0 0 14px #0aa877; opacity: 0; transition: opacity 0.2s; white-space: nowrap;
+  }
+  #hint {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 25; font-size: 11px; color: #56628f; pointer-events: none;
+    text-shadow: 0 0 6px #101040; white-space: nowrap;
+  }
+  .overlay {
+    position: fixed; inset: 0; z-index: 50; display: flex;
+    align-items: center; justify-content: center; pointer-events: none;
+  }
+  .overlay .panel {
+    pointer-events: all; text-align: center; max-width: 420px;
+    background: rgba(10,10,30,0.82); border: 1px solid #3a2a7a;
+    border-radius: 14px; padding: 26px 34px;
+    box-shadow: 0 0 40px rgba(80,40,255,0.25);
+  }
+  .overlay h1 { font-size: 26px; letter-spacing: 4px; color: #4ff3ff; text-shadow: 0 0 18px #00c8ff; margin-bottom: 10px; }
+  .overlay h1.red { color: #ff5577; text-shadow: 0 0 18px #ff2255; }
+  .overlay p { font-size: 13px; color: #8fa2d8; line-height: 1.7; margin-bottom: 14px; }
+  .overlay .big { font-size: 17px; color: #eafcff; text-shadow: 0 0 12px #00c8ff; }
+  .overlay button {
+    font-family: inherit; font-size: 15px; font-weight: bold; letter-spacing: 2px;
+    padding: 10px 30px; border: none; border-radius: 8px; cursor: pointer;
+    background: #29e6a7; color: #0a0a18; box-shadow: 0 0 18px #29e6a788;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<div id="hud"><span>BEST <b id="best">0</b></span></div>
+<div id="score-big">0</div>
+<div id="combo"></div>
+<div id="hint">click / SPACE to drop the slab · line it up perfectly</div>
+<div class="overlay" id="start-ov">
+  <div class="panel">
+    <h1>STACK TOWER 3D</h1>
+    <p>A neon slab glides back and forth.<br>
+    Drop it dead-on top of the tower — any overhang is sliced away.<br>
+    Perfect drops pulse and regrow your slab.<br>
+    How high can you build?</p>
+    <button id="start-btn">START STACKING</button>
+  </div>
+</div>
+<div class="overlay" id="over-ov" style="display:none">
+  <div class="panel">
+    <h1 class="red">TOWER TOPPLED</h1>
+    <p class="big" id="over-stats"></p>
+    <p id="over-sub"></p>
+    <button id="restart-btn">REBUILD (R)</button>
+  </div>
+</div>
+<script src="../lib/three.min.js"></script>
+<script>
+'use strict';
+// ── Stack Tower 3D ─────────────────────────────────────────────────────────
+const SLUG = 'wizzed-stack-3d';
+let best = parseInt(localStorage.getItem(SLUG) || '0', 10) || 0;
+document.getElementById('best').textContent = best;
+
+const S0 = 3.0;        // starting slab size
+const H = 0.42;        // slab height
+const RANGE = 4.4;     // oscillation amplitude
+const PERFECT = 0.14;
+
+// ── Scene ──────────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f0f1a);
+scene.fog = new THREE.Fog(0x0f0f1a, 14, 42);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 200);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+scene.add(new THREE.AmbientLight(0x334466, 1.2));
+scene.add(new THREE.HemisphereLight(0x7788ff, 0x140a26, 0.9));
+const key = new THREE.DirectionalLight(0xfff0dd, 1.9);
+key.position.set(6, 12, 4);
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x4466ff, 0.9);
+rim.position.set(-7, 6, -6);
+scene.add(rim);
+
+// distant floor grid
+const gridHelper = new THREE.GridHelper(120, 60, 0x252560, 0x14143a);
+gridHelper.position.y = -6;
+scene.add(gridHelper);
+
+// stars
+{
+  const pts = [];
+  for (let i = 0; i < 400; i++) {
+    const a = Math.random() * Math.PI * 2, r = 30 + Math.random() * 80;
+    pts.push(Math.cos(a) * r, -10 + Math.random() * 160, Math.sin(a) * r);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8899ee, size: 0.45 })));
+}
+
+// ── Tower state ────────────────────────────────────────────────────────────
+const slabGeo = new THREE.BoxGeometry(1, 1, 1);
+function slabMat(level) {
+  const hue = (205 + level * 8) % 360;
+  const col = new THREE.Color().setHSL(hue / 360, 0.72, 0.56);
+  const emi = new THREE.Color().setHSL(hue / 360, 0.9, 0.38);
+  return new THREE.MeshStandardMaterial({
+    color: col, emissive: emi, emissiveIntensity: 0.45, roughness: 0.35, metalness: 0.25
+  });
+}
+function makeSlab(cx, cz, sx, sz, y, level) {
+  const m = new THREE.Mesh(slabGeo, slabMat(level));
+  m.scale.set(sx, H, sz);
+  m.position.set(cx, y, cz);
+  scene.add(m);
+  return m;
+}
+
+let stack = [];        // {mesh, x, z, sx, sz, y}
+let moving = null;     // {mesh, axis, phase, speed, sx, sz, y}
+let debris = [];       // {mesh, vel, angVel, axis}
+let pulses = [];       // expanding rings
+let level = 0, combo = 0;
+let playing = false, over = false;
+let camY = 4, camAng = Math.PI / 4;
+
+function clearAll() {
+  stack.forEach(s => scene.remove(s.mesh));
+  debris.forEach(d => scene.remove(d.mesh));
+  pulses.forEach(p => scene.remove(p.mesh));
+  if (moving) scene.remove(moving.mesh);
+  stack = []; debris = []; pulses = []; moving = null;
+}
+
+function initTower() {
+  clearAll();
+  level = 0; combo = 0; over = false;
+  // base block
+  const baseMesh = makeSlab(0, 0, S0, S0, -H / 2 - 0.01, 0);
+  baseMesh.scale.y = 1.2;
+  baseMesh.position.y = -0.6;
+  stack.push({ mesh: baseMesh, x: 0, z: 0, sx: S0, sz: S0, y: 0 });
+  spawnMoving();
+  camY = 4;
+  updateScore();
+}
+
+function topOfStack() { return stack[stack.length - 1]; }
+
+function spawnMoving() {
+  const top = topOfStack();
+  const axis = level % 2 === 0 ? 'x' : 'z';
+  const mesh = makeSlab(top.x, top.z, top.sx, top.sz, top.y + H / 2, level + 1);
+  moving = {
+    mesh, axis,
+    phase: Math.random() * Math.PI * 2,
+    speed: Math.min(4.6, 2.1 + level * 0.055),
+    sx: top.sx, sz: top.sz,
+    baseX: top.x, baseZ: top.z,
+    y: top.y + H / 2
+  };
+}
+
+function updateScore() {
+  document.getElementById('score-big').textContent = level;
+  document.getElementById('best').textContent = best;
+}
+
+let comboTmr = null;
+function flashCombo(txt) {
+  const el = document.getElementById('combo');
+  el.textContent = txt;
+  el.style.opacity = '1';
+  clearTimeout(comboTmr);
+  comboTmr = setTimeout(() => { el.style.opacity = '0'; }, 800);
+}
+
+function pulseRing(x, z, y, size) {
+  const g = new THREE.RingGeometry(size * 0.55, size * 0.62, 40);
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+    color: 0x7dffd8, transparent: true, opacity: 0.9, side: THREE.DoubleSide
+  }));
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(x, y, z);
+  scene.add(m);
+  pulses.push({ mesh: m, life: 1 });
+}
+
+function drop() {
+  if (!playing || over || !moving) return;
+  const top = topOfStack();
+  const ax = moving.axis;
+  const cur = ax === 'x' ? moving.mesh.position.x : moving.mesh.position.z;
+  const prev = ax === 'x' ? top.x : top.z;
+  const size = ax === 'x' ? moving.sx : moving.sz;
+  const delta = cur - prev;
+  const overlap = size - Math.abs(delta);
+
+  if (overlap <= 0.005) {
+    // total miss — slab falls, game over
+    debris.push({
+      mesh: moving.mesh,
+      vel: new THREE.Vector3(ax === 'x' ? Math.sign(delta) * 1.5 : 0, -0.5, ax === 'z' ? Math.sign(delta) * 1.5 : 0),
+      angVel: new THREE.Vector3((Math.random() - 0.5) * 4, 0, (Math.random() - 0.5) * 4)
+    });
+    moving = null;
+    gameOver();
+    return;
+  }
+
+  const perfect = Math.abs(delta) <= PERFECT;
+  let newX = top.x, newZ = top.z, newSx = moving.sx, newSz = moving.sz;
+
+  if (perfect) {
+    combo++;
+    // regrow slightly
+    const grow = Math.min(0.22, 0.06 + combo * 0.04);
+    if (ax === 'x') newSx = Math.min(S0, moving.sx + grow);
+    else newSz = Math.min(S0, moving.sz + grow);
+    flashCombo('PERFECT ×' + combo + (newSx > moving.sx || newSz > moving.sz ? '  ⟴ +GROW' : ''));
+    pulseRing(newX, newZ, moving.y - H / 2 + 0.02, Math.max(newSx, newSz) * 1.5);
+  } else {
+    combo = 0;
+    // slice: kept part
+    const keptCenter = prev + delta / 2;
+    const cut = Math.abs(delta);
+    if (ax === 'x') { newX = keptCenter; newSx = overlap; }
+    else { newZ = keptCenter; newSz = overlap; }
+    // overhang debris
+    const overCenter = cur + Math.sign(delta) * (overlap / 2);
+    const dMesh = makeSlab(
+      ax === 'x' ? overCenter : top.x,
+      ax === 'z' ? overCenter : top.z,
+      ax === 'x' ? cut : moving.sx,
+      ax === 'z' ? cut : moving.sz,
+      moving.y, level + 1
+    );
+    dMesh.material = moving.mesh.material;
+    debris.push({
+      mesh: dMesh,
+      vel: new THREE.Vector3(ax === 'x' ? Math.sign(delta) * 1.2 : 0, 0.6, ax === 'z' ? Math.sign(delta) * 1.2 : 0),
+      angVel: new THREE.Vector3(
+        ax === 'z' ? Math.sign(delta) * 3 : 0, 0,
+        ax === 'x' ? -Math.sign(delta) * 3 : 0
+      )
+    });
+  }
+
+  // fix the dropped slab in place
+  moving.mesh.scale.set(newSx, H, newSz);
+  moving.mesh.position.set(newX, moving.y, newZ);
+  stack.push({ mesh: moving.mesh, x: newX, z: newZ, sx: newSx, sz: newSz, y: moving.y + H / 2 });
+  moving = null;
+  level++;
+  updateScore();
+  spawnMoving();
+
+  // prune far-below slabs kept invisible under fog (keep meshes; they're cheap)
+}
+
+function gameOver() {
+  over = true;
+  if (level > best) {
+    best = level;
+    localStorage.setItem(SLUG, String(best));
+  }
+  document.getElementById('over-stats').textContent = 'HEIGHT ' + level + '  ·  BEST ' + best;
+  document.getElementById('over-sub').textContent =
+    level >= best && level > 0 ? '★ New record! ★' : 'The slab sailed into the void.';
+  updateScore();
+  setTimeout(() => { document.getElementById('over-ov').style.display = 'flex'; }, 700);
+}
+
+function startGame() {
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  document.getElementById('start-ov').style.display = 'none';
+  document.getElementById('over-ov').style.display = 'none';
+  initTower();
+  playing = true;
+}
+
+// ── Input ──────────────────────────────────────────────────────────────────
+addEventListener('pointerdown', e => {
+  if (e.target.closest('.panel') || e.target.closest('a')) return;
+  if (!playing) startGame();
+  else if (over) startGame();
+  else drop();
+});
+addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'Enter') {
+    e.preventDefault();
+    if (!playing || over) startGame();
+    else drop();
+  }
+  if (e.code === 'KeyR') startGame();
+});
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('restart-btn').addEventListener('click', startGame);
+
+// ── Loop ───────────────────────────────────────────────────────────────────
+initTower();       // build attract-mode tower behind the start panel
+// pre-stack a few blocks so the load view looks like a tower
+scene.remove(moving.mesh);
+moving = null;
+for (let i = 0; i < 5; i++) {
+  const top = topOfStack();
+  const m = makeSlab(top.x, top.z, top.sx, top.sz, top.y + H / 2, i + 1);
+  stack.push({ mesh: m, x: top.x, z: top.z, sx: top.sx, sz: top.sz, y: top.y + H });
+  level++;
+}
+spawnMoving();     // wiggling preview slab on top of the attract tower
+
+let lastT = 0;
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const t = ts / 1000;
+  const dt = Math.min((ts - lastT) / 1000, 0.05);
+  lastT = ts;
+
+  // moving slab oscillation
+  if (moving && playing && !over) {
+    moving.phase += moving.speed * dt;
+    const off = Math.sin(moving.phase) * RANGE;
+    if (moving.axis === 'x') moving.mesh.position.x = moving.baseX + off;
+    else moving.mesh.position.z = moving.baseZ + off;
+  } else if (moving && !playing) {
+    // idle preview wiggle
+    moving.phase += dt * 1.2;
+    const off = Math.sin(moving.phase) * RANGE * 0.5;
+    if (moving.axis === 'x') moving.mesh.position.x = moving.baseX + off;
+    else moving.mesh.position.z = moving.baseZ + off;
+  }
+
+  // debris physics
+  for (let i = debris.length - 1; i >= 0; i--) {
+    const d = debris[i];
+    d.vel.y -= 16 * dt;
+    d.mesh.position.addScaledVector(d.vel, dt);
+    d.mesh.rotation.x += d.angVel.x * dt;
+    d.mesh.rotation.z += d.angVel.z * dt;
+    if (d.mesh.position.y < -30) { scene.remove(d.mesh); debris.splice(i, 1); }
+  }
+
+  // pulse rings
+  for (let i = pulses.length - 1; i >= 0; i--) {
+    const p = pulses[i];
+    p.life -= dt * 1.6;
+    const s = 1 + (1 - p.life) * 1.8;
+    p.mesh.scale.set(s, s, s);
+    p.mesh.material.opacity = Math.max(0, p.life) * 0.9;
+    if (p.life <= 0) { scene.remove(p.mesh); pulses.splice(i, 1); }
+  }
+
+  // camera rises with tower + slow drift
+  const topY = topOfStack().y;
+  const targetCamY = topY + 3.6;
+  camY += (targetCamY - camY) * Math.min(1, dt * 2.2);
+  camAng += dt * (playing && !over ? 0.035 : 0.14);
+  const rad = 8.5;
+  camera.position.set(Math.sin(camAng) * rad, camY, Math.cos(camAng) * rad);
+  camera.lookAt(0, Math.max(0, topY - 1.4), 0);
+
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

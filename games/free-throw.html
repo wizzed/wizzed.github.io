@@ -162,8 +162,9 @@ function update(dt){
   hoop.ampY+=(tAmpY-hoop.ampY)*Math.min(1,dt*2);
   hoop.ampX+=(tAmpX-hoop.ampX)*Math.min(1,dt*2);
   const spd=1.1+streak*0.12;
-  hoop.oy=Math.sin(gt*spd)*hoop.ampY;
-  hoop.ox=Math.sin(gt*spd*0.63)*hoop.ampX;
+  hoopPhase+=spd*dt;
+  hoop.oy=Math.sin(hoopPhase)*hoop.ampY;
+  hoop.ox=Math.sin(hoopPhase*0.63)*hoop.ampX;
 
   if(state==='title'){
     /* demo ball bouncing */

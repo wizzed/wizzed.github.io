@@ -1,224 +1,975 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Wizzed – Game Arcade</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: #0f0f1a;
-      color: #e0e0ff;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      min-height: 100vh;
-      padding: 40px 20px 60px;
-    }
-    header {
-      text-align: center;
-      margin-bottom: 48px;
-    }
-    header h1 {
-      font-size: clamp(2rem, 5vw, 3.5rem);
-      font-weight: 800;
-      letter-spacing: -1px;
-      background: linear-gradient(135deg, #a78bfa, #60a5fa, #34d399);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    header p {
-      margin-top: 10px;
-      font-size: 1.1rem;
-      color: #9090b0;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-      gap: 24px;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    .card {
-      background: #1a1a2e;
-      border: 1px solid #2a2a4a;
-      border-radius: 16px;
-      padding: 28px 24px 24px;
-      cursor: pointer;
-      text-decoration: none;
-      color: inherit;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-      position: relative;
-      overflow: hidden;
-    }
-    .card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: var(--card-glow, transparent);
-      opacity: 0;
-      transition: opacity 0.18s ease;
-      border-radius: inherit;
-    }
-    .card:hover {
-      transform: translateY(-6px);
-      box-shadow: 0 16px 40px rgba(0,0,0,0.5);
-      border-color: var(--card-accent, #60a5fa);
-    }
-    .card:hover::before { opacity: 0.08; }
-    .card-icon {
-      font-size: 3rem;
-      line-height: 1;
-    }
-    .card-title {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: #fff;
-    }
-    .card-genre {
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--card-accent, #60a5fa);
-      background: rgba(96, 165, 250, 0.1);
-      border: 1px solid var(--card-accent, #60a5fa);
-      border-radius: 999px;
-      padding: 2px 10px;
-      display: inline-block;
-      width: fit-content;
-    }
-    .card-desc {
-      font-size: 0.9rem;
-      color: #8080a0;
-      line-height: 1.5;
-      flex: 1;
-    }
-    .card-cta {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--card-accent, #60a5fa);
-      margin-top: 4px;
-    }
-    /* Individual card accent colours */
-    .c1 { --card-accent: #a78bfa; --card-glow: #a78bfa; }
-    .c2 { --card-accent: #34d399; --card-glow: #34d399; }
-    .c3 { --card-accent: #f472b6; --card-glow: #f472b6; }
-    .c4 { --card-accent: #fbbf24; --card-glow: #fbbf24; }
-    .c5 { --card-accent: #f87171; --card-glow: #f87171; }
-    .c6 { --card-accent: #60a5fa; --card-glow: #60a5fa; }
-    .c7 { --card-accent: #fb923c; --card-glow: #fb923c; }
-    .c8 { --card-accent: #4ade80; --card-glow: #4ade80; }
-    .c9 { --card-accent: #e879f9; --card-glow: #e879f9; }
-    .c10 { --card-accent: #f59e0b; --card-glow: #f59e0b; }
-    .c11 { --card-accent: #a78bfa; --card-glow: #a78bfa; }
-    footer {
-      text-align: center;
-      margin-top: 60px;
-      font-size: 0.8rem;
-      color: #444466;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wizzed Arcade — 54 Games &amp; Apps</title>
+<meta name="description" content="Wizzed Arcade: 54 free browser games and apps. Arcade, puzzle, board, card and 3D games — no downloads, no ads, just play.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #070712;
+    --panel: #12122400;
+    --pink: #ff2d78;
+    --cyan: #00e5ff;
+    --yellow: #ffd166;
+    --purple: #9d6bff;
+    --green: #00ff9c;
+    --orange: #ff6b35;
+    --text: #d8d8ff;
+    --dim: #8a8ab5;
+  }
+  * , *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'VT323', 'Courier New', monospace;
+    font-size: 19px;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+  ::selection { background: var(--pink); color: #fff; }
+
+  /* ---------- starfield ---------- */
+  #stars {
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* ---------- CRT overlay ---------- */
+  .crt {
+    position: fixed; inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg,
+      rgba(0,0,0,0.00) 0px, rgba(0,0,0,0.00) 2px,
+      rgba(0,0,0,0.14) 3px, rgba(0,0,0,0.00) 4px);
+    mix-blend-mode: multiply;
+    opacity: .8;
+  }
+  .vignette {
+    position: fixed; inset: 0;
+    z-index: 61;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,10,0.45) 100%);
+  }
+
+  /* ---------- hero ---------- */
+  .hero {
+    position: relative;
+    z-index: 1;
+    height: clamp(430px, 62vh, 560px);
+    overflow: hidden;
+    background: linear-gradient(180deg, #070712 0%, #12102e 34%, #2b1257 62%, #4a1668 76%, #7a1f60 88%, #b43a52 100%);
+    border-bottom: 3px solid var(--pink);
+    box-shadow: 0 0 45px rgba(255,45,120,.45);
+  }
+  .sun {
+    position: absolute;
+    left: 50%; bottom: 96px;
+    width: 240px; height: 240px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: linear-gradient(180deg, #ffe95c 0%, #ffb84d 35%, #ff2d78 75%, #b4157e 100%);
+    -webkit-mask: repeating-linear-gradient(0deg, #000 0 14px, transparent 14px 20px);
+            mask: repeating-linear-gradient(0deg, #000 0 14px, transparent 14px 20px);
+    filter: drop-shadow(0 0 35px rgba(255,120,90,.8));
+    animation: sunPulse 5s ease-in-out infinite;
+  }
+  @keyframes sunPulse {
+    0%,100% { filter: drop-shadow(0 0 30px rgba(255,120,90,.7)); }
+    50%     { filter: drop-shadow(0 0 55px rgba(255,60,130,.95)); }
+  }
+  .city {
+    position: absolute; left: 0; right: 0; bottom: 88px;
+    height: 110px;
+    pointer-events: none;
+  }
+  .city svg { width: 100%; height: 100%; display: block; }
+  .gridfloor {
+    position: absolute; left: -25%; right: -25%; bottom: -8px;
+    height: 108px;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.85) 2px, transparent 2px),
+      linear-gradient(90deg, rgba(0,229,255,0.85) 2px, transparent 2px);
+    background-size: 60px 34px;
+    transform: perspective(220px) rotateX(62deg);
+    transform-origin: top center;
+    animation: gridScroll 1.6s linear infinite;
+    box-shadow: 0 -10px 40px rgba(0,229,255,.25) inset;
+  }
+  @keyframes gridScroll { from { background-position-y: 0; } to { background-position-y: 34px; } }
+  #hero3d {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .hero-inner {
+    position: relative;
+    z-index: 3;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0 16px;
+    gap: 20px;
+  }
+  .marquee-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(1.5rem, 6vw, 3.6rem);
+    color: #fff;
+    letter-spacing: 2px;
+    line-height: 1.25;
+    text-shadow:
+      0 0 8px  #fff,
+      0 0 22px var(--cyan),
+      4px 4px 0 var(--pink),
+      4px 4px 18px var(--pink);
+    animation: neonFlicker 4.2s linear infinite;
+  }
+  .marquee-title .z { display: inline-block; animation: letterBounce 2.6s ease-in-out infinite; }
+  @keyframes letterBounce {
+    0%, 82%, 100% { transform: translateY(0); }
+    88% { transform: translateY(-9px); }
+    94% { transform: translateY(2px); }
+  }
+  @keyframes neonFlicker {
+    0%, 6.5%, 7.5%, 49%, 50.5%, 100% { opacity: 1; }
+    7%  { opacity: .55; }
+    50% { opacity: .75; }
+  }
+  .subtitle {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(.55rem, 1.7vw, .85rem);
+    color: var(--yellow);
+    text-shadow: 0 0 12px rgba(255,209,102,.8);
+    letter-spacing: 1px;
+  }
+  .insert-coin {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(.6rem, 1.8vw, .9rem);
+    color: #fff;
+    background: rgba(0,0,0,.45);
+    border: 2px solid var(--cyan);
+    box-shadow: 0 0 14px rgba(0,229,255,.5), inset 0 0 14px rgba(0,229,255,.18);
+    padding: 14px 26px;
+    cursor: pointer;
+    user-select: none;
+    animation: blink 1.15s steps(2, start) infinite;
+    transition: transform .12s ease;
+  }
+  .insert-coin:hover { animation: none; transform: scale(1.06); background: rgba(0,229,255,.16); }
+  .insert-coin:active { transform: scale(.96); }
+  @keyframes blink { 0% { opacity: 1; } 50% { opacity: .35; } 100% { opacity: 1; } }
+  .hero-stats {
+    display: flex;
+    gap: 26px;
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: 22px;
+    color: var(--dim);
+  }
+  .hero-stats b { color: var(--green); text-shadow: 0 0 10px rgba(0,255,156,.7); font-weight: normal; }
+
+  /* ---------- ticker ---------- */
+  .ticker {
+    position: relative;
+    z-index: 2;
+    background: #0d0d20;
+    border-bottom: 1px solid #23234a;
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 9px 0;
+    font-size: 21px;
+    color: var(--cyan);
+    text-shadow: 0 0 8px rgba(0,229,255,.6);
+  }
+  .ticker-track { display: inline-block; animation: tick 32s linear infinite; }
+  .ticker:hover .ticker-track { animation-play-state: paused; }
+  @keyframes tick { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  /* ---------- controls ---------- */
+  .controls {
+    position: relative;
+    z-index: 2;
+    max-width: 1280px;
+    margin: 30px auto 6px;
+    padding: 0 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+  }
+  .chip {
+    font-family: 'Press Start 2P', monospace;
+    font-size: .58rem;
+    padding: 10px 14px;
+    background: #101024;
+    color: var(--dim);
+    border: 2px solid #2b2b52;
+    cursor: pointer;
+    transition: all .15s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .chip:hover { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 12px rgba(0,229,255,.35); transform: translateY(-2px); }
+  .chip.active {
+    background: var(--cyan);
+    color: #05050f;
+    border-color: var(--cyan);
+    box-shadow: 0 0 18px rgba(0,229,255,.65);
+  }
+  .search-wrap { position: relative; }
+  #search {
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+    background: #0b0b1c;
+    border: 2px solid #2b2b52;
+    color: var(--green);
+    padding: 8px 12px 8px 34px;
+    width: 210px;
+    outline: none;
+    caret-color: var(--green);
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  #search:focus { border-color: var(--green); box-shadow: 0 0 14px rgba(0,255,156,.35); }
+  .search-wrap::before {
+    content: '>';
+    position: absolute; left: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--green);
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    animation: blink 1.2s steps(2,start) infinite;
+    pointer-events: none;
+  }
+  #sfx-toggle {
+    font-family: 'Press Start 2P', monospace;
+    font-size: .55rem;
+    padding: 10px 12px;
+    background: #101024;
+    border: 2px solid #2b2b52;
+    color: var(--dim);
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  #sfx-toggle.on { color: var(--yellow); border-color: var(--yellow); box-shadow: 0 0 12px rgba(255,209,102,.4); }
+
+  /* ---------- old arcade banner ---------- */
+  .old-banner {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    max-width: 1280px;
+    margin: 26px auto 8px;
+    padding: 18px 26px;
+    text-decoration: none;
+    background:
+      linear-gradient(90deg, rgba(58,36,12,.55), rgba(20,14,30,.85) 55%),
+      repeating-linear-gradient(45deg, #171126 0 12px, #131022 12px 24px);
+    border: 2px dashed #8a6a3a;
+    color: var(--text);
+    transition: all .18s ease;
+    overflow: hidden;
+  }
+  @media (min-width: 700px) { .old-banner { margin-left: auto; margin-right: auto; } }
+  .old-banner:hover {
+    border-color: var(--yellow);
+    box-shadow: 0 0 24px rgba(255,209,102,.35);
+    transform: translateY(-2px);
+  }
+  .old-banner .tv { font-size: 44px; filter: sepia(.6); animation: tvWobble 3.4s ease-in-out infinite; }
+  @keyframes tvWobble { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+  .old-banner h2 {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(.65rem, 2vw, .9rem);
+    color: var(--yellow);
+    text-shadow: 0 0 10px rgba(255,209,102,.5);
+    margin-bottom: 6px;
+  }
+  .old-banner p { color: var(--dim); font-size: 19px; line-height: 1.25; }
+  .old-banner .go {
+    margin-left: auto;
+    font-family: 'Press Start 2P', monospace;
+    font-size: .6rem;
+    color: var(--yellow);
+    white-space: nowrap;
+    animation: blink 1.4s steps(2,start) infinite;
+  }
+  .old-banner { margin-left: 20px; margin-right: 20px; }
+  @media (min-width: 1320px) { .old-banner { margin-left: auto; margin-right: auto; } }
+
+  /* ---------- sections & grid ---------- */
+  main { position: relative; z-index: 2; }
+  .count-line {
+    max-width: 1280px;
+    margin: 18px auto 0;
+    padding: 0 20px;
+    color: var(--dim);
+    font-size: 20px;
+  }
+  .count-line b { color: var(--pink); font-weight: normal; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 22px;
+    max-width: 1280px;
+    margin: 16px auto 0;
+    padding: 8px 20px 30px;
+  }
+  .card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: #10101f;
+    border: 2px solid #26264a;
+    text-decoration: none;
+    color: inherit;
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+    overflow: hidden;
+  }
+  .card:hover {
+    transform: translateY(-6px);
+    border-color: var(--acc, var(--cyan));
+    box-shadow: 0 0 0 1px var(--acc, var(--cyan)), 0 14px 34px rgba(0,0,0,.6), 0 0 26px color-mix(in srgb, var(--acc, #00e5ff) 35%, transparent);
+    z-index: 3;
+  }
+  .card.hidden { display: none; }
+  .shot {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    background: #0a0a18;
+    overflow: hidden;
+    border-bottom: 2px solid #26264a;
+  }
+  .shot-ph {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 64px;
+    background:
+      radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--acc, #00e5ff) 22%, transparent), transparent 60%),
+      linear-gradient(135deg, #16162e, #0c0c1c);
+  }
+  .shot img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    image-rendering: auto;
+  }
+  .card.no-shots .shot img { display: none; }
+  .shot-dots {
+    position: absolute;
+    bottom: 7px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 5px;
+    opacity: 0;
+    transition: opacity .2s ease;
+  }
+  .card:hover .shot-dots, .card.cycling .shot-dots { opacity: 1; }
+  .card.no-shots .shot-dots { display: none; }
+  .shot-dots i {
+    width: 7px; height: 7px;
+    background: rgba(255,255,255,.28);
+    border-radius: 0;
+    box-shadow: 0 0 4px rgba(0,0,0,.8);
+    transition: background .12s ease;
+  }
+  .shot-dots i.on { background: var(--acc, var(--cyan)); box-shadow: 0 0 7px var(--acc, var(--cyan)); }
+  .shot .shine {
+    position: absolute; inset: 0;
+    background: linear-gradient(105deg, transparent 42%, rgba(255,255,255,.13) 50%, transparent 58%);
+    transform: translateX(-120%);
+    pointer-events: none;
+  }
+  .card:hover .shine { animation: shine .8s ease; }
+  @keyframes shine { to { transform: translateX(120%); } }
+  .badge {
+    position: absolute; top: 8px; right: 8px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: .5rem;
+    padding: 5px 7px;
+    background: var(--purple);
+    color: #fff;
+    text-shadow: 0 0 4px rgba(0,0,0,.6);
+    box-shadow: 0 0 12px rgba(157,107,255,.8);
+    letter-spacing: 1px;
+    z-index: 2;
+  }
+  .card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 13px 14px 15px;
+    flex: 1;
+  }
+  .card-body h3 {
+    font-family: 'Press Start 2P', monospace;
+    font-size: .68rem;
+    color: #fff;
+    line-height: 1.5;
+    letter-spacing: .5px;
+  }
+  .genre {
+    font-size: 16px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--acc, var(--cyan));
+    border: 1px solid var(--acc, var(--cyan));
+    padding: 1px 8px;
+    width: fit-content;
+    opacity: .9;
+  }
+  .card-body p {
+    color: var(--dim);
+    font-size: 18px;
+    line-height: 1.3;
+    flex: 1;
+  }
+  .no-results {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 0;
+    color: var(--dim);
+    font-family: 'Press Start 2P', monospace;
+    font-size: .8rem;
+    line-height: 2;
+    display: none;
+  }
+
+  /* ---------- footer ---------- */
+  footer {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: 36px 20px 46px;
+    border-top: 1px solid #1c1c38;
+    color: #55557d;
+    font-size: 19px;
+    line-height: 1.8;
+  }
+  footer a { color: var(--yellow); text-decoration: none; }
+  footer a:hover { text-shadow: 0 0 10px rgba(255,209,102,.7); }
+  .gamepad-row { font-size: 26px; letter-spacing: 12px; margin-bottom: 8px; }
+
+  /* ---------- party mode (konami) ---------- */
+  body.party { animation: partyHue 3s linear infinite; }
+  @keyframes partyHue { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
+  #toast {
+    position: fixed;
+    left: 50%; top: 26px;
+    transform: translateX(-50%) translateY(-140px);
+    z-index: 90;
+    font-family: 'Press Start 2P', monospace;
+    font-size: .7rem;
+    background: #000;
+    color: var(--green);
+    border: 2px solid var(--green);
+    box-shadow: 0 0 24px rgba(0,255,156,.6);
+    padding: 14px 20px;
+    transition: transform .35s cubic-bezier(.2,1.4,.4,1);
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001s !important; animation-iteration-count: 1 !important; transition-duration: .001s !important; }
+  }
+  @media (max-width: 560px) {
+    .hero { height: 400px; }
+    .sun { width: 170px; height: 170px; bottom: 80px; }
+    #search { width: 150px; }
+    .old-banner { flex-wrap: wrap; }
+    .old-banner .go { margin-left: 0; }
+  }
+</style>
 </head>
 <body>
-  <header>
-    <h1>🎮 Wizzed Arcade</h1>
-    <p>Pick a game and start playing — all in your browser, no downloads needed.</p>
-  </header>
 
-  <div class="grid">
-    <a class="card c1" href="games/rubiks-cube.html">
-      <div class="card-icon">🧊</div>
-      <div class="card-title">Rubik's Cube</div>
-      <div class="card-genre">3D Puzzle</div>
-      <div class="card-desc">Rotate the faces of an interactive 3D Rubik's Cube. Shuffle it and challenge yourself to solve it — or let the solver do it for you.</div>
-      <div class="card-cta">Play now →</div>
-    </a>
+<canvas id="stars"></canvas>
 
-    <a class="card c2" href="games/snake.html">
-      <div class="card-icon">🐍</div>
-      <div class="card-title">Snake</div>
-      <div class="card-genre">Arcade</div>
-      <div class="card-desc">Classic snake action. Guide your ever-growing snake to eat food without hitting the walls or yourself. How long can you survive?</div>
-      <div class="card-cta">Play now →</div>
-    </a>
+<header class="hero">
+  <div class="sun"></div>
+  <div class="city">
+    <svg viewBox="0 0 1200 110" preserveAspectRatio="none" aria-hidden="true">
+      <g fill="#0b0b1c">
+        <rect x="0" y="52" width="52" height="58"/><rect x="56" y="30" width="40" height="80"/>
+        <rect x="100" y="62" width="60" height="48"/><rect x="164" y="18" width="34" height="92"/>
+        <rect x="202" y="48" width="52" height="62"/><rect x="258" y="70" width="46" height="40"/>
+        <rect x="308" y="26" width="38" height="84"/><rect x="350" y="56" width="58" height="54"/>
+        <rect x="412" y="40" width="30" height="70"/><rect x="446" y="64" width="52" height="46"/>
+        <rect x="502" y="12" width="42" height="98"/><rect x="548" y="50" width="56" height="60"/>
+        <rect x="608" y="34" width="34" height="76"/><rect x="646" y="60" width="62" height="50"/>
+        <rect x="712" y="22" width="38" height="88"/><rect x="754" y="52" width="48" height="58"/>
+        <rect x="806" y="68" width="56" height="42"/><rect x="866" y="30" width="36" height="80"/>
+        <rect x="906" y="56" width="52" height="54"/><rect x="962" y="14" width="40" height="96"/>
+        <rect x="1006" y="48" width="52" height="62"/><rect x="1062" y="66" width="46" height="44"/>
+        <rect x="1112" y="36" width="40" height="74"/><rect x="1156" y="58" width="44" height="52"/>
+      </g>
+      <g fill="#ffd166" opacity="0.85">
+        <rect x="64" y="40" width="4" height="5"/><rect x="80" y="58" width="4" height="5"/>
+        <rect x="172" y="30" width="4" height="5"/><rect x="184" y="52" width="4" height="5"/>
+        <rect x="316" y="38" width="4" height="5"/><rect x="330" y="60" width="4" height="5"/>
+        <rect x="512" y="24" width="4" height="5"/><rect x="528" y="46" width="4" height="5"/>
+        <rect x="616" y="46" width="4" height="5"/><rect x="722" y="34" width="4" height="5"/>
+        <rect x="736" y="58" width="4" height="5"/><rect x="874" y="42" width="4" height="5"/>
+        <rect x="970" y="26" width="4" height="5"/><rect x="984" y="50" width="4" height="5"/>
+        <rect x="1122" y="48" width="4" height="5"/>
+      </g>
+    </svg>
+  </div>
+  <div class="gridfloor"></div>
+  <canvas id="hero3d"></canvas>
+  <div class="hero-inner">
+    <h1 class="marquee-title">WI<span class="z">Z</span>ZED<br>ARCADE</h1>
+    <div class="subtitle">★ 54 GAMES &amp; APPS · PIXELS · NEON · 3D ★</div>
+    <div class="insert-coin" id="insert-coin" role="button" tabindex="0">🪙 INSERT COIN — PRESS START</div>
+    <div class="hero-stats">
+      <span><b id="stat-count">54</b> GAMES &amp; APPS</span>
+      <span><b>8</b> CATEGORIES</span>
+      <span><b>6</b> IN FULL 3D</span>
+      <span><b>∞</b> FREE PLAYS</span>
+    </div>
+  </div>
+</header>
 
-    <a class="card c3" href="games/tetris.html">
-      <div class="card-icon">🟦</div>
-      <div class="card-title">Tetris</div>
-      <div class="card-genre">Puzzle</div>
-      <div class="card-desc">Stack falling tetrominoes to clear lines and rack up points. The pieces fall faster as you level up — stay sharp!</div>
-      <div class="card-cta">Play now →</div>
-    </a>
+<div class="ticker" aria-hidden="true">
+  <div class="ticker-track" id="ticker-track"></div>
+</div>
 
-    <a class="card c4" href="games/2048.html">
-      <div class="card-icon">🔢</div>
-      <div class="card-title">2048</div>
-      <div class="card-genre">Sliding Puzzle</div>
-      <div class="card-desc">Swipe tiles to merge matching numbers. Reach the 2048 tile — simple to learn, endlessly addictive to master.</div>
-      <div class="card-cta">Play now →</div>
-    </a>
-
-    <a class="card c5" href="games/minesweeper.html">
-      <div class="card-icon">💣</div>
-      <div class="card-title">Minesweeper</div>
-      <div class="card-genre">Logic</div>
-      <div class="card-desc">Uncover the grid without triggering a mine. Use number clues to deduce which cells are safe. A timeless exercise in deduction.</div>
-      <div class="card-cta">Play now →</div>
-    </a>
-
-    <a class="card c6" href="games/memory-match.html">
-      <div class="card-icon">🃏</div>
-      <div class="card-title">Memory Match</div>
-      <div class="card-genre">Memory</div>
-      <div class="card-desc">Flip cards to find matching pairs. Put your memory to the test and clear the board in as few flips as possible.</div>
-      <div class="card-cta">Play now →</div>
-    </a>
-
-    <a class="card c7" href="games/breakout.html">
-      <div class="card-icon">🏓</div>
-      <div class="card-title">Breakout</div>
-      <div class="card-genre">Action</div>
-      <div class="card-desc">Control a paddle to bounce a ball and smash all the bricks. Lose the ball and you lose a life. Classic bouncing action!</div>
-      <div class="card-cta">Play now →</div>
-    </a>
-
-    <a class="card c8" href="games/space-invaders.html">
-      <div class="card-icon">👾</div>
-      <div class="card-title">Space Invaders</div>
-      <div class="card-genre">Shooter</div>
-      <div class="card-desc">Defend Earth from waves of descending aliens. Dodge their bombs and shoot them down before they reach the ground!</div>
-      <div class="card-cta">Play now →</div>
-    </a>
-
-    <a class="card c9" href="games/sudoku.html">
-      <div class="card-icon">🔷</div>
-      <div class="card-title">Sudoku</div>
-      <div class="card-genre">Number Puzzle</div>
-      <div class="card-desc">Fill the 9×9 grid so every row, column, and 3×3 box contains the digits 1–9. Three difficulty levels to challenge your logic.</div>
-      <div class="card-cta">Play now →</div>
-    </a>
-
-    <a class="card c10" href="games/incremental-rpg.html">
-      <div class="card-icon">⚔️</div>
-      <div class="card-title">Hero's Quest</div>
-      <div class="card-genre">Incremental RPG</div>
-      <div class="card-desc">Battle monsters, earn gold, and grow stronger! Click to attack, buy upgrades, explore new zones, and face the ultimate Dragon boss.</div>
-      <div class="card-cta">Play now →</div>
-    </a>
-
-    <a class="card c11" href="games/hero-3d.html">
-      <div class="card-icon">🔮</div>
-      <div class="card-title">Arcane Realm</div>
-      <div class="card-genre">3D Auto-Battle RPG</div>
-      <div class="card-desc">Watch your hero walk, fight, and cast spells in a stunning 3D arena! Unlock Fireball, Ice Nova, Chain Lightning and Meteor as you level up through endless waves.</div>
-      <div class="card-cta">Play now →</div>
-    </a>
+<main id="games">
+  <div class="controls">
+    <div class="search-wrap"><input id="search" type="text" placeholder="search games…" aria-label="Search games"></div>
+    <button class="chip active" data-cat="all">All</button>
+    <button class="chip" data-cat="arcade">Arcade</button>
+    <button class="chip" data-cat="action">Action</button>
+    <button class="chip" data-cat="puzzle">Puzzle</button>
+    <button class="chip" data-cat="board">Board</button>
+    <button class="chip" data-cat="words">Words</button>
+    <button class="chip" data-cat="casino">Cards</button>
+    <button class="chip" data-cat="apps">Apps</button>
+    <button class="chip" data-cat="3d">3D</button>
+    <button id="sfx-toggle" title="toggle sound effects">SFX: OFF</button>
   </div>
 
-  <footer>Wizzed Arcade · All games run entirely in your browser</footer>
+  <a class="old-banner" href="old.html">
+    <span class="tv">📺</span>
+    <span>
+      <h2>THE OLD ARCADE</h2>
+      <p>The original 11 classics — Snake, Tetris, 2048, Space Invaders &amp; friends — preserved exactly as they were. Step into the dusty backroom…</p>
+    </span>
+    <span class="go">ENTER ▸</span>
+  </a>
+
+  <div class="count-line" id="count-line">Showing <b>54</b> of 54</div>
+  <div class="grid" id="grid">
+    <div class="no-results" id="no-results">NO GAMES FOUND<br>😵<br>TRY ANOTHER SEARCH</div>
+  </div>
+</main>
+
+<footer>
+  <div class="gamepad-row">🕹️👾🎮👻🪙</div>
+  Wizzed Arcade — every game runs entirely in your browser. No downloads, no accounts, no ads.<br>
+  Looking for the originals? Visit <a href="old.html">The Old Arcade</a> · psst… try the Konami code
+</footer>
+
+<div class="crt" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+<div id="toast"></div>
+
+<script src="lib/three.min.js"></script>
+<script>
+'use strict';
+
+/* ================= game catalog ================= */
+const PALETTE = ['#00e5ff','#ff2d78','#ffd166','#00ff9c','#9d6bff','#ff6b35','#4dc3ff','#ff5c8a','#b6ff3c','#ff9d3c'];
+const GAMES = [
+  // arcade
+  {s:'pong',           t:'Pong Duel',        i:'🏓', g:'Arcade',        c:'arcade', d:'First to 7 against a crafty AI paddle — and the ball only gets faster.'},
+  {s:'asteroids',      t:'Asteroid Storm',   i:'🚀', g:'Space Arcade',  c:'arcade', d:'Thrust, spin and blast your way through a shattering asteroid field.'},
+  {s:'flappy',         t:'Flappy Pixel',     i:'🐤', g:'One-Button',    c:'arcade', d:'One button. Endless pipes. Zero mercy. How far can you flap?'},
+  {s:'runner',         t:'Pixel Runner',     i:'🏃', g:'Endless Runner',c:'arcade', d:'Jump and slide through an ever-faster gauntlet of obstacles.'},
+  {s:'copter',         t:'Cave Copter',      i:'🚁', g:'Arcade',        c:'arcade', d:'Hold to rise, release to fall — thread the ever-narrowing cave.'},
+  {s:'hopper',         t:'Sky Hopper',       i:'🐰', g:'Platform Jump', c:'arcade', d:'Bounce from platform to platform all the way to the stratosphere.'},
+  {s:'road-hopper',    t:'Road Hopper',      i:'🐸', g:'Crossing',      c:'arcade', d:'Traffic, rivers and hungry timing windows — get the frog home safe.'},
+  {s:'maze-muncher',   t:'Maze Muncher',     i:'🟡', g:'Maze Chase',    c:'arcade', d:'Clear the maze of dots while four ghosts with attitude hunt you down.'},
+  {s:'meteor-dodge',   t:'Meteor Dodge',     i:'☄️', g:'Survival',      c:'arcade', d:'Weave through a meteor shower that never, ever lets up.'},
+  {s:'tower-stack',    t:'Tower Stack',      i:'🏗️', g:'Timing',        c:'arcade', d:'Drop blocks with perfect timing and stack a tower to the sky.'},
+  // action
+  {s:'missile-command',t:'Missile Defense',  i:'🛡️', g:'Defense',       c:'action', d:'Six cities. Endless missile rain. Your blasts are all that stand between.'},
+  {s:'tank-battle',    t:'Tank Arena',       i:'🪖', g:'Top-Down',      c:'action', d:'Out-drive and out-shoot AI tanks with ricocheting shells.'},
+  {s:'star-squadron',  t:'Star Squadron',    i:'👾', g:'Wave Shooter',  c:'action', d:'Swooping formations, dive-bombers and a boss every third wave.'},
+  {s:'blob-blaster',   t:'Blob Blaster',     i:'🔫', g:'Arena Survival',c:'action', d:'Swarms close in. Level up, pick upgrades, and hold out as long as you can.'},
+  {s:'fruit-slice',    t:'Fruit Slicer',     i:'🍉', g:'Slicing',       c:'action', d:'Swipe glowing blade trails through flying fruit — but never the bombs.'},
+  {s:'whack-a-mole',   t:'Whack-a-Mole',     i:'🔨', g:'Reflex',        c:'action', d:'Faster and faster they pop. Watch for the golden mole!'},
+  {s:'archery',        t:'Bullseye Archery', i:'🏹', g:'Skill Shot',    c:'action', d:'Draw, judge the wind, and loose. Ten arrows to prove your aim.'},
+  {s:'free-throw',     t:'Free Throw Frenzy',i:'🏀', g:'Sports',        c:'action', d:'Flick to shoot. Catch fire, chase the streak, beat the buzzer.'},
+  // puzzle
+  {s:'fifteen',        t:'15 Puzzle',        i:'🔢', g:'Sliding',       c:'puzzle', d:'The classic sliding puzzle — always solvable, never easy to master fast.'},
+  {s:'lights-out',     t:'Lights Out',       i:'💡', g:'Logic',         c:'puzzle', d:'Every press flips its neighbors. Turn the whole board dark.'},
+  {s:'simon',          t:'Simon Says',       i:'🎵', g:'Memory',        c:'puzzle', d:'Watch, listen, repeat. The sequence grows until your memory breaks.'},
+  {s:'sokoban',        t:'Sokoban',          i:'📦', g:'Box Pusher',    c:'puzzle', d:'Push every crate onto its pad. One wrong shove can ruin everything.'},
+  {s:'nonogram',       t:'Picross',          i:'🖼️', g:'Picture Logic', c:'puzzle', d:'Use the number clues to fill the grid and reveal hidden pixel art.'},
+  {s:'gem-crush',      t:'Gem Crush',        i:'💎', g:'Match-3',       c:'puzzle', d:'Swap gems, chain cascades, chase the target before moves run out.'},
+  {s:'hanoi',          t:'Tower of Hanoi',   i:'🗼', g:'Classic',       c:'puzzle', d:'Move the whole tower — but a big disc may never sit on a small one.'},
+  // board
+  {s:'tictactoe',      t:'Tic-Tac-Toe Neon', i:'❌', g:'vs AI',         c:'board',  d:'Three difficulties, from pushover to literally unbeatable.'},
+  {s:'connect-four',   t:'Connect Four',     i:'🔴', g:'vs AI',         c:'board',  d:'Drop discs and out-think an AI that reads four moves ahead.'},
+  {s:'reversi',        t:'Reversi',          i:'⚫', g:'vs AI',         c:'board',  d:'Flip the board in one turn — corners win games. Classic Othello rules.'},
+  {s:'checkers',       t:'Checkers',         i:'🩸', g:'vs AI',         c:'board',  d:'Forced captures, multi-jumps and kings. The AI shows no pity.'},
+  {s:'codebreaker',    t:'Codebreaker',      i:'🔐', g:'Deduction',     c:'board',  d:'Crack the hidden color code in ten guesses using peg feedback.'},
+  {s:'peg-solitaire',  t:'Peg Solitaire',    i:'🕳️', g:'Solo Board',    c:'board',  d:'Jump pegs to remove them. Can you finish with one, dead center?'},
+  // words & numbers
+  {s:'pixel-words',    t:'Pixel Words',      i:'🟩', g:'Word Guess',    c:'words',  d:'Six tries to find the five-letter word. Green means go.'},
+  {s:'hangman',        t:'Neon Hangman',     i:'💀', g:'Word Game',     c:'words',  d:'Guess letter by letter while the neon gallows draws itself.'},
+  {s:'type-racer',     t:'Type Racer',       i:'⌨️', g:'Typing',        c:'words',  d:'Live WPM, accuracy tracking, and a personal-best history graph.'},
+  {s:'math-blitz',     t:'Math Blitz',       i:'➕', g:'Mental Math',   c:'words',  d:'Rapid-fire arithmetic against a draining timer bar. Think fast.'},
+  {s:'word-scramble',  t:'Word Scramble',    i:'🔀', g:'Anagrams',      c:'words',  d:'Unscramble the letters before the clock runs out. Longer = more points.'},
+  // cards & casino
+  {s:'solitaire',      t:'Klondike Solitaire',i:'🃏',g:'Card Classic',  c:'casino', d:'Full drag-and-drop klondike with undo and auto-complete.'},
+  {s:'blackjack',      t:'Blackjack 21',     i:'🂡', g:'Casino',        c:'casino', d:'Hit, stand, double, split. Dealer stands on soft 17. House rules.'},
+  {s:'video-poker',    t:'Video Poker',      i:'🎰', g:'Jacks or Better',c:'casino',d:'Hold the right cards and chase the royal flush paytable.'},
+  {s:'hilo',           t:'Hi-Lo Cards',      i:'🔺', g:'Push Your Luck',c:'casino', d:'Higher or lower? Every correct call multiplies the pot — cash out or risk it.'},
+  {s:'slots',          t:'Lucky Slots',      i:'🍒', g:'Slots',         c:'casino', d:'Three reels, staggered stops, and that agonizing slow third reel.'},
+  {s:'roulette',       t:'Pixel Roulette',   i:'🎡', g:'Roulette',      c:'casino', d:'Place your chips, watch the ball rattle in. European wheel, real payouts.'},
+  // apps
+  {s:'pixel-painter',  t:'Pixel Painter',    i:'🎨', g:'Art Tool',      c:'apps',   d:'Draw sprites with palettes, fill, mirror mode — export straight to PNG.'},
+  {s:'synth-piano',    t:'Synth Piano',      i:'🎹', g:'Instrument',    c:'apps',   d:'Two playable octaves, four waveforms, and glowing keys.'},
+  {s:'drum-machine',   t:'Drum Machine',     i:'🥁', g:'Sequencer',     c:'apps',   d:'A 16-step, 8-track sequencer with fully synthesized drums.'},
+  {s:'pomodoro',       t:'Pomodoro Timer',   i:'🍅', g:'Focus Tool',    c:'apps',   d:'Work sprints, break cycles, and a daily focus chart.'},
+  {s:'neon-notes',     t:'Neon Notes',       i:'📌', g:'Sticky Notes',  c:'apps',   d:'Draggable neon sticky notes that live in your browser.'},
+  {s:'retro-calc',     t:'Retro Calculator', i:'🧮', g:'Utility',       c:'apps',   d:'A chunky 80s LCD calculator with memory keys and a history tape.'},
+  // 3d
+  {s:'dice-3d',        t:'Dice Roller 3D',   i:'🎲', g:'3D Physics',    c:'3d', x3d:true, d:'Toss up to six tumbling dice across the felt and read the total.'},
+  {s:'maze-3d',        t:'Maze Runner 3D',   i:'🌀', g:'3D Maze',       c:'3d', x3d:true, d:'First-person neon labyrinths that grow with every escape.'},
+  {s:'star-flight-3d', t:'Star Flight',      i:'🛸', g:'3D Flyer',      c:'3d', x3d:true, d:'Bank through an endless asteroid field at ever-increasing speed.'},
+  {s:'solar-3d',       t:'Solar System 3D',  i:'🪐', g:'3D Explorer',   c:'3d', x3d:true, d:'Orbit the planets, spin time faster, click any world for its story.'},
+  {s:'stack-3d',       t:'Stack Tower 3D',   i:'🧱', g:'3D Timing',     c:'3d', x3d:true, d:'Slice, stack and climb — every overhang tumbles away in 3D.'},
+  {s:'voxel-builder',  t:'Voxel Builder',    i:'⛏️', g:'3D Sandbox',    c:'3d', x3d:true, d:'Place neon voxels block by block and build tiny worlds.'},
+];
+const SHOTS = 5;
+const shotSrc = (slug, n) => `shots/${slug}/${n}.jpg`;
+
+/* ================= render cards ================= */
+const grid = document.getElementById('grid');
+const noResults = document.getElementById('no-results');
+GAMES.forEach((g1, idx) => {
+  const acc = PALETTE[idx % PALETTE.length];
+  const a = document.createElement('a');
+  a.className = 'card';
+  a.href = `games/${g1.s}.html`;
+  a.style.setProperty('--acc', acc);
+  a.dataset.cat = g1.c;
+  a.dataset.slug = g1.s;
+  a.dataset.name = (g1.t + ' ' + g1.g + ' ' + g1.d + ' ' + g1.c).toLowerCase();
+  a.innerHTML = `
+    <div class="shot">
+      <div class="shot-ph"><span>${g1.i}</span></div>
+      <img alt="${g1.t} screenshot" loading="lazy" decoding="async">
+      <div class="shot-dots">${'<i></i>'.repeat(SHOTS)}</div>
+      <div class="shine"></div>
+      ${g1.x3d ? '<span class="badge">3D</span>' : ''}
+    </div>
+    <div class="card-body">
+      <h3>${g1.t}</h3>
+      <span class="genre">${g1.g}</span>
+      <p>${g1.d}</p>
+    </div>`;
+  const img = a.querySelector('img');
+  img.onerror = () => { a.classList.add('no-shots'); };
+  img.src = shotSrc(g1.s, 1);
+  grid.insertBefore(a, noResults);
+});
+document.getElementById('stat-count').textContent = GAMES.length;
+
+/* ================= screenshot cycling ================= */
+const preloaded = new Set();
+function preloadShots(slug) {
+  if (preloaded.has(slug)) return;
+  preloaded.add(slug);
+  for (let n = 2; n <= SHOTS; n++) { const im = new Image(); im.src = shotSrc(slug, n); }
+}
+function setShot(card, n) {
+  const img = card.querySelector('.shot img');
+  img.src = shotSrc(card.dataset.slug, n);
+  card.querySelectorAll('.shot-dots i').forEach((d, j) => d.classList.toggle('on', j === n - 1));
+}
+const cycles = new Map();
+function startCycle(card, speed = 450) {
+  if (card.classList.contains('no-shots') || cycles.has(card)) return;
+  preloadShots(card.dataset.slug);
+  let n = 1;
+  setShot(card, 1);
+  const id = setInterval(() => { n = n % SHOTS + 1; setShot(card, n); }, speed);
+  cycles.set(card, id);
+}
+function stopCycle(card) {
+  const id = cycles.get(card);
+  if (id !== undefined) { clearInterval(id); cycles.delete(card); }
+  card.classList.remove('cycling');
+  if (!card.classList.contains('no-shots')) setShot(card, 1);
+}
+grid.addEventListener('mouseover', e => {
+  const card = e.target.closest('.card');
+  if (card && !cycles.has(card)) { blip(700, .02); startCycle(card); }
+});
+grid.addEventListener('mouseout', e => {
+  const card = e.target.closest('.card');
+  if (card && !card.contains(e.relatedTarget)) stopCycle(card);
+});
+/* touch devices: first tap cycles, second tap navigates */
+grid.addEventListener('touchstart', e => {
+  const card = e.target.closest('.card');
+  if (!card) return;
+  if (!cycles.has(card) && !card.dataset.touched) {
+    card.dataset.touched = '1';
+    startCycle(card);
+    setTimeout(() => { stopCycle(card); delete card.dataset.touched; }, SHOTS * 450 + 200);
+  }
+}, {passive: true});
+
+/* attract mode: idle cards take turns showing off */
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (!reduceMotion) {
+  setInterval(() => {
+    if (document.hidden) return;
+    const visible = [...grid.querySelectorAll('.card:not(.hidden):not(.no-shots)')].filter(c => {
+      const r = c.getBoundingClientRect();
+      return r.top < innerHeight && r.bottom > 0 && !cycles.has(c);
+    });
+    if (!visible.length) return;
+    const card = visible[Math.floor(Math.random() * visible.length)];
+    card.classList.add('cycling');
+    startCycle(card, 380);
+    setTimeout(() => stopCycle(card), SHOTS * 380 + 60);
+  }, 4200);
+}
+
+/* ================= filtering ================= */
+const chips = [...document.querySelectorAll('.chip')];
+const search = document.getElementById('search');
+const countLine = document.getElementById('count-line');
+let activeCat = 'all';
+function applyFilter() {
+  const q = search.value.trim().toLowerCase();
+  let shown = 0;
+  grid.querySelectorAll('.card').forEach(card => {
+    const okCat = activeCat === 'all' || card.dataset.cat === activeCat;
+    const okQ = !q || card.dataset.name.includes(q);
+    const show = okCat && okQ;
+    card.classList.toggle('hidden', !show);
+    if (show) shown++;
+  });
+  countLine.innerHTML = `Showing <b>${shown}</b> of ${GAMES.length}`;
+  noResults.style.display = shown ? 'none' : 'block';
+}
+chips.forEach(ch => {
+  if (!ch.dataset.cat) return;
+  ch.addEventListener('click', () => {
+    chips.forEach(c => c.classList.remove('active'));
+    ch.classList.add('active');
+    activeCat = ch.dataset.cat;
+    blip(880, .04);
+    applyFilter();
+  });
+});
+search.addEventListener('input', applyFilter);
+
+/* ================= sfx ================= */
+let audioCtx = null, sfxOn = localStorage.getItem('wizzed-sfx') === 'on';
+const sfxBtn = document.getElementById('sfx-toggle');
+function syncSfxBtn() {
+  sfxBtn.textContent = 'SFX: ' + (sfxOn ? 'ON' : 'OFF');
+  sfxBtn.classList.toggle('on', sfxOn);
+}
+syncSfxBtn();
+function blip(freq, dur = .05, type = 'square', vol = .04) {
+  if (!sfxOn) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const o = audioCtx.createOscillator(), g2 = audioCtx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g2.gain.setValueAtTime(vol, audioCtx.currentTime);
+    g2.gain.exponentialRampToValueAtTime(.0001, audioCtx.currentTime + dur);
+    o.connect(g2).connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + dur);
+  } catch (err) { /* audio unavailable */ }
+}
+sfxBtn.addEventListener('click', () => {
+  sfxOn = !sfxOn;
+  localStorage.setItem('wizzed-sfx', sfxOn ? 'on' : 'off');
+  syncSfxBtn();
+  blip(1046, .08);
+});
+
+/* coin button */
+document.getElementById('insert-coin').addEventListener('click', () => {
+  blip(988, .07); setTimeout(() => blip(1319, .12), 80);
+  document.getElementById('games').scrollIntoView({behavior: reduceMotion ? 'auto' : 'smooth'});
+});
+
+/* ================= ticker ================= */
+const tickerItems = [
+  '54 GAMES & APPS LOADED', 'NEW: FULL 3D ZONE — DICE, MAZES, STAR FLIGHT & VOXELS',
+  'HIGH SCORES SAVED IN YOUR BROWSER', 'HOVER ANY CARD TO PREVIEW 5 SCREENSHOTS',
+  'THE OLD ARCADE LIVES — 11 ORIGINAL CLASSICS INSIDE', 'NO DOWNLOADS · NO ACCOUNTS · NO ADS',
+  'TRY THE KONAMI CODE ↑↑↓↓←→←→BA',
+];
+const tick = tickerItems.map(x => ` ★ ${x} `).join('·');
+document.getElementById('ticker-track').textContent = tick + '·' + tick;
+
+/* ================= starfield ================= */
+(function starfield() {
+  const cv = document.getElementById('stars'), cx = cv.getContext('2d');
+  let W, H, stars = [];
+  function resize() {
+    W = cv.width = innerWidth; H = cv.height = innerHeight;
+    stars = Array.from({length: Math.min(220, W * H / 7000)}, () => ({
+      x: Math.random() * W, y: Math.random() * H,
+      z: Math.random() * .8 + .2, tw: Math.random() * Math.PI * 2,
+    }));
+  }
+  resize();
+  addEventListener('resize', resize);
+  let shooting = null, last = 0;
+  function frame(t) {
+    cx.clearRect(0, 0, W, H);
+    for (const s of stars) {
+      s.y += s.z * .18; if (s.y > H) s.y = 0;
+      const a = .35 + .45 * Math.abs(Math.sin(t / 900 + s.tw));
+      cx.fillStyle = `rgba(216,216,255,${a * s.z})`;
+      const sz = s.z > .7 ? 2 : 1;
+      cx.fillRect(s.x, s.y, sz, sz);
+    }
+    if (!shooting && t - last > 6000 && Math.random() < .01) {
+      shooting = {x: Math.random() * W * .8 + W * .1, y: Math.random() * H * .3, vx: 7 + Math.random() * 5, vy: 3 + Math.random() * 2, life: 1};
+      last = t;
+    }
+    if (shooting) {
+      shooting.x += shooting.vx; shooting.y += shooting.vy; shooting.life -= .02;
+      cx.strokeStyle = `rgba(255,255,255,${Math.max(shooting.life, 0)})`;
+      cx.lineWidth = 2;
+      cx.beginPath();
+      cx.moveTo(shooting.x, shooting.y);
+      cx.lineTo(shooting.x - shooting.vx * 6, shooting.y - shooting.vy * 6);
+      cx.stroke();
+      if (shooting.life <= 0) shooting = null;
+    }
+    requestAnimationFrame(frame);
+  }
+  if (!reduceMotion) requestAnimationFrame(frame);
+})();
+
+/* ================= three.js hero ================= */
+(function hero3d() {
+  if (typeof THREE === 'undefined') return;
+  const cv = document.getElementById('hero3d');
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({canvas: cv, alpha: true, antialias: true});
+  } catch (err) { cv.style.display = 'none'; return; }
+  const hero = document.querySelector('.hero');
+  const scene = new THREE.Scene();
+  const cam = new THREE.PerspectiveCamera(55, 2, .1, 100);
+  cam.position.set(0, 0, 16);
+  scene.add(new THREE.AmbientLight(0x8888ff, .7));
+  const p1 = new THREE.PointLight(0xff2d78, 160); p1.position.set(-8, 5, 8); scene.add(p1);
+  const p2 = new THREE.PointLight(0x00e5ff, 160); p2.position.set(8, -4, 8); scene.add(p2);
+  const geos = [
+    new THREE.IcosahedronGeometry(1.1),
+    new THREE.TorusGeometry(.9, .34, 10, 22),
+    new THREE.BoxGeometry(1.3, 1.3, 1.3),
+    new THREE.OctahedronGeometry(1.1),
+    new THREE.TorusKnotGeometry(.7, .24, 60, 10),
+    new THREE.ConeGeometry(.9, 1.5, 6),
+    new THREE.DodecahedronGeometry(1),
+  ];
+  const cols = [0xff2d78, 0x00e5ff, 0xffd166, 0x00ff9c, 0x9d6bff, 0xff6b35, 0x4dc3ff];
+  const objs = [];
+  const places = [[-10.5, 2.6], [-6.8, -2.4], [-3.4, 3.4], [0, -3.3], [3.4, 3.2], [6.9, -2.6], [10.4, 2.5]];
+  geos.forEach((geo, k) => {
+    const grp = new THREE.Group();
+    const solid = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+      color: 0x0d0d22, roughness: .35, metalness: .7,
+      emissive: cols[k], emissiveIntensity: .18,
+    }));
+    const wire = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color: cols[k], wireframe: true, transparent: true, opacity: .8}));
+    wire.scale.setScalar(1.02);
+    grp.add(solid, wire);
+    grp.position.set(places[k][0], places[k][1], -2 - (k % 3));
+    grp.userData = {ph: Math.random() * Math.PI * 2, rx: .2 + Math.random() * .4, ry: .3 + Math.random() * .5, y0: places[k][1]};
+    scene.add(grp);
+    objs.push(grp);
+  });
+  let mx = 0, my = 0;
+  addEventListener('pointermove', e => {
+    mx = (e.clientX / innerWidth - .5) * 2;
+    my = (e.clientY / innerHeight - .5) * 2;
+  }, {passive: true});
+  function resize() {
+    const w = hero.clientWidth, h = hero.clientHeight;
+    renderer.setSize(w, h, false);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    cam.aspect = w / h;
+    cam.updateProjectionMatrix();
+  }
+  resize();
+  addEventListener('resize', resize);
+  const clock = (typeof performance !== 'undefined') ? performance : {now: () => 0};
+  function frame() {
+    const t = clock.now() / 1000;
+    objs.forEach((o, k) => {
+      o.rotation.x = t * o.userData.rx;
+      o.rotation.y = t * o.userData.ry;
+      o.position.y = o.userData.y0 + Math.sin(t * .8 + o.userData.ph) * .55;
+    });
+    cam.position.x += (mx * 1.6 - cam.position.x) * .04;
+    cam.position.y += (-my * 1.0 - cam.position.y) * .04;
+    cam.lookAt(0, 0, 0);
+    renderer.render(scene, cam);
+    requestAnimationFrame(frame);
+  }
+  if (reduceMotion) { renderer.render(scene, cam); }
+  else requestAnimationFrame(frame);
+})();
+
+/* ================= konami ================= */
+(function konami() {
+  const seq = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+  let pos = 0;
+  addEventListener('keydown', e => {
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    pos = (k === seq[pos]) ? pos + 1 : (k === seq[0] ? 1 : 0);
+    if (pos === seq.length) {
+      pos = 0;
+      document.body.classList.toggle('party');
+      const on = document.body.classList.contains('party');
+      toast(on ? '🌈 PARTY MODE ON! 30 LIVES GRANTED' : 'PARTY MODE OFF');
+      blip(523, .1); setTimeout(() => blip(659, .1), 110); setTimeout(() => blip(784, .1), 220); setTimeout(() => blip(1046, .2), 330);
+    }
+  });
+})();
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+applyFilter();
+</script>
 </body>
 </html>
-

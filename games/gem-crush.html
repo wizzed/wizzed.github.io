@@ -329,7 +329,7 @@
     spawns.forEach(function(s){
       var sr = Math.floor(s.idx / N), sc = s.idx % N;
       var sg = grid[sr][sc];
-      if (sg){ sg.special = s.special; sg.scale = 1.6; }
+      if (sg){ sg.special = s.special; sg.fired = false; sg.pop = 0; sg.scale = 1.6; }
     });
     updateHud();
     phase = 'popping';

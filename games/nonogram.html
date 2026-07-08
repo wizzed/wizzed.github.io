@@ -443,7 +443,7 @@
       lpCell = i;
       downPos = { x: e.clientX, y: e.clientY };
       lpTimer = setTimeout(function(){
-        if (lpCell >= 0){
+        if (lpCell >= 0 && playing){
           setCell(lpCell, lpPrev === 2 ? 0 : 2);
           beep(300, 0.05, 'square', 0.03);
           refreshClueDim();

@@ -507,8 +507,8 @@
       var off = (r % 2) ? T / 2 : 0;
       for (var b = -1; b < 2; b++){
         var bx = px + off + b * T;
-        ctx.fillRect(Math.max(px, bx) + 1, py + r * bh + 1,
-          Math.min(px + T, bx + T) - Math.max(px, bx) - 2, bh - 2);
+        var bw = Math.min(px + T, bx + T) - Math.max(px, bx) - 2;
+        if (bw > 0) ctx.fillRect(Math.max(px, bx) + 1, py + r * bh + 1, bw, bh - 2);
       }
     }
     ctx.fillStyle = 'rgba(255,159,46,.08)';

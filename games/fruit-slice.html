@@ -102,8 +102,8 @@ function seedTitleFruits(){
   for(let i=0;i<6;i++){
     const f=FRUITS[i%FRUITS.length];
     fruits.push({
-      x:100+i*120,y:120+((i*97)%220),
-      vx:(Math.random()-0.5)*60,vy:-100-Math.random()*180,
+      x:100+i*120,y:150+((i*97)%200),
+      vx:(Math.random()-0.5)*60,vy:-(220+Math.random()*260),
       rot:Math.random()*6,vr:(Math.random()-0.5)*4,
       type:f,r:f.r,bomb:false
     });
@@ -217,7 +217,7 @@ function update(dt){
       launchT=Math.max(0.75,1.5-timePlayed*0.012)*(0.7+Math.random()*0.6);
       launchVolley(true);
     }else{
-      launchT=1.7;
+      launchT=1.2;
       launchVolley(false);
     }
   }

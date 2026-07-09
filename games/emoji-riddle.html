@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emoji Riddles — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f1a;
+    --accent: #ff5cb8;
+    --accent2: #ffcf5c;
+    --dim: rgba(255,92,184,.35);
+    --good: #00ff9d;
+    --bad: #ff4060;
+    --panel: #191830;
+    --line: #322a4a;
+  }
+  html, body { height: 100%; }
+  body {
+    background:
+      radial-gradient(circle at 20% 10%, rgba(255,92,184,.10), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(255,207,92,.08), transparent 45%),
+      var(--bg);
+    color: #ece8ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 6px 10px 14px; overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px; z-index: 60;
+    color: #b48fd0; text-decoration: none; font-size: 13px; letter-spacing: 1px;
+    padding: 4px 9px; border: 1px solid var(--line); border-radius: 6px;
+    background: rgba(15,15,26,.85);
+  }
+  a.back:hover { color: var(--accent); border-color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+  h1 {
+    margin-top: 2px; font-size: clamp(19px, 4.4vmin, 30px);
+    letter-spacing: 4px; color: var(--accent);
+    text-shadow: 0 0 8px var(--accent), 0 0 26px var(--dim);
+    text-transform: uppercase; text-align: center;
+  }
+  #hud { display: flex; gap: 6px; margin: 5px 0 6px; flex-wrap: wrap; justify-content: center; }
+  .hudbox {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 3px 11px; font-size: 9px; letter-spacing: 1px; color: #9a90c0; text-align: center; min-width: 58px;
+  }
+  .hudbox b { display: block; color: var(--accent); font-size: 16px; text-shadow: 0 0 8px var(--accent); }
+  .hudbox.lives b { color: var(--bad); text-shadow: 0 0 8px var(--bad); letter-spacing: 1px; }
+  .hudbox.hints b { color: var(--accent2); text-shadow: 0 0 8px var(--accent2); }
+  #arena {
+    width: 100%; max-width: 620px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 0 22px rgba(255,92,184,.12); padding: 12px 14px 14px; text-align: center;
+  }
+  #catlabel {
+    font-size: 11px; letter-spacing: 3px; color: var(--accent2); text-transform: uppercase;
+    min-height: 16px; margin-bottom: 4px; text-shadow: 0 0 8px rgba(255,207,92,.5);
+  }
+  #catlabel .hidden { color: #574c70; text-shadow: none; letter-spacing: 5px; }
+  #emoji {
+    font-size: clamp(46px, 12vmin, 86px); line-height: 1.15; margin: 2px 0 10px;
+    letter-spacing: 4px; user-select: none;
+    filter: drop-shadow(0 0 14px rgba(255,92,184,.25));
+    word-break: break-word;
+  }
+  #slots {
+    display: flex; gap: 8px 16px; flex-wrap: wrap; justify-content: center;
+    margin-bottom: 10px; min-height: 42px; align-items: center;
+  }
+  .word { display: flex; gap: 4px; }
+  .cell {
+    width: clamp(19px, 4.7vmin, 30px); height: clamp(26px, 6vmin, 38px);
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(15px, 3.6vmin, 23px); font-weight: bold; text-transform: uppercase;
+    color: #fff;
+  }
+  .cell.blank {
+    border-bottom: 3px solid var(--line); border-radius: 3px;
+    background: #14122a;
+  }
+  .cell.blank.active { border-bottom-color: var(--accent); box-shadow: 0 0 10px var(--dim); }
+  .cell.blank.filled { border-bottom-color: var(--accent); color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+  .cell.blank.locked { border-bottom-color: var(--accent2); color: var(--accent2); text-shadow: 0 0 8px var(--accent2); }
+  .cell.fixed { color: #cfc6e6; }
+  #slots.shake { animation: shake .4s; }
+  #slots.solved .cell.blank { border-bottom-color: var(--good); color: var(--good); text-shadow: 0 0 10px var(--good); }
+  @keyframes shake { 20%,60%{transform:translateX(-8px);} 40%,80%{transform:translateX(8px);} }
+  #feedback { min-height: 16px; font-size: 12px; letter-spacing: 1px; color: #9a90c0; margin-bottom: 8px; }
+  #feedback.good { color: var(--good); text-shadow: 0 0 8px var(--good); }
+  #feedback.bad { color: var(--bad); text-shadow: 0 0 8px var(--bad); }
+  #keys { display: flex; flex-direction: column; gap: 5px; align-items: center; margin-bottom: 8px; }
+  .krow { display: flex; gap: 4px; justify-content: center; }
+  .key {
+    min-width: clamp(24px, 5.6vmin, 38px); height: clamp(30px, 6.4vmin, 42px);
+    background: #23213d; border: 1px solid var(--line); border-radius: 6px;
+    color: #e2dcf6; font-family: inherit; font-weight: bold; font-size: clamp(13px, 2.9vmin, 18px);
+    cursor: pointer; text-transform: uppercase; touch-action: manipulation;
+    display: flex; align-items: center; justify-content: center; user-select: none;
+  }
+  .key:hover { border-color: var(--accent); box-shadow: 0 0 8px var(--dim); }
+  .key:active { transform: scale(.9); }
+  .key.wide { min-width: clamp(46px, 12vmin, 78px); font-size: 11px; letter-spacing: 1px; color: var(--accent2); }
+  #actions { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+  .abtn {
+    background: #23213d; border: 1px solid var(--line); color: #ded7f4;
+    font-family: inherit; font-weight: bold; font-size: 11px; letter-spacing: 1px;
+    padding: 8px 12px; border-radius: 7px; cursor: pointer; text-transform: uppercase; touch-action: manipulation;
+  }
+  .abtn:hover:not(:disabled) { border-color: var(--accent); box-shadow: 0 0 10px var(--dim); }
+  .abtn:disabled { opacity: .35; cursor: default; }
+  .abtn.hint { color: var(--accent2); border-color: #4a3f2a; }
+  .abtn.hint:hover:not(:disabled) { border-color: var(--accent2); box-shadow: 0 0 10px rgba(255,207,92,.3); }
+  .abtn.skip { color: var(--bad); }
+  #overlay {
+    position: fixed; inset: 0; background: rgba(10,10,20,.58);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 100; padding: 12px;
+  }
+  #overlay.show { opacity: 1; pointer-events: auto; }
+  .panel2 {
+    background: var(--panel); border: 2px solid var(--accent); border-radius: 14px;
+    box-shadow: 0 0 30px var(--dim), 0 0 80px rgba(255,92,184,.15);
+    padding: 22px 26px; text-align: center; max-width: 94vw;
+  }
+  .panel2 h2 { color: var(--accent); font-size: clamp(20px,5vmin,30px); letter-spacing: 3px; text-shadow: 0 0 12px var(--accent); margin-bottom: 8px; text-transform: uppercase; }
+  .panel2 p { color: #b9b0d6; font-size: 13px; line-height: 1.55; margin-bottom: 8px; }
+  .panel2 .big { font-size: 40px; margin: 4px 0 10px; }
+  .pbtn {
+    background: var(--accent); color: #250018; border: none; border-radius: 8px;
+    font-family: inherit; font-weight: bold; font-size: 15px; letter-spacing: 2px;
+    padding: 11px 26px; cursor: pointer; text-transform: uppercase; margin-top: 6px;
+    box-shadow: 0 0 18px var(--dim); animation: pulse 1.5s ease-in-out infinite; touch-action: manipulation;
+  }
+  .pbtn:hover { box-shadow: 0 0 28px var(--accent); }
+  @keyframes pulse { 50% { box-shadow: 0 0 30px var(--accent); } }
+  .statline { color: #8f85b5; font-size: 11px; letter-spacing: 1px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<h1>Emoji Riddles</h1>
+<div id="hud">
+  <div class="hudbox">SOLVED<b id="h-solved">0</b></div>
+  <div class="hudbox">STREAK<b id="h-streak">0</b></div>
+  <div class="hudbox">BEST<b id="h-best">0</b></div>
+  <div class="hudbox hints">HINTS<b id="h-hints">3</b></div>
+  <div class="hudbox lives">LIVES<b id="h-lives">&hearts;&hearts;&hearts;</b></div>
+</div>
+
+<div id="arena">
+  <div id="catlabel"><span class="hidden">? ? ? ? ?</span></div>
+  <div id="emoji">🎬</div>
+  <div id="slots"></div>
+  <div id="feedback">Decode the emoji. Type or tap letters.</div>
+  <div id="keys"></div>
+  <div id="actions">
+    <button class="abtn hint" id="btn-letter">💡 Letter</button>
+    <button class="abtn hint" id="btn-cat">🏷 Category</button>
+    <button class="abtn hint" id="btn-word">1️⃣ First Word</button>
+    <button class="abtn skip" id="btn-skip">⏭ Skip (-1♥)</button>
+  </div>
+</div>
+
+<div id="overlay" class="show">
+  <div class="panel2">
+    <h2 id="ov-title">Emoji Riddles</h2>
+    <div class="big" id="ov-big">🦁👑 = ?</div>
+    <p id="ov-text">Guess the movie, song, place or phrase from the emoji.<br>3 hints &amp; 3 lives. Skipping costs a life. Build a streak!</p>
+    <div class="statline" id="ov-stats"></div>
+    <button class="pbtn" id="ov-btn">▶ Play</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var SLUG = "wizzed-emoji-riddle";
+
+  var RIDDLES = [
+    {e:"🦁👑",a:"THE LION KING",c:"Movie"},
+    {e:"🐟🔍",a:"FINDING NEMO",c:"Movie"},
+    {e:"🚢🧊💔",a:"TITANIC",c:"Movie"},
+    {e:"🦖🏞️",a:"JURASSIC PARK",c:"Movie"},
+    {e:"👻🚫🔫",a:"GHOSTBUSTERS",c:"Movie"},
+    {e:"🕷️🕸️👨",a:"SPIDER MAN",c:"Movie"},
+    {e:"❄️👸⛄",a:"FROZEN",c:"Movie"},
+    {e:"🤖❤️👦",a:"WALL E",c:"Movie"},
+    {e:"🐝🎬",a:"BEE MOVIE",c:"Movie"},
+    {e:"🐀👨‍🍳",a:"RATATOUILLE",c:"Movie"},
+    {e:"🧸🤠🚀",a:"TOY STORY",c:"Movie"},
+    {e:"👽📞🏠",a:"E T",c:"Movie"},
+    {e:"🃏🦇",a:"THE DARK KNIGHT",c:"Movie"},
+    {e:"💍🌋🧙",a:"LORD OF THE RINGS",c:"Movie"},
+    {e:"⚡👦🧙",a:"HARRY POTTER",c:"Movie"},
+    {e:"🦈🏖️",a:"JAWS",c:"Movie"},
+    {e:"🐷🕷️🕸️",a:"CHARLOTTES WEB",c:"Movie"},
+    {e:"🚗⚡🏁",a:"CARS",c:"Movie"},
+    {e:"🐼🥋",a:"KUNG FU PANDA",c:"Movie"},
+    {e:"👹🧅🏰",a:"SHREK",c:"Movie"},
+    {e:"🌊🌺🚣",a:"MOANA",c:"Movie"},
+    {e:"🎈🏠👴",a:"UP",c:"Movie"},
+    {e:"🐠🌊🐙",a:"THE LITTLE MERMAID",c:"Movie"},
+    {e:"👗🎃🐭🕛",a:"CINDERELLA",c:"Movie"},
+    {e:"🍎😴👸",a:"SNOW WHITE",c:"Movie"},
+    {e:"🐉🥋🐲",a:"MULAN",c:"Movie"},
+    {e:"💤👸🌹",a:"SLEEPING BEAUTY",c:"Movie"},
+    {e:"🏴‍☠️💰🗺️",a:"PIRATES OF THE CARIBBEAN",c:"Movie"},
+    {e:"🦍🏙️✈️",a:"KING KONG",c:"Movie"},
+    {e:"🕶️💊🟥🟦",a:"THE MATRIX",c:"Movie"},
+    {e:"👊🥊🏆",a:"ROCKY",c:"Movie"},
+    {e:"🔙🔜🚗⏰",a:"BACK TO THE FUTURE",c:"Movie"},
+    {e:"⭐⚔️🚀",a:"STAR WARS",c:"Movie"},
+    {e:"🌪️👠🌈",a:"THE WIZARD OF OZ",c:"Movie"},
+    {e:"🎩🍫🏭",a:"CHARLIE AND THE CHOCOLATE FACTORY",c:"Movie"},
+    {e:"🐭🏰🎉",a:"MICKEY MOUSE",c:"Character"},
+    {e:"🦇🦸",a:"BATMAN",c:"Character"},
+    {e:"🦸‍♂️🇺🇸🛡️",a:"CAPTAIN AMERICA",c:"Character"},
+    {e:"💚😡💪",a:"THE HULK",c:"Character"},
+    {e:"🔨⚡🇮🇸",a:"THOR",c:"Character"},
+    {e:"🐜👨",a:"ANT MAN",c:"Character"},
+    {e:"🕵️🔎🚬",a:"SHERLOCK HOLMES",c:"Character"},
+    {e:"🍝🐭",a:"REMY",c:"Character"},
+    {e:"🎵🎶🎧",a:"MUSIC",c:"Word"},
+    {e:"🌧️🌈",a:"RAINBOW",c:"Word"},
+    {e:"🔥🦋",a:"FIREFLY",c:"Word"},
+    {e:"⭐🐟",a:"STARFISH",c:"Word"},
+    {e:"🌞🌻",a:"SUNFLOWER",c:"Word"},
+    {e:"🐝🍯",a:"HONEYBEE",c:"Word"},
+    {e:"🌙💡",a:"MOONLIGHT",c:"Word"},
+    {e:"🍓❄️",a:"SNOWBERRY",c:"Word"},
+    {e:"🐴🏇",a:"HORSE RACE",c:"Word"},
+    {e:"🔑🕳️",a:"KEYHOLE",c:"Word"},
+    {e:"👁️💧",a:"EYEDROP",c:"Word"},
+    {e:"🥚🍳",a:"SCRAMBLED EGGS",c:"Food"},
+    {e:"🍎🥧",a:"APPLE PIE",c:"Food"},
+    {e:"🌭🍞",a:"HOT DOG",c:"Food"},
+    {e:"🧀🍔",a:"CHEESEBURGER",c:"Food"},
+    {e:"🍦🍨",a:"ICE CREAM",c:"Food"},
+    {e:"🥞🍯",a:"PANCAKES",c:"Food"},
+    {e:"🍓🥤",a:"STRAWBERRY SHAKE",c:"Food"},
+    {e:"🌶️🍜",a:"SPICY NOODLES",c:"Food"},
+    {e:"🍕🇮🇹",a:"PIZZA",c:"Food"},
+    {e:"🥓🍳",a:"BACON AND EGGS",c:"Food"},
+    {e:"🍞🧈",a:"BUTTERED TOAST",c:"Food"},
+    {e:"🍫🍪",a:"CHOCOLATE CHIP COOKIE",c:"Food"},
+    {e:"🥜🧈🍇",a:"PEANUT BUTTER AND JELLY",c:"Food"},
+    {e:"🍋🥧",a:"LEMON PIE",c:"Food"},
+    {e:"🍿🎬",a:"POPCORN",c:"Food"},
+    {e:"🍩☕",a:"COFFEE AND DONUTS",c:"Food"},
+    {e:"🐔🍗",a:"FRIED CHICKEN",c:"Food"},
+    {e:"🍣🍚",a:"SUSHI",c:"Food"},
+    {e:"🌮🌯",a:"TACOS",c:"Food"},
+    {e:"🥗🥬",a:"GARDEN SALAD",c:"Food"},
+    {e:"🗽🍎",a:"NEW YORK",c:"Place"},
+    {e:"🗼🥐",a:"PARIS",c:"Place"},
+    {e:"🎡🍜🗼",a:"TOKYO",c:"Place"},
+    {e:"🐨🦘",a:"AUSTRALIA",c:"Place"},
+    {e:"🍕🍝🛵",a:"ITALY",c:"Place"},
+    {e:"🐼🏯🥢",a:"CHINA",c:"Place"},
+    {e:"🌮🌵🎺",a:"MEXICO",c:"Place"},
+    {e:"⛄🍁🏒",a:"CANADA",c:"Place"},
+    {e:"🕌🐪🏜️",a:"EGYPT",c:"Place"},
+    {e:"💃🐂🥘",a:"SPAIN",c:"Place"},
+    {e:"🌋🌺🏄",a:"HAWAII",c:"Place"},
+    {e:"🎰🎲🏜️",a:"LAS VEGAS",c:"Place"},
+    {e:"🎬⭐🌴",a:"HOLLYWOOD",c:"Place"},
+    {e:"🍺🥨🏔️",a:"GERMANY",c:"Place"},
+    {e:"🦁🌍🥁",a:"AFRICA",c:"Place"},
+    {e:"🧊🐧❄️",a:"ANTARCTICA",c:"Place"},
+    {e:"🎭💧🚤",a:"VENICE",c:"Place"},
+    {e:"🌉🌁🚋",a:"SAN FRANCISCO",c:"Place"},
+    {e:"👑🍵☔",a:"LONDON",c:"Place"},
+    {e:"🏔️🧀⏱️",a:"SWITZERLAND",c:"Place"},
+    {e:"⭐✨🌟",a:"TWINKLE TWINKLE LITTLE STAR",c:"Song"},
+    {e:"🌈➡️⭐",a:"SOMEWHERE OVER THE RAINBOW",c:"Song"},
+    {e:"🎂🎈🎉",a:"HAPPY BIRTHDAY",c:"Song"},
+    {e:"🕷️🚿☔",a:"ITSY BITSY SPIDER",c:"Song"},
+    {e:"🚣🚣🚣⛵",a:"ROW YOUR BOAT",c:"Song"},
+    {e:"🐑🐑⬛🐑",a:"BAA BAA BLACK SHEEP",c:"Song"},
+    {e:"👏😀👏",a:"IF YOURE HAPPY AND YOU KNOW IT",c:"Song"},
+    {e:"🌟🌃🎨",a:"STARRY NIGHT",c:"Song"},
+    {e:"👶🦈🌊",a:"BABY SHARK",c:"Song"},
+    {e:"🎃⛄🎄",a:"JINGLE BELLS",c:"Song"},
+    {e:"💃👑👑👑",a:"DANCING QUEEN",c:"Song"},
+    {e:"🚀🧑🎸",a:"ROCKET MAN",c:"Song"},
+    {e:"🌙🏞️🚶",a:"MOONWALK",c:"Word"},
+    {e:"🐢🐇🏁",a:"THE TORTOISE AND THE HARE",c:"Story"},
+    {e:"🐺🐷🐷🐷🏠",a:"THREE LITTLE PIGS",c:"Story"},
+    {e:"👧🔴🎀🐺",a:"LITTLE RED RIDING HOOD",c:"Story"},
+    {e:"👦🌱☁️🏰",a:"JACK AND THE BEANSTALK",c:"Story"},
+    {e:"🐸👑💋",a:"THE FROG PRINCE",c:"Story"},
+    {e:"👧🐻🐻🐻",a:"GOLDILOCKS AND THE THREE BEARS",c:"Story"},
+    {e:"👃🪵👦",a:"PINOCCHIO",c:"Story"},
+    {e:"🧜‍♀️🌊",a:"MERMAID",c:"Word"},
+    {e:"🦄✨",a:"UNICORN",c:"Word"},
+    {e:"🐉🔥",a:"DRAGON",c:"Word"},
+    {e:"🦕🌿",a:"DINOSAUR",c:"Word"},
+    {e:"🐙🌊",a:"OCTOPUS",c:"Animal"},
+    {e:"🦩🌴",a:"FLAMINGO",c:"Animal"},
+    {e:"🦛💧",a:"HIPPO",c:"Animal"},
+    {e:"🦒🌿",a:"GIRAFFE",c:"Animal"},
+    {e:"🦔🌰",a:"HEDGEHOG",c:"Animal"},
+    {e:"🦇🌙",a:"BAT",c:"Animal"},
+    {e:"🐿️🌰",a:"SQUIRREL",c:"Animal"},
+    {e:"🦜🏴‍☠️",a:"PARROT",c:"Animal"},
+    {e:"🦎🌵",a:"LIZARD",c:"Animal"},
+    {e:"🐝🌼",a:"BUMBLEBEE",c:"Animal"},
+    {e:"🌧️➕☂️",a:"SAVE FOR A RAINY DAY",c:"Phrase"},
+    {e:"🍰🚶",a:"PIECE OF CAKE",c:"Phrase"},
+    {e:"🐱🐶⬇️🌧️",a:"RAINING CATS AND DOGS",c:"Phrase"},
+    {e:"🐦2️⃣1️⃣🪨",a:"TWO BIRDS ONE STONE",c:"Phrase"},
+    {e:"⏰🐦🐛",a:"THE EARLY BIRD GETS THE WORM",c:"Phrase"},
+    {e:"🍎📅👨‍⚕️🚫",a:"AN APPLE A DAY KEEPS THE DOCTOR AWAY",c:"Phrase"},
+    {e:"💔➡️💛",a:"BREAK A LEG",c:"Phrase"},
+    {e:"👀❤️",a:"LOVE AT FIRST SIGHT",c:"Phrase"},
+    {e:"🐘🏠",a:"ELEPHANT IN THE ROOM",c:"Phrase"},
+    {e:"🧊🔨",a:"BREAK THE ICE",c:"Phrase"},
+    {e:"🌙🧀",a:"THE MOON IS MADE OF CHEESE",c:"Phrase"},
+    {e:"🐟🌊🌊🌊",a:"PLENTY OF FISH IN THE SEA",c:"Phrase"},
+    {e:"🔥🚒",a:"FIGHT FIRE WITH FIRE",c:"Phrase"},
+    {e:"🥇🏅🥉",a:"MEDALS",c:"Word"},
+    {e:"🎸🎤🥁",a:"ROCK BAND",c:"Word"},
+    {e:"📚🐛",a:"BOOKWORM",c:"Word"},
+    {e:"🌊🏄‍♂️",a:"SURFING",c:"Word"},
+    {e:"⚽🥅",a:"SOCCER",c:"Word"},
+    {e:"🏀🏆",a:"BASKETBALL",c:"Word"},
+    {e:"🎾🟢",a:"TENNIS",c:"Word"},
+    {e:"⛳🏌️",a:"GOLF",c:"Word"},
+    {e:"🏊‍♀️🏊",a:"SWIMMING",c:"Word"},
+    {e:"🎿⛷️🏔️",a:"SKIING",c:"Word"},
+    {e:"🛹🛼",a:"SKATEBOARD",c:"Word"},
+    {e:"🚴🚵",a:"CYCLING",c:"Word"},
+    {e:"🎣🐟",a:"FISHING",c:"Word"},
+    {e:"🏕️🔥⛺",a:"CAMPING",c:"Word"},
+    {e:"🌋🔥🗻",a:"VOLCANO",c:"Nature"},
+    {e:"🌊🌀",a:"WHIRLPOOL",c:"Nature"},
+    {e:"⚡🌩️",a:"LIGHTNING",c:"Nature"},
+    {e:"🍂🌬️",a:"AUTUMN WIND",c:"Nature"},
+    {e:"❄️⛰️",a:"SNOW MOUNTAIN",c:"Nature"},
+    {e:"🌊🏖️🐚",a:"SEASHELL",c:"Nature"},
+    {e:"🌙⭐🌌",a:"NIGHT SKY",c:"Nature"},
+    {e:"🌅🌄",a:"SUNRISE",c:"Nature"},
+    {e:"🕸️🎃👻",a:"HALLOWEEN",c:"Holiday"},
+    {e:"🎄🎁⛄",a:"CHRISTMAS",c:"Holiday"},
+    {e:"🦃🍽️",a:"THANKSGIVING",c:"Holiday"},
+    {e:"🐰🥚🌷",a:"EASTER",c:"Holiday"},
+    {e:"❤️💌🌹",a:"VALENTINES DAY",c:"Holiday"},
+    {e:"🎆🎇🗽",a:"NEW YEARS EVE",c:"Holiday"},
+    {e:"🍀🌈🎩",a:"ST PATRICKS DAY",c:"Holiday"},
+    {e:"🎂🥳🎈",a:"BIRTHDAY PARTY",c:"Holiday"},
+    {e:"💻🖱️⌨️",a:"COMPUTER",c:"Word"},
+    {e:"📱📲",a:"SMARTPHONE",c:"Word"},
+    {e:"🚀🌙👨‍🚀",a:"MOON LANDING",c:"Word"},
+    {e:"🔭⭐🪐",a:"TELESCOPE",c:"Word"},
+    {e:"🧪🔬⚗️",a:"SCIENCE LAB",c:"Word"},
+    {e:"🎨🖌️🖼️",a:"PAINTING",c:"Word"},
+    {e:"📷📸",a:"PHOTOGRAPHY",c:"Word"},
+    {e:"🎭🎬🍿",a:"THEATER",c:"Word"}
+  ];
+
+  // ---------- state ----------
+  var store = loadStore();
+  var deck = [], deckPos = 0, cur = null;
+  var slots = [];            // {ch, isLetter, filled, locked, guess}
+  var activeIdx = -1;
+  var solved = 0, streak = 0, lives = 3, hints = 3;
+  var catShown = false, playing = false;
+
+  var $ = function(id){ return document.getElementById(id); };
+  var emojiEl=$("emoji"), catEl=$("catlabel"), slotsEl=$("slots"),
+      fbEl=$("feedback"), keysEl=$("keys"),
+      hSolved=$("h-solved"), hStreak=$("h-streak"), hBest=$("h-best"),
+      hHints=$("h-hints"), hLives=$("h-lives"),
+      overlay=$("overlay");
+
+  function loadStore(){
+    try { var r = localStorage.getItem(SLUG); if(r){ var o=JSON.parse(r); return {best:o.best||0, totalSolved:o.totalSolved||0}; } } catch(e){}
+    return { best:0, totalSolved:0 };
+  }
+  function saveStore(){ try { localStorage.setItem(SLUG, JSON.stringify(store)); } catch(e){} }
+
+  // ---------- audio ----------
+  var actx = null;
+  function initAudio(){ if(!actx){ try { actx = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){ actx=null; } } if(actx && actx.state==="suspended"){ actx.resume(); } }
+  function beep(freq, dur, type, vol){
+    if(!actx) return;
+    try {
+      var o=actx.createOscillator(), g=actx.createGain();
+      o.type=type||"square"; o.frequency.value=freq;
+      g.gain.value=vol||0.06;
+      o.connect(g); g.connect(actx.destination);
+      var t=actx.currentTime;
+      o.start(t); g.gain.setValueAtTime(g.gain.value,t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+      o.stop(t+dur);
+    } catch(e){}
+  }
+  function sndKey(){ beep(440,0.05,"square",0.04); }
+  function sndBad(){ beep(150,0.18,"sawtooth",0.06); }
+  function sndGood(){ beep(660,0.09,"square",0.06); setTimeout(function(){beep(880,0.12,"square",0.06);},90); setTimeout(function(){beep(1180,0.16,"square",0.05);},200); }
+  function sndHint(){ beep(520,0.07,"triangle",0.05); }
+  function sndWin(){ [523,659,784,1046].forEach(function(f,i){ setTimeout(function(){beep(f,0.16,"square",0.06);}, i*130); }); }
+  function sndLose(){ [400,300,220,150].forEach(function(f,i){ setTimeout(function(){beep(f,0.2,"sawtooth",0.06);}, i*130); }); }
+
+  // ---------- deck ----------
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  function newDeck(){ deck = shuffle(RIDDLES.slice()); deckPos = 0; }
+
+  // ---------- render ----------
+  function buildKeyboard(){
+    var rows=["QWERTYUIOP","ASDFGHJKL","ZXCVBNM"];
+    keysEl.innerHTML="";
+    rows.forEach(function(r, ri){
+      var rowEl=document.createElement("div"); rowEl.className="krow";
+      if(ri===2){
+        var del=document.createElement("button"); del.className="key wide"; del.textContent="⌫ DEL";
+        del.addEventListener("click", function(){ onDelete(); });
+        rowEl.appendChild(del);
+      }
+      r.split("").forEach(function(ch){
+        var k=document.createElement("button"); k.className="key"; k.textContent=ch;
+        k.addEventListener("click", function(){ onLetter(ch); });
+        rowEl.appendChild(k);
+      });
+      if(ri===2){
+        var clr=document.createElement("button"); clr.className="key wide"; clr.textContent="CLR";
+        clr.addEventListener("click", function(){ onClear(); });
+        rowEl.appendChild(clr);
+      }
+      keysEl.appendChild(rowEl);
+    });
+  }
+
+  function loadRiddle(r){
+    cur=r; catShown=false;
+    slots=[]; activeIdx=-1;
+    var ans=r.a.toUpperCase();
+    for(var i=0;i<ans.length;i++){
+      var ch=ans[i];
+      var isLetter = /[A-Z]/.test(ch);
+      slots.push({ ch:ch, isLetter:isLetter, filled:false, locked:false, guess:"" });
+    }
+    emojiEl.textContent=r.e;
+    catEl.innerHTML='<span class="hidden">? ? ? ? ?</span>';
+    slotsEl.classList.remove("solved");
+    setActiveNext();
+    renderSlots();
+    setFeedback("Decode the emoji. Type or tap letters.","");
+  }
+
+  function renderSlots(){
+    slotsEl.innerHTML="";
+    var wordEl=document.createElement("div"); wordEl.className="word";
+    slots.forEach(function(s, i){
+      if(s.isLetter){
+        var c=document.createElement("div");
+        c.className="cell blank";
+        if(s.locked){ c.className+=" locked"; c.textContent=s.ch; }
+        else if(s.filled){ c.className+=" filled"; c.textContent=s.guess; }
+        else if(i===activeIdx){ c.className+=" active"; }
+        wordEl.appendChild(c);
+      } else if(s.ch===" "){
+        slotsEl.appendChild(wordEl);
+        wordEl=document.createElement("div"); wordEl.className="word";
+        // words separated by the flex gap on #slots
+      } else {
+        var f=document.createElement("div"); f.className="cell fixed"; f.textContent=s.ch;
+        wordEl.appendChild(f);
+      }
+    });
+    slotsEl.appendChild(wordEl);
+  }
+
+  function setActiveNext(){
+    // first unfilled, unlocked letter slot
+    for(var i=0;i<slots.length;i++){
+      if(slots[i].isLetter && !slots[i].filled && !slots[i].locked){ activeIdx=i; return; }
+    }
+    activeIdx=-1;
+  }
+
+  function onLetter(ch){
+    if(!playing) return;
+    initAudio();
+    if(activeIdx<0){ setActiveNext(); if(activeIdx<0) return; }
+    var s=slots[activeIdx];
+    s.filled=true; s.guess=ch.toUpperCase();
+    sndKey();
+    setActiveNext();
+    renderSlots();
+    checkComplete();
+  }
+
+  function onDelete(){
+    if(!playing) return;
+    initAudio();
+    // remove last filled (non-locked) letter
+    for(var i=slots.length-1;i>=0;i--){
+      if(slots[i].isLetter && slots[i].filled && !slots[i].locked){
+        slots[i].filled=false; slots[i].guess="";
+        setActiveNext(); if(activeIdx<0) activeIdx=i;
+        renderSlots(); beep(300,0.04,"square",0.04); return;
+      }
+    }
+  }
+
+  function onClear(){
+    if(!playing) return;
+    initAudio();
+    slots.forEach(function(s){ if(s.isLetter && !s.locked){ s.filled=false; s.guess=""; } });
+    setActiveNext();
+    renderSlots(); beep(260,0.06,"square",0.04);
+    setFeedback("Cleared.","");
+  }
+
+  function allFilled(){
+    for(var i=0;i<slots.length;i++){ if(slots[i].isLetter && !slots[i].filled && !slots[i].locked) return false; }
+    return true;
+  }
+
+  function checkComplete(){
+    if(!allFilled()) return;
+    var correct=true;
+    for(var i=0;i<slots.length;i++){
+      var s=slots[i];
+      if(!s.isLetter) continue;
+      var val = s.locked ? s.ch : s.guess;
+      if(val!==s.ch){ correct=false; break; }
+    }
+    if(correct){ onSolved(); }
+    else {
+      sndBad();
+      setFeedback("Not quite — try again!","bad");
+      slotsEl.classList.remove("shake"); void slotsEl.offsetWidth; slotsEl.classList.add("shake");
+    }
+  }
+
+  function onSolved(){
+    playing=true;
+    solved++; streak++;
+    store.totalSolved++;
+    if(streak>store.best){ store.best=streak; }
+    saveStore();
+    sndGood();
+    // reveal all as correct
+    slots.forEach(function(s){ if(s.isLetter){ s.filled=true; s.guess=s.ch; s.locked=false; } });
+    activeIdx=-1;
+    slotsEl.classList.add("solved");
+    renderSlots();
+    catEl.innerHTML=cur.c.toUpperCase();
+    setFeedback("✔ "+cur.a+"  —  Solved!","good");
+    updateHud();
+    disableInputs(true);
+    setTimeout(function(){
+      deckPos++;
+      if(deckPos>=deck.length){ winGame(); return; }
+      disableInputs(false);
+      loadRiddle(deck[deckPos]);
+    }, 1200);
+  }
+
+  function onSkip(){
+    if(!playing) return;
+    initAudio();
+    lives--; streak=0;
+    sndBad();
+    updateHud();
+    if(lives<=0){ loseGame(); return; }
+    // reveal answer briefly
+    setFeedback("Skipped — it was: "+cur.a, "bad");
+    disableInputs(true);
+    slots.forEach(function(s){ if(s.isLetter){ s.filled=true; s.guess=s.ch; } });
+    catEl.innerHTML=cur.c.toUpperCase();
+    renderSlots();
+    setTimeout(function(){
+      deckPos++;
+      if(deckPos>=deck.length){ winGame(); return; }
+      disableInputs(false);
+      loadRiddle(deck[deckPos]);
+    }, 1100);
+  }
+
+  // ---------- hints ----------
+  function useHintCharge(){ hints--; updateHud(); sndHint(); if(hints<=0) setHintButtons(false); }
+  function hintLetter(){
+    if(!playing||hints<=0) return;
+    initAudio();
+    var choices=[];
+    for(var i=0;i<slots.length;i++){ var s=slots[i]; if(s.isLetter && !s.locked && s.guess!==s.ch) choices.push(i); }
+    if(!choices.length){ setFeedback("No letters left to reveal.",""); return; }
+    var idx=choices[Math.floor(Math.random()*choices.length)];
+    slots[idx].filled=true; slots[idx].guess=slots[idx].ch; slots[idx].locked=true;
+    useHintCharge();
+    setActiveNext(); renderSlots();
+    setFeedback("Revealed a letter!","");
+    checkComplete();
+  }
+  function hintCat(){
+    if(!playing||hints<=0||catShown) return;
+    initAudio();
+    catShown=true; catEl.innerHTML=cur.c.toUpperCase();
+    useHintCharge();
+    setFeedback("Category revealed: "+cur.c,"");
+  }
+  function hintWord(){
+    if(!playing||hints<=0) return;
+    initAudio();
+    // reveal first word entirely
+    var did=false;
+    for(var i=0;i<slots.length;i++){
+      var s=slots[i];
+      if(s.ch===" ") break;
+      if(s.isLetter && !s.locked){ s.filled=true; s.guess=s.ch; s.locked=true; did=true; }
+    }
+    if(!did){ setFeedback("First word already shown.",""); return; }
+    useHintCharge();
+    setActiveNext(); renderSlots();
+    setFeedback("First word revealed!","");
+    checkComplete();
+  }
+
+  // ---------- ui helpers ----------
+  function setFeedback(t,cls){ fbEl.textContent=t; fbEl.className=cls?cls:""; }
+  function updateHud(){
+    hSolved.textContent=solved;
+    hStreak.textContent=streak;
+    hBest.textContent=store.best;
+    hHints.textContent=hints;
+    var hearts=""; for(var i=0;i<Math.max(0,lives);i++) hearts+="♥";
+    hLives.innerHTML=hearts||"—";
+  }
+  function setHintButtons(on){
+    $("btn-letter").disabled=!on; $("btn-cat").disabled=!on; $("btn-word").disabled=!on;
+  }
+  function disableInputs(off){
+    var ks=keysEl.querySelectorAll(".key"); for(var i=0;i<ks.length;i++) ks[i].disabled=off;
+    $("btn-skip").disabled=off;
+    if(off){ setHintButtons(false); } else { setHintButtons(hints>0); }
+  }
+
+  // ---------- game flow ----------
+  function startGame(){
+    initAudio();
+    solved=0; streak=0; lives=3; hints=3; playing=true;
+    newDeck();
+    loadRiddle(deck[0]);
+    updateHud();
+    setHintButtons(true);
+    disableInputs(false);
+    overlay.classList.remove("show");
+    beep(700,0.08,"square",0.05);
+  }
+  function winGame(){
+    playing=false; sndWin();
+    $("ov-title").textContent="ALL SOLVED!";
+    $("ov-big").textContent="🏆🎉";
+    $("ov-text").innerHTML="You decoded every riddle in the deck!<br>Riddles solved this run: <b>"+solved+"</b>";
+    $("ov-stats").innerHTML="Best streak: "+store.best+" · Lifetime solved: "+store.totalSolved;
+    $("ov-btn").textContent="▶ Play Again";
+    overlay.classList.add("show");
+  }
+  function loseGame(){
+    playing=false; sndLose();
+    $("ov-title").textContent="GAME OVER";
+    $("ov-big").textContent="💔";
+    $("ov-text").innerHTML="Out of lives! You solved <b>"+solved+"</b> riddle"+(solved===1?"":"s")+" this run.";
+    $("ov-stats").innerHTML="Best streak: "+store.best+" · Lifetime solved: "+store.totalSolved;
+    $("ov-btn").textContent="▶ Try Again";
+    overlay.classList.add("show");
+  }
+
+  // ---------- events ----------
+  $("btn-letter").addEventListener("click", hintLetter);
+  $("btn-cat").addEventListener("click", hintCat);
+  $("btn-word").addEventListener("click", hintWord);
+  $("btn-skip").addEventListener("click", onSkip);
+  $("ov-btn").addEventListener("click", startGame);
+
+  document.addEventListener("keydown", function(e){
+    if(!playing){ if(e.key==="Enter"||e.key===" "){ startGame(); e.preventDefault(); } return; }
+    if(e.key==="Backspace"){ onDelete(); e.preventDefault(); return; }
+    if(e.key==="Escape"){ onClear(); return; }
+    if(e.key==="Enter"){ checkComplete(); return; }
+    if(/^[a-zA-Z]$/.test(e.key)){ onLetter(e.key); }
+  });
+
+  window.addEventListener("resize", function(){ renderSlots(); });
+
+  // ---------- init (render immediately, rich UI) ----------
+  buildKeyboard();
+  newDeck();
+  loadRiddle(deck[0]);      // show a real riddle behind the start overlay
+  hLives.innerHTML="♥♥♥";
+  updateHud();
+  $("ov-stats").innerHTML = store.totalSolved>0 ? ("Best streak: "+store.best+" · Lifetime solved: "+store.totalSolved) : "";
+})();
+</script>
+</body>
+</html>

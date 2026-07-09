@@ -6,7 +6,7 @@
 
 ## Structure
 
-- `index.html` — the arcade frontpage. A **sticky bar** at the top toggles between the **Games** and **Tools** views and holds the category-filter chips and search box. Hover any card to preview 5 gameplay screenshots.
+- `index.html` — the arcade frontpage. A **sticky bar** at the top toggles between the **Games** and **Tools** views and holds the category-filter chips, search box, and a **light/dark theme toggle** (defaults to your system preference, saved in `localStorage`). Hover any card to preview 5 gameplay screenshots.
 - `games/*.html` — the 98 games (arcade, action, puzzle, RPG, board, words, cards, and 10 in full 3D)
 - `tools/*.html` — the 56 tools (productivity, text/dev, numbers, design, audio & visual, data)
 - `games/old/*.html` — the original 11 classics, reachable via `old.html` (The Old Arcade)

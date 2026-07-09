@@ -292,7 +292,7 @@ The original eleven, preserved exactly as they were. Reachable from [`old.html`]
 ## Conventions & structure
 
 
-- **`index.html`** — the frontpage. A sticky bar at the top toggles between the **Games** and **Tools** views and holds the category filter chips and search box. Hover any card to preview its 5 screenshots.
+- **`index.html`** — the frontpage. A sticky bar at the top toggles between the **Games** and **Tools** views and holds the category filter chips, search box, and a **light/dark theme toggle** (defaults to your system preference, saved in `localStorage`; the Old Arcade shares the same preference). Hover any card to preview its 5 screenshots.
 - **`games/`** — the 98 games. **`tools/`** — the 56 tools. **`games/old/`** — the 11 classics.
 - **`old.html`** — landing page for The Old Arcade.
 - **`shots/<slug>/1..5.jpg`** — five gameplay screenshots per entry, captured at 800×500. The frontpage cycles through them on hover.

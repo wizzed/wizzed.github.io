@@ -212,13 +212,14 @@
     font-family: 'VT323', monospace; font-size: 22px;
     animation: blink 1.2s steps(2,start) infinite; pointer-events: none;
   }
-  #sfx-toggle {
+  #sfx-toggle, #theme-toggle {
     font-family: 'Press Start 2P', monospace; font-size: .55rem;
     padding: 10px 12px; background: #101024;
     border: 2px solid #2b2b52; color: var(--dim);
-    cursor: pointer; transition: all .15s ease;
+    cursor: pointer; transition: all .15s ease; white-space: nowrap;
   }
   #sfx-toggle.on { color: var(--yellow); border-color: var(--yellow); box-shadow: 0 0 12px rgba(255,209,102,.4); }
+  #theme-toggle:hover { color: var(--purple); border-color: var(--purple); box-shadow: 0 0 12px rgba(157,107,255,.4); }
 
   /* ---------- old arcade banner ---------- */
   .old-banner {
@@ -401,6 +402,49 @@
   }
   #toast.show { transform: translateX(-50%) translateY(0); }
 
+  /* ---------- light theme ----------
+     The neon hero keeps its own vivid gradient; everything below it flips to
+     a clean light palette. Toggled by `body.light`, saved in localStorage. */
+  body.light {
+    --bg: #eaecf6;
+    --text: #16162b;
+    --dim: #55557a;
+  }
+  body.light .ticker { background: #dee1f1; border-bottom-color: #c6cae2; color: #0b7f97; text-shadow: none; }
+  body.light .stickybar { background: rgba(234,236,246,.94); border-bottom-color: #c6cae2; box-shadow: 0 6px 22px rgba(60,60,110,.14); }
+  body.light .mode-toggle { background: #fff; border-color: #c6cae2; }
+  body.light .mode-btn { color: #55557a; }
+  body.light .mode-btn:not(.active):hover { color: #14142b; background: #e7eafa; }
+  body.light #search { background: #fff; border-color: #c6cae2; color: #0a7d55; }
+  body.light .search-wrap::before { color: #0a7d55; }
+  body.light #sfx-toggle, body.light #theme-toggle { background: #fff; border-color: #c6cae2; color: #55557a; }
+  body.light .chip { background: #fff; color: #55557a; border-color: #c6cae2; }
+  body.light #chips-bar { scrollbar-color: #c6cae2 transparent; }
+  body.light #chips-bar::-webkit-scrollbar-thumb { background: #c6cae2; }
+  body.light .count-line { color: #55557a; }
+  body.light .old-banner {
+    background:
+      linear-gradient(90deg, rgba(255,239,210,.9), rgba(255,255,255,.96) 55%),
+      repeating-linear-gradient(45deg, #f4eedd 0 12px, #fcf8ee 12px 24px);
+    border-color: #d6b26a; color: #2a2a44;
+  }
+  body.light .old-banner p { color: #7a6a44; }
+  body.light .old-banner h2 { text-shadow: none; }
+  body.light .zone-sub { color: #55557a; }
+  body.light .zone-head {
+    color: #16162e;
+    text-shadow: 0 0 6px rgba(255,255,255,.6), 3px 3px 0 var(--zc, var(--pink)), 3px 3px 12px color-mix(in srgb, var(--zc, var(--pink)) 40%, transparent);
+  }
+  body.light .card { background: #fff; border-color: #d2d5ea; }
+  body.light .card:hover { box-shadow: 0 0 0 1px var(--acc, var(--cyan)), 0 14px 30px rgba(50,50,90,.22), 0 0 22px color-mix(in srgb, var(--acc, #00e5ff) 30%, transparent); }
+  body.light .shot { background: #e6e8f3; border-bottom-color: #d2d5ea; }
+  body.light .card-body h3 { color: #14142b; }
+  body.light .card-body p { color: #55557a; }
+  body.light .no-results { color: #55557a; }
+  body.light footer { color: #7777a0; border-top-color: #d2d5ea; }
+  body.light .vignette { display: none; }
+  body.light .crt { opacity: .16; }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .001s !important; animation-iteration-count: 1 !important; transition-duration: .001s !important; }
   }
@@ -489,6 +533,7 @@
       </div>
       <div class="search-wrap"><input id="search" type="text" placeholder="search…" aria-label="Search games and tools"></div>
       <button id="sfx-toggle" title="toggle sound effects">SFX: OFF</button>
+      <button id="theme-toggle" title="toggle light / dark theme" aria-label="Toggle light or dark theme">🌙 DARK</button>
       <div class="chips" id="chips-bar" role="tablist" aria-label="Category filter"></div>
     </div>
   </div>
@@ -964,6 +1009,23 @@ sfxBtn.addEventListener('click', () => {
   localStorage.setItem('wizzed-sfx', sfxOn ? 'on' : 'off');
   syncSfxBtn();
   blip(1046, .08);
+});
+
+/* ================= theme (light / dark) ================= */
+const themeBtn = document.getElementById('theme-toggle');
+const savedTheme = localStorage.getItem('wizzed-theme');
+let light = savedTheme ? savedTheme === 'light'
+  : window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+function syncTheme() {
+  document.body.classList.toggle('light', light);
+  themeBtn.textContent = light ? '☀️ LIGHT' : '🌙 DARK';
+}
+syncTheme();
+themeBtn.addEventListener('click', () => {
+  light = !light;
+  localStorage.setItem('wizzed-theme', light ? 'light' : 'dark');
+  syncTheme();
+  blip(light ? 1319 : 660, .08);
 });
 
 document.getElementById('insert-coin').addEventListener('click', () => {

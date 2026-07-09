@@ -161,13 +161,42 @@
   .ticker:hover .ticker-track { animation-play-state: paused; }
   @keyframes tick { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
-  /* ---------- top bar (search / sfx) ---------- */
-  .topbar {
-    position: relative; z-index: 2;
-    max-width: 1280px; margin: 26px auto 0; padding: 0 20px;
-    display: flex; flex-wrap: wrap; gap: 12px;
-    align-items: center; justify-content: center;
+  /* ---------- sticky filter bar ---------- */
+  .stickybar {
+    position: sticky; top: 0; z-index: 40;
+    background: rgba(7,7,18,.93);
+    -webkit-backdrop-filter: blur(9px); backdrop-filter: blur(9px);
+    border-bottom: 2px solid #23234a;
+    box-shadow: 0 6px 22px rgba(0,0,0,.45);
   }
+  .stickybar.mode-games { --zc: var(--pink); }
+  .stickybar.mode-tools { --zc: var(--cyan); }
+  .stickybar-inner {
+    max-width: 1280px; margin: 0 auto; padding: 12px 20px;
+    display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center;
+  }
+  .mode-toggle {
+    display: inline-flex; border: 2px solid #2b2b52;
+    background: #0b0b1c; overflow: hidden;
+  }
+  .mode-btn {
+    font-family: 'Press Start 2P', monospace; font-size: .6rem;
+    padding: 11px 16px; background: none; color: var(--dim);
+    border: none; cursor: pointer; transition: all .15s ease;
+    display: inline-flex; align-items: center; gap: 8px; letter-spacing: 1px;
+  }
+  .mode-btn:not(.active):hover { color: #fff; background: #16162e; }
+  .mode-btn b { font-weight: normal; opacity: .85; }
+  .mode-btn[data-mode="games"].active { background: var(--pink); color: #12010a; box-shadow: 0 0 18px rgba(255,45,120,.6); }
+  .mode-btn[data-mode="tools"].active { background: var(--cyan); color: #02121a; box-shadow: 0 0 18px rgba(0,229,255,.6); }
+  #chips-bar {
+    display: flex; flex-wrap: nowrap; gap: 8px; flex: 1 1 100%;
+    margin: 0; overflow-x: auto; padding-bottom: 3px;
+    scrollbar-width: thin; scrollbar-color: #2b2b52 transparent;
+  }
+  #chips-bar::-webkit-scrollbar { height: 6px; }
+  #chips-bar::-webkit-scrollbar-thumb { background: #2b2b52; border-radius: 3px; }
+  #chips-bar .chip { flex: 0 0 auto; }
   .search-wrap { position: relative; }
   #search {
     font-family: 'VT323', monospace; font-size: 20px;
@@ -245,6 +274,8 @@
   }
   #games-zone { --zc: var(--pink); }
   #tools-zone { --zc: var(--cyan); }
+  .zone.zone-off { display: none; }
+  .zone-head { scroll-margin-top: 78px; }
   .zone-sub { color: var(--dim); font-size: 20px; margin-bottom: 12px; }
   .zone-sub b { color: var(--zc, var(--pink)); font-weight: normal; }
 
@@ -288,20 +319,14 @@
     background: #0a0a18; overflow: hidden;
     border-bottom: 2px solid #26264a;
   }
-  .shot-ph {
-    position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 64px;
-    background:
-      radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--acc, #00e5ff) 22%, transparent), transparent 60%),
-      linear-gradient(135deg, #16162e, #0c0c1c);
-  }
-  .shot img {
+  .shot-layer {
     position: absolute; inset: 0;
     width: 100%; height: 100%;
     object-fit: cover; display: block;
+    opacity: 0;
   }
-  .card.no-shots .shot img { display: none; }
+  .shot-layer.on { opacity: 1; }
+  .card.no-shots .shot-layer { display: none; }
   .shot-dots {
     position: absolute; bottom: 7px; left: 50%;
     transform: translateX(-50%);
@@ -447,11 +472,6 @@
 </div>
 
 <main>
-  <div class="topbar">
-    <div class="search-wrap"><input id="search" type="text" placeholder="search games &amp; tools…" aria-label="Search games and tools"></div>
-    <button id="sfx-toggle" title="toggle sound effects">SFX: OFF</button>
-  </div>
-
   <a class="old-banner" href="old.html">
     <span class="tv">📺</span>
     <span>
@@ -461,20 +481,30 @@
     <span class="go">ENTER ▸</span>
   </a>
 
+  <div class="stickybar mode-games" id="stickybar">
+    <div class="stickybar-inner">
+      <div class="mode-toggle" id="mode-toggle" role="tablist" aria-label="Show games or tools">
+        <button class="mode-btn active" data-mode="games" role="tab" aria-selected="true"><span>🎮</span> GAMES <b id="mt-games"></b></button>
+        <button class="mode-btn" data-mode="tools" role="tab" aria-selected="false"><span>🛠️</span> TOOLS <b id="mt-tools"></b></button>
+      </div>
+      <div class="search-wrap"><input id="search" type="text" placeholder="search…" aria-label="Search games and tools"></div>
+      <button id="sfx-toggle" title="toggle sound effects">SFX: OFF</button>
+      <div class="chips" id="chips-bar" role="tablist" aria-label="Category filter"></div>
+    </div>
+  </div>
+
   <section class="zone" id="games-zone">
     <h2 class="zone-head" id="games">🎮 GAMES <span class="zh-count" id="games-count"></span></h2>
     <div class="zone-sub">Arcade action, RPGs, puzzles, boards, cards and full-3D worlds. Hover any card to preview <b>5 live screenshots</b>.</div>
-    <div class="chips" id="chips-games"></div>
     <div class="count-line" id="count-games"></div>
     <div class="grid" id="grid-games">
       <div class="no-results">NO GAMES FOUND<br>😵<br>TRY ANOTHER SEARCH</div>
     </div>
   </section>
 
-  <section class="zone" id="tools-zone">
+  <section class="zone zone-off" id="tools-zone">
     <h2 class="zone-head" id="tools">🛠️ TOOLS <span class="zh-count" id="tools-count"></span></h2>
     <div class="zone-sub">A full neon toolbox — planners, converters, generators, audio machines and dev utilities. All offline, all yours.</div>
-    <div class="chips" id="chips-tools"></div>
     <div class="count-line" id="count-tools"></div>
     <div class="grid" id="grid-tools">
       <div class="no-results">NO TOOLS FOUND<br>🔧<br>TRY ANOTHER SEARCH</div>
@@ -699,11 +729,13 @@ function renderCards(list, gridEl, base, offset) {
     a.dataset.slug = g1.s;
     a.dataset.name = (g1.t + ' ' + g1.g + ' ' + g1.d + ' ' + g1.c).toLowerCase();
     a.setAttribute('aria-label', g1.t);
+    let layers = '';
+    for (let n = 1; n <= SHOTS; n++) {
+      layers += `<img class="shot-layer${n === 1 ? ' on' : ''}" alt="" aria-hidden="true" loading="lazy" decoding="async">`;
+    }
     a.innerHTML = `
       <div class="shot">
-        <div class="shot-ph"><span>${g1.i}</span></div>
-        <img alt="" aria-hidden="true" loading="lazy" decoding="async">
-        <img alt="" aria-hidden="true" loading="lazy" decoding="async" style="opacity:0">
+        ${layers}
         <div class="shot-dots">${'<i></i>'.repeat(SHOTS)}</div>
         <div class="shine"></div>
         ${g1.x3d ? '<span class="badge">3D</span>' : (g1.neu ? '<span class="badge new">NEW</span>' : '')}
@@ -713,11 +745,11 @@ function renderCards(list, gridEl, base, offset) {
         <span class="genre">${g1.g}</span>
         <p>${g1.d}</p>
       </div>`;
-    const imgs = a.querySelectorAll('img');
-    cardState.set(a, { cur: 0, n: 1 });
-    imgs[0].onerror = () => { a.classList.add('no-shots'); };
-    imgs[0].onload = () => { a.querySelectorAll('.shot-dots i')[0].classList.add('on'); };
-    imgs[0].src = shotSrc(g1.s, 1);
+    const imgLayers = [...a.querySelectorAll('.shot-layer')];
+    cardState.set(a, { cur: 1, layers: imgLayers });
+    imgLayers[0].onerror = () => { a.classList.add('no-shots'); };
+    imgLayers[0].onload = () => { a.querySelector('.shot-dots i').classList.add('on'); };
+    imgLayers[0].src = shotSrc(g1.s, 1);
     frag.appendChild(a);
   });
   gridEl.insertBefore(frag, gridEl.querySelector('.no-results'));
@@ -735,50 +767,51 @@ document.getElementById('tools-count').textContent = `(${TOOLS.length})`;
 document.getElementById('nav-games-n').textContent = GAMES.length;
 document.getElementById('nav-tools-n').textContent = TOOLS.length;
 
-/* ================= screenshot cycling (double-buffered, no flicker) ================= */
-const preloaded = new Set();
-function preloadShots(slug) {
-  if (preloaded.has(slug)) return;
-  preloaded.add(slug);
-  for (let n = 2; n <= SHOTS; n++) { const im = new Image(); im.src = shotSrc(slug, n); }
+/* ================= screenshot cycling =================
+   All 5 frames are real <img> layers stacked in the card. Cycling only ever
+   flips the `.on` class between frames that are ALREADY decoded, so the swap
+   is a pure opacity toggle — there is no mid-cycle src load and no placeholder
+   to flash through. Frames 2-5 are given their src the first time a card is
+   activated; until a frame is decoded it is simply skipped. */
+function preloadShots(card) {
+  const st = cardState.get(card);
+  if (!st || st.loaded) return;
+  st.loaded = true;
+  const slug = card.dataset.slug;
+  for (let n = 2; n <= SHOTS; n++) {
+    if (!st.layers[n - 1].getAttribute('src')) st.layers[n - 1].src = shotSrc(slug, n);
+  }
 }
 function setDots(card, n) {
   card.querySelectorAll('.shot-dots i').forEach((d, j) => d.classList.toggle('on', j === n - 1));
 }
-/* Swap only after the incoming image is fully loaded, so the placeholder
-   never peeks through between frames. */
-function setShot(card, n) {
+function showFrame(card, n) {
   const st = cardState.get(card);
   if (!st) return;
-  st.n = n;
-  const imgs = card.querySelectorAll('.shot img');
-  const show = imgs[1 - st.cur], hide = imgs[st.cur];
-  const url = shotSrc(card.dataset.slug, n);
-  const commit = () => {
-    show.style.opacity = '1';
-    hide.style.opacity = '0';
-    st.cur = 1 - st.cur;
-    setDots(card, n);
-  };
-  show.onerror = () => { show.onerror = null; };
-  if (show.getAttribute('src') === url && show.complete && show.naturalWidth) { commit(); return; }
-  show.onload = () => { show.onload = null; if (st.n === n) commit(); };
-  show.src = url;
+  st.layers.forEach((l, j) => l.classList.toggle('on', j === n - 1));
+  st.cur = n;
+  setDots(card, n);
 }
 const cycles = new Map();
-function startCycle(card, speed = 450) {
+function startCycle(card, speed = 500) {
   if (card.classList.contains('no-shots') || cycles.has(card)) return;
-  preloadShots(card.dataset.slug);
+  preloadShots(card);
   const st = cardState.get(card);
-  let n = st ? st.n : 1;
-  const id = setInterval(() => { n = n % SHOTS + 1; setShot(card, n); }, speed);
+  const id = setInterval(() => {
+    let n = st.cur;
+    for (let step = 0; step < SHOTS; step++) {          // advance to the next DECODED frame
+      n = n % SHOTS + 1;
+      const layer = st.layers[n - 1];
+      if (layer.complete && layer.naturalWidth) { showFrame(card, n); break; }
+    }
+  }, speed);
   cycles.set(card, id);
 }
 function stopCycle(card) {
   const id = cycles.get(card);
   if (id !== undefined) { clearInterval(id); cycles.delete(card); }
   card.classList.remove('cycling');
-  if (!card.classList.contains('no-shots')) setShot(card, 1);
+  if (!card.classList.contains('no-shots')) showFrame(card, 1);
 }
 function wireGrid(gridEl) {
   gridEl.addEventListener('mouseover', e => {
@@ -795,7 +828,7 @@ function wireGrid(gridEl) {
     if (!cycles.has(card) && !card.dataset.touched) {
       card.dataset.touched = '1';
       startCycle(card);
-      setTimeout(() => { stopCycle(card); delete card.dataset.touched; }, SHOTS * 450 + 200);
+      setTimeout(() => { stopCycle(card); delete card.dataset.touched; }, SHOTS * 500 + 300);
     }
   }, {passive: true});
 }
@@ -814,47 +847,96 @@ if (!reduceMotion) {
     if (!visible.length) return;
     const card = visible[Math.floor(Math.random() * visible.length)];
     card.classList.add('cycling');
-    startCycle(card, 380);
-    setTimeout(() => stopCycle(card), SHOTS * 380 + 60);
+    startCycle(card, 460);
+    setTimeout(() => stopCycle(card), SHOTS * 460 + 80);
   }, 4200);
 }
 
-/* ================= filtering ================= */
+/* ================= mode toggle + filtering ================= */
 const search = document.getElementById('search');
-const zones = [
-  { key: 'games', cats: GAME_CATS, grid: gridGames, chipsEl: document.getElementById('chips-games'), countEl: document.getElementById('count-games'), total: GAMES.length, active: 'all' },
-  { key: 'tools', cats: TOOL_CATS, grid: gridTools, chipsEl: document.getElementById('chips-tools'), countEl: document.getElementById('count-tools'), total: TOOLS.length, active: 'all' },
-];
-function applyFilter(zone) {
+const chipsBar = document.getElementById('chips-bar');
+const stickybar = document.getElementById('stickybar');
+const modeBtns = [...document.querySelectorAll('.mode-btn')];
+document.getElementById('mt-games').textContent = GAMES.length;
+document.getElementById('mt-tools').textContent = TOOLS.length;
+
+const ZONES = {
+  games: { cats: GAME_CATS, grid: gridGames, countEl: document.getElementById('count-games'), zoneEl: document.getElementById('games-zone'), total: GAMES.length, active: 'all' },
+  tools: { cats: TOOL_CATS, grid: gridTools, countEl: document.getElementById('count-tools'), zoneEl: document.getElementById('tools-zone'), total: TOOLS.length, active: 'all' },
+};
+let mode = 'games';
+const otherMode = () => (mode === 'games' ? 'tools' : 'games');
+
+function countMatches(key) {
+  const z = ZONES[key];
+  const q = search.value.trim().toLowerCase();
+  let n = 0;
+  z.grid.querySelectorAll('.card').forEach(card => {
+    if ((z.active === 'all' || card.dataset.cat === z.active) && (!q || card.dataset.name.includes(q))) n++;
+  });
+  return n;
+}
+function applyFilter() {
+  const z = ZONES[mode];
   const q = search.value.trim().toLowerCase();
   let shown = 0;
-  zone.grid.querySelectorAll('.card').forEach(card => {
-    const okCat = zone.active === 'all' || card.dataset.cat === zone.active;
+  z.grid.querySelectorAll('.card').forEach(card => {
+    const okCat = z.active === 'all' || card.dataset.cat === z.active;
     const okQ = !q || card.dataset.name.includes(q);
     const show = okCat && okQ;
     card.classList.toggle('hidden', !show);
     if (show) shown++;
   });
-  zone.countEl.innerHTML = `Showing <b>${shown}</b> of ${zone.total}`;
-  zone.grid.querySelector('.no-results').style.display = shown ? 'none' : 'block';
+  z.countEl.innerHTML = `Showing <b>${shown}</b> of ${z.total}`;
+  z.grid.querySelector('.no-results').style.display = shown ? 'none' : 'block';
 }
-zones.forEach(zone => {
-  zone.cats.forEach(([cat, label]) => {
+function renderChips() {
+  const z = ZONES[mode];
+  chipsBar.innerHTML = '';
+  z.cats.forEach(([cat, label]) => {
     const b = document.createElement('button');
-    b.className = 'chip' + (cat === 'all' ? ' active' : '');
+    b.className = 'chip' + (cat === z.active ? ' active' : '');
     b.textContent = label;
     b.addEventListener('click', () => {
-      zone.chipsEl.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      z.active = cat;
+      chipsBar.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
       b.classList.add('active');
-      zone.active = cat;
       blip(880, .04);
-      applyFilter(zone);
+      applyFilter();
     });
-    zone.chipsEl.appendChild(b);
+    chipsBar.appendChild(b);
   });
-  applyFilter(zone);
+}
+function setMode(next, scroll) {
+  if (next !== 'games' && next !== 'tools') return;
+  mode = next;
+  ZONES.games.zoneEl.classList.toggle('zone-off', mode !== 'games');
+  ZONES.tools.zoneEl.classList.toggle('zone-off', mode !== 'tools');
+  stickybar.classList.toggle('mode-games', mode === 'games');
+  stickybar.classList.toggle('mode-tools', mode === 'tools');
+  modeBtns.forEach(b => {
+    const on = b.dataset.mode === mode;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  renderChips();
+  applyFilter();
+  if (scroll) {
+    const y = ZONES[mode].zoneEl.getBoundingClientRect().top + window.scrollY - 66;
+    window.scrollTo({ top: Math.max(0, y), behavior: reduceMotion ? 'auto' : 'smooth' });
+  }
+}
+modeBtns.forEach(b => b.addEventListener('click', () => { blip(760, .05); setMode(b.dataset.mode, true); }));
+search.addEventListener('input', () => {
+  applyFilter();
+  // if the search empties the current section but the other has hits, hop over
+  const q = search.value.trim().toLowerCase();
+  if (q && countMatches(mode) === 0) {
+    const other = otherMode();
+    ZONES[other].active = 'all';
+    if (countMatches(other) > 0) setMode(other, false);
+  }
 });
-search.addEventListener('input', () => zones.forEach(applyFilter));
 
 /* ================= sfx ================= */
 let audioCtx = null, sfxOn = localStorage.getItem('wizzed-sfx') === 'on';
@@ -886,7 +968,15 @@ sfxBtn.addEventListener('click', () => {
 
 document.getElementById('insert-coin').addEventListener('click', () => {
   blip(988, .07); setTimeout(() => blip(1319, .12), 80);
-  document.getElementById('games').scrollIntoView({behavior: reduceMotion ? 'auto' : 'smooth'});
+  setMode('games', true);
+});
+/* hero nav buttons drive the sticky mode toggle */
+document.querySelectorAll('.hero-nav a[href="#games"], .hero-nav a[href="#tools"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    blip(760, .05);
+    setMode(a.getAttribute('href') === '#tools' ? 'tools' : 'games', true);
+  });
 });
 
 /* ================= ticker ================= */
@@ -1038,6 +1128,9 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
 }
+
+/* ================= init ================= */
+setMode('games', false);
 </script>
 </body>
 </html>

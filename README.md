@@ -1,13 +1,13 @@
 # wizzed.github.io
 
-🕹️ **Wizzed Arcade** — 98 free browser games & 56 tools, plus the 11 original classics.
+🕹️ **Wizzed Arcade** — 99 free browser games & 56 tools, plus the 11 original classics.
 
 [▶ Play now](https://wizzed.github.io) · 📖 **[Full game & tool catalog → CATALOG.md](CATALOG.md)**
 
 ## Structure
 
 - `index.html` — the arcade frontpage. A **sticky bar** at the top toggles between the **Games** and **Tools** views and holds the category-filter chips, search box, and a **light/dark theme toggle** (defaults to your system preference, saved in `localStorage`). Hover any card to preview 5 gameplay screenshots.
-- `games/*.html` — the 98 games (arcade, action, puzzle, RPG, board, words, cards, and 10 in full 3D)
+- `games/*.html` — the 99 games (arcade, action, puzzle, RPG, board, words, cards, and 11 in full 3D — including **Skyward**, an endless procedurally-generated flight game)
 - `tools/*.html` — the 56 tools (productivity, text/dev, numbers, design, audio & visual, data)
 - `games/old/*.html` — the original 11 classics, reachable via `old.html` (The Old Arcade)
 - `shots/<slug>/1.jpg … 5.jpg` — five gameplay screenshots per entry; the frontpage cycles through them on hover

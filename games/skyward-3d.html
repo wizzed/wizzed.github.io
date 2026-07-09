@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skyward — Endless Flight · Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0f0f1a; }
+  body { font-family: 'Courier New', ui-monospace, monospace; color: #eef3ff; }
+  #app { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  .back {
+    position: fixed; top: 12px; left: 12px; z-index: 20;
+    padding: 7px 13px; font-size: 13px; letter-spacing: 1px;
+    color: #dfe9ff; text-decoration: none;
+    background: rgba(10,14,26,.5); border: 1px solid rgba(255,255,255,.25);
+    border-radius: 4px; backdrop-filter: blur(4px);
+    text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  .back:hover { background: rgba(10,14,26,.8); border-color: #ffd7a0; color: #ffd7a0; }
+
+  #hud {
+    position: fixed; top: 12px; right: 12px; z-index: 15;
+    text-align: right; line-height: 1.5;
+    text-shadow: 0 1px 4px rgba(0,0,0,.7);
+    pointer-events: none;
+  }
+  #hud .big { font-size: 30px; font-weight: bold; color: #ffe8b8; letter-spacing: 1px; }
+  #hud .lbl { font-size: 12px; letter-spacing: 3px; color: #cfe0ff; opacity: .85; }
+  #hud .row { font-size: 15px; color: #dfe9ff; margin-top: 3px; }
+  #hud .row b { color: #8ff0c8; font-weight: normal; }
+  #hud .rings b { color: #ffd166; }
+
+  .hint {
+    position: fixed; bottom: 14px; left: 0; right: 0; z-index: 15;
+    text-align: center; font-size: 13px; letter-spacing: 1px;
+    color: #dbe6ff; opacity: .85; text-shadow: 0 1px 4px rgba(0,0,0,.7);
+    pointer-events: none;
+  }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 18;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 20px;
+    background: radial-gradient(ellipse at center, rgba(8,12,24,.28) 0%, rgba(8,12,24,.62) 100%);
+  }
+  .overlay.hidden { display: none; }
+  .panel {
+    background: rgba(12,16,30,.55);
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 14px;
+    padding: 30px 40px;
+    backdrop-filter: blur(7px);
+    box-shadow: 0 20px 60px rgba(0,0,0,.45);
+    max-width: 520px;
+  }
+  .title {
+    font-size: clamp(38px, 9vw, 74px); font-weight: 800; letter-spacing: 3px;
+    background: linear-gradient(180deg, #fff 0%, #ffdca0 55%, #ff9d5c 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 4px 14px rgba(255,150,80,.5));
+    line-height: 1.05;
+  }
+  .tag { margin-top: 6px; font-size: 15px; letter-spacing: 5px; color: #ffd7a0; text-transform: uppercase; }
+  .lede { margin: 18px auto 4px; font-size: 15px; line-height: 1.6; color: #dbe6ff; max-width: 400px; }
+  .controls-list { margin: 16px auto 6px; font-size: 14px; line-height: 1.9; color: #c7d4ee; }
+  .controls-list b { color: #ffe8b8; font-weight: normal; }
+  .cta {
+    margin-top: 20px; display: inline-block;
+    font-size: 17px; letter-spacing: 2px; font-weight: bold;
+    color: #10131f; background: linear-gradient(180deg,#ffe1a8,#ffb15c);
+    border: none; border-radius: 8px; padding: 13px 30px; cursor: pointer;
+    box-shadow: 0 6px 20px rgba(255,160,80,.4);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  .cta:hover { filter: brightness(1.07); }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  .go-stat { margin-top: 14px; font-size: 15px; color: #dbe6ff; }
+  .go-stat b { color: #ffe8b8; }
+  .go-best { color: #8ff0c8; }
+  .small { margin-top: 10px; font-size: 12px; letter-spacing: 1px; color: #9fb0d0; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<div id="app"></div>
+
+<div id="hud" style="display:none">
+  <div class="lbl">DISTANCE</div>
+  <div class="big"><span id="dist">0</span><span style="font-size:16px"> m</span></div>
+  <div class="row rings">RINGS <b id="rings">0</b></div>
+  <div class="row">SPEED <b id="spd">0</b></div>
+  <div class="row">BEST <b id="best">0</b> m</div>
+</div>
+<div class="hint" id="hint" style="display:none">move mouse / drag to steer · dive through rings · don't hit the ground</div>
+
+<div class="overlay" id="startOverlay">
+  <div class="panel">
+    <div class="title">SKYWARD</div>
+    <div class="tag">Endless Flight</div>
+    <div class="lede">Soar over an infinite, sun-drenched world that builds itself forever beneath your wings. Chase the horizon, thread the glowing rings, and never touch the ground.</div>
+    <div class="controls-list">
+      <b>Mouse / drag</b> — steer &nbsp;·&nbsp; <b>W / S</b> or <b>↑ / ↓</b> — climb / dive<br>
+      <b>A / D</b> or <b>← / →</b> — bank &nbsp;·&nbsp; <b>R</b> — restart
+    </div>
+    <button class="cta" id="startBtn">▶ TAKE OFF</button>
+    <div class="small">click anywhere · or press Enter / Space</div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="overOverlay">
+  <div class="panel">
+    <div class="title" style="font-size:clamp(30px,7vw,56px)">DOWN YOU GO</div>
+    <div class="go-stat">You flew <b id="goDist">0</b> m and caught <b id="goRings">0</b> rings.</div>
+    <div class="go-stat go-best" id="goBest"></div>
+    <button class="cta" id="againBtn">▶ FLY AGAIN</button>
+    <div class="small">or press R</div>
+  </div>
+</div>
+
+<script src="../lib/three.min.js"></script>
+<script>
+'use strict';
+(function () {
+  if (typeof THREE === 'undefined') return;
+
+  // ---------- constants ----------
+  const CHUNK = 60;        // world units per terrain chunk
+  const SEG = 20;          // grid segments per chunk
+  const VIEW = 4;          // chunk radius around player
+  const WATER_Y = 0;
+  const BEST_KEY = 'wizzed-skyward-3d';
+
+  const SKY_TOP = new THREE.Color(0x2f5190);
+  const SKY_HORIZON = new THREE.Color(0xf3c79a);
+
+  // ---------- renderer / scene ----------
+  const app = document.getElementById('app');
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  } catch (e) { app.innerHTML = '<p style="color:#fff;padding:40px">WebGL is unavailable in this browser.</p>'; return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.02;
+  app.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = SKY_HORIZON.clone();
+  scene.fog = new THREE.Fog(SKY_HORIZON.getHex(), CHUNK * 1.4, CHUNK * (VIEW + 0.6));
+
+  const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.5, 3000);
+  camera.position.set(0, 60, -40);
+
+  // ---------- sky dome (gradient) ----------
+  (function skyDome() {
+    const geo = new THREE.SphereGeometry(1400, 32, 20);
+    const pos = geo.attributes.position, n = pos.count;
+    const colors = new Float32Array(n * 3), c = new THREE.Color();
+    for (let i = 0; i < n; i++) {
+      const y = pos.getY(i) / 1400;                 // -1..1
+      const t = Math.pow(Math.max(0, Math.min(1, (y + 0.05) / 0.85)), 0.9);
+      c.copy(SKY_HORIZON).lerp(SKY_TOP, t);
+      colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const sky = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
+    sky.frustumCulled = false;
+    scene.add(sky);
+    window._sky = sky;
+  })();
+
+  // ---------- lights ----------
+  const hemi = new THREE.HemisphereLight(0xbcd4f2, 0x6b5a3c, 0.85);
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff0d2, 2.7);
+  sun.position.set(-70, 96, -46);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.near = 1;
+  sun.shadow.camera.far = 420;
+  const S = 150;
+  sun.shadow.camera.left = -S; sun.shadow.camera.right = S;
+  sun.shadow.camera.top = S; sun.shadow.camera.bottom = -S;
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.6;
+  scene.add(sun);
+  scene.add(sun.target);
+
+  // ---------- noise / terrain height ----------
+  function hash2(x, z) {
+    let n = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
+    return n - Math.floor(n);
+  }
+  function smooth(t) { return t * t * (3 - 2 * t); }
+  function valNoise(x, z) {
+    const xi = Math.floor(x), zi = Math.floor(z), xf = x - xi, zf = z - zi;
+    const a = hash2(xi, zi), b = hash2(xi + 1, zi), c = hash2(xi, zi + 1), d = hash2(xi + 1, zi + 1);
+    const u = smooth(xf), v = smooth(zf);
+    return a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v;
+  }
+  function fbm(x, z) {
+    let f = 0, amp = 0.5, freq = 1, norm = 0;
+    for (let i = 0; i < 4; i++) { f += amp * valNoise(x * freq, z * freq); norm += amp; freq *= 2.03; amp *= 0.5; }
+    return f / norm;
+  }
+  const H_SCALE = 0.0032;
+  function terrainH(x, z) {
+    let e = fbm(x * H_SCALE + 40, z * H_SCALE - 17);
+    e = Math.pow(e, 1.4);
+    return (e - 0.34) * 134;
+  }
+  const _nrm = new THREE.Vector3();
+  function terrainNormal(x, z) {
+    const e = 1.3;
+    const hL = terrainH(x - e, z), hR = terrainH(x + e, z), hD = terrainH(x, z - e), hU = terrainH(x, z + e);
+    return _nrm.set(hL - hR, 2 * e, hD - hU).normalize();
+  }
+
+  // ---------- height colouring ----------
+  const CSTOPS = [
+    [-60, new THREE.Color(0x122f37)],
+    [-2,  new THREE.Color(0x1f5a63)],
+    [0.8, new THREE.Color(0xdac88f)],
+    [4,   new THREE.Color(0x6a9a44)],
+    [15,  new THREE.Color(0x3d6b2c)],
+    [27,  new THREE.Color(0x6f6455)],
+    [40,  new THREE.Color(0x8f8477)],
+    [58,  new THREE.Color(0xeff4f7)],
+  ];
+  const _col = new THREE.Color();
+  function colorForHeight(h) {
+    if (h <= CSTOPS[0][0]) return _col.copy(CSTOPS[0][1]);
+    if (h >= CSTOPS[CSTOPS.length - 1][0]) return _col.copy(CSTOPS[CSTOPS.length - 1][1]);
+    for (let i = 0; i < CSTOPS.length - 1; i++) {
+      const a = CSTOPS[i], b = CSTOPS[i + 1];
+      if (h >= a[0] && h < b[0]) {
+        const t = (h - a[0]) / (b[0] - a[0]);
+        return _col.copy(a[1]).lerp(b[1], t);
+      }
+    }
+    return _col.copy(CSTOPS[CSTOPS.length - 1][1]);
+  }
+
+  // ---------- terrain chunk pool ----------
+  const terrainMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0.0 });
+  function makeChunkMesh() {
+    const geo = new THREE.PlaneGeometry(CHUNK, CHUNK, SEG, SEG);
+    geo.rotateX(-Math.PI / 2);
+    const verts = geo.attributes.position.count;
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(verts * 3), 3));
+    const m = new THREE.Mesh(geo, terrainMat);
+    m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false;
+    return m;
+  }
+  function buildChunk(mesh, cx, cz) {
+    const ox = cx * CHUNK, oz = cz * CHUNK;
+    mesh.position.set(ox, 0, oz);
+    const pos = mesh.geometry.attributes.position;
+    const nor = mesh.geometry.attributes.normal;
+    const col = mesh.geometry.attributes.color;
+    for (let i = 0; i < pos.count; i++) {
+      const lx = pos.getX(i), lz = pos.getZ(i);
+      const wx = ox + lx, wz = oz + lz;
+      const h = terrainH(wx, wz);
+      pos.setY(i, h);
+      const nn = terrainNormal(wx, wz);
+      nor.setXYZ(i, nn.x, nn.y, nn.z);
+      const cc = colorForHeight(h);
+      col.setXYZ(i, cc.r, cc.g, cc.b);
+    }
+    pos.needsUpdate = true; nor.needsUpdate = true; col.needsUpdate = true;
+    mesh.geometry.computeBoundingSphere();
+  }
+  const active = new Map();   // key "cx,cz" -> mesh
+  const pool = [];
+  function chunkKey(cx, cz) { return cx + ',' + cz; }
+  function updateChunks(px, pz) {
+    const pcx = Math.round(px / CHUNK), pcz = Math.round(pz / CHUNK);
+    const needed = new Set();
+    for (let dz = -VIEW; dz <= VIEW; dz++)
+      for (let dx = -VIEW; dx <= VIEW; dx++)
+        needed.add(chunkKey(pcx + dx, pcz + dz));
+    // recycle no-longer-needed
+    for (const [key, mesh] of active) {
+      if (!needed.has(key)) { active.delete(key); mesh.visible = false; pool.push(mesh); }
+    }
+    // build newly needed (cap rebuilds per frame to avoid hitches)
+    let budget = 6;
+    for (let dz = -VIEW; dz <= VIEW && budget > 0; dz++) {
+      for (let dx = -VIEW; dx <= VIEW && budget > 0; dx++) {
+        const cx = pcx + dx, cz = pcz + dz, key = chunkKey(cx, cz);
+        if (active.has(key)) continue;
+        let mesh = pool.pop();
+        if (!mesh) { mesh = makeChunkMesh(); scene.add(mesh); }
+        mesh.visible = true;
+        buildChunk(mesh, cx, cz);
+        active.set(key, mesh);
+        budget--;
+      }
+    }
+  }
+
+  // ---------- water ----------
+  const waterSize = CHUNK * (VIEW * 2 + 3);
+  const water = new THREE.Mesh(
+    new THREE.PlaneGeometry(waterSize, waterSize, 1, 1),
+    new THREE.MeshStandardMaterial({ color: 0x2f6f86, transparent: true, opacity: 0.74, roughness: 0.16, metalness: 0.25 })
+  );
+  water.rotation.x = -Math.PI / 2;
+  water.position.y = WATER_Y;
+  water.receiveShadow = false;
+  scene.add(water);
+
+  // ---------- clouds ----------
+  const clouds = [];
+  (function makeClouds() {
+    const cloudMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, opacity: 0.92, emissive: 0xc2cee2, emissiveIntensity: 0.55 });
+    for (let i = 0; i < 14; i++) {
+      const g = new THREE.Group();
+      const puffs = 3 + (i % 4);
+      for (let p = 0; p < puffs; p++) {
+        const s = 6 + hash2(i * 3.1, p * 5.7) * 9;
+        const puff = new THREE.Mesh(new THREE.SphereGeometry(s, 10, 8), cloudMat);
+        puff.position.set((p - puffs / 2) * 8 + (hash2(i, p) - 0.5) * 6, (hash2(p, i) - 0.5) * 4, (hash2(i + 1, p) - 0.5) * 8);
+        puff.scale.y = 0.6;
+        g.add(puff);
+      }
+      g.userData = { seed: i, spd: 1.4 + hash2(i, 9) * 1.6 };
+      scene.add(g);
+      clouds.push(g);
+    }
+  })();
+
+  // ---------- glider ----------
+  const glider = new THREE.Group();
+  (function buildGlider() {
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff5b6a, roughness: 0.4, metalness: 0.25, emissive: 0x5a0d16, emissiveIntensity: 0.35 });
+    const wingMat = new THREE.MeshStandardMaterial({ color: 0xf2f5ff, roughness: 0.5, metalness: 0.1, emissive: 0x2a3550, emissiveIntensity: 0.2 });
+    const trimMat = new THREE.MeshStandardMaterial({ color: 0x27324a, roughness: 0.6, metalness: 0.2 });
+
+    const body = new THREE.Mesh(new THREE.ConeGeometry(0.85, 5.2, 12), bodyMat);
+    body.rotation.x = Math.PI / 2;      // nose toward +Z
+    body.position.z = 0.4;
+    const canopy = new THREE.Mesh(new THREE.SphereGeometry(0.62, 12, 10), trimMat);
+    canopy.position.set(0, 0.35, 0.6); canopy.scale.set(1, 0.7, 1.5);
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(9.4, 0.16, 1.7), wingMat);
+    wing.position.z = 0.1;
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.14, 1.0), wingMat);
+    tail.position.z = -2.1;
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.1, 1.1), wingMat);
+    fin.position.set(0, 0.5, -2.1);
+    [body, canopy, wing, tail, fin].forEach(m => { m.castShadow = true; glider.add(m); });
+  })();
+  scene.add(glider);
+
+  // ---------- rings ----------
+  const RING_R = 7, ringGeo = new THREE.TorusGeometry(RING_R, 0.75, 14, 40);
+  const rings = [];
+  function spawnRing(x, y, z, dir) {
+    const hue = 0.09 + Math.random() * 0.5;
+    const col = new THREE.Color().setHSL(hue, 0.95, 0.62);
+    const mat = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 1.7, roughness: 0.3, metalness: 0.1 });
+    const m = new THREE.Mesh(ringGeo, mat);
+    m.position.set(x, y, z);
+    m.lookAt(x + dir.x, y + dir.y, z + dir.z);
+    m.castShadow = false;
+    scene.add(m);
+    rings.push({ mesh: m, pos: new THREE.Vector3(x, y, z), got: false });
+  }
+  const pathPos = new THREE.Vector3();
+  const pathDir = new THREE.Vector3(0, 0, 1);
+  function resetRingPath() {
+    pathPos.copy(glider.position).addScaledVector(fwd, 110);
+    pathDir.copy(fwd); pathDir.y = 0; pathDir.normalize();
+  }
+  function ensureRings() {
+    // cull rings well behind the player
+    for (let i = rings.length - 1; i >= 0; i--) {
+      const r = rings[i];
+      _v.copy(r.pos).sub(glider.position);
+      if (_v.dot(fwd) < -70) { scene.remove(r.mesh); r.mesh.material.dispose(); rings.splice(i, 1); }
+    }
+    // re-anchor the path if it has drifted behind or too far
+    _v.copy(pathPos).sub(glider.position);
+    if (_v.dot(fwd) < 0 || _v.length() > 360) resetRingPath();
+    // keep a few rings ahead
+    while (rings.length < 5) {
+      const yaw = (Math.random() - 0.5) * 0.5;
+      const cs = Math.cos(yaw), sn = Math.sin(yaw);
+      const nx = pathDir.x * cs - pathDir.z * sn;
+      const nz = pathDir.x * sn + pathDir.z * cs;
+      pathDir.set(nx, 0, nz).normalize();
+      pathPos.addScaledVector(pathDir, 96);
+      const gy = Math.max(terrainH(pathPos.x, pathPos.z) + 17, 13);
+      spawnRing(pathPos.x, gy, pathPos.z, pathDir);
+    }
+  }
+
+  // ---------- particles ----------
+  const PMAX = 160;
+  const pGeo = new THREE.BufferGeometry();
+  const pPos = new Float32Array(PMAX * 3), pCol = new Float32Array(PMAX * 3);
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+  pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+  const pData = Array.from({ length: PMAX }, () => ({ life: 0, vx: 0, vy: 0, vz: 0 }));
+  const points = new THREE.Points(pGeo, new THREE.PointsMaterial({ size: 1.1, vertexColors: true, transparent: true, depthWrite: false }));
+  points.frustumCulled = false;
+  scene.add(points);
+  let pHead = 0;
+  function burst(x, y, z, color, n, spread) {
+    const c = new THREE.Color(color);
+    for (let i = 0; i < n; i++) {
+      const idx = pHead; pHead = (pHead + 1) % PMAX;
+      pPos[idx * 3] = x; pPos[idx * 3 + 1] = y; pPos[idx * 3 + 2] = z;
+      pCol[idx * 3] = c.r; pCol[idx * 3 + 1] = c.g; pCol[idx * 3 + 2] = c.b;
+      const d = pData[idx];
+      d.life = 0.7 + Math.random() * 0.5;
+      d.vx = (Math.random() - 0.5) * spread;
+      d.vy = (Math.random() - 0.5) * spread + spread * 0.3;
+      d.vz = (Math.random() - 0.5) * spread;
+    }
+  }
+  function updateParticles(dt) {
+    for (let i = 0; i < PMAX; i++) {
+      const d = pData[i];
+      if (d.life <= 0) { if (pPos[i * 3 + 1] < 9998) { pPos[i * 3 + 1] = 9999; } continue; }
+      d.life -= dt;
+      d.vy -= 18 * dt;
+      pPos[i * 3] += d.vx * dt; pPos[i * 3 + 1] += d.vy * dt; pPos[i * 3 + 2] += d.vz * dt;
+      if (d.life <= 0) pPos[i * 3 + 1] = 9999;
+    }
+    pGeo.attributes.position.needsUpdate = true;
+    pGeo.attributes.color.needsUpdate = true;
+  }
+
+  // ---------- audio (bleeps) ----------
+  let actx = null;
+  function beep(freq, dur, type, vol) {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = type || 'sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol || 0.06, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + (dur || 0.12));
+      o.connect(g).connect(actx.destination);
+      o.start(); o.stop(actx.currentTime + (dur || 0.12));
+    } catch (e) { /* no audio */ }
+  }
+
+  // ---------- state ----------
+  const fwd = new THREE.Vector3(0, 0, 1);
+  const _v = new THREE.Vector3();
+  const camTarget = new THREE.Vector3();
+  const state = { mode: 'title', heading: 0, pitch: 0, roll: 0, speed: 30, dist: 0, rings: 0,
+    best: +(localStorage.getItem(BEST_KEY) || 0) || 0, steerX: 0, steerY: 0, shake: 0, t0: 0 };
+
+  const elDist = document.getElementById('dist'), elRings = document.getElementById('rings'),
+        elSpd = document.getElementById('spd'), elBest = document.getElementById('best');
+  document.getElementById('best').textContent = Math.round(state.best);
+
+  function computeFwd() {
+    const cp = Math.cos(state.pitch), sp = Math.sin(state.pitch);
+    fwd.set(Math.sin(state.heading) * cp, sp, Math.cos(state.heading) * cp).normalize();
+  }
+  function resetFlight() {
+    state.heading = 0; state.pitch = 0; state.roll = 0; state.speed = 30;
+    state.dist = 0; state.rings = 0; state.steerX = 0; state.steerY = 0; state.shake = 0;
+    computeFwd();
+    const startY = Math.max(terrainH(0, 0) + 46, 52);
+    glider.position.set(0, startY, 0);
+    for (const r of rings) { scene.remove(r.mesh); r.mesh.material.dispose(); }
+    rings.length = 0;
+    updateChunks(0, 0);
+    resetRingPath();
+    ensureRings();
+  }
+
+  // ---------- input ----------
+  const keys = {};
+  addEventListener('keydown', e => {
+    const k = e.key;
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(k)) e.preventDefault();
+    keys[k.toLowerCase()] = true;
+    if ((k === 'Enter' || k === ' ') && state.mode === 'title') start();
+    else if ((k === 'r' || k === 'R') && state.mode !== 'title') { start(); }
+  });
+  addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+  let pointerActive = false;
+  function pointerSteer(clientX, clientY) {
+    state.steerX = (clientX / innerWidth - 0.5) * 2;   // -1..1
+    state.steerY = (clientY / innerHeight - 0.5) * 2;
+  }
+  renderer.domElement.addEventListener('pointermove', e => {
+    if (state.mode === 'play') pointerSteer(e.clientX, e.clientY);
+  });
+  renderer.domElement.addEventListener('pointerdown', e => {
+    pointerActive = true;
+    if (state.mode === 'play') pointerSteer(e.clientX, e.clientY);
+  });
+  addEventListener('pointerup', () => { pointerActive = false; });
+
+  document.getElementById('startBtn').addEventListener('click', start);
+  document.getElementById('againBtn').addEventListener('click', start);
+  document.getElementById('startOverlay').addEventListener('click', e => {
+    if (e.target.id === 'startOverlay') start();
+  });
+
+  function start() {
+    document.getElementById('startOverlay').classList.add('hidden');
+    document.getElementById('overOverlay').classList.add('hidden');
+    document.getElementById('hud').style.display = 'block';
+    document.getElementById('hint').style.display = 'block';
+    resetFlight();
+    state.mode = 'play';
+    beep(523, 0.1, 'sine', 0.05); setTimeout(() => beep(784, 0.14, 'sine', 0.05), 90);
+  }
+  function gameOver() {
+    state.mode = 'over';
+    if (state.dist > state.best) { state.best = state.dist; localStorage.setItem(BEST_KEY, Math.round(state.best)); }
+    document.getElementById('goDist').textContent = Math.round(state.dist);
+    document.getElementById('goRings').textContent = state.rings;
+    document.getElementById('goBest').textContent =
+      (state.dist >= state.best ? '★ NEW BEST!' : 'Best: ' + Math.round(state.best) + ' m');
+    document.getElementById('overOverlay').classList.remove('hidden');
+    document.getElementById('hint').style.display = 'none';
+    beep(300, 0.18, 'sawtooth', 0.07); setTimeout(() => beep(150, 0.3, 'sawtooth', 0.07), 120);
+  }
+
+  // ---------- resize ----------
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+
+  // ---------- loop ----------
+  let last = performance.now(), idleT = 0;
+  function frame(now) {
+    let dt = (now - last) / 1000; last = now;
+    if (dt > 0.05) dt = 0.05;
+
+    if (state.mode === 'play') {
+      // steering: pointer + keys
+      let yawRate = -state.steerX * 1.15;
+      let pitchTarget = -state.steerY * 0.42;
+      if (keys['a'] || keys['arrowleft']) yawRate += 1.1;
+      if (keys['d'] || keys['arrowright']) yawRate -= 1.1;
+      if (keys['w'] || keys['arrowup']) pitchTarget = 0.42;
+      if (keys['s'] || keys['arrowdown']) pitchTarget = -0.42;
+
+      state.heading += yawRate * dt;
+      state.pitch += (pitchTarget - state.pitch) * Math.min(1, dt * 3.2);
+      state.pitch = Math.max(-0.55, Math.min(0.55, state.pitch));
+      state.roll += ((-yawRate * 0.42) - state.roll) * Math.min(1, dt * 4);
+      computeFwd();
+
+      state.speed = Math.min(62, state.speed + dt * 0.7);
+      glider.position.addScaledVector(fwd, state.speed * dt);
+      state.dist += state.speed * dt;
+
+      // orient glider
+      glider.rotation.set(0, 0, 0);
+      glider.rotateY(state.heading);
+      glider.rotateX(state.pitch);
+      glider.rotateZ(state.roll);
+
+      // terrain + rings streaming
+      updateChunks(glider.position.x, glider.position.z);
+      ensureRings();
+
+      // ring collection
+      for (let i = rings.length - 1; i >= 0; i--) {
+        const r = rings[i];
+        if (r.got) continue;
+        const d = glider.position.distanceTo(r.pos);
+        if (d < RING_R * 0.92) {
+          r.got = true; state.rings++;
+          burst(r.pos.x, r.pos.y, r.pos.z, r.mesh.material.color.getHex(), 26, 16);
+          scene.remove(r.mesh); r.mesh.material.dispose(); rings.splice(i, 1);
+          beep(760 + Math.min(state.rings, 12) * 40, 0.12, 'triangle', 0.06);
+        }
+      }
+
+      // crash detection
+      const groundH = terrainH(glider.position.x, glider.position.z);
+      const floor = Math.max(groundH + 1.6, WATER_Y + 0.7);
+      if (glider.position.y < floor) {
+        burst(glider.position.x, floor, glider.position.z, 0xffaa55, 60, 22);
+        state.shake = 0.6;
+        gameOver();
+      }
+
+      // HUD
+      elDist.textContent = Math.round(state.dist);
+      elRings.textContent = state.rings;
+      elSpd.textContent = Math.round(state.speed);
+      elBest.textContent = Math.round(Math.max(state.best, state.dist));
+    } else {
+      // title / over: idle glider bob + slow drift so the scene stays alive
+      idleT += dt;
+      if (state.mode === 'title') {
+        computeFwd();
+        glider.position.addScaledVector(fwd, 22 * dt);
+        state.dist += 22 * dt;
+        glider.position.y = Math.max(terrainH(0,0) + 46, 52) + Math.sin(idleT * 1.1) * 1.4;
+        state.heading += Math.sin(idleT * 0.25) * 0.12 * dt;
+        glider.rotation.set(0, 0, 0);
+        glider.rotateY(state.heading); glider.rotateZ(Math.sin(idleT * 0.5) * 0.12);
+        updateChunks(glider.position.x, glider.position.z);
+      }
+    }
+
+    // water & clouds follow the glider
+    water.position.x = Math.round(glider.position.x / CHUNK) * CHUNK;
+    water.position.z = Math.round(glider.position.z / CHUNK) * CHUNK;
+    if (window._sky) window._sky.position.copy(camera.position);
+    for (const g of clouds) {
+      const i = g.userData.seed;
+      const bx = glider.position.x + (hash2(i, 1) - 0.5) * 620;
+      const bz = glider.position.z + (hash2(i, 2) - 0.5) * 620;
+      const wrap = 500;
+      g.position.set(
+        glider.position.x + (((bx - glider.position.x) % wrap + wrap) % wrap) - wrap / 2,
+        128 + (hash2(i, 3) - 0.5) * 40,
+        glider.position.z + (((bz + idleT * g.userData.spd - glider.position.z) % wrap + wrap) % wrap) - wrap / 2
+      );
+    }
+
+    // sun + shadow camera follow
+    sun.target.position.copy(glider.position);
+    sun.position.set(glider.position.x - 70, glider.position.y + 96, glider.position.z - 46);
+
+    updateParticles(dt);
+
+    // camera
+    if (state.mode === 'play' || state.mode === 'over') {
+      _v.copy(glider.position).addScaledVector(fwd, -14); _v.y += 5.5;
+      camera.position.lerp(_v, Math.min(1, dt * 3.2));
+      camTarget.copy(glider.position).addScaledVector(fwd, 12);
+      if (state.shake > 0) {
+        state.shake -= dt;
+        camera.position.x += (Math.random() - 0.5) * state.shake * 3;
+        camera.position.y += (Math.random() - 0.5) * state.shake * 3;
+      }
+      camera.lookAt(camTarget);
+    } else {
+      const a = idleT * 0.28;
+      camera.position.set(glider.position.x + Math.cos(a) * 24, glider.position.y + 9, glider.position.z + Math.sin(a) * 24 - 6);
+      camera.lookAt(glider.position.x, glider.position.y + 1, glider.position.z + 6);
+    }
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- boot ----------
+  resetFlight();
+  state.mode = 'title';
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # 🎮 Wizzed Arcade — Game & Tool Catalog
 
-A complete reference to everything in the arcade. **98 games** and **56 tools**, plus **11 preserved classics** in [The Old Arcade](old.html).
+A complete reference to everything in the arcade. **99 games** and **56 tools**, plus **11 preserved classics** in [The Old Arcade](old.html).
 
 Every entry is a single standalone HTML file — no build step, no dependencies (except the 3D games, which load `lib/three.min.js`). Open any file directly in a browser, or browse them all from [`index.html`](index.html). Each game/tool has 5 preview screenshots under `shots/<slug>/1..5.jpg`.
 
@@ -21,8 +21,8 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🎮 Board & Strategy | 9 |
 | 🎮 Word, Trivia & Number | 11 |
 | 🎮 Cards & Casino | 12 |
-| 🎮 3D | 10 |
-| **Games total** | **98** |
+| 🎮 3D | 11 |
+| **Games total** | **99** |
 | 🛠️ Productivity | 11 |
 | 🛠️ Text & Dev | 8 |
 | 🛠️ Numbers & Calculators | 9 |
@@ -161,7 +161,7 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🎡 **Pixel Roulette** | Roulette | [`games/roulette.html`](games/roulette.html) | Place your chips, watch the ball rattle in. European wheel, real payouts. |
 | 🎰 **Video Poker** | Jacks or Better | [`games/video-poker.html`](games/video-poker.html) | Hold the right cards and chase the royal flush paytable. |
 
-### 3D  (10)
+### 3D  (11)
 
 | Game | Genre | File | Description |
 | --- | --- | --- | --- |
@@ -169,6 +169,7 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🌪️ **Helix Drop** `3D` `NEW` | 3D Drop | [`games/helix-drop-3d.html`](games/helix-drop-3d.html) | Rotate the tower, dodge the red, smash through on streaks. |
 | 🌀 **Maze Runner 3D** `3D` | 3D Maze | [`games/maze-3d.html`](games/maze-3d.html) | First-person neon labyrinths that grow with every escape. |
 | ⚽ **Roll Master 3D** `3D` `NEW` | 3D Course | [`games/ball-roll-3d.html`](games/ball-roll-3d.html) | Momentum, narrow bridges, and gems begging to be grabbed. |
+| 🌄 **Skyward** `3D` `NEW` | Endless Flight | [`games/skyward-3d.html`](games/skyward-3d.html) | Soar an infinite sunlit world — dive through rings, chase the horizon forever. |
 | 🪐 **Solar System 3D** `3D` | 3D Explorer | [`games/solar-3d.html`](games/solar-3d.html) | Orbit the planets, spin time faster, click any world for its story. |
 | 🧱 **Stack Tower 3D** `3D` | 3D Timing | [`games/stack-3d.html`](games/stack-3d.html) | Slice, stack and climb — every overhang tumbles away in 3D. |
 | 🛸 **Star Flight** `3D` | 3D Flyer | [`games/star-flight-3d.html`](games/star-flight-3d.html) | Bank through an endless asteroid field at ever-increasing speed. |
@@ -293,7 +294,7 @@ The original eleven, preserved exactly as they were. Reachable from [`old.html`]
 
 
 - **`index.html`** — the frontpage. A sticky bar at the top toggles between the **Games** and **Tools** views and holds the category filter chips, search box, and a **light/dark theme toggle** (defaults to your system preference, saved in `localStorage`; the Old Arcade shares the same preference). Hover any card to preview its 5 screenshots.
-- **`games/`** — the 98 games. **`tools/`** — the 56 tools. **`games/old/`** — the 11 classics.
+- **`games/`** — the 99 games. **`tools/`** — the 56 tools. **`games/old/`** — the 11 classics.
 - **`old.html`** — landing page for The Old Arcade.
 - **`shots/<slug>/1..5.jpg`** — five gameplay screenshots per entry, captured at 800×500. The frontpage cycles through them on hover.
 - **`lib/three.min.js`** — three.js r160 (UMD), used by the 3D games and the frontpage hero.

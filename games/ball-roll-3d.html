@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roll Master 3D – Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #0f0f1a; overflow: hidden; color: #cfe9ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+  }
+  canvas { display: block; }
+  a.back {
+    position: fixed; top: 12px; left: 12px; z-index: 30;
+    color: #7f8fc0; text-decoration: none; font-size: 13px;
+    background: rgba(12,12,32,0.7); border: 1px solid #26264d;
+    padding: 5px 10px; border-radius: 6px;
+  }
+  a.back:hover { color: #4ff3ff; border-color: #4ff3ff; }
+  #title {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 20; font-size: 15px; letter-spacing: 3px; color: #4ff3ff;
+    text-shadow: 0 0 14px #00c8ff; pointer-events: none; white-space: nowrap;
+  }
+  #hud {
+    position: fixed; top: 12px; right: 12px; z-index: 20; text-align: right;
+    font-size: 13px; color: #9fd8ff; text-shadow: 0 0 8px #2288ff;
+    background: rgba(10,10,28,0.66); border: 1px solid #23234a;
+    padding: 8px 12px; border-radius: 8px; pointer-events: none; line-height: 1.55;
+  }
+  #hud .b { color: #ffd34f; text-shadow: 0 0 10px #ff9a00; }
+  #hud .g { color: #6bffb8; text-shadow: 0 0 10px #00cc66; }
+  #msg {
+    position: fixed; left: 50%; top: 30%; transform: translate(-50%,-50%);
+    z-index: 22; font-size: 22px; letter-spacing: 2px; color: #6bffb8;
+    text-shadow: 0 0 16px #00cc66; pointer-events: none; opacity: 0;
+    transition: opacity 0.35s; white-space: nowrap; text-align: center;
+  }
+  #msg.show { opacity: 1; }
+  #overlay {
+    position: fixed; inset: 0; z-index: 26; display: flex;
+    align-items: center; justify-content: center; flex-direction: column;
+    background: rgba(8,8,22,0.42); backdrop-filter: blur(2px);
+    text-align: center; cursor: pointer;
+  }
+  #overlay.hidden { display: none; }
+  #overlay .panel {
+    background: rgba(10,10,30,0.72); border: 1px solid #2c2c5e;
+    border-radius: 14px; padding: 26px 40px; box-shadow: 0 0 40px #0033aa55;
+  }
+  #ov-title {
+    font-size: clamp(24px, 5vw, 40px); letter-spacing: 5px; color: #4ff3ff;
+    text-shadow: 0 0 22px #00c8ff, 0 0 60px #0055ff;
+  }
+  #ov-sub { margin-top: 12px; font-size: 14px; color: #9fd8ff; text-shadow: 0 0 8px #2288ff; line-height: 1.7; }
+  #ov-hint { margin-top: 18px; font-size: 13px; color: #ffe14f; text-shadow: 0 0 10px #ff9a00; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<div id="title">✦ ROLL MASTER 3D ✦</div>
+<div id="hud">
+  <span id="cname">COURSE 1</span> <span id="cnum">1/5</span><br>
+  GEMS <span class="g" id="gems">0</span>/<span id="gemtotal">0</span> · RUN <span class="g" id="rungems">0</span><br>
+  FALLS <span id="falls">0</span> · BEST <span class="b" id="best">0</span>
+</div>
+<div id="msg"></div>
+<div id="overlay">
+  <div class="panel">
+    <div id="ov-title">ROLL MASTER 3D</div>
+    <div id="ov-sub">Roll the ball with ARROWS / WASD — it has momentum!<br>Collect gems, reach the gold beacon.<br>Checkpoint flags save your spot. Don't roll off!</div>
+    <div id="ov-hint">CLICK or ENTER / SPACE to roll</div>
+  </div>
+</div>
+<script src="../lib/three.min.js"></script>
+<script>
+'use strict';
+// ── Roll Master 3D ─────────────────────────────────────────────────────────
+const SLUG = 'wizzed-ball-roll-3d';
+let save = { course: 0, best: 0 };
+try {
+  const raw = localStorage.getItem(SLUG);
+  if (raw) {
+    const p = JSON.parse(raw);
+    if (p && typeof p === 'object') save = { course: p.course | 0, best: p.best | 0 };
+  }
+} catch (e) {}
+function persist() { try { localStorage.setItem(SLUG, JSON.stringify(save)); } catch (e) {} }
+document.getElementById('best').textContent = save.best;
+
+const BR = 0.45;      // ball radius
+const GRAV = 26;
+const ACCEL = 24;
+const MAXSPD = 13;
+
+// ── Audio (lazy) ───────────────────────────────────────────────────────────
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+}
+function blip(freq, dur, type, vol) {
+  if (!audioCtx) return;
+  try {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = type || 'square'; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol || 0.08, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + dur);
+  } catch (e) {}
+}
+
+// ── Scene ──────────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f0f1a);
+scene.fog = new THREE.Fog(0x0f0f1a, 32, 110);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 300);
+camera.position.set(0, 8, 14);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+scene.add(new THREE.AmbientLight(0x334466, 1.3));
+scene.add(new THREE.HemisphereLight(0x7788ff, 0x120a24, 0.9));
+const sun = new THREE.DirectionalLight(0xeef2ff, 1.8);
+sun.position.set(8, 16, 6);
+scene.add(sun);
+const pinkPt = new THREE.PointLight(0xff44cc, 5, 40, 1.2);
+pinkPt.position.set(-12, 8, -14);
+scene.add(pinkPt);
+const cyanPt = new THREE.PointLight(0x22ccff, 5, 40, 1.2);
+cyanPt.position.set(12, 8, -26);
+scene.add(cyanPt);
+
+// distant grid + stars
+const grid = new THREE.GridHelper(400, 50, 0x2b3a7a, 0x14142e);
+grid.position.y = -16;
+scene.add(grid);
+{
+  const n = 350, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const r = 120 + Math.random() * 80, a = Math.random() * Math.PI * 2, e = Math.random() * Math.PI - Math.PI / 2;
+    pos[i * 3] = Math.cos(a) * Math.cos(e) * r;
+    pos[i * 3 + 1] = Math.sin(e) * r * 0.6 + 20;
+    pos[i * 3 + 2] = Math.sin(a) * Math.cos(e) * r;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8899ff, size: 0.7, sizeAttenuation: true })));
+}
+
+// ── Ball ───────────────────────────────────────────────────────────────────
+function ballTexture() {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#16f0d8'; g.fillRect(0, 0, 256, 128);
+  g.fillStyle = '#0a2a55';
+  for (let i = 0; i < 8; i++) g.fillRect(i * 32, 0, 16, 128);
+  g.fillStyle = '#ff3fa8'; g.fillRect(0, 56, 256, 16);
+  return new THREE.CanvasTexture(c);
+}
+const ball = new THREE.Mesh(
+  new THREE.SphereGeometry(BR, 28, 20),
+  new THREE.MeshStandardMaterial({ map: ballTexture(), roughness: 0.15, metalness: 0.35 })
+);
+scene.add(ball);
+const ballGlow = new THREE.PointLight(0x4fffd9, 3, 6, 1.8);
+scene.add(ballGlow);
+
+// ── Course definitions ─────────────────────────────────────────────────────
+// P: {x,z,w,d, y (top at +z edge), y2 (top at -z edge, ramp), move:{axis,amp,speed,phase}}
+function P(x, z, w, d, y, o) { return Object.assign({ x, z, w, d, y: y || 0 }, o || {}); }
+const COURSES = [
+  {
+    name: 'FIRST ROLL',
+    plats: [
+      P(0, 0, 6, 6), P(0, -9, 4, 12), P(0, -18, 8, 8),
+      P(0, -26, 4, 8, 0, { y2: 1.6 }), P(0, -34, 8, 8, 1.6)
+    ],
+    gems: [[0, 1, -6], [0, 1, -11], [-2.5, 1, -18], [2.5, 1, -18], [0, 2.2, -25], [0, 2.6, -33]],
+    checkpoints: [[0, 0, -18]],
+    goal: [0, 1.6, -35.5]
+  },
+  {
+    name: 'NARROW PATH',
+    plats: [
+      P(0, 0, 6, 6), P(0, -9, 1.7, 12), P(0, -18, 6, 6),
+      P(-7, -18, 8, 1.7), P(-13.5, -18, 6, 6), P(-13.5, -26, 1.6, 10), P(-13.5, -33.5, 6, 6)
+    ],
+    gems: [[0, 1, -7], [0, 1, -11], [-5, 1, -18], [-9, 1, -18], [-13.5, 1, -24], [-13.5, 1, -28], [-13.5, 1, -33.5]],
+    checkpoints: [[0, 0, -18], [-13.5, 0, -18]],
+    goal: [-13.5, 0, -35]
+  },
+  {
+    name: 'MOVING GAPS',
+    plats: [
+      P(0, 0, 6, 6), P(0, -6, 5, 6),
+      P(0, -10.5, 3, 3, 0, { move: { axis: 'x', amp: 3, speed: 1.1, phase: 0 } }),
+      P(0, -15, 5, 6),
+      P(0, -19.5, 3, 3, 0, { move: { axis: 'x', amp: 3.2, speed: 1.5, phase: 2 } }),
+      P(0, -22.5, 3, 3, 0, { move: { axis: 'x', amp: 3.2, speed: 1.5, phase: 4.4 } }),
+      P(0, -27, 6, 6)
+    ],
+    gems: [[0, 1, -5], [0, 1, -8], [0, 1, -10.5], [-1.5, 1, -14], [1.5, 1, -14], [0, 1, -19.5], [0, 1, -22.5], [2, 1, -27]],
+    checkpoints: [[0, 0, -15]],
+    goal: [0, 0, -27.5]
+  },
+  {
+    name: 'RIDGE RUNNER',
+    plats: [
+      P(0, 0, 6, 6), P(0, -7, 4, 8, 0, { y2: 2 }), P(0, -15, 3, 8, 2),
+      P(0, -23, 4, 8, 2, { y2: 0 }), P(0, -29, 6, 6),
+      P(0, -36, 3, 8, 0, { y2: 3 }), P(0, -44, 1.7, 8, 3), P(0, -51, 6, 6, 3)
+    ],
+    gems: [[0, 2, -7], [0, 3, -13], [0, 3, -15], [0, 3, -17], [-2, 1, -29], [0, 2.5, -36], [0, 4, -42], [0, 4, -46]],
+    checkpoints: [[0, 2, -13], [0, 0, -29]],
+    goal: [0, 3, -51.5]
+  },
+  {
+    name: 'THE GAUNTLET',
+    plats: [
+      P(0, 0, 5, 5), P(0, -7, 1.6, 10), P(0, -13.5, 4, 4),
+      P(-5, -13.5, 2.6, 2.6, 0, { move: { axis: 'x', amp: 1.8, speed: 1.3, phase: 0 } }),
+      P(-10, -13.5, 4, 4),
+      P(-10, -19, 3, 8, 0, { y2: 2.4 }), P(-10, -26, 1.5, 6, 2.4),
+      P(-10, -30.3, 2.6, 2.6, 2.4, { move: { axis: 'x', amp: 3, speed: 1.7, phase: 1 } }),
+      P(-10, -34, 5, 5, 2.4)
+    ],
+    gems: [[0, 1, -5], [0, 1, -9.5], [0, 1, -13.5], [-5, 1, -13.5], [-10, 1, -13.5],
+           [-10, 1.6, -17], [-10, 3.4, -25], [-10, 3.4, -28], [-10, 3.4, -30.3], [-8, 3.4, -34.5]],
+    checkpoints: [[0, 0, -13.5], [-10, 0, -13.5], [-10, 2.4, -26]],
+    goal: [-10, 2.4, -34.5]
+  }
+];
+
+// ── Course building ────────────────────────────────────────────────────────
+let courseGroup = new THREE.Group();
+scene.add(courseGroup);
+let plats = [], gems = [], checkpoints = [], goal = null;
+let courseIdx = 0, runGems = 0, courseGems = 0, falls = 0;
+let checkpointPos = new THREE.Vector3(0, 2, 0);
+let courseCenter = new THREE.Vector3();
+
+const platTopMat = new THREE.MeshStandardMaterial({ color: 0x1a1a3e, roughness: 0.55, metalness: 0.25, emissive: 0x0a1030, emissiveIntensity: 0.6 });
+const edgeMatA = new THREE.LineBasicMaterial({ color: 0x2de9ff });
+const edgeMatB = new THREE.LineBasicMaterial({ color: 0xb14bff });
+const gemMat = new THREE.MeshStandardMaterial({ color: 0xff3fa8, emissive: 0xff2288, emissiveIntensity: 1.1, roughness: 0.2 });
+const gemGeo = new THREE.OctahedronGeometry(0.34);
+
+function topOf(p, worldZ, worldX) {
+  if (p.y2 === undefined) return p.y;
+  const zLocal = worldZ - (p.oz || 0);
+  let u = ((p.z + p.d / 2) - zLocal) / p.d;
+  u = Math.max(0, Math.min(1, u));
+  return p.y + (p.y2 - p.y) * u;
+}
+
+function buildCourse(i) {
+  scene.remove(courseGroup);
+  courseGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+  courseGroup = new THREE.Group();
+  scene.add(courseGroup);
+  plats = []; gems = []; checkpoints = []; goal = null;
+  const def = COURSES[i];
+  const TH = 0.6;
+  let cx = 0, cz = 0;
+  def.plats.forEach((pd, k) => {
+    const p = Object.assign({ ox: 0, oz: 0, dx: 0, dz: 0 }, pd);
+    const isRamp = p.y2 !== undefined;
+    const geo = new THREE.BoxGeometry(p.w, TH, p.d);
+    const mesh = new THREE.Mesh(geo, platTopMat);
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), p.move ? edgeMatB : edgeMatA);
+    mesh.add(edges);
+    if (isRamp) {
+      mesh.rotation.x = Math.atan2(p.y2 - p.y, p.d);
+      mesh.position.set(p.x, (p.y + p.y2) / 2 - TH / 2, p.z);
+    } else {
+      mesh.position.set(p.x, p.y - TH / 2, p.z);
+    }
+    p.mesh = mesh;
+    courseGroup.add(mesh);
+    plats.push(p);
+    cx += p.x; cz += p.z;
+  });
+  courseCenter.set(cx / def.plats.length, 2, cz / def.plats.length);
+
+  def.gems.forEach(g => {
+    const m = new THREE.Mesh(gemGeo, gemMat);
+    m.position.set(g[0], g[1], g[2]);
+    courseGroup.add(m);
+    gems.push({ m, baseY: g[1], taken: false, ph: Math.random() * 6 });
+  });
+  document.getElementById('gemtotal').textContent = gems.length;
+
+  def.checkpoints.forEach(c => {
+    const grp = new THREE.Group();
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.7, 8),
+      new THREE.MeshStandardMaterial({ color: 0x8899bb, roughness: 0.4, metalness: 0.6 }));
+    pole.position.y = 0.85;
+    const flagMat = new THREE.MeshStandardMaterial({ color: 0x555577, emissive: 0x333355, emissiveIntensity: 0.8, side: THREE.DoubleSide });
+    const flag = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.42, 0.05), flagMat);
+    flag.position.set(0.38, 1.45, 0);
+    grp.add(pole); grp.add(flag);
+    grp.position.set(c[0], c[1], c[2]);
+    courseGroup.add(grp);
+    checkpoints.push({ pos: new THREE.Vector3(c[0], c[1], c[2]), flagMat, active: false, grp });
+  });
+
+  const gd = def.goal;
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.3, 0.25, 24),
+    new THREE.MeshStandardMaterial({ color: 0x332200, emissive: 0xffaa00, emissiveIntensity: 1.0 }));
+  pad.position.set(gd[0], gd[1] + 0.13, gd[2]);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 7, 16, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xffcc44, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false }));
+  beam.position.set(gd[0], gd[1] + 3.6, gd[2]);
+  const halo = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.06, 8, 32),
+    new THREE.MeshBasicMaterial({ color: 0xffd34f }));
+  halo.rotation.x = Math.PI / 2;
+  halo.position.set(gd[0], gd[1] + 0.5, gd[2]);
+  courseGroup.add(pad); courseGroup.add(beam); courseGroup.add(halo);
+  goal = { pos: new THREE.Vector3(gd[0], gd[1], gd[2]), beam, halo };
+
+  // reset ball at start
+  checkpointPos.set(0, BR + 0.6, 0);
+  const startP = plats[0];
+  checkpointPos.set(startP.x, startP.y + BR + 0.4, startP.z + startP.d / 2 - 1);
+  respawn(false);
+  courseGems = 0;
+  document.getElementById('cname').textContent = def.name;
+  document.getElementById('cnum').textContent = (i + 1) + '/5';
+  document.getElementById('gems').textContent = 0;
+}
+
+// ── Ball state ─────────────────────────────────────────────────────────────
+const vel = new THREE.Vector3();
+let vy = 0, grounded = false, groundPlat = null;
+
+function respawn(count) {
+  ball.position.copy(checkpointPos);
+  vel.set(0, 0, 0); vy = 0; grounded = false; groundPlat = null;
+  if (count) {
+    falls++;
+    document.getElementById('falls').textContent = falls;
+    blip(160, 0.3, 'sawtooth', 0.08);
+  }
+}
+
+// ── Particles ──────────────────────────────────────────────────────────────
+const parts = [];
+const partGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+for (let i = 0; i < 40; i++) {
+  const m = new THREE.Mesh(partGeo, new THREE.MeshBasicMaterial({ color: 0xff3fa8, transparent: true }));
+  m.visible = false; scene.add(m);
+  parts.push({ m, vel: new THREE.Vector3(), life: 0 });
+}
+function burst(pos, color, n) {
+  let c = 0;
+  for (const p of parts) {
+    if (p.life > 0) continue;
+    p.life = 0.6;
+    p.m.visible = true;
+    p.m.material.color.setHex(color);
+    p.m.material.opacity = 1;
+    p.m.position.copy(pos);
+    p.vel.set((Math.random() - 0.5) * 6, 2 + Math.random() * 4, (Math.random() - 0.5) * 6);
+    if (++c >= n) break;
+  }
+}
+
+// ── State / overlay ────────────────────────────────────────────────────────
+let state = 'menu';    // menu | play | done | won
+let doneTimer = 0;
+const keys = {};
+const overlay = document.getElementById('overlay');
+const msgEl = document.getElementById('msg');
+let msgTimer = null;
+function showMsg(html) {
+  msgEl.innerHTML = html;
+  msgEl.classList.add('show');
+  clearTimeout(msgTimer);
+  msgTimer = setTimeout(() => msgEl.classList.remove('show'), 1400);
+}
+
+function startGame() {
+  if (state === 'won') { courseIdx = 0; runGems = 0; falls = 0; document.getElementById('falls').textContent = 0; document.getElementById('rungems').textContent = 0; buildCourse(0); }
+  state = 'play';
+  overlay.classList.add('hidden');
+  blip(660, 0.12, 'square', 0.06);
+}
+
+function courseComplete() {
+  state = 'done';
+  doneTimer = 2.6;
+  burst(ball.position, 0xffd34f, 20);
+  blip(523, 0.12, 'triangle', 0.08);
+  setTimeout(() => blip(659, 0.12, 'triangle', 0.08), 130);
+  setTimeout(() => blip(784, 0.2, 'triangle', 0.08), 260);
+  showMsg('COURSE CLEAR!<br><span style="font-size:14px">gems ' + courseGems + '/' + gems.length + '</span>');
+  if (courseIdx + 1 > save.course) { save.course = courseIdx + 1; }
+  if (runGems > save.best) { save.best = runGems; document.getElementById('best').textContent = save.best; }
+  persist();
+}
+
+function gameWon() {
+  state = 'won';
+  if (runGems > save.best) { save.best = runGems; document.getElementById('best').textContent = save.best; }
+  save.course = 0; // full clear: next run starts fresh
+  persist();
+  document.getElementById('ov-title').textContent = 'ALL COURSES CLEAR!';
+  document.getElementById('ov-sub').innerHTML =
+    'Run gems: <b style="color:#6bffb8">' + runGems + '</b> · Falls: ' + falls +
+    '<br>Best gem run: <b style="color:#ffd34f">' + save.best + '</b>';
+  document.getElementById('ov-hint').textContent = 'R / CLICK / ENTER to roll again';
+  overlay.classList.remove('hidden');
+}
+
+// ── Input ──────────────────────────────────────────────────────────────────
+addEventListener('keydown', e => {
+  initAudio();
+  keys[e.code] = true;
+  if (e.code === 'Space' || e.code === 'Enter') {
+    e.preventDefault();
+    if (state === 'menu' || state === 'won') startGame();
+  }
+  if (e.code === 'KeyR') {
+    if (state === 'won') startGame();
+    else if (state === 'play') respawn(true);   // manual reset to checkpoint
+  }
+  if (state === 'play' && e.code.startsWith('Digit')) {
+    const n = +e.code.slice(5) - 1;
+    if (n >= 0 && n < 5 && n <= save.course) { courseIdx = n; runGems = 0; document.getElementById('rungems').textContent = 0; buildCourse(n); showMsg('COURSE ' + (n + 1)); }
+  }
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+overlay.addEventListener('pointerdown', e => { initAudio(); e.stopPropagation(); if (state === 'menu' || state === 'won') startGame(); });
+renderer.domElement.addEventListener('pointerdown', () => { initAudio(); });
+
+// ── Init ───────────────────────────────────────────────────────────────────
+courseIdx = Math.min(save.course, 4);
+buildCourse(courseIdx);
+if (courseIdx > 0) document.getElementById('ov-sub').innerHTML += '<br><span style="color:#6bffb8">Resuming at course ' + (courseIdx + 1) + ' — keys 1-' + (courseIdx + 1) + ' switch courses.</span>';
+
+// ── Physics + loop ─────────────────────────────────────────────────────────
+const _q = new THREE.Quaternion();
+const _axis = new THREE.Vector3();
+const camTarget = new THREE.Vector3();
+let camLean = 0;
+let lastT = 0;
+
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const t = ts / 1000;
+  const dt = Math.min((ts - lastT) / 1000, 0.04);
+  lastT = ts;
+
+  // moving platforms
+  for (const p of plats) {
+    if (!p.move) continue;
+    const off = Math.sin(t * p.move.speed + p.move.phase) * p.move.amp;
+    if (p.move.axis === 'x') {
+      p.dx = off - p.ox; p.dz = 0; p.ox = off;
+      p.mesh.position.x = p.x + off;
+    } else {
+      p.dz = off - p.oz; p.dx = 0; p.oz = off;
+      p.mesh.position.z = p.z + off;
+    }
+  }
+
+  if (state === 'play' || state === 'done') {
+    // input (world axes; camera looks -z)
+    let ax = 0, az = 0;
+    if (state === 'play') {
+      if (keys['ArrowUp'] || keys['KeyW']) az -= 1;
+      if (keys['ArrowDown'] || keys['KeyS']) az += 1;
+      if (keys['ArrowLeft'] || keys['KeyA']) ax -= 1;
+      if (keys['ArrowRight'] || keys['KeyD']) ax += 1;
+    }
+    const ctrl = grounded ? 1 : 0.4;
+    vel.x += ax * ACCEL * ctrl * dt;
+    vel.z += az * ACCEL * ctrl * dt;
+    camLean += (ax * 0.05 - camLean) * (1 - Math.exp(-5 * dt));
+
+    // carried by moving platform
+    if (grounded && groundPlat && groundPlat.move) {
+      ball.position.x += groundPlat.dx;
+      ball.position.z += groundPlat.dz;
+    }
+
+    // slope acceleration
+    if (grounded && groundPlat && groundPlat.y2 !== undefined) {
+      const gradZ = -(groundPlat.y2 - groundPlat.y) / groundPlat.d; // dY/dz
+      vel.z += -gradZ * GRAV * 0.7 * dt;
+    }
+
+    // gravity + integrate
+    vy -= GRAV * dt;
+    ball.position.x += vel.x * dt;
+    ball.position.z += vel.z * dt;
+    ball.position.y += vy * dt;
+
+    // wall push (sides of higher platforms)
+    for (const p of plats) {
+      const px = p.x + p.ox, pz = p.z + p.oz;
+      const ty = topOf(p, ball.position.z);
+      if (ty <= ball.position.y - BR + 0.3) continue;         // rollable, not a wall
+      if (ball.position.y - BR > ty) continue;                // ball above top
+      if (ball.position.y + BR < ty - 3) continue;            // ball far below
+      const hx = p.w / 2 + BR * 0.8, hz = p.d / 2 + BR * 0.8;
+      const dx = ball.position.x - px, dz = ball.position.z - pz;
+      if (Math.abs(dx) < hx && Math.abs(dz) < hz) {
+        const penX = hx - Math.abs(dx), penZ = hz - Math.abs(dz);
+        if (penX < penZ) {
+          ball.position.x = px + Math.sign(dx) * hx;
+          if (vel.x * Math.sign(dx) < 0) vel.x *= -0.35;
+        } else {
+          ball.position.z = pz + Math.sign(dz) * hz;
+          if (vel.z * Math.sign(dz) < 0) vel.z *= -0.35;
+        }
+      }
+    }
+
+    // ground support
+    grounded = false;
+    let bestY = -Infinity, bestP = null;
+    const maxY = ball.position.y - BR + 0.45;
+    for (const p of plats) {
+      const px = p.x + p.ox, pz = p.z + p.oz;
+      if (Math.abs(ball.position.x - px) > p.w / 2 + 0.12) continue;
+      if (Math.abs(ball.position.z - pz) > p.d / 2 + 0.12) continue;
+      const ty = topOf(p, ball.position.z);
+      if (ty <= maxY && ty > bestY) { bestY = ty; bestP = p; }
+    }
+    if (bestP && ball.position.y - BR <= bestY + 0.09 && vy <= 0.4) {
+      if (vy < -7) { blip(200, 0.06, 'sine', 0.04); vy *= -0.3; }
+      else vy = 0;
+      ball.position.y = bestY + BR;
+      grounded = true;
+      groundPlat = bestP;
+      // rolling friction
+      const f = Math.exp(-1.5 * dt);
+      vel.x *= f; vel.z *= f;
+    } else {
+      groundPlat = null;
+    }
+
+    // speed cap
+    const sp = Math.hypot(vel.x, vel.z);
+    if (sp > MAXSPD) { vel.x *= MAXSPD / sp; vel.z *= MAXSPD / sp; }
+
+    // rolling rotation
+    if (sp > 0.01) {
+      _axis.set(vel.z, 0, -vel.x).normalize();
+      _q.setFromAxisAngle(_axis, -sp * dt / BR);
+      ball.quaternion.premultiply(_q);
+    }
+
+    // fell off
+    if (ball.position.y < -14) {
+      burst(ball.position, 0x4fd9ff, 14);
+      showMsg('WHOOPS!');
+      respawn(true);
+    }
+
+    // gems
+    for (const g of gems) {
+      if (g.taken) continue;
+      if (ball.position.distanceTo(g.m.position) < 0.95) {
+        g.taken = true;
+        g.m.visible = false;
+        courseGems++; runGems++;
+        document.getElementById('gems').textContent = courseGems;
+        document.getElementById('rungems').textContent = runGems;
+        burst(g.m.position, 0xff3fa8, 8);
+        blip(880 + courseGems * 40, 0.1, 'triangle', 0.07);
+      }
+    }
+
+    // checkpoints
+    for (const c of checkpoints) {
+      if (c.active) continue;
+      if (ball.position.distanceTo(c.pos) < 1.5) {
+        c.active = true;
+        c.flagMat.color.setHex(0x115533);
+        c.flagMat.emissive.setHex(0x22ff88);
+        checkpointPos.set(c.pos.x, c.pos.y + BR + 0.4, c.pos.z);
+        showMsg('CHECKPOINT ✓');
+        blip(523, 0.15, 'triangle', 0.07);
+      }
+    }
+
+    // goal
+    if (state === 'play' && goal) {
+      const d = ball.position.clone().sub(goal.pos);
+      d.y = 0;
+      if (d.length() < 1.15 && Math.abs(ball.position.y - goal.pos.y) < 2) courseComplete();
+    }
+
+    // course-done timer → next
+    if (state === 'done') {
+      doneTimer -= dt;
+      if (doneTimer <= 0) {
+        if (courseIdx >= 4) gameWon();
+        else { courseIdx++; buildCourse(courseIdx); state = 'play'; showMsg(COURSES[courseIdx].name); }
+      }
+    }
+  }
+
+  // gem idle spin (always, incl. menu)
+  for (const g of gems) {
+    if (g.taken) continue;
+    g.m.rotation.y += 2.2 * dt;
+    g.m.position.y = g.baseY + Math.sin(t * 2 + g.ph) * 0.16;
+  }
+  if (goal) {
+    goal.halo.rotation.z += 1.4 * dt;
+    goal.halo.position.y = goal.pos.y + 0.55 + Math.sin(t * 2.4) * 0.12;
+    goal.beam.material.opacity = 0.13 + Math.sin(t * 3) * 0.05;
+  }
+
+  // particles
+  for (const p of parts) {
+    if (p.life <= 0) continue;
+    p.life -= dt;
+    p.vel.y -= 14 * dt;
+    p.m.position.addScaledVector(p.vel, dt);
+    p.m.rotation.x += 6 * dt; p.m.rotation.y += 8 * dt;
+    p.m.material.opacity = Math.max(0, p.life / 0.6);
+    if (p.life <= 0) p.m.visible = false;
+  }
+
+  // camera
+  if (state === 'menu') {
+    const a = t * 0.18;
+    camera.position.set(courseCenter.x + Math.sin(a) * 20, 12 + Math.sin(t * 0.3) * 2, courseCenter.z + Math.cos(a) * 20);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(courseCenter);
+  } else {
+    camTarget.set(ball.position.x, ball.position.y + 5.2, ball.position.z + 8.4);
+    camera.position.lerp(camTarget, 1 - Math.exp(-4.5 * dt));
+    camera.up.set(Math.sin(camLean), 1, 0).normalize();
+    camera.lookAt(ball.position.x, ball.position.y + 0.9, ball.position.z - 1.6);
+  }
+  ballGlow.position.copy(ball.position);
+
+  pinkPt.intensity = 5 + Math.sin(t * 1.3) * 1.4;
+  cyanPt.intensity = 5 + Math.cos(t * 1.1) * 1.4;
+
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

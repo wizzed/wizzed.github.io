@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG Dice Roller · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ff5370; --accent-soft:rgba(255,83,112,.4);
+  --panel:#161623; --line:#2c2c46; --text:#ffeef1; --dim:#a58f95;
+  --green:#3ddc84; --red:#ff4560;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:18px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:8px 8px 2px; }
+h1{
+  display:inline-block; font-size:clamp(15px,2.8vw,23px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 24px var(--accent-soft);
+}
+main{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; align-items:flex-start; max-width:920px; margin:6px auto 0; padding:0 10px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:10px 12px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(255,83,112,.08);
+}
+#rollPanel{ width:min(96vw,440px); text-align:center; }
+#chips{ display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin-bottom:8px; }
+#chips button{
+  font-family:inherit; font-size:12px; letter-spacing:1px; cursor:pointer; font-weight:bold;
+  background:#121220; color:var(--accent); border:1px solid var(--line); padding:6px 11px;
+}
+#chips button:hover{ border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+#noteRow{ display:flex; gap:6px; margin-bottom:6px; }
+#notation{
+  flex:1; background:#0c0c16; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:14px; padding:7px 9px; outline:none; text-align:center;
+}
+#notation:focus{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+#notation.bad{ border-color:var(--red); animation:shake .3s; }
+@keyframes shake{ 25%{transform:translateX(-3px);} 75%{transform:translateX(3px);} }
+#rollBtn{
+  font-family:inherit; font-size:13px; letter-spacing:2px; cursor:pointer; font-weight:bold;
+  color:#26060d; background:var(--accent); border:0; padding:7px 18px;
+  box-shadow:0 0 14px var(--accent-soft);
+}
+#rollBtn:active{ transform:translateY(1px); }
+#advRow{ display:flex; justify-content:center; gap:6px; margin-bottom:8px; }
+#advRow button{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:4px 10px;
+}
+#advRow button.on{ color:#fff; border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+#tray{
+  min-height:96px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; align-items:center;
+  padding:10px; background:#0c0c16; border:1px dashed var(--line); margin-bottom:8px;
+  perspective:400px;
+}
+.die{
+  width:52px; height:52px; display:flex; align-items:center; justify-content:center;
+  background:#191927; border:2px solid var(--accent); color:#fff;
+  font-size:20px; font-weight:bold; position:relative;
+  box-shadow:0 0 12px var(--accent-soft), inset 0 0 8px rgba(0,0,0,.7);
+  font-variant-numeric:tabular-nums;
+}
+.die small{ position:absolute; bottom:1px; right:4px; font-size:8px; color:var(--dim); font-weight:normal; }
+.die.spin{ animation:flip .12s linear infinite; }
+@keyframes flip{ 0%{transform:rotateX(0) rotateY(0);} 50%{transform:rotateX(180deg) rotateY(20deg);} 100%{transform:rotateX(360deg) rotateY(0);} }
+.die.settle{ animation:land .35s ease-out; }
+@keyframes land{ 0%{transform:scale(1.5) rotateZ(8deg);} 100%{transform:scale(1) rotateZ(0);} }
+.die.crit{ border-color:var(--green); color:var(--green); box-shadow:0 0 18px var(--green), inset 0 0 8px rgba(0,0,0,.7); text-shadow:0 0 10px var(--green); }
+.die.fumble{ border-color:var(--red); color:var(--red); box-shadow:0 0 18px var(--red), inset 0 0 8px rgba(0,0,0,.7); text-shadow:0 0 10px var(--red); }
+.die.dropped{ opacity:.35; border-style:dashed; }
+#result{
+  font-size:30px; color:var(--accent); min-height:38px;
+  text-shadow:0 0 10px var(--accent), 0 0 36px var(--accent-soft);
+  font-variant-numeric:tabular-nums;
+}
+#result small{ font-size:12px; color:var(--dim); text-shadow:none; letter-spacing:1px; }
+.keys{ font-size:9px; color:var(--dim); letter-spacing:1px; margin-top:4px; }
+#sidePanel{ width:min(96vw,330px); }
+#stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:8px; }
+.stat{ background:#10101c; border:1px solid var(--line); text-align:center; padding:6px 2px; }
+.stat .v{ font-size:16px; color:var(--accent); text-shadow:0 0 8px var(--accent-soft); }
+.stat .k{ font-size:8px; color:var(--dim); letter-spacing:1px; }
+.stat.n20 .v{ color:var(--green); text-shadow:0 0 8px var(--green); }
+.stat.n1 .v{ color:var(--red); text-shadow:0 0 8px var(--red); }
+#sidePanel h2{
+  font-size:11px; letter-spacing:2px; color:var(--dim); border-bottom:1px solid var(--line);
+  padding-bottom:4px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;
+}
+#clearLog{
+  font-family:inherit; font-size:9px; cursor:pointer; letter-spacing:1px;
+  background:none; color:var(--dim); border:1px solid var(--line); padding:2px 7px;
+}
+#clearLog:hover{ color:var(--red); border-color:var(--red); }
+#log{ max-height:300px; overflow-y:auto; font-size:11px; }
+#log::-webkit-scrollbar{ width:8px; } #log::-webkit-scrollbar-thumb{ background:var(--line); }
+.entry{ padding:5px 3px; border-bottom:1px solid #1e1e30; line-height:1.45; }
+.entry .lab{ color:var(--accent); }
+.entry .tot{ float:right; color:#fff; font-weight:bold; }
+.entry .brk{ color:var(--dim); }
+.entry .c20{ color:var(--green); text-shadow:0 0 6px var(--green); font-weight:bold; }
+.entry .c1{ color:var(--red); text-shadow:0 0 6px var(--red); font-weight:bold; }
+.entry .adv{ font-size:9px; letter-spacing:1px; color:#ffe066; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header><h1>RPG DICE ROLLER</h1></header>
+<main>
+  <section class="panel" id="rollPanel">
+    <div id="chips">
+      <button data-d="4">d4</button><button data-d="6">d6</button><button data-d="8">d8</button>
+      <button data-d="10">d10</button><button data-d="12">d12</button><button data-d="20">d20</button>
+      <button data-d="100">d100</button>
+    </div>
+    <div id="noteRow">
+      <input id="notation" type="text" value="3d6+2" maxlength="12" spellcheck="false" aria-label="dice notation">
+      <button id="rollBtn">ROLL ⚂</button>
+    </div>
+    <div id="advRow">
+      <button id="advNorm" class="on">NORMAL</button>
+      <button id="advAdv">ADVANTAGE</button>
+      <button id="advDis">DISADVANTAGE</button>
+    </div>
+    <div id="tray"></div>
+    <div id="result"><small>click a chip or type XdY+Z</small></div>
+    <div class="keys">[ENTER] roll · adv/dis applies to single d20 rolls</div>
+  </section>
+
+  <section class="panel" id="sidePanel">
+    <div id="stats">
+      <div class="stat"><div class="v" id="stRolls">0</div><div class="k">ROLLS</div></div>
+      <div class="stat n20"><div class="v" id="stN20">0</div><div class="k">NAT 20</div></div>
+      <div class="stat n1"><div class="v" id="stN1">0</div><div class="k">NAT 1</div></div>
+      <div class="stat"><div class="v" id="stAvg">—</div><div class="k">AVG D20</div></div>
+    </div>
+    <h2>ROLL LOG <button id="clearLog">CLEAR</button></h2>
+    <div id="log"></div>
+  </section>
+</main>
+
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-rpg-dice';
+var $=function(id){ return document.getElementById(id); };
+
+function rnd(n){ return Math.floor(Math.random()*n)+1; }
+
+/* ---------- state ---------- */
+var log=[], stats={rolls:0,n20:0,n1:0,d20sum:0,d20count:0};
+var adv=0; /* 0 normal, 1 adv, -1 dis */
+var rolling=false;
+
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({log:log.slice(-60), stats:stats})); }catch(e){}
+}
+function load(){
+  try{
+    var raw=localStorage.getItem(LS_KEY);
+    if(raw){
+      var d=JSON.parse(raw);
+      if(Array.isArray(d.log)) log=d.log;
+      if(d.stats && typeof d.stats.rolls==='number') stats=d.stats;
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+function demo(){
+  var entries=[
+    {lab:'1d20', dice:[{s:20,v:20}], mod:0, total:20, adv:0},
+    {lab:'3d6+2', dice:[{s:6,v:4},{s:6,v:2},{s:6,v:6}], mod:2, total:14, adv:0},
+    {lab:'1d20 ADV', dice:[{s:20,v:17},{s:20,v:9,drop:true}], mod:0, total:17, adv:1},
+    {lab:'2d8', dice:[{s:8,v:7},{s:8,v:3}], mod:0, total:10, adv:0},
+    {lab:'1d20', dice:[{s:20,v:1}], mod:0, total:1, adv:0},
+    {lab:'1d100', dice:[{s:100,v:73}], mod:0, total:73, adv:0}
+  ];
+  log=entries;
+  stats={rolls:6,n20:1,n1:1,d20sum:47,d20count:3};
+}
+
+/* ---------- rolling ---------- */
+function parse(txt){
+  var m=String(txt).trim().match(/^(\d{0,2})\s*d\s*(\d{1,3})\s*([+-]\s*\d{1,3})?$/i);
+  if(!m) return null;
+  var n=m[1]===''?1:+m[1];
+  var s=+m[2];
+  var mod=m[3]?parseInt(m[3].replace(/\s+/g,''),10):0;
+  if(n<1||n>20||s<2||s>100) return null;
+  return {n:n,s:s,mod:mod};
+}
+function doRoll(spec,labelOverride){
+  if(rolling) return;
+  var useAdv= adv!==0 && spec.n===1 && spec.s===20;
+  var dice=[];
+  if(useAdv){
+    var a=rnd(20), b=rnd(20);
+    var keep= adv===1 ? Math.max(a,b) : Math.min(a,b);
+    dice=[{s:20,v:a,drop:a!==keep},{s:20,v:b,drop:b!==keep && a===keep}];
+    /* if a===b keep first */
+    if(a===b){ dice[0].drop=false; dice[1].drop=true; }
+  }else{
+    for(var i=0;i<spec.n;i++) dice.push({s:spec.s,v:rnd(spec.s)});
+  }
+  var kept=dice.filter(function(d){ return !d.drop; });
+  var total=kept.reduce(function(t,d){ return t+d.v; },0)+spec.mod;
+  var lab=labelOverride||((spec.n>1?spec.n:'')+'d'+spec.s+(spec.mod? (spec.mod>0?'+':'')+spec.mod :''));
+  if(useAdv) lab+= adv===1?' ADV':' DIS';
+  var entry={lab:lab, dice:dice, mod:spec.mod, total:total, adv:useAdv?adv:0};
+  animate(entry);
+}
+function animate(entry){
+  rolling=true;
+  var tray=$('tray'); tray.innerHTML='';
+  $('result').innerHTML='<small>rolling…</small>';
+  var els=entry.dice.map(function(d){
+    var el=document.createElement('div');
+    el.className='die spin';
+    el.innerHTML='?<small>d'+d.s+'</small>';
+    tray.appendChild(el);
+    return el;
+  });
+  var frames=0;
+  var iv=setInterval(function(){
+    frames++;
+    els.forEach(function(el,i){
+      el.firstChild.textContent=rnd(entry.dice[i].s);
+    });
+    if(frames>=9){
+      clearInterval(iv);
+      els.forEach(function(el,i){
+        var d=entry.dice[i];
+        el.classList.remove('spin');
+        el.classList.add('settle');
+        el.firstChild.textContent=d.v;
+        if(d.s===20 && d.v===20) el.classList.add('crit');
+        if(d.s===20 && d.v===1) el.classList.add('fumble');
+        if(d.drop) el.classList.add('dropped');
+      });
+      finish(entry);
+    }
+  },65);
+}
+function finish(entry){
+  rolling=false;
+  var kept=entry.dice.filter(function(d){ return !d.drop; });
+  var res='= '+entry.total;
+  var crit=kept.some(function(d){ return d.s===20&&d.v===20; });
+  var fumb=kept.some(function(d){ return d.s===20&&d.v===1; });
+  if(crit) res+=' <small style="color:#3ddc84">NAT 20! CRIT!</small>';
+  else if(fumb) res+=' <small style="color:#ff4560">NAT 1… OOF</small>';
+  $('result').innerHTML=res;
+  log.push(entry);
+  stats.rolls++;
+  kept.forEach(function(d){
+    if(d.s===20){
+      stats.d20sum+=d.v; stats.d20count++;
+      if(d.v===20) stats.n20++;
+      if(d.v===1) stats.n1++;
+    }
+  });
+  save(); renderLog(); renderStats();
+}
+
+/* ---------- render ---------- */
+function diceHtml(entry){
+  return entry.dice.map(function(d){
+    var cls= d.s===20&&d.v===20 ? 'c20' : d.s===20&&d.v===1 ? 'c1' : '';
+    var v=d.drop? '<s>'+d.v+'</s>' : (cls?'<span class="'+cls+'">'+d.v+'</span>':d.v);
+    return v;
+  }).join(', ');
+}
+function renderLog(){
+  var box=$('log'); box.innerHTML='';
+  for(var i=log.length-1;i>=0;i--){
+    var e=log[i];
+    var div=document.createElement('div'); div.className='entry';
+    var modTxt= e.mod ? (e.mod>0?' +'+e.mod:' '+e.mod) : '';
+    div.innerHTML='<span class="tot">'+e.total+'</span>'+
+      '<span class="lab">'+e.lab+'</span> '+
+      '<span class="brk">['+diceHtml(e)+']'+modTxt+'</span>';
+    box.appendChild(div);
+  }
+  if(!log.length) box.innerHTML='<div class="entry brk" style="color:var(--dim)">log empty — roll something!</div>';
+}
+function renderStats(){
+  $('stRolls').textContent=stats.rolls;
+  $('stN20').textContent=stats.n20;
+  $('stN1').textContent=stats.n1;
+  $('stAvg').textContent= stats.d20count ? (stats.d20sum/stats.d20count).toFixed(1) : '—';
+}
+
+/* ---------- wiring ---------- */
+Array.prototype.forEach.call(document.querySelectorAll('#chips button'),function(b){
+  b.addEventListener('click',function(){
+    var s=+b.getAttribute('data-d');
+    $('notation').value='1d'+s;
+    doRoll({n:1,s:s,mod:0});
+  });
+});
+function rollFromInput(){
+  var spec=parse($('notation').value);
+  var inp=$('notation');
+  if(!spec){
+    inp.classList.remove('bad'); void inp.offsetWidth; inp.classList.add('bad');
+    return;
+  }
+  inp.classList.remove('bad');
+  doRoll(spec);
+}
+$('rollBtn').addEventListener('click',rollFromInput);
+$('notation').addEventListener('keydown',function(e){ if(e.key==='Enter') rollFromInput(); });
+document.addEventListener('keydown',function(e){
+  var tag=(e.target&&e.target.tagName)||'';
+  if(tag==='INPUT'||tag==='TEXTAREA') return;
+  if(e.key==='Enter') rollFromInput();
+});
+function setAdv(v,btn){
+  adv=v;
+  ['advNorm','advAdv','advDis'].forEach(function(id){ $(id).classList.remove('on'); });
+  btn.classList.add('on');
+}
+$('advNorm').addEventListener('click',function(){ setAdv(0,this); });
+$('advAdv').addEventListener('click',function(){ setAdv(1,this); });
+$('advDis').addEventListener('click',function(){ setAdv(-1,this); });
+$('clearLog').addEventListener('click',function(){
+  log=[]; stats={rolls:0,n20:0,n1:0,d20sum:0,d20count:0};
+  save(); renderLog(); renderStats();
+});
+
+/* ---------- boot ---------- */
+if(!load()) demo();
+renderLog(); renderStats(); save();
+/* show last roll's dice statically in the tray */
+if(log.length){
+  var last=log[log.length-1];
+  var tray=$('tray');
+  last.dice.forEach(function(d){
+    var el=document.createElement('div');
+    el.className='die'+(d.s===20&&d.v===20?' crit':'')+(d.s===20&&d.v===1?' fumble':'')+(d.drop?' dropped':'');
+    el.innerHTML=d.v+'<small>d'+d.s+'</small>';
+    tray.appendChild(el);
+  });
+  $('result').innerHTML='= '+last.total+' <small>('+last.lab+' — last roll)</small>';
+}
+})();
+</script>
+</body>
+</html>

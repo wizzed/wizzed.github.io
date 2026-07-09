@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trivia Blitz — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f1a;
+    --panel: #191930;
+    --line: #2a2a4a;
+    --text: #e8e8ff;
+    --dim: #8888c0;
+    --accent: #00e5ff;
+    --accent-dim: rgba(0,229,255,.35);
+    --good: #00ff9d;
+    --bad: #ff4060;
+  }
+  html, body { min-height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 8px 12px 18px;
+    overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px;
+    color: var(--dim); text-decoration: none; font-size: 13px; letter-spacing: 1px;
+    padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px;
+    background: rgba(15,15,26,.8); z-index: 50; user-select: none;
+  }
+  a.back:hover { color: var(--accent); border-color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+  h1 {
+    margin-top: 2px;
+    font-size: clamp(20px, 4.5vmin, 32px);
+    letter-spacing: 6px;
+    color: var(--accent);
+    text-shadow: 0 0 8px var(--accent), 0 0 26px var(--accent-dim);
+    text-transform: uppercase;
+  }
+  #wrap { width: 100%; max-width: 640px; }
+  .screen { width: 100%; }
+  [hidden] { display: none !important; }
+
+  /* ---------- HUD boxes ---------- */
+  .hudrow { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; justify-content: center; user-select: none; }
+  .hudbox {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 4px 12px; font-size: 10px; letter-spacing: 1px; color: var(--dim);
+    text-align: center; min-width: 86px;
+  }
+  .hudbox b { display: block; color: var(--accent); font-size: 17px; text-shadow: 0 0 8px var(--accent); white-space: nowrap; }
+
+  /* ---------- Start screen ---------- */
+  .tag { text-align: center; color: var(--dim); font-size: 12px; letter-spacing: 2px; margin: 2px 0 8px; }
+  #cats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; user-select: none; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 8px 8px; cursor: pointer; text-align: center; color: var(--text);
+    font-family: inherit; touch-action: manipulation; user-select: none;
+    box-shadow: 0 0 10px rgba(0,229,255,.06);
+    transition: border-color .15s, box-shadow .15s, transform .1s;
+  }
+  .card:hover, .card:focus-visible {
+    border-color: var(--accent); box-shadow: 0 0 16px var(--accent-dim);
+    transform: translateY(-2px); outline: none;
+  }
+  .card .ckey {
+    display: inline-block; font-size: 10px; color: var(--accent);
+    border: 1px solid var(--accent-dim); border-radius: 5px; padding: 1px 6px; margin-bottom: 5px;
+  }
+  .card .cname {
+    display: block; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;
+    font-size: 13px; color: var(--accent); text-shadow: 0 0 8px var(--accent-dim); margin-bottom: 4px;
+  }
+  .card .cacc { display: block; font-size: 10px; color: var(--dim); letter-spacing: 1px; }
+  .card.mixed { border-style: dashed; border-color: rgba(0,229,255,.45); }
+  .hint { text-align: center; color: var(--dim); font-size: 11px; letter-spacing: 1px; margin-top: 10px; }
+  .hint b { color: var(--accent); }
+
+  /* ---------- Game screen ---------- */
+  #timerwrap {
+    width: 100%; height: 13px; background: #10102a; border: 1px solid var(--line);
+    border-radius: 7px; overflow: hidden; margin: 2px 0 10px;
+  }
+  #timerbar {
+    height: 100%; width: 100%;
+    background: linear-gradient(90deg, #007a8a, var(--accent));
+    box-shadow: 0 0 10px var(--accent-dim); border-radius: 6px;
+  }
+  #timerbar.low { background: linear-gradient(90deg, #7a1020, var(--bad)); box-shadow: 0 0 12px rgba(255,64,96,.5); }
+  #qpanel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: 0 0 18px rgba(0,229,255,.1);
+    padding: 12px 16px 14px; text-align: center; min-height: 104px; margin-bottom: 10px;
+  }
+  .chip {
+    display: inline-block; font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--accent); border: 1px solid var(--accent-dim); border-radius: 999px;
+    padding: 2px 10px; margin-bottom: 8px; user-select: none;
+  }
+  #qtext { font-size: clamp(15px, 3.4vmin, 19px); font-weight: bold; line-height: 1.45; }
+  #answers { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; user-select: none; }
+  .abtn {
+    display: flex; align-items: center; gap: 10px; text-align: left;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 9px 12px; min-height: 52px; cursor: pointer; color: var(--text);
+    font-family: inherit; font-size: 14px; line-height: 1.3;
+    touch-action: manipulation; user-select: none;
+    transition: border-color .12s, box-shadow .12s;
+  }
+  .abtn:hover, .abtn:focus-visible { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-dim); outline: none; }
+  .abtn .k {
+    flex: 0 0 auto; font-size: 11px; color: var(--accent); border: 1px solid var(--accent-dim);
+    border-radius: 6px; padding: 2px 7px; text-shadow: 0 0 6px var(--accent-dim);
+  }
+  #answers.locked .abtn { cursor: default; pointer-events: none; }
+  #answers.locked .abtn:not(.correct):not(.wrong) { opacity: .45; }
+  .abtn.correct {
+    border-color: var(--good); box-shadow: 0 0 16px rgba(0,255,157,.45);
+    background: #0f2a22; color: var(--good);
+  }
+  .abtn.correct .k { color: var(--good); border-color: rgba(0,255,157,.5); }
+  .abtn.wrong {
+    border-color: var(--bad); box-shadow: 0 0 16px rgba(255,64,96,.45);
+    background: #2a1020; color: var(--bad);
+  }
+  .abtn.wrong .k { color: var(--bad); border-color: rgba(255,64,96,.5); }
+  #feedback { text-align: center; min-height: 24px; margin-top: 9px; font-size: 15px; font-weight: bold; letter-spacing: 2px; }
+  #feedback.good { color: var(--good); text-shadow: 0 0 8px rgba(0,255,157,.6); }
+  #feedback.bad { color: var(--bad); text-shadow: 0 0 8px rgba(255,64,96,.6); }
+
+  /* ---------- Overlay ---------- */
+  #overlay {
+    position: fixed; inset: 0; z-index: 100; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(8,8,18,.8); padding: 14px;
+  }
+  #overlay.show { display: flex; }
+  #ovpanel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 0 30px var(--accent-dim);
+    padding: 18px 22px 20px; width: 100%; max-width: 430px; max-height: 92vh; overflow-y: auto;
+    text-align: center;
+  }
+  #ovpanel h2 {
+    text-transform: uppercase; letter-spacing: 4px; font-size: 18px;
+    color: var(--accent); text-shadow: 0 0 8px var(--accent);
+  }
+  #ovScore { font-size: 38px; font-weight: bold; color: var(--accent); text-shadow: 0 0 14px var(--accent); margin: 4px 0 2px; }
+  .ovlabel { font-size: 10px; letter-spacing: 2px; color: var(--dim); text-transform: uppercase; }
+  #ovrows { display: flex; gap: 8px; justify-content: center; margin: 12px 0; flex-wrap: wrap; }
+  #ovbreak { margin: 4px 0 10px; text-align: left; }
+  .brow { display: flex; align-items: center; gap: 8px; margin: 5px 0; font-size: 11px; letter-spacing: 1px; }
+  .brow .bn { flex: 0 0 96px; color: var(--dim); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brow .bbar { flex: 1; height: 9px; background: #10102a; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+  .brow .bfill { height: 100%; background: var(--accent); box-shadow: 0 0 8px var(--accent-dim); }
+  .brow .bv { flex: 0 0 36px; text-align: right; color: var(--text); }
+  #ovlife { font-size: 11px; color: var(--dim); letter-spacing: 1px; margin-bottom: 14px; }
+  #ovlife b { color: var(--accent); }
+  .btn {
+    background: #10102a; border: 1px solid var(--accent); border-radius: 8px;
+    color: var(--accent); font-family: inherit; font-size: 13px; font-weight: bold;
+    letter-spacing: 2px; text-transform: uppercase; padding: 9px 16px; margin: 0 4px;
+    cursor: pointer; touch-action: manipulation; user-select: none;
+    text-shadow: 0 0 6px var(--accent-dim); transition: box-shadow .12s, background .12s;
+  }
+  .btn:hover, .btn:focus-visible { box-shadow: 0 0 16px var(--accent-dim); background: #0a1a2a; outline: none; }
+  .btn.alt { border-color: var(--line); color: var(--dim); text-shadow: none; }
+  .btn.alt:hover, .btn.alt:focus-visible { border-color: var(--accent); color: var(--accent); }
+
+  @media (max-width: 560px) {
+    #cats { grid-template-columns: repeat(2, 1fr); }
+    #answers { grid-template-columns: 1fr; }
+    .abtn { min-height: 46px; }
+    h1 { letter-spacing: 4px; }
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>Trivia Blitz</h1>
+<main id="wrap">
+
+  <section id="start" class="screen">
+    <div class="hudrow">
+      <div class="hudbox"><span>GAMES</span><b id="stGames">0</b></div>
+      <div class="hudbox"><span>BEST SCORE</span><b id="stBest">0</b></div>
+      <div class="hudbox"><span>BEST STREAK</span><b id="stBestStreak">0</b></div>
+      <div class="hudbox"><span>LIFETIME ACC</span><b id="stAcc">—</b></div>
+    </div>
+    <p class="tag">PICK A CATEGORY · 10 QUESTIONS · BEAT THE CLOCK</p>
+    <div id="cats"></div>
+    <p class="hint">KEYS <b>1-7</b> PICK · <b>ENTER</b> STARTS MIXED · ANSWER WITH <b>1-4</b> OR <b>A-D</b></p>
+  </section>
+
+  <section id="game" class="screen" hidden>
+    <div class="hudrow">
+      <div class="hudbox"><span>SCORE</span><b id="hScore">0</b></div>
+      <div class="hudbox"><span>STREAK</span><b id="hStreak">0 ×1</b></div>
+      <div class="hudbox"><span>QUESTION</span><b id="hQ">1/10</b></div>
+    </div>
+    <div id="timerwrap"><div id="timerbar"></div></div>
+    <div id="qpanel">
+      <span class="chip" id="qcat">CATEGORY</span>
+      <div id="qtext">Loading...</div>
+    </div>
+    <div id="answers"></div>
+    <div id="feedback"></div>
+  </section>
+
+</main>
+
+<div id="overlay">
+  <div id="ovpanel">
+    <h2>Round Complete</h2>
+    <div id="ovScore">0</div>
+    <div class="ovlabel">Final Score</div>
+    <div id="ovrows">
+      <div class="hudbox"><span>CORRECT</span><b id="ovCorrect">0/10</b></div>
+      <div class="hudbox"><span>BEST STREAK</span><b id="ovStreak">0</b></div>
+      <div class="hudbox"><span>TIME BONUS</span><b id="ovBonus">+0</b></div>
+    </div>
+    <div id="ovbreak"></div>
+    <div id="ovlife"></div>
+    <button class="btn" id="btnAgain" type="button">Play Again</button>
+    <button class="btn alt" id="btnChange" type="button">Change Category</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function () {
+
+/* ================= QUESTION DATA =================
+   Format: [categoryIndex, question, CORRECT, wrong1, wrong2, wrong3]
+   The correct option is always authored first (index 0);
+   option order is shuffled at runtime. */
+/*QDATA*/
+var CATS = ["Science", "History", "Geography", "Movies & TV", "Sports", "Tech"];
+var RAW = [
+/* ---- Science (0) ---- */
+[0,"What is the chemical symbol for gold?","Au","Ag","Gd","Go"],
+[0,"How many planets are in our Solar System?","8","9","7","10"],
+[0,"Which gas do plants absorb for photosynthesis?","Carbon dioxide","Oxygen","Nitrogen","Hydrogen"],
+[0,"Which planet is known as the Red Planet?","Mars","Venus","Jupiter","Mercury"],
+[0,"Which part of the cell is called its powerhouse?","Mitochondria","Nucleus","Ribosome","Cell wall"],
+[0,"Which force keeps the planets orbiting the Sun?","Gravity","Magnetism","Friction","Static electricity"],
+[0,"What is the chemical symbol for sodium?","Na","So","Sd","Sn"],
+[0,"Roughly how fast does light travel in a vacuum?","300,000 km per second","30,000 km per second","3,000 km per second","300 km per second"],
+[0,"Which particle carries a negative electric charge?","Electron","Proton","Neutron","Photon"],
+[0,"What is the hardest naturally occurring substance?","Diamond","Quartz","Granite","Obsidian"],
+[0,"At sea level, water boils at what temperature?","100°C","90°C","110°C","80°C"],
+[0,"Which blood cells help the body fight infection?","White blood cells","Red blood cells","Platelets","Stem cells"],
+[0,"What is the largest planet in the Solar System?","Jupiter","Saturn","Neptune","Uranus"],
+[0,"What is the atomic number of hydrogen?","1","2","0","3"],
+[0,"Which organ pumps blood around the human body?","Heart","Liver","Brain","Lungs"],
+[0,"What does DNA stand for?","Deoxyribonucleic acid","Deoxyribonuclear acid","Dinucleic acid","Duplex nitric acid"],
+[0,"Which gas makes up about 78% of Earth's atmosphere?","Nitrogen","Oxygen","Carbon dioxide","Argon"],
+[0,"A dolphin belongs to which animal group?","Mammals","Fish","Amphibians","Reptiles"],
+[0,"How many bones are in a typical adult human body?","206","106","306","250"],
+[0,"Which planet is closest to the Sun?","Mercury","Venus","Earth","Mars"],
+[0,"What is the chemical symbol for iron?","Fe","Ir","In","Fr"],
+[0,"Bees turn which flower product into honey?","Nectar","Pollen","Sap","Seeds"],
+[0,"What is the scientific study of earthquakes called?","Seismology","Volcanology","Meteorology","Cartography"],
+[0,"Sound waves cannot travel through which of these?","A vacuum","Water","Steel","Air"],
+[0,"Sunlight on skin helps the body produce which vitamin?","Vitamin D","Vitamin C","Vitamin A","Vitamin B12"],
+[0,"Water freezes at what temperature in Fahrenheit?","32°F","0°F","20°F","40°F"],
+[0,"Which planet is famous for its bright ring system?","Saturn","Mars","Venus","Mercury"],
+[0,"What is the smallest unit of a chemical element?","Atom","Molecule","Cell","Compound"],
+[0,"Which organ filters waste from blood to form urine?","Kidney","Liver","Spleen","Pancreas"],
+[0,"What is the chemical formula for table salt?","NaCl","KCl","NaOH","CaCl2"],
+[0,"Who developed the theory of general relativity?","Albert Einstein","Isaac Newton","Niels Bohr","Galileo Galilei"],
+[0,"About how long does Earth take to orbit the Sun once?","365 days","24 hours","30 days","180 days"],
+[0,"What is the dense center of an atom called?","Nucleus","Electron cloud","Shell","Orbital"],
+[0,"Energy stored in a stretched spring is called what?","Potential energy","Kinetic energy","Thermal energy","Sound energy"],
+[0,"Humans exhale more of which gas than they inhale?","Carbon dioxide","Oxygen","Nitrogen","Helium"],
+[0,"What is the chemical symbol for potassium?","K","P","Po","Pt"],
+[0,"Which state of matter has fixed volume but no fixed shape?","Liquid","Solid","Gas","Plasma"],
+[0,"Our Solar System is located in which galaxy?","The Milky Way","Andromeda","Triangulum","The Sombrero Galaxy"],
+/* ---- History (1) ---- */
+[1,"In which year did World War II end?","1945","1939","1943","1950"],
+[1,"Who was the first President of the United States?","George Washington","Thomas Jefferson","John Adams","Benjamin Franklin"],
+[1,"Which civilization built the pyramids at Giza?","Ancient Egyptians","Ancient Romans","Ancient Greeks","The Aztecs"],
+[1,"In which year did the Titanic sink?","1912","1905","1920","1931"],
+[1,"Who was the main author of the US Declaration of Independence?","Thomas Jefferson","George Washington","Alexander Hamilton","James Madison"],
+[1,"The Colosseum was built by which empire?","The Roman Empire","The Ottoman Empire","The Persian Empire","The Egyptian Empire"],
+[1,"Who was the first person to walk on the Moon?","Neil Armstrong","Buzz Aldrin","Yuri Gagarin","John Glenn"],
+[1,"The Berlin Wall fell in which year?","1989","1991","1985","1979"],
+[1,"Which British queen reigned from 1837 to 1901?","Queen Victoria","Elizabeth I","Queen Anne","Mary II"],
+[1,"Winston Churchill led which country during World War II?","The United Kingdom","France","Canada","Australia"],
+[1,"The Magna Carta was sealed in which year?","1215","1066","1315","1415"],
+[1,"Mount Vesuvius buried which Roman city in 79 AD?","Pompeii","Carthage","Athens","Troy"],
+[1,"Who became the first Roman emperor?","Augustus","Julius Caesar","Nero","Constantine"],
+[1,"In which year did Columbus first reach the Americas?","1492","1512","1453","1520"],
+[1,"The Hundred Years' War was fought between England and which country?","France","Spain","Germany","Portugal"],
+[1,"Who introduced the movable-type printing press to Europe?","Johannes Gutenberg","Martin Luther","Leonardo da Vinci","William Caxton"],
+[1,"Which US president delivered the Gettysburg Address?","Abraham Lincoln","Ulysses S. Grant","Andrew Johnson","James Buchanan"],
+[1,"The French Revolution began in which year?","1789","1776","1804","1750"],
+[1,"Which Egyptian queen allied with Julius Caesar and Mark Antony?","Cleopatra","Nefertiti","Hatshepsut","Ankhesenamun"],
+[1,"The Great Wall of China mainly guarded against raids from which direction?","The north","The south","The east","The sea"],
+[1,"Which ship carried the Pilgrims to America in 1620?","The Mayflower","The Santa Maria","The Beagle","The Endeavour"],
+[1,"Whose assassination in 1914 helped spark World War I?","Archduke Franz Ferdinand","Kaiser Wilhelm II","Tsar Nicholas II","Otto von Bismarck"],
+[1,"The Cold War pitted the USA against which power?","The Soviet Union","Imperial Japan","Nazi Germany","The Ottoman Empire"],
+[1,"Which nurse became famous during the Crimean War?","Florence Nightingale","Clara Barton","Edith Cavell","Marie Curie"],
+[1,"Machu Picchu was built by which civilization?","The Inca","The Aztec","The Maya","The Olmec"],
+[1,"The United States declared independence in which year?","1776","1783","1765","1801"],
+[1,"The Renaissance began in which country?","Italy","France","England","Spain"],
+[1,"Who painted the ceiling of the Sistine Chapel?","Michelangelo","Leonardo da Vinci","Raphael","Botticelli"],
+[1,"The Treaty of Versailles formally ended which war?","World War I","World War II","The Crimean War","The Napoleonic Wars"],
+[1,"Genghis Khan founded which empire?","The Mongol Empire","The Ottoman Empire","The Mughal Empire","The Persian Empire"],
+[1,"Who was the first woman to fly solo across the Atlantic?","Amelia Earhart","Bessie Coleman","Harriet Quimby","Sally Ride"],
+[1,"The Battle of Hastings was fought in which year?","1066","1215","1000","1145"],
+[1,"Which Greek city-state was renowned for its full-time soldiers?","Sparta","Athens","Corinth","Thebes"],
+[1,"Who developed the first successful polio vaccine?","Jonas Salk","Louis Pasteur","Alexander Fleming","Edward Jenner"],
+[1,"Which country gave the Statue of Liberty to the USA?","France","England","Spain","Italy"],
+[1,"Julius Caesar was assassinated on the Ides of which month?","March","April","June","January"],
+[1,"Who led the first expedition to sail around the world?","Ferdinand Magellan","Christopher Columbus","James Cook","Vasco da Gama"],
+[1,"Alexander the Great was born a prince of which kingdom?","Macedonia","Sparta","Persia","Egypt"],
+/* ---- Geography (2) ---- */
+[2,"What is the capital of France?","Paris","Lyon","Marseille","Nice"],
+[2,"Which is the largest ocean on Earth?","The Pacific","The Atlantic","The Indian","The Arctic"],
+[2,"Which river carries more water than any other?","The Amazon","The Nile","The Mississippi","The Yangtze"],
+[2,"Which country covers the largest land area?","Russia","Canada","China","The USA"],
+[2,"What is the capital of Japan?","Tokyo","Osaka","Kyoto","Nagoya"],
+[2,"What is the largest hot desert in the world?","The Sahara","The Gobi","The Kalahari","The Mojave"],
+[2,"Mount Everest sits on the border of Nepal and which country?","China","India","Bhutan","Pakistan"],
+[2,"What is the capital of Australia?","Canberra","Sydney","Melbourne","Perth"],
+[2,"Which continent contains the most countries?","Africa","Asia","Europe","South America"],
+[2,"The Nile River empties into which sea?","The Mediterranean","The Red Sea","The Black Sea","The Arabian Sea"],
+[2,"What is the capital of Canada?","Ottawa","Toronto","Vancouver","Montreal"],
+[2,"Which US state is the largest by area?","Alaska","Texas","California","Montana"],
+[2,"What is the smallest country in the world?","Vatican City","Monaco","San Marino","Liechtenstein"],
+[2,"Which European country is shaped like a boot?","Italy","Spain","Greece","Portugal"],
+[2,"The Great Barrier Reef lies off the coast of which country?","Australia","Brazil","Mexico","Indonesia"],
+[2,"What is the capital of Italy?","Rome","Milan","Venice","Florence"],
+[2,"Russia spans which two continents?","Europe and Asia","Asia and North America","Europe and Africa","Asia and Oceania"],
+[2,"What is the capital of Egypt?","Cairo","Alexandria","Luxor","Giza"],
+[2,"Which mountain range forms a border between Europe and Asia?","The Urals","The Alps","The Himalayas","The Andes"],
+[2,"What is the capital of Brazil?","Brasília","Rio de Janeiro","São Paulo","Salvador"],
+[2,"The Andes mountains run along which continent?","South America","Africa","Asia","Australia"],
+[2,"What is the capital of Spain?","Madrid","Barcelona","Seville","Valencia"],
+[2,"What is the capital of Germany?","Berlin","Munich","Hamburg","Frankfurt"],
+[2,"Which island nation lies just southeast of India?","Sri Lanka","Madagascar","The Maldives","Fiji"],
+[2,"The Grand Canyon is located in which US state?","Arizona","Nevada","Utah","Colorado"],
+[2,"What is the capital of Russia?","Moscow","St. Petersburg","Kazan","Novosibirsk"],
+[2,"Which line divides the Northern and Southern hemispheres?","The Equator","The Prime Meridian","The Tropic of Cancer","The Arctic Circle"],
+[2,"What is the capital of China?","Beijing","Shanghai","Guangzhou","Shenzhen"],
+[2,"Mount Kilimanjaro is in which African country?","Tanzania","Kenya","Ethiopia","Uganda"],
+[2,"What is the capital of South Korea?","Seoul","Busan","Incheon","Daegu"],
+[2,"Which US city is nicknamed the Big Apple?","New York City","Chicago","Los Angeles","Boston"],
+[2,"The Panama Canal links the Atlantic to which ocean?","The Pacific","The Indian","The Arctic","The Southern"],
+[2,"What is the capital of India?","New Delhi","Mumbai","Kolkata","Chennai"],
+[2,"Geirangerfjord is a famous fjord in which country?","Norway","Denmark","Finland","Sweden"],
+[2,"What is the largest island in the world?","Greenland","Madagascar","Borneo","New Guinea"],
+[2,"Reykjavik is the capital of which country?","Iceland","Norway","Finland","Denmark"],
+[2,"The Amazon rainforest lies mostly within which country?","Brazil","Peru","Colombia","Venezuela"],
+[2,"Which strait separates Russia from Alaska?","The Bering Strait","The Strait of Gibraltar","The Strait of Hormuz","The Strait of Malacca"],
+/* ---- Movies & TV (3) ---- */
+[3,"Who directed the 1975 shark thriller 'Jaws'?","Steven Spielberg","George Lucas","Martin Scorsese","Francis Ford Coppola"],
+[3,"In the 1939 film 'The Wizard of Oz', what color are Dorothy's slippers?","Ruby red","Silver","Emerald green","Gold"],
+[3,"'May the Force be with you' comes from which film series?","Star Wars","Star Trek","Dune","Blade Runner"],
+[3,"Who played Jack Dawson in 'Titanic' (1997)?","Leonardo DiCaprio","Brad Pitt","Matt Damon","Johnny Depp"],
+[3,"In 'Finding Nemo', what type of fish is Nemo?","A clownfish","A blue tang","An angelfish","A pufferfish"],
+[3,"'Life is like a box of chocolates' is a line from which film?","Forrest Gump","Big","Cast Away","Rain Man"],
+[3,"Elijah Wood played which hobbit in 'The Lord of the Rings'?","Frodo Baggins","Bilbo Baggins","Samwise Gamgee","Peregrin Took"],
+[3,"The song 'Let It Go' features in which animated film?","Frozen","Moana","Tangled","Brave"],
+[3,"Who directed 'Pulp Fiction' (1994)?","Quentin Tarantino","Martin Scorsese","Oliver Stone","David Fincher"],
+[3,"In 'The Matrix', which pill does Neo choose?","The red pill","The blue pill","The green pill","The white pill"],
+[3,"Indiana Jones has a famous fear of which animal?","Snakes","Spiders","Rats","Scorpions"],
+[3,"Who played the Joker in 'The Dark Knight' (2008)?","Heath Ledger","Jack Nicholson","Jared Leto","Joaquin Phoenix"],
+[3,"In 'Toy Story', what kind of toy is Woody?","A cowboy doll","A space ranger","A dinosaur","A piggy bank"],
+[3,"'The Simpsons' is set in which fictional town?","Springfield","Quahog","South Park","Bedrock"],
+[3,"Who played Harry Potter in the film series?","Daniel Radcliffe","Rupert Grint","Tom Felton","Freddie Highmore"],
+[3,"In 'E.T.' (1982), which candy is used to lure the alien?","Reese's Pieces","M&M's","Skittles","Jelly beans"],
+[3,"Which film features a time-traveling DeLorean?","Back to the Future","The Terminator","Looper","Groundhog Day"],
+[3,"In 'The Lion King', what is Simba's father called?","Mufasa","Scar","Rafiki","Zazu"],
+[3,"The coffee shop in 'Friends' is called what?","Central Perk","The Daily Grind","Café Nervosa","MacLaren's"],
+[3,"Darth Vader is the father of which character?","Luke Skywalker","Han Solo","Obi-Wan Kenobi","Lando Calrissian"],
+[3,"Which 1993 film features a dinosaur theme park?","Jurassic Park","Godzilla","King Kong","Congo"],
+[3,"In 'Star Trek', Spock comes from which planet?","Vulcan","Romulus","Krypton","Tatooine"],
+[3,"Rocky Balboa boxes out of which US city?","Philadelphia","New York","Chicago","Boston"],
+[3,"Who voices Woody in the 'Toy Story' films?","Tom Hanks","Tim Allen","Billy Crystal","Robin Williams"],
+[3,"In 'Breaking Bad', what subject does Walter White teach?","Chemistry","Physics","Mathematics","Biology"],
+[3,"Wolverine's skeleton is bonded with which fictional metal?","Adamantium","Vibranium","Unobtainium","Mithril"],
+[3,"'The Godfather' follows which fictional crime family?","The Corleones","The Sopranos","The Capones","The Falcones"],
+[3,"The 'Ghostbusters' (1984) team operates in which city?","New York City","Chicago","Boston","Philadelphia"],
+[3,"Which TV series features the Iron Throne?","Game of Thrones","The Witcher","Vikings","Merlin"],
+[3,"What is Superman's home planet?","Krypton","Vulcan","Mars","Xandar"],
+[3,"Who played Neo in 'The Matrix'?","Keanu Reeves","Will Smith","Tom Cruise","Brad Pitt"],
+[3,"In 'Shrek', Princess Fiona turns into what at night?","An ogre","A dragon","A witch","A frog"],
+[3,"'In space no one can hear you scream' is the tagline of which film?","Alien","Gravity","Event Horizon","Interstellar"],
+[3,"What is James Bond's famous code number?","007","001","077","700"],
+[3,"In 'Casablanca', Rick's café is located in which country?","Morocco","Egypt","France","Tunisia"],
+[3,"Which Pixar film takes place inside a girl's mind?","Inside Out","Up","Coco","Ratatouille"],
+[3,"Who played Captain Jack Sparrow in 'Pirates of the Caribbean'?","Johnny Depp","Orlando Bloom","Russell Crowe","Hugh Jackman"],
+[3,"Sheldon Cooper is a character on which sitcom?","The Big Bang Theory","Friends","How I Met Your Mother","Frasier"],
+/* ---- Sports (4) ---- */
+[4,"How many players per soccer team are on the field?","11","10","9","12"],
+[4,"A slam dunk scores in which sport?","Basketball","Volleyball","Tennis","Baseball"],
+[4,"How often are the Summer Olympic Games normally held?","Every 4 years","Every 2 years","Every 3 years","Every 5 years"],
+[4,"In American football, how many points is a touchdown?","6","7","3","5"],
+[4,"In tennis, which point score comes after 30?","40","45","35","50"],
+[4,"The modern game of golf originated in which country?","Scotland","England","Ireland","The USA"],
+[4,"How many rings appear on the Olympic flag?","5","4","6","7"],
+[4,"In baseball, how many strikes make a strikeout?","3","2","4","5"],
+[4,"In tennis, a score of zero is called what?","Love","Nil","Duck","Blank"],
+[4,"Which sport is played with a shuttlecock?","Badminton","Tennis","Squash","Table tennis"],
+[4,"A marathon is closest to which distance?","26 miles","20 miles","31 miles","13 miles"],
+[4,"In which sport can you score a hole-in-one?","Golf","Bowling","Darts","Croquet"],
+[4,"How many players per basketball team are on the court?","5","6","7","4"],
+[4,"Wimbledon is a famous tournament in which sport?","Tennis","Golf","Cricket","Rowing"],
+[4,"A boxing match takes place in an area called the what?","Ring","Court","Rink","Pitch"],
+[4,"The Masters golf tournament awards what to its winner?","A green jacket","A silver jug","A yellow jersey","A gold glove"],
+[4,"In soccer, which card sends a player off the field?","Red","Yellow","Blue","Black"],
+[4,"A standard ice hockey game has how many periods?","3","2","4","5"],
+[4,"Which country won the first FIFA World Cup in 1930?","Uruguay","Brazil","Argentina","Italy"],
+[4,"In bowling, downing all ten pins with your first roll is called a what?","Strike","Spare","Split","Turkey"],
+[4,"What is the maximum standard break in snooker?","147","150","155","180"],
+[4,"Michael Jordan won six NBA titles with which team?","Chicago Bulls","LA Lakers","Boston Celtics","Detroit Pistons"],
+[4,"Which sport is played with a puck?","Ice hockey","Field hockey","Lacrosse","Polo"],
+[4,"The Tour de France is a famous race in which sport?","Cycling","Marathon running","Sailing","Motor racing"],
+[4,"A full round on a standard golf course has how many holes?","18","9","12","21"],
+[4,"How many volleyball players per team are on the court?","6","5","7","8"],
+[4,"In chess, what is it called when the king cannot escape capture?","Checkmate","Stalemate","Castling","En passant"],
+[4,"Which belt color marks the highest common rank in karate?","Black","Red","White","Brown"],
+[4,"Sumo wrestling comes from which country?","Japan","China","South Korea","Mongolia"],
+[4,"In American football, a field goal is worth how many points?","3","2","4","6"],
+[4,"The America's Cup is a trophy in which sport?","Sailing","Rowing","Golf","Horse racing"],
+[4,"Muhammad Ali was a world champion in which sport?","Boxing","Wrestling","Judo","Karate"],
+[4,"In cricket, hitting the ball over the boundary on the full scores how many runs?","6","4","5","8"],
+[4,"The Indianapolis 500 is a race for what?","Cars","Motorcycles","Horses","Bicycles"],
+[4,"Including home plate, how many bases are on a baseball diamond?","4","3","5","6"],
+[4,"Serena Williams won 23 Grand Slam singles titles in which sport?","Tennis","Golf","Badminton","Squash"],
+[4,"How many players per side start a rugby union match?","15","13","11","12"],
+[4,"Which of these is a weapon used in fencing?","Épée","Mallet","Wicket","Birdie"],
+/* ---- Tech (5) ---- */
+[5,"What does CPU stand for?","Central Processing Unit","Computer Personal Unit","Central Program Utility","Core Processing Utility"],
+[5,"Steve Jobs co-founded Apple with which engineer?","Steve Wozniak","Bill Gates","Paul Allen","Michael Dell"],
+[5,"What does 'WWW' stand for?","World Wide Web","World Web Window","Wide World Web","Web World Wire"],
+[5,"How many bits are in one byte?","8","4","16","10"],
+[5,"Which company created the Windows operating system?","Microsoft","Apple","IBM","Google"],
+[5,"What does HTML stand for?","HyperText Markup Language","High Tech Modern Language","HyperText Machine Language","Home Tool Markup Language"],
+[5,"Which programming language shares its name with a large snake?","Python","Java","Ruby","Perl"],
+[5,"Who designed the 19th-century Analytical Engine?","Charles Babbage","Alan Turing","Ada Lovelace","George Boole"],
+[5,"In what year did Apple release the first iPhone?","2007","2005","2009","2010"],
+[5,"What does USB stand for?","Universal Serial Bus","United System Bus","Universal System Board","Uniform Serial Base"],
+[5,"Which company develops the Android operating system?","Google","Apple","Samsung","Microsoft"],
+[5,"What is binary '10' in decimal?","2","10","4","1"],
+[5,"Bill Gates co-founded Microsoft with whom?","Paul Allen","Steve Jobs","Steve Ballmer","Larry Page"],
+[5,"What does RAM stand for?","Random Access Memory","Read Access Memory","Rapid Action Memory","Remote Access Module"],
+[5,"Mark Zuckerberg co-founded which social network?","Facebook","Twitter","LinkedIn","Myspace"],
+[5,"Tux, the Linux mascot, is what kind of animal?","A penguin","A puffin","A dolphin","An owl"],
+[5,"What does the 'S' in HTTPS stand for?","Secure","Server","System","Standard"],
+[5,"Which company makes the PlayStation consoles?","Sony","Nintendo","Microsoft","Sega"],
+[5,"Alan Turing helped crack which German cipher machine?","Enigma","Purple","Typex","Colossus"],
+[5,"What does 'AI' stand for in computing?","Artificial Intelligence","Automated Interface","Advanced Internet","Applied Integration"],
+[5,"On Windows, which keyboard shortcut copies selected text?","Ctrl+C","Ctrl+V","Ctrl+X","Ctrl+Z"],
+[5,"Which early graphical web browser launched in 1993?","Mosaic","Netscape Navigator","Internet Explorer","Opera"],
+[5,"What does GPU stand for?","Graphics Processing Unit","General Processing Unit","Graphical Program Utility","Game Performance Unit"],
+[5,"The Java language was originally created at which company?","Sun Microsystems","Microsoft","IBM","Adobe"],
+[5,"1,024 bytes is commonly known as one what?","Kilobyte","Megabyte","Gigabyte","Terabyte"],
+[5,"Larry Page and Sergey Brin founded which company in 1998?","Google","Yahoo","Amazon","eBay"],
+[5,"What does PDF stand for?","Portable Document Format","Printed Document File","Public Data Format","Personal Document Folder"],
+[5,"Who is often called the first computer programmer?","Ada Lovelace","Grace Hopper","Charles Babbage","Alan Turing"],
+[5,"Which Nintendo console launched in 2006 with motion controls?","The Wii","The Switch","The GameCube","The DS"],
+[5,"What does URL stand for?","Uniform Resource Locator","Universal Reference Link","United Resource List","Uniform Reference Locator"],
+[5,"Grace Hopper's work led to which business programming language?","COBOL","FORTRAN","BASIC","Pascal"],
+[5,"Which symbol appears in every email address?","@","#","&","%"],
+[5,"The Unix operating system was created at which lab?","Bell Labs","Xerox PARC","IBM Research","MIT Lincoln Lab"],
+[5,"What does 'IoT' stand for?","Internet of Things","Input of Text","Internet on Television","Integration of Technology"],
+[5,"The QWERTY keyboard layout is named after what?","Its first six letter keys","Its inventor","A typewriter company","A Latin word"],
+[5,"Which of these storage formats came first?","The floppy disk","The CD","The DVD","The USB flash drive"],
+[5,"Deep Blue, which beat chess champion Garry Kasparov in 1997, was made by?","IBM","Microsoft","Intel","Apple"],
+[5,"Which language is used to style the appearance of web pages?","CSS","HTML","SQL","PHP"]
+];
+/*ENDQDATA*/
+
+var QUESTIONS = RAW.map(function (r) {
+  return { cat: r[0], text: r[1], options: [r[2], r[3], r[4], r[5]], correct: 0 };
+});
+
+/* ================= CONFIG ================= */
+var ROUND_LEN = 10;
+var Q_TIME_MS = 15000;
+var BASE_PTS = 100;
+
+/* ================= STATE ================= */
+var KEY = "wizzed-trivia-blitz";
+var mode = "start";   // start | play | end
+var R = null;         // current round state
+var LT = loadStats(); // lifetime stats
+
+function blankStats() {
+  var c = {};
+  for (var i = 0; i < CATS.length; i++) c[CATS[i]] = { a: 0, c: 0 };
+  return { games: 0, answered: 0, correct: 0, bestScore: 0, bestStreak: 0, cats: c };
+}
+function loadStats() {
+  var b = blankStats(), s = null;
+  try { s = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { s = null; }
+  if (s && typeof s === "object") {
+    b.games = +s.games || 0;
+    b.answered = +s.answered || 0;
+    b.correct = +s.correct || 0;
+    b.bestScore = +s.bestScore || 0;
+    b.bestStreak = +s.bestStreak || 0;
+    if (s.cats && typeof s.cats === "object") {
+      for (var i = 0; i < CATS.length; i++) {
+        var e2 = s.cats[CATS[i]];
+        if (e2 && typeof e2 === "object") {
+          b.cats[CATS[i]].a = +e2.a || 0;
+          b.cats[CATS[i]].c = +e2.c || 0;
+        }
+      }
+    }
+  }
+  return b;
+}
+function saveStats() {
+  try { localStorage.setItem(KEY, JSON.stringify(LT)); } catch (e) {}
+}
+
+/* ================= AUDIO ================= */
+var AC = null, audioTried = false;
+function ensureAudio() {
+  if (audioTried) return;
+  audioTried = true;
+  try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; }
+}
+function blip(freq, dur, type, vol, delay) {
+  if (!AC) return;
+  try {
+    if (AC.state === "suspended") AC.resume();
+    var t = AC.currentTime + (delay || 0);
+    var o = AC.createOscillator(), g = AC.createGain();
+    o.type = type || "square";
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(vol || 0.12, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(AC.destination);
+    o.start(t); o.stop(t + dur + 0.03);
+  } catch (e) {}
+}
+function sndCorrect() { blip(660, 0.09, "square", 0.1); blip(990, 0.13, "square", 0.1, 0.08); }
+function sndWrong() { blip(196, 0.18, "triangle", 0.14); blip(147, 0.24, "triangle", 0.14, 0.12); }
+function sndTick() { blip(1150, 0.045, "square", 0.05); }
+function sndFanfare() {
+  var n = [523, 659, 784, 1047];
+  for (var i = 0; i < n.length; i++) blip(n[i], 0.14, "triangle", 0.11, i * 0.11);
+}
+
+/* ================= HELPERS ================= */
+function el(id) { return document.getElementById(id); }
+function shuffle(a) {
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+function multFor(streak) { return streak >= 6 ? 3 : (streak >= 3 ? 2 : 1); }
+function pct(c, a) { return a > 0 ? Math.round(c / a * 100) : 0; }
+
+/* ================= START SCREEN ================= */
+function catAccLabel(entry) {
+  if (!entry || entry.a === 0) return "NO PLAYS YET";
+  return pct(entry.c, entry.a) + "% ACC · " + entry.a + " ANS";
+}
+function renderStart() {
+  el("stGames").textContent = LT.games;
+  el("stBest").textContent = LT.bestScore;
+  el("stBestStreak").textContent = LT.bestStreak;
+  el("stAcc").textContent = LT.answered > 0 ? pct(LT.correct, LT.answered) + "%" : "—";
+  var box = el("cats");
+  box.innerHTML = "";
+  for (var i = 0; i < CATS.length; i++) box.appendChild(makeCard(i));
+  box.appendChild(makeCard(-1));
+}
+function makeCard(catIdx) {
+  var b = document.createElement("button");
+  b.type = "button";
+  b.className = "card" + (catIdx < 0 ? " mixed" : "");
+  var key = document.createElement("span");
+  key.className = "ckey";
+  key.textContent = catIdx < 0 ? "7" : String(catIdx + 1);
+  var name = document.createElement("span");
+  name.className = "cname";
+  name.textContent = catIdx < 0 ? "Mixed" : CATS[catIdx];
+  var acc = document.createElement("span");
+  acc.className = "cacc";
+  if (catIdx < 0) {
+    acc.textContent = LT.answered > 0 ? pct(LT.correct, LT.answered) + "% ACC · " + LT.answered + " ANS" : "ALL CATEGORIES";
+  } else {
+    acc.textContent = catAccLabel(LT.cats[CATS[catIdx]]);
+  }
+  b.appendChild(key); b.appendChild(name); b.appendChild(acc);
+  b.addEventListener("click", function () {
+    if (mode !== "start") return;
+    startRound(catIdx);
+  });
+  return b;
+}
+
+/* ================= ROUND ================= */
+function startRound(catIdx) {
+  ensureAudio();
+  clearTimers();
+  var src = catIdx < 0 ? QUESTIONS.slice() : QUESTIONS.filter(function (q) { return q.cat === catIdx; });
+  var pool = shuffle(src).slice(0, Math.min(ROUND_LEN, src.length));
+  R = {
+    cat: catIdx, pool: pool, qi: 0,
+    score: 0, streak: 0, bestStreak: 0, correct: 0, bonusTotal: 0,
+    perCat: {}, locked: true, iv: null, to: null, order: null,
+    deadline: 0, lastWhole: 0
+  };
+  mode = "play";
+  el("start").hidden = true;
+  el("game").hidden = false;
+  el("overlay").classList.remove("show");
+  updateHUD();
+  nextQuestion();
+}
+function clearTimers() {
+  if (R) {
+    if (R.iv) { clearInterval(R.iv); R.iv = null; }
+    if (R.to) { clearTimeout(R.to); R.to = null; }
+  }
+}
+function updateHUD() {
+  el("hScore").textContent = R.score;
+  el("hStreak").textContent = R.streak + " ×" + multFor(R.streak);
+  el("hQ").textContent = Math.min(R.qi + 1, R.pool.length) + "/" + R.pool.length;
+}
+function nextQuestion() {
+  if (!R) return;
+  if (R.qi >= R.pool.length) { endRound(); return; }
+  var q = R.pool[R.qi];
+  R.locked = false;
+  R.order = shuffle([0, 1, 2, 3]);
+  el("qcat").textContent = CATS[q.cat];
+  el("qtext").textContent = q.text;
+  var fb = el("feedback");
+  fb.textContent = "";
+  fb.className = "";
+  var box = el("answers");
+  box.classList.remove("locked");
+  box.innerHTML = "";
+  for (var s = 0; s < 4; s++) box.appendChild(makeAnswerBtn(q, s));
+  updateHUD();
+  startTimer();
+}
+function makeAnswerBtn(q, slot) {
+  var b = document.createElement("button");
+  b.type = "button";
+  b.className = "abtn";
+  var k = document.createElement("span");
+  k.className = "k";
+  k.textContent = String(slot + 1);
+  var t = document.createElement("span");
+  t.className = "t";
+  t.textContent = q.options[R.order[slot]];
+  b.appendChild(k); b.appendChild(t);
+  b.addEventListener("click", function () { choose(slot); });
+  return b;
+}
+function startTimer() {
+  if (R.iv) clearInterval(R.iv);
+  R.deadline = performance.now() + Q_TIME_MS;
+  R.lastWhole = Math.ceil(Q_TIME_MS / 1000);
+  var bar = el("timerbar");
+  bar.classList.remove("low");
+  bar.style.width = "100%";
+  R.iv = setInterval(timerTick, 100);
+}
+function timerTick() {
+  if (!R || R.locked) return;
+  var rem = R.deadline - performance.now();
+  var bar = el("timerbar");
+  if (rem <= 0) {
+    bar.style.width = "0%";
+    choose(-1); // timeout counts as wrong
+    return;
+  }
+  bar.style.width = (rem / Q_TIME_MS * 100) + "%";
+  if (rem <= 5000) bar.classList.add("low");
+  var whole = Math.ceil(rem / 1000);
+  if (whole !== R.lastWhole) {
+    R.lastWhole = whole;
+    if (whole <= 5) sndTick();
+  }
+}
+function choose(slot) {
+  if (mode !== "play" || !R || R.locked) return;
+  R.locked = true;
+  if (R.iv) { clearInterval(R.iv); R.iv = null; }
+  var q = R.pool[R.qi];
+  var remSec = Math.max(0, (R.deadline - performance.now()) / 1000);
+  var correctSlot = R.order.indexOf(q.correct);
+  var isCorrect = slot === correctSlot;
+  var box = el("answers");
+  box.classList.add("locked");
+  var btns = box.children;
+  if (btns[correctSlot]) btns[correctSlot].classList.add("correct");
+  var fb = el("feedback");
+  if (isCorrect) {
+    R.streak++;
+    if (R.streak > R.bestStreak) R.bestStreak = R.streak;
+    var mult = multFor(R.streak);
+    var bonus = Math.round(remSec * 4); // up to +60 for instant answers
+    var pts = (BASE_PTS + bonus) * mult;
+    R.score += pts;
+    R.bonusTotal += bonus * mult;
+    R.correct++;
+    fb.textContent = "+" + pts + (mult > 1 ? "  ×" + mult : "") + (bonus >= 44 ? "  FAST!" : "");
+    fb.className = "good";
+    sndCorrect();
+  } else {
+    if (slot >= 0 && btns[slot]) btns[slot].classList.add("wrong");
+    R.streak = 0;
+    fb.textContent = slot < 0 ? "TIME'S UP!" : "WRONG!";
+    fb.className = "bad";
+    sndWrong();
+  }
+  // lifetime + per-round category tallies
+  LT.answered++;
+  if (isCorrect) LT.correct++;
+  var ce = LT.cats[CATS[q.cat]];
+  if (ce) { ce.a++; if (isCorrect) ce.c++; }
+  var pcKey = String(q.cat);
+  if (!R.perCat[pcKey]) R.perCat[pcKey] = { a: 0, c: 0 };
+  R.perCat[pcKey].a++;
+  if (isCorrect) R.perCat[pcKey].c++;
+  saveStats();
+  updateHUD();
+  R.to = setTimeout(function () {
+    R.to = null;
+    R.qi++;
+    nextQuestion();
+  }, isCorrect ? 950 : 1500);
+}
+function endRound() {
+  clearTimers();
+  mode = "end";
+  LT.games++;
+  if (R.score > LT.bestScore) LT.bestScore = R.score;
+  if (R.bestStreak > LT.bestStreak) LT.bestStreak = R.bestStreak;
+  saveStats();
+  el("ovScore").textContent = R.score;
+  el("ovCorrect").textContent = R.correct + "/" + R.pool.length;
+  el("ovStreak").textContent = R.bestStreak;
+  el("ovBonus").textContent = "+" + R.bonusTotal;
+  var brk = el("ovbreak");
+  brk.innerHTML = "";
+  for (var i = 0; i < CATS.length; i++) {
+    var pc = R.perCat[String(i)];
+    if (!pc || pc.a === 0) continue;
+    var row = document.createElement("div");
+    row.className = "brow";
+    var bn = document.createElement("span");
+    bn.className = "bn";
+    bn.textContent = CATS[i];
+    var bb = document.createElement("span");
+    bb.className = "bbar";
+    var bf = document.createElement("span");
+    bf.className = "bfill";
+    bf.style.display = "block";
+    bf.style.width = pct(pc.c, pc.a) + "%";
+    bb.appendChild(bf);
+    var bv = document.createElement("span");
+    bv.className = "bv";
+    bv.textContent = pc.c + "/" + pc.a;
+    row.appendChild(bn); row.appendChild(bb); row.appendChild(bv);
+    brk.appendChild(row);
+  }
+  el("ovlife").innerHTML = "";
+  var life = el("ovlife");
+  var accTxt = LT.answered > 0 ? pct(LT.correct, LT.answered) + "%" : "—";
+  life.appendChild(document.createTextNode("LIFETIME: "));
+  var b1 = document.createElement("b");
+  b1.textContent = accTxt;
+  life.appendChild(b1);
+  life.appendChild(document.createTextNode(" ACC (" + LT.correct + "/" + LT.answered + ") · BEST SCORE "));
+  var b2 = document.createElement("b");
+  b2.textContent = String(LT.bestScore);
+  life.appendChild(b2);
+  el("overlay").classList.add("show");
+  sndFanfare();
+}
+function toStart() {
+  clearTimers();
+  mode = "start";
+  el("overlay").classList.remove("show");
+  el("game").hidden = true;
+  el("start").hidden = false;
+  renderStart();
+}
+function playAgain() {
+  if (mode !== "end") return;
+  startRound(R.cat);
+}
+
+/* ================= INPUT ================= */
+el("btnAgain").addEventListener("click", playAgain);
+el("btnChange").addEventListener("click", function () { if (mode === "end") toStart(); });
+document.addEventListener("pointerdown", ensureAudio);
+document.addEventListener("keydown", function (e) {
+  if (e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
+  ensureAudio();
+  var k = e.key;
+  var ae = document.activeElement;
+  if (mode === "end") {
+    if (k === "Enter" || k === " ") {
+      // let a focused overlay button perform its own action
+      if (ae && (ae.id === "btnAgain" || ae.id === "btnChange")) return;
+      e.preventDefault(); playAgain();
+    }
+    else if (k === "c" || k === "C") { e.preventDefault(); toStart(); }
+    return;
+  }
+  if (mode === "start") {
+    if (k >= "1" && k <= "6") { e.preventDefault(); startRound(+k - 1); }
+    else if (k === "Enter" || k === " ") {
+      // let a focused category card activate itself instead of forcing Mixed
+      if (ae && ae.classList && ae.classList.contains("card")) return;
+      e.preventDefault(); startRound(-1);
+    }
+    else if (k === "7" || k === "m" || k === "M") { e.preventDefault(); startRound(-1); }
+    return;
+  }
+  if (mode === "play") {
+    var slot = -1;
+    if (k >= "1" && k <= "4") slot = +k - 1;
+    else if (k.length === 1) {
+      var i = "abcd".indexOf(k.toLowerCase());
+      if (i >= 0) slot = i;
+    }
+    if (slot >= 0) { e.preventDefault(); choose(slot); }
+  }
+});
+
+renderStart();
+})();
+</script>
+</body>
+</html>

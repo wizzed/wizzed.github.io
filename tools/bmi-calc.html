@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BMI Calculator · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ffa94d; --soft:rgba(255,169,77,.45);
+  --panel:#1c1520; --line:#4a3350; --text:#fff1e2; --dim:#b09380;
+  --c-under:#4db8ff; --c-normal:#3ddc84; --c-over:#ffd54a; --c-obese:#ff5e5e;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:8px 12px 40px;
+}
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:linear-gradient(rgba(255,169,77,.035) 1px,transparent 1px),
+             linear-gradient(90deg,rgba(255,169,77,.035) 1px,transparent 1px);
+  background-size:28px 28px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:6px 8px 2px; position:relative; z-index:1; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{
+  max-width:780px; margin:8px auto 0; position:relative; z-index:1;
+  display:flex; flex-wrap:wrap; gap:14px; justify-content:center; align-items:stretch;
+}
+.panel{
+  background:var(--panel); border:2px solid var(--line);
+  box-shadow:0 0 22px rgba(255,169,77,.10), inset 0 1px 0 rgba(255,255,255,.05);
+  padding:14px;
+}
+#inputs{ flex:1 1 250px; min-width:240px; display:flex; flex-direction:column; gap:12px; }
+#unitToggle{ display:flex; gap:0; border:2px solid var(--line); }
+#unitToggle button{
+  flex:1; font-family:inherit; font-size:12px; letter-spacing:2px; cursor:pointer;
+  color:var(--dim); background:#0a0c16; border:0; padding:8px 4px;
+}
+#unitToggle button.on{
+  color:#1a0e00; background:var(--accent); font-weight:bold;
+  box-shadow:0 0 14px var(--soft);
+}
+.field{ display:flex; flex-direction:column; gap:5px; }
+.field label{ font-size:10px; letter-spacing:2px; color:var(--dim); }
+.field .inrow{ display:flex; gap:8px; }
+.field .inrow > span{ align-self:center; font-size:12px; color:var(--dim); }
+input[type=number], input[type=text]{
+  width:100%; font-family:inherit; font-size:20px; font-weight:bold;
+  color:var(--accent); background:#0a0c16; border:2px solid var(--line);
+  padding:8px 10px; text-align:right; outline:none;
+  text-shadow:0 0 8px var(--soft);
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.6);
+}
+input:focus{ border-color:var(--accent); box-shadow:inset 0 2px 8px rgba(0,0,0,.6), 0 0 12px var(--soft); }
+input.bad{ color:#ff6b6b; text-shadow:none; }
+#healthy{
+  font-size:12px; color:var(--dim); line-height:1.6; border-top:1px dashed var(--line); padding-top:10px;
+}
+#healthy b{ color:var(--c-normal); font-weight:normal; text-shadow:0 0 6px rgba(61,220,132,.5); }
+#gaugeWrap{ flex:1 1 330px; min-width:290px; display:flex; flex-direction:column; align-items:center; gap:4px; }
+#gauge{ width:100%; max-width:420px; height:auto; display:block; }
+#bmiVal{
+  font-size:clamp(30px,5vw,40px); font-weight:bold; color:var(--accent);
+  text-shadow:0 0 10px var(--soft), 0 0 30px var(--soft); line-height:1;
+}
+#bmiCat{ font-size:13px; letter-spacing:3px; font-weight:bold; }
+#legend{ display:flex; flex-wrap:wrap; gap:6px 12px; justify-content:center; margin-top:6px; }
+#legend span{ font-size:10px; color:var(--dim); letter-spacing:1px; display:flex; align-items:center; gap:4px; }
+#legend i{ width:10px; height:10px; display:inline-block; }
+#disclaimer{
+  max-width:780px; margin:12px auto 0; text-align:center;
+  font-size:10px; color:var(--dim); letter-spacing:.5px; line-height:1.6;
+  position:relative; z-index:1; padding:0 12px;
+}
+.hide{ display:none !important; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>BMI CALCULATOR</h1>
+  <div class="sub">WHO BANDS · LIVE NEEDLE · HEALTHY-WEIGHT RANGE</div>
+</header>
+<main>
+  <section class="panel" id="inputs">
+    <div id="unitToggle">
+      <button type="button" id="btnMetric" class="on">METRIC</button>
+      <button type="button" id="btnImperial">IMPERIAL</button>
+    </div>
+    <div class="field" id="fHeightM">
+      <label for="hCm">HEIGHT (CM)</label>
+      <input id="hCm" type="number" step="0.5" min="80" max="272" value="175">
+    </div>
+    <div class="field hide" id="fHeightI">
+      <label>HEIGHT (FT + IN)</label>
+      <div class="inrow">
+        <input id="hFt" type="number" step="1" min="2" max="8" value="5"><span>ft</span>
+        <input id="hIn" type="number" step="0.5" min="0" max="11.5" value="9"><span>in</span>
+      </div>
+    </div>
+    <div class="field" id="fWeightM">
+      <label for="wKg">WEIGHT (KG)</label>
+      <input id="wKg" type="number" step="0.1" min="10" max="500" value="70">
+    </div>
+    <div class="field hide" id="fWeightI">
+      <label for="wLb">WEIGHT (LB)</label>
+      <input id="wLb" type="number" step="0.5" min="20" max="1100" value="154">
+    </div>
+    <div id="healthy"></div>
+  </section>
+  <section class="panel" id="gaugeWrap">
+    <svg id="gauge" viewBox="-10 0 240 132" role="img" aria-label="BMI gauge">
+      <g id="bands"></g>
+      <g id="ticks"></g>
+      <g id="needleG">
+        <polygon id="needle" points="0,0" fill="#fff1e2"></polygon>
+        <circle cx="110" cy="108" r="7" fill="#0a0c16" stroke="#fff1e2" stroke-width="2"></circle>
+      </g>
+    </svg>
+    <div id="bmiVal">—</div>
+    <div id="bmiCat">—</div>
+    <div id="legend">
+      <span><i style="background:var(--c-under)"></i>&lt;18.5 UNDER</span>
+      <span><i style="background:var(--c-normal)"></i>18.5–25 NORMAL</span>
+      <span><i style="background:var(--c-over)"></i>25–30 OVER</span>
+      <span><i style="background:var(--c-obese)"></i>≥30 OBESE</span>
+    </div>
+  </section>
+</main>
+<p id="disclaimer">
+  BMI = weight ÷ height² (kg/m²). It is a population screening number, not a medical diagnosis —
+  it ignores muscle mass, age, and body composition. Talk to a health professional for real advice.
+</p>
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-bmi-calc';
+var $=function(id){ return document.getElementById(id); };
+
+/* canonical state: cm + kg */
+var state={ unit:'metric', cm:175, kg:70 };
+try{
+  var raw=localStorage.getItem(LS_KEY);
+  if(raw){
+    var s=JSON.parse(raw);
+    if(s && typeof s==='object'){
+      if(s.unit==='imperial') state.unit='imperial';
+      if(isFinite(s.cm) && s.cm>0) state.cm=Number(s.cm);
+      if(isFinite(s.kg) && s.kg>0) state.kg=Number(s.kg);
+    }
+  }
+}catch(e){}
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
+
+var LB_PER_KG=2.2046226218487757, CM_PER_IN=2.54;
+
+/* ---- gauge geometry ---- */
+var CX=110, CY=108, R=88, MIN=14, MAX=42;
+function angleFor(bmi){ /* radians: PI at MIN -> 0 at MAX (upper semicircle) */
+  var t=(bmi-MIN)/(MAX-MIN);
+  t=Math.max(0,Math.min(1,t));
+  return Math.PI*(1-t);
+}
+function pt(a,r){ return [CX+r*Math.cos(a), CY-r*Math.sin(a)]; }
+function arcPath(b1,b2,r){
+  var a1=angleFor(b1), a2=angleFor(b2);
+  var p1=pt(a1,r), p2=pt(a2,r);
+  return 'M '+p1[0].toFixed(2)+' '+p1[1].toFixed(2)+
+         ' A '+r+' '+r+' 0 0 1 '+p2[0].toFixed(2)+' '+p2[1].toFixed(2);
+}
+var SVGNS='http://www.w3.org/2000/svg';
+function mk(tag,attrs){
+  var el=document.createElementNS(SVGNS,tag);
+  for(var k in attrs) el.setAttribute(k,attrs[k]);
+  return el;
+}
+var BANDS=[
+  {from:MIN, to:18.5, color:'#4db8ff', name:'UNDERWEIGHT'},
+  {from:18.5, to:25,  color:'#3ddc84', name:'NORMAL'},
+  {from:25,  to:30,   color:'#ffd54a', name:'OVERWEIGHT'},
+  {from:30,  to:MAX,  color:'#ff5e5e', name:'OBESE'}
+];
+var bandsG=$('bands'), ticksG=$('ticks');
+BANDS.forEach(function(b){
+  bandsG.appendChild(mk('path',{
+    d:arcPath(b.from,b.to,R), fill:'none', stroke:b.color,
+    'stroke-width':16, 'stroke-linecap':'butt', opacity:.9
+  }));
+  /* soft glow underlay */
+  bandsG.insertBefore(mk('path',{
+    d:arcPath(b.from,b.to,R), fill:'none', stroke:b.color,
+    'stroke-width':22, opacity:.16
+  }), bandsG.firstChild);
+});
+[MIN,18.5,25,30,MAX].forEach(function(v){
+  var a=angleFor(v);
+  var p1=pt(a,R-11), p2=pt(a,R+11);
+  ticksG.appendChild(mk('line',{
+    x1:p1[0],y1:p1[1],x2:p2[0],y2:p2[1],
+    stroke:'#0f0f1a','stroke-width':2
+  }));
+  var lp=pt(a,R+17);
+  var t=mk('text',{
+    x:lp[0], y:lp[1]+3, 'text-anchor':'middle',
+    'font-size':'8.5', fill:'#b09380', 'font-family':'inherit'
+  });
+  t.textContent=String(v);
+  ticksG.appendChild(t);
+});
+/* needle: slim triangle pointing left (towards MIN at rotation 0) */
+$('needle').setAttribute('points',
+  (CX-R+22)+','+CY+' '+CX+','+(CY-4)+' '+CX+','+(CY+4));
+
+/* rAF needle animation */
+var curDeg=0, targetDeg=0, animating=false;
+function setNeedle(deg){
+  $('needleG').setAttribute('transform','rotate('+deg.toFixed(3)+' '+CX+' '+CY+')');
+}
+function animateTo(deg){
+  targetDeg=deg;
+  if(animating) return;
+  animating=true;
+  (function step(){
+    var diff=targetDeg-curDeg;
+    if(Math.abs(diff)<0.15){ curDeg=targetDeg; setNeedle(curDeg); animating=false; return; }
+    curDeg+=diff*0.14;
+    setNeedle(curDeg);
+    requestAnimationFrame(step);
+  })();
+}
+
+/* ---- calc + render ---- */
+function bmiOf(cm,kg){ var m=cm/100; return kg/(m*m); }
+function catOf(bmi){
+  if(bmi<18.5) return BANDS[0];
+  if(bmi<25) return BANDS[1];
+  if(bmi<30) return BANDS[2];
+  return BANDS[3];
+}
+function render(){
+  var bmi=bmiOf(state.cm,state.kg);
+  var ok=isFinite(bmi)&&bmi>0;
+  $('bmiVal').textContent= ok ? bmi.toFixed(1) : '—';
+  var c= ok ? catOf(bmi) : null;
+  var catEl=$('bmiCat');
+  catEl.textContent= c ? c.name : '—';
+  catEl.style.color= c ? c.color : 'inherit';
+  catEl.style.textShadow= c ? ('0 0 8px '+c.color) : 'none';
+  $('bmiVal').style.color= c ? c.color : 'var(--accent)';
+  $('bmiVal').style.textShadow= c ? ('0 0 10px '+c.color+', 0 0 30px '+c.color) : '';
+  if(ok){
+    var t=(Math.max(MIN,Math.min(MAX,bmi))-MIN)/(MAX-MIN);
+    animateTo(t*180);
+  }
+  /* healthy range for this height: BMI 18.5–24.9 */
+  var m=state.cm/100;
+  var lo=18.5*m*m, hi=24.9*m*m;
+  if(isFinite(lo)&&m>0){
+    if(state.unit==='metric'){
+      $('healthy').innerHTML='Healthy weight for '+state.cm.toFixed(0)+' cm:<br><b>'+lo.toFixed(1)+' – '+hi.toFixed(1)+' kg</b> (BMI 18.5–24.9)';
+    }else{
+      var totIn=state.cm/CM_PER_IN;
+      var ft=Math.floor(totIn/12), inch=totIn-ft*12;
+      $('healthy').innerHTML='Healthy weight for '+ft+'&prime;'+inch.toFixed(1)+'&Prime;:<br><b>'+(lo*LB_PER_KG).toFixed(1)+' – '+(hi*LB_PER_KG).toFixed(1)+' lb</b> (BMI 18.5–24.9)';
+    }
+  }else{
+    $('healthy').textContent='';
+  }
+}
+
+/* ---- inputs ---- */
+function val(id){
+  var el=$(id);
+  var n=parseFloat(el.value);
+  var bad=!isFinite(n)||n<0;
+  el.classList.toggle('bad',bad);
+  return bad?NaN:n;
+}
+function fromMetric(){
+  var cm=val('hCm'), kg=val('wKg');
+  if(isFinite(cm)&&cm>0) state.cm=cm;
+  if(isFinite(kg)&&kg>0) state.kg=kg;
+  render(); save();
+}
+function fromImperial(){
+  var ft=val('hFt'), inch=val('hIn'), lb=val('wLb');
+  if(isFinite(ft)&&isFinite(inch)){
+    var cm=(ft*12+inch)*CM_PER_IN;
+    if(cm>0) state.cm=cm;
+  }
+  if(isFinite(lb)&&lb>0) state.kg=lb/LB_PER_KG;
+  render(); save();
+}
+function fillInputs(){
+  $('hCm').value=(Math.round(state.cm*10)/10).toString();
+  $('wKg').value=(Math.round(state.kg*10)/10).toString();
+  var totIn=state.cm/CM_PER_IN;
+  var ft=Math.floor(totIn/12);
+  var inch=Math.round((totIn-ft*12)*10)/10;
+  if(inch>=12){ ft+=1; inch=0; }
+  $('hFt').value=ft.toString();
+  $('hIn').value=inch.toString();
+  $('wLb').value=(Math.round(state.kg*LB_PER_KG*10)/10).toString();
+}
+function setUnit(u){
+  state.unit=u;
+  var meIsM=(u==='metric');
+  $('btnMetric').classList.toggle('on',meIsM);
+  $('btnImperial').classList.toggle('on',!meIsM);
+  $('fHeightM').classList.toggle('hide',!meIsM);
+  $('fWeightM').classList.toggle('hide',!meIsM);
+  $('fHeightI').classList.toggle('hide',meIsM);
+  $('fWeightI').classList.toggle('hide',meIsM);
+  fillInputs(); render(); save();
+}
+$('btnMetric').addEventListener('click',function(){ setUnit('metric'); });
+$('btnImperial').addEventListener('click',function(){ setUnit('imperial'); });
+['hCm','wKg'].forEach(function(id){ $(id).addEventListener('input',fromMetric); });
+['hFt','hIn','wLb'].forEach(function(id){ $(id).addEventListener('input',fromImperial); });
+
+fillInputs();
+setUnit(state.unit);
+setNeedle(0);
+render();
+})();
+</script>
+</body>
+</html>

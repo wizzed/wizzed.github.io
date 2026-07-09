@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipe Flow — Wizzed Arcade</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:#0f0f1a;color:#cfeeff;font-family:'Courier New',ui-monospace,monospace;display:flex;align-items:center;justify-content:center;overflow:hidden}
+canvas{background:#0c0c16;border:2px solid rgba(51,204,255,.55);box-shadow:0 0 22px rgba(51,204,255,.35),0 0 90px rgba(51,204,255,.10),inset 0 0 60px rgba(51,204,255,.05);cursor:pointer}
+a.back{position:fixed;top:10px;left:12px;z-index:10;color:#8890b0;text-decoration:none;font-size:13px;letter-spacing:1px;padding:4px 9px;border:1px solid rgba(136,144,176,.35);background:rgba(15,15,26,.75)}
+a.back:hover{color:#33ccff;border-color:#33ccff;text-shadow:0 0 8px #33ccff}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<canvas id="game" width="800" height="500"></canvas>
+<script>
+'use strict';
+const cvs=document.getElementById('game'),ctx=cvs.getContext('2d');
+const W=800,H=500,ACC='#33ccff',WATER='#3fd0ff';
+function fit(){const s=Math.min(innerWidth/W,innerHeight/H)*0.97;cvs.style.width=Math.floor(W*s)+'px';cvs.style.height=Math.floor(H*s)+'px';}
+addEventListener('resize',fit);fit();
+const rand=(a,b)=>a+Math.random()*(b-a);
+const ri=n=>Math.floor(Math.random()*n);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+/* ---- save ---- */
+let saveData={level:1,best:0};
+try{const s=JSON.parse(localStorage.getItem('wizzed-pipes')||'{}');if(s&&s.level)saveData=s;}catch(e){}
+function persist(){try{localStorage.setItem('wizzed-pipes',JSON.stringify(saveData));}catch(e){}}
+/* ---- audio ---- */
+let actx=null;
+function audio(){if(!actx){try{actx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(actx&&actx.state==='suspended')actx.resume();}
+function beep(f,d,type,v,f2){if(!actx)return;try{const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.type=type||'square';o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(Math.max(20,f2),t+d);g.gain.setValueAtTime(v||0.05,t);g.gain.exponentialRampToValueAtTime(0.0001,t+d);o.connect(g).connect(actx.destination);o.start(t);o.stop(t+d);}catch(e){}}
+/* ---- directions: N=1 E=2 S=4 W=8 (bit i = 1<<i) ---- */
+const DX=[0,1,0,-1],DY=[-1,0,1,0];
+const bit=d=>1<<d,opp=d=>(d+2)%4;
+function rmask(m,r){r&=3;if(r===0)return m;return ((m<<r)|(m>>(4-r)))&15;}
+const bits=m=>((m&1)?1:0)+((m&2)?1:0)+((m&4)?1:0)+((m&8)?1:0);
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=ri(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;}
+/* ---- level state ---- */
+let level=saveData.level,score=0,lives=3;
+let cols=6,rows=5,tiles=[],src=0,drain=0,ts=56,ox=0,oy=60;
+let state='edit',timer=40,timerMax=40,flowFront=0,flowEvents=[],flowLeaks=[],drainDepth=-1,maxDepth=0,failMsg='';
+let parts=[],time=0,winT=0,uiButtons=[];
+const step=(i,d)=>{const c=i%cols,r=(i/cols)|0,nc=c+DX[d],nr=r+DY[d];return(nc<0||nc>=cols||nr<0||nr>=rows)?-1:nr*cols+nc;};
+/* ---- generation (always solvable: carve real path, add loops, scramble) ---- */
+function genLevel(ln){
+ const c=Math.min(12,5+Math.floor((ln-1)*0.9)),r=Math.min(8,4+Math.floor((ln-1)*0.55));
+ for(let att=0;att<120;att++){const g=carve(c,r,ln);if(g)return g;}
+ for(;;){const g=carve(5,4,1);if(g)return g;} // fallback: tiny grid always carvable
+}
+function carve(c,r,ln){
+ const N=c*r,mask=new Array(N).fill(0),bridge=new Array(N).fill(false);
+ const stp=(i,d)=>{const cc=i%c,rr=(i/c)|0,nc=cc+DX[d],nr=rr+DY[d];return(nc<0||nc>=c||nr<0||nr>=r)?-1:nr*c+nc;};
+ const sR=1+ri(Math.max(1,r-2)),dR=1+ri(Math.max(1,r-2));
+ const S=sR*c,D=dR*c+(c-1),pre=D-1;
+ const vis=new Uint8Array(N);vis[S]=1;const path=[S];
+ function dfs(cur){if(cur===pre)return true;
+  for(const d of shuffle([0,1,2,3])){const n=stp(cur,d);
+   if(n<0||vis[n]||n===D)continue;
+   vis[n]=1;path.push(n);if(dfs(n))return true;path.pop();vis[n]=0;}
+  return false;}
+ const first=stp(S,1);if(first<0||first===D)return null;
+ vis[first]=1;path.push(first);
+ if(first!==pre&&!dfs(first))return null;
+ path.push(D);
+ if(path.length<c+2)return null;
+ for(let i=0;i<path.length-1;i++){const a=path[i],b=path[i+1];
+  for(let d=0;d<4;d++)if(stp(a,d)===b){mask[a]|=bit(d);mask[b]|=bit(opp(d));break;}}
+ // loops with T junctions + bridges
+ const nLoops=ln<3?0:Math.min(3,1+Math.floor((ln-3)/3)),allowBridge=ln>=6;
+ let made=0;
+ for(let tr=0;tr<60&&made<nLoops;tr++){
+  const i=1+ri(path.length-4),j=i+2+ri(Math.max(1,path.length-3-i));
+  if(j>=path.length-1)continue;
+  const A=path[i],B=path[j];
+  if(bits(mask[A])>2||bits(mask[B])>2)continue;
+  const visL=new Set(),route=[A];
+  function branch(cur,forced,depth){if(depth>40)return false;
+   const dirs=forced>=0?[forced]:shuffle([0,1,2,3]);
+   for(const d of dirs){const n=stp(cur,d);if(n<0)continue;
+    if(n===B){route.push(B);return true;}
+    if(n===A||visL.has(n)||n===S||n===D)continue;
+    if(mask[n]===0){visL.add(n);route.push(n);if(branch(n,-1,depth+1))return true;route.pop();visL.delete(n);}
+    else if(allowBridge&&!bridge[n]&&(mask[n]===5||mask[n]===10)){
+     const vert=mask[n]===5;// N|S
+     const perp=vert?(d===1||d===3):(d===0||d===2);
+     if(perp){visL.add(n);route.push(n);if(branch(n,d,depth+1))return true;route.pop();visL.delete(n);}}}
+   return false;}
+  if(!branch(A,-1,0))continue;
+  const crossed=[];
+  for(let k=1;k<route.length-1;k++)if(mask[route[k]]!==0)crossed.push(route[k]);
+  for(let k=0;k<route.length-1;k++){const a=route[k],b=route[k+1];
+   for(let d=0;d<4;d++)if(stp(a,d)===b){mask[a]|=bit(d);mask[b]|=bit(opp(d));break;}}
+  for(const cc of crossed){mask[cc]=15;bridge[cc]=true;}
+  made++;}
+ // build tiles
+ const t=new Array(N);
+ for(let i=0;i<N;i++){
+  if(i===S)t[i]={base:mask[i],rot:0,kind:'src',bridge:false,fixed:true};
+  else if(i===D)t[i]={base:mask[i],rot:0,kind:'drain',bridge:false,fixed:true};
+  else if(mask[i]!==0)t[i]={base:mask[i],rot:0,kind:'pipe',bridge:bridge[i],fixed:bridge[i]||mask[i]===15};
+  else if(Math.random()<0.68){const pick=Math.random();const bm=pick<0.55?3:pick<0.85?5:7;
+   t[i]={base:rmask(bm,ri(4)),rot:0,kind:'pipe',bridge:false,fixed:false,decoy:true};}
+  else t[i]={base:0,rot:0,kind:'empty',bridge:false,fixed:true};}
+ // scramble
+ for(let s=0;s<25;s++){let diff=0,tot=0;
+  for(let i=0;i<N;i++){const tl=t[i];if(tl.fixed||tl.kind!=='pipe')continue;tl.rot=ri(4);
+   if(!tl.decoy){tot++;if(rmask(tl.base,tl.rot)!==tl.base)diff++;}}
+  if(tot===0||diff/Math.max(1,tot)>=0.4)break;}
+ return{cols:c,rows:r,tiles:t,src:S,drain:D};
+}
+function loadLevel(ln){
+ const g=genLevel(ln);cols=g.cols;rows=g.rows;tiles=g.tiles;src=g.src;drain=g.drain;
+ ts=Math.min(58,Math.floor(720/cols),Math.floor(396/rows));
+ ox=Math.floor((W-cols*ts)/2);
+ oy=54+Math.max(6,Math.floor((H-78-rows*ts)/2));
+ timerMax=Math.round(18+cols*rows*0.75);timer=timerMax;
+ state='edit';flowFront=0;lives=3;parts=[];
+ for(const tl of tiles){tl.vr=tl.rot*90;tl.fill=null;}
+}
+/* ---- flow simulation ---- */
+function eff(i){const t=tiles[i];return t?rmask(t.base,t.rot):0;}
+function simulate(){
+ const events=[],leaks=[],seen=new Set();let dReach=-1,mx=0;
+ const q=[{cell:src,dirIn:-1,depth:0}];seen.add(src*2);
+ events.push({cell:src,dirIn:-1,depth:0,exits:[]});
+ const evMap={};evMap[src*2]=events[0];
+ while(q.length){
+  const{cell,dirIn,depth}=q.shift();mx=Math.max(mx,depth);
+  const t=tiles[cell],m=eff(cell);
+  let exits=[];
+  if(dirIn<0){for(let d=0;d<4;d++)if(m&bit(d))exits.push(d);}
+  else if(t.bridge)exits=[dirIn];
+  else{for(let d=0;d<4;d++)if((m&bit(d))&&d!==opp(dirIn))exits.push(d);}
+  if(cell===drain){continue;}
+  const ev=evMap[cell*2+(t.bridge&&dirIn>=0&&(dirIn===1||dirIn===3)?1:0)];
+  for(const e of exits){
+   if(ev)ev.exits.push(e);
+   const n=step(cell,e);
+   if(n<0||!(eff(n)&bit(opp(e)))){leaks.push({cell,dir:e,depth:depth+1});continue;}
+   const nb=tiles[n].bridge,chan=nb&&(e===1||e===3)?1:0,k2=n*2+chan;
+   if(seen.has(k2))continue;seen.add(k2);
+   const nev={cell:n,dirIn:e,depth:depth+1,exits:[]};events.push(nev);evMap[k2]=nev;
+   if(n===drain)dReach=depth+1;
+   q.push({cell:n,dirIn:e,depth:depth+1});}}
+ return{events,leaks,drainDepth:dReach,maxDepth:mx};
+}
+function startFlow(){
+ const sim=simulate();
+ flowEvents=sim.events;flowLeaks=sim.leaks;drainDepth=sim.drainDepth;maxDepth=sim.maxDepth;
+ for(const t of tiles)t.fill=null;
+ for(const ev of flowEvents){const t=tiles[ev.cell];
+  if(!t.fill||ev.depth<t.fill.depth)t.fill=ev;}
+ state='flow';flowFront=0;
+ beep(200,0.4,'sine',0.06,400);
+}
+function tileCenter(i){return{x:ox+(i%cols)*ts+ts/2,y:oy+((i/cols)|0)*ts+ts/2};}
+function mouthPos(cell,dir){const c=tileCenter(cell);return{x:c.x+DX[dir]*ts/2,y:c.y+DY[dir]*ts/2};}
+function failFlow(msg){
+ lives--;state='fail';failMsg=msg;beep(140,0.5,'sawtooth',0.07,50);
+ if(lives<=0){state='dead';}
+}
+function winFlow(){
+ state='win';winT=0;const bonus=Math.ceil(timer)*5+level*100;score+=bonus;
+ if(score>saveData.best)saveData.best=score;
+ if(level+1>saveData.level)saveData.level=level+1;persist();
+ beep(520,0.12,'square',0.05);setTimeout(()=>beep(660,0.12,'square',0.05),110);setTimeout(()=>beep(880,0.2,'square',0.05),220);
+ for(let i=0;i<40;i++){const p=tileCenter(drain);parts.push({x:p.x,y:p.y,vx:rand(-160,160),vy:rand(-200,40),t:0,life:rand(0.5,1.1),col:i%2?WATER:'#aef',r:rand(2,4)});}
+}
+/* ---- input ---- */
+function pt(ev){const r=cvs.getBoundingClientRect();return{x:(ev.clientX-r.left)*W/r.width,y:(ev.clientY-r.top)*H/r.height};}
+cvs.addEventListener('pointerdown',ev=>{audio();const p=pt(ev);
+ for(const b of uiButtons)if(p.x>=b.x&&p.x<=b.x+b.w&&p.y>=b.y&&p.y<=b.y+b.h){b.on();return;}
+ if(state!=='edit')return;
+ const c=Math.floor((p.x-ox)/ts),r=Math.floor((p.y-oy)/ts);
+ if(c<0||c>=cols||r<0||r>=rows)return;
+ const i=r*cols+c,t=tiles[i];
+ if(t.fixed||t.kind!=='pipe'){beep(120,0.05,'square',0.02);return;}
+ t.rot=(t.rot+1)&3;beep(480+ri(80),0.05,'square',0.04);
+});
+addEventListener('keydown',ev=>{if(ev.key===' '||ev.key==='Enter'){ev.preventDefault();audio();
+ if(state==='edit')startFlow();
+ else if(state==='win'){level++;loadLevel(level);}
+ else if(state==='fail'){state='edit';timer=Math.max(12,timerMax*0.6);}
+ else if(state==='dead'){lives=3;score=Math.max(0,score-50);loadLevel(level);}}});
+/* ---- drawing ---- */
+function drawPipeShape(i,t){
+ const m=t.base===0?0:rmask(t.base,t.rot);
+ const cx=0,cy=0,hw=ts/2;
+ // draw pipe arm for each dir
+ const arm=(d,outerW,col)=>{ctx.strokeStyle=col;ctx.lineWidth=outerW;ctx.lineCap='butt';
+  ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(DX[d]*hw,DY[d]*hw);ctx.stroke();};
+ if(t.bridge){
+  // EW under, NS bridge over
+  arm(1,ts*0.34,'#39395c');arm(3,ts*0.34,'#39395c');arm(1,ts*0.2,'#1e1e34');arm(3,ts*0.2,'#1e1e34');
+  drawWaterChan(i,t,1);
+  ctx.fillStyle='#0c0c16';ctx.fillRect(-ts*0.24,-ts*0.24,ts*0.48,ts*0.48);
+  arm(0,ts*0.34,'#44446c');arm(2,ts*0.34,'#44446c');arm(0,ts*0.2,'#26263f');arm(2,ts*0.2,'#26263f');
+  drawWaterChan(i,t,0);
+  ctx.strokeStyle='#565686';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(-ts*0.17,-hw);ctx.lineTo(-ts*0.17,hw);ctx.moveTo(ts*0.17,-hw);ctx.lineTo(ts*0.17,hw);ctx.stroke();
+  return;}
+ for(let d=0;d<4;d++)if(m&bit(d))arm(d,ts*0.34,'#39395c');
+ for(let d=0;d<4;d++)if(m&bit(d))arm(d,ts*0.2,'#1e1e34');
+ if(m){ctx.fillStyle='#39395c';ctx.beginPath();ctx.arc(0,0,ts*0.17,0,7);ctx.fill();
+  ctx.fillStyle='#1e1e34';ctx.beginPath();ctx.arc(0,0,ts*0.10,0,7);ctx.fill();}
+ drawWaterChan(i,t,-1);
+ // rivets on elbows
+ if(m&&bits(m)===2){ctx.fillStyle='#565686';ctx.beginPath();ctx.arc(0,0,2,0,7);ctx.fill();}
+}
+function drawWaterChan(i,t,chan){ // chan: -1 normal, 0 NS-of-bridge, 1 EW-of-bridge
+ if(state!=='flow'&&state!=='win'&&state!=='fail')return;
+ const ev=t.fill;if(!ev)return;
+ if(t.bridge){const evChan=(ev.dirIn===1||ev.dirIn===3)?1:0;if(chan>=0&&evChan!==chan){
+  // maybe second channel filled by another event: search events
+  let ok=false;for(const e2 of flowEvents)if(e2.cell===i&&((e2.dirIn===1||e2.dirIn===3)?1:0)===chan){drawWaterEv(i,e2);ok=true;break;}
+  return;}
+ }
+ drawWaterEv(i,ev);
+}
+function drawWaterEv(i,ev){
+ const p=clamp(flowFront-ev.depth,0,1);if(p<=0)return;
+ const hw=ts/2,wW=ts*0.12;
+ ctx.strokeStyle=WATER;ctx.lineWidth=wW;ctx.lineCap='round';
+ ctx.shadowColor=WATER;ctx.shadowBlur=6;
+ if(ev.dirIn<0){ // source: fill outward
+  for(const e of ev.exits){const q=clamp(p,0,1);
+   ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(DX[e]*hw*q,DY[e]*hw*q);ctx.stroke();}
+ }else{
+  const ent=opp(ev.dirIn);
+  const q1=clamp(p*2,0,1);
+  ctx.beginPath();ctx.moveTo(DX[ent]*hw,DY[ent]*hw);ctx.lineTo(DX[ent]*hw*(1-q1),DY[ent]*hw*(1-q1));ctx.stroke();
+  if(p>0.5){const q2=(p-0.5)*2;
+   for(const e of ev.exits){ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(DX[e]*hw*q2,DY[e]*hw*q2);ctx.stroke();}
+   if(!ev.exits.length&&i===drain){ctx.fillStyle=WATER;ctx.beginPath();ctx.arc(0,0,ts*0.16*q2,0,7);ctx.fill();}}
+ }
+ ctx.shadowBlur=0;
+}
+function drawTile(i){
+ const t=tiles[i],c=i%cols,r=(i/cols)|0,x=ox+c*ts,y=oy+r*ts;
+ ctx.fillStyle=(c+r)%2?'#14142a':'#121226';ctx.fillRect(x,y,ts,ts);
+ ctx.strokeStyle='rgba(51,204,255,0.10)';ctx.lineWidth=1;ctx.strokeRect(x+0.5,y+0.5,ts-1,ts-1);
+ if(t.kind==='empty')return;
+ // live connectivity tint
+ if(state==='edit'&&liveSet.has(i)){ctx.fillStyle='rgba(63,208,255,0.10)';ctx.fillRect(x+1,y+1,ts-2,ts-2);}
+ ctx.save();ctx.translate(x+ts/2,y+ts/2);
+ // rotation animation for visual
+ const target=t.rot*90;let d=(target-t.vr)%360;if(d>180)d-=360;if(d<-180)d+=360;t.vr+=d*0.35;if(Math.abs(d)<0.5)t.vr=target;
+ if(t.kind==='pipe'){
+  if(!t.bridge&&t.base!==15){
+   ctx.rotate((t.vr-t.rot*90)*Math.PI/180);}
+  drawPipeShape(i,t);
+ }else if(t.kind==='src'){
+  drawPipeShape(i,t);
+  ctx.fillStyle='#0e2a3a';ctx.fillRect(-ts*0.36,-ts*0.36,ts*0.72,ts*0.72);
+  ctx.strokeStyle=ACC;ctx.lineWidth=2;ctx.strokeRect(-ts*0.36,-ts*0.36,ts*0.72,ts*0.72);
+  ctx.fillStyle=WATER;ctx.beginPath();ctx.arc(0,0,ts*0.2,0,7);ctx.fill();
+  ctx.strokeStyle='#0c2333';ctx.lineWidth=2;ctx.beginPath();
+  const a=time*3;ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*ts*0.16,Math.sin(a)*ts*0.16);ctx.stroke();
+ }else if(t.kind==='drain'){
+  drawPipeShape(i,t);
+  ctx.fillStyle='#0e3a24';ctx.fillRect(-ts*0.36,-ts*0.36,ts*0.72,ts*0.72);
+  ctx.strokeStyle='#59ff8a';ctx.lineWidth=2;ctx.strokeRect(-ts*0.36,-ts*0.36,ts*0.72,ts*0.72);
+  ctx.strokeStyle='#59ff8a';ctx.lineWidth=1.5;
+  for(let g=-1;g<=1;g++){ctx.beginPath();ctx.moveTo(g*ts*0.12,-ts*0.2);ctx.lineTo(g*ts*0.12,ts*0.2);ctx.stroke();}
+ }
+ ctx.restore();
+}
+let liveSet=new Set(),liveLeaks=[];
+function refreshLive(){
+ const sim=simulate();liveSet=new Set(sim.events.map(e=>e.cell));liveLeaks=sim.leaks;
+}
+function btn(x,y,w,h,label,on,col){uiButtons.push({x,y,w,h,on});
+ ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fillRect(x,y,w,h);
+ ctx.strokeStyle=col||ACC;ctx.lineWidth=1.5;ctx.strokeRect(x,y,w,h);
+ ctx.fillStyle=col||ACC;ctx.font='bold 13px Courier New,monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,x+w/2,y+h/2);}
+function drawHUD(){
+ uiButtons=[];
+ ctx.fillStyle='#0b0b14';ctx.fillRect(0,0,W,48);
+ ctx.strokeStyle='rgba(51,204,255,0.5)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,48);ctx.lineTo(W,48);ctx.stroke();
+ ctx.textBaseline='middle';ctx.font='bold 15px Courier New,monospace';
+ ctx.textAlign='left';ctx.fillStyle=ACC;ctx.shadowColor=ACC;ctx.shadowBlur=8;
+ ctx.fillText('PIPE FLOW',90,24);ctx.shadowBlur=0;
+ ctx.fillStyle='#dfe6ff';ctx.fillText('LV '+level,215,24);
+ ctx.fillStyle='#ffd23f';ctx.fillText('SCORE '+score,290,24);
+ ctx.fillStyle='#8890b0';ctx.font='11px Courier New,monospace';ctx.fillText('BEST '+saveData.best,430,24);
+ for(let i=0;i<3;i++){ctx.fillStyle=i<lives?WATER:'#2a2a44';
+  ctx.beginPath();const dx2=530+i*20;ctx.arc(dx2,26,6,0,7);ctx.moveTo(dx2,14);ctx.lineTo(dx2-6,24);ctx.lineTo(dx2+6,24);ctx.closePath();ctx.fill();}
+ // timer bar
+ if(state==='edit'){
+  const frac=timer/timerMax;
+  ctx.fillStyle='#1a1a2e';ctx.fillRect(590,12,110,10);
+  ctx.fillStyle=frac<0.25?'#ff4d5e':ACC;ctx.fillRect(590,12,110*frac,10);
+  ctx.strokeStyle='rgba(255,255,255,0.25)';ctx.lineWidth=1;ctx.strokeRect(590,12,110,10);
+  ctx.fillStyle='#8890b0';ctx.font='10px Courier New,monospace';ctx.textAlign='left';
+  ctx.fillText('FLOW IN '+Math.ceil(timer)+'s',590,33);
+  btn(710,8,82,32,'FLOW ▶',()=>startFlow());
+ }else if(state==='flow'){ctx.fillStyle=WATER;ctx.font='bold 13px Courier New,monospace';ctx.textAlign='left';ctx.fillText('WATER FLOWING…',590,24);}
+ ctx.fillStyle='#606880';ctx.font='11px Courier New,monospace';ctx.textAlign='center';
+ ctx.fillText('tap a pipe to rotate · connect pump ▸ drain · plug every opening',W/2,H-10);
+}
+function drawParticles(dt){
+ for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.t+=dt;if(p.t>=p.life){parts.splice(i,1);continue;}
+  p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=260*dt;
+  ctx.globalAlpha=1-p.t/p.life;ctx.fillStyle=p.col;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();ctx.globalAlpha=1;}
+}
+function drawOverlay(){
+ if(state==='edit'||state==='flow')return;
+ ctx.fillStyle='rgba(10,10,18,0.78)';ctx.fillRect(0,0,W,H);
+ ctx.textAlign='center';ctx.textBaseline='middle';
+ if(state==='win'){
+  ctx.shadowColor=ACC;ctx.shadowBlur=22;ctx.fillStyle=ACC;ctx.font='bold 40px Courier New,monospace';
+  ctx.fillText('LEVEL '+level+' COMPLETE!',W/2,180);ctx.shadowBlur=0;
+  ctx.fillStyle='#dfe6ff';ctx.font='15px Courier New,monospace';
+  ctx.fillText('+'+(Math.ceil(timer)*5+level*100)+' points · water delivered with no leaks',W/2,222);
+  btn(W/2-90,260,180,44,'NEXT LEVEL ▶',()=>{level++;loadLevel(level);});
+ }else if(state==='fail'){
+  ctx.shadowColor='#ff4d5e';ctx.shadowBlur=22;ctx.fillStyle='#ff4d5e';ctx.font='bold 38px Courier New,monospace';
+  ctx.fillText('LEAK!',W/2,180);ctx.shadowBlur=0;
+  ctx.fillStyle='#dfe6ff';ctx.font='15px Courier New,monospace';ctx.fillText(failMsg,W/2,222);
+  ctx.fillStyle='#8890b0';ctx.fillText('lives left: '+lives,W/2,246);
+  btn(W/2-90,272,180,44,'FIX PIPES ↻',()=>{state='edit';timer=Math.max(12,timerMax*0.6);});
+ }else if(state==='dead'){
+  ctx.shadowColor='#ff4d5e';ctx.shadowBlur=22;ctx.fillStyle='#ff4d5e';ctx.font='bold 38px Courier New,monospace';
+  ctx.fillText('FLOODED OUT',W/2,180);ctx.shadowBlur=0;
+  ctx.fillStyle='#dfe6ff';ctx.font='15px Courier New,monospace';ctx.fillText('the basement is soaked… try this level again',W/2,222);
+  btn(W/2-90,260,180,44,'RETRY LEVEL ↻',()=>{lives=3;score=Math.max(0,score-50);loadLevel(level);});
+ }
+}
+/* ---- loop ---- */
+let last=performance.now(),liveDirty=true;
+cvs.addEventListener('pointerdown',()=>{liveDirty=true;});
+function frame(now){
+ const dt=Math.min(0.05,(now-last)/1000);last=now;time+=dt;
+ if(state==='edit'){timer-=dt;if(timer<=0){timer=0;startFlow();}
+  if(liveDirty){refreshLive();liveDirty=false;}}
+ else if(state==='flow'){
+  flowFront+=dt*(2.2+level*0.15+flowFront*0.35);
+  let firstLeak=Infinity;for(const l of flowLeaks)firstLeak=Math.min(firstLeak,l.depth);
+  if(drainDepth>=0&&flowLeaks.length===0&&flowFront>=drainDepth+1)winFlow();
+  else if(firstLeak!==Infinity&&flowFront>=firstLeak){
+   for(const l of flowLeaks)if(l.depth<=flowFront){const mp=mouthPos(l.cell,l.dir);
+    for(let i=0;i<26;i++)parts.push({x:mp.x,y:mp.y,vx:rand(-120,120),vy:rand(-220,-40),t:0,life:rand(0.4,0.9),col:WATER,r:rand(1.5,3.5)});}
+   failFlow('water burst out of an open pipe end');}
+  else if(flowFront>maxDepth+2){failFlow('the water never reached the drain');}
+ }
+ ctx.clearRect(0,0,W,H);
+ // faint grid glow bg
+ ctx.fillStyle='#0c0c16';ctx.fillRect(0,0,W,H);
+ for(let i=0;i<cols*rows;i++)drawTile(i);
+ // leak warning mouths in edit mode
+ if(state==='edit'){for(const l of liveLeaks){const mp=mouthPos(l.cell,l.dir);
+  ctx.fillStyle='rgba(255,77,94,'+(0.5+0.4*Math.sin(time*6))+')';ctx.beginPath();ctx.arc(mp.x,mp.y,3.4,0,7);ctx.fill();}}
+ ctx.strokeStyle='rgba(51,204,255,0.35)';ctx.lineWidth=2;ctx.strokeRect(ox-3,oy-3,cols*ts+6,rows*ts+6);
+ drawParticles(dt);
+ drawHUD();
+ drawOverlay();
+ requestAnimationFrame(frame);
+}
+loadLevel(level);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

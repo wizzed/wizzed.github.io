@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spirograph · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#3ddc84; --accent-soft:rgba(61,220,132,.5);
+  --panel:#161623; --line:#2c2c46; --text:#e4f7ec; --dim:#7fa38d;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%; overflow:hidden;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+}
+canvas{ position:fixed; inset:0; display:block; }
+#art{ z-index:1; }
+#overlay{ z-index:2; pointer-events:none; }
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+#title{
+  position:fixed; top:10px; left:50%; transform:translateX(-50%); z-index:50;
+  font-size:15px; letter-spacing:5px; color:var(--accent); pointer-events:none;
+  text-shadow:0 0 8px var(--accent), 0 0 26px var(--accent-soft);
+}
+#panel{
+  position:fixed; top:40px; right:10px; z-index:55;
+  background:rgba(22,22,35,.92); border:2px solid var(--line);
+  box-shadow:0 0 0 1px #000, 0 0 22px rgba(61,220,132,.12);
+  padding:10px 12px; width:224px;
+  display:flex; flex-direction:column; gap:7px;
+}
+.row{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.lbl{ font-size:9px; letter-spacing:1px; color:var(--dim); width:100%; display:flex; justify-content:space-between; }
+.lbl b{ color:var(--accent); }
+button{
+  font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--text); border:2px solid var(--line); padding:5px 8px;
+  text-transform:uppercase;
+}
+button:hover{ border-color:var(--accent); text-shadow:0 0 6px var(--accent); }
+button:active{ transform:translateY(1px); }
+button.on{
+  color:#000; background:var(--accent); border-color:var(--accent);
+  box-shadow:0 0 12px var(--accent); text-shadow:none;
+}
+input[type=range]{
+  flex:1; -webkit-appearance:none; appearance:none; height:9px; min-width:60px;
+  background:#0c0c16; border:1px solid var(--line); outline:none; cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:16px; height:20px;
+  background:var(--accent); border:2px solid #000; box-shadow:0 0 10px var(--accent); cursor:pointer;
+}
+input[type=range]::-moz-range-thumb{
+  width:14px; height:18px; border-radius:0;
+  background:var(--accent); border:2px solid #000; box-shadow:0 0 10px var(--accent); cursor:pointer;
+}
+input[type=color]{
+  width:34px; height:26px; padding:0; border:2px solid var(--line);
+  background:#121220; cursor:pointer;
+}
+#status{
+  position:fixed; bottom:10px; left:50%; transform:translateX(-50%); z-index:50;
+  font-size:10px; letter-spacing:2px; color:var(--dim); pointer-events:none;
+  background:rgba(15,15,26,.7); padding:3px 10px; border:1px solid var(--line);
+}
+#panelToggle{ display:none; position:fixed; top:40px; right:10px; z-index:56; }
+@media (max-width:640px){
+  #panelToggle{ display:block; }
+  #panel{ display:none; }
+  #panel.open{ display:flex; top:76px; }
+}
+</style>
+</head>
+<body>
+<canvas id="art"></canvas>
+<canvas id="overlay"></canvas>
+<a class="back" href="../index.html">← Arcade</a>
+<div id="title">SPIROGRAPH</div>
+<button id="panelToggle">☰ GEARS</button>
+<div id="panel">
+  <div class="row"><span class="lbl"><span>OUTER RING R</span><b id="Rv"></b></span>
+    <input type="range" id="Rs" min="60" max="240" aria-label="Outer radius R"></div>
+  <div class="row"><span class="lbl"><span>GEAR r</span><b id="rv"></b></span>
+    <input type="range" id="rs" min="10" max="110" aria-label="Inner radius r"></div>
+  <div class="row"><span class="lbl"><span>PEN OFFSET d</span><b id="dv"></b></span>
+    <input type="range" id="ds" min="5" max="150" aria-label="Pen offset d"></div>
+  <div class="row"><span class="lbl"><span>SPEED</span><b id="sv"></b></span>
+    <input type="range" id="ss" min="1" max="10" aria-label="Draw speed"></div>
+  <div class="row"><span class="lbl">COLOR</span>
+    <button id="rainbowBtn" class="on">RAINBOW</button>
+    <input type="color" id="colorPick" value="#3ddc84" aria-label="Fixed color">
+  </div>
+  <div class="row">
+    <button id="autoClearBtn">AUTO-CLEAR</button>
+    <button id="pauseBtn">❚❚</button>
+  </div>
+  <div class="row">
+    <button id="randBtn">◈ RANDOM</button>
+    <button id="clearBtn">✕ CLEAR</button>
+    <button id="saveBtn">↓ PNG</button>
+  </div>
+</div>
+<div id="status">DRAWING…</div>
+<script>
+'use strict';
+(function(){
+  var LS_KEY='wizzed-spirograph';
+  var state={ R:150, r:55, d:80, speed:4, rainbow:true, color:'#3ddc84', autoClear:false };
+  try{
+    var s=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
+    ['R','r','d','speed'].forEach(function(k){
+      if(typeof s[k]==='number') state[k]=Math.round(s[k]);
+    });
+    state.R=Math.min(240,Math.max(60,state.R));
+    state.r=Math.min(110,Math.max(10,state.r));
+    state.d=Math.min(150,Math.max(5,state.d));
+    state.speed=Math.min(10,Math.max(1,state.speed));
+    if(typeof s.rainbow==='boolean') state.rainbow=s.rainbow;
+    if(typeof s.color==='string' && /^#[0-9a-fA-F]{6}$/.test(s.color)) state.color=s.color;
+    if(typeof s.autoClear==='boolean') state.autoClear=s.autoClear;
+  }catch(e){}
+  function save(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){} }
+
+  var art=document.getElementById('art'), actx=art.getContext('2d');
+  var ovl=document.getElementById('overlay'), octx=ovl.getContext('2d');
+  var statusEl=document.getElementById('status');
+  var W=0,H=0,CX=0,CY=0,dpr=1;
+
+  function resize(){
+    var snap=null;
+    if(art.width>0 && art.height>0){
+      snap=document.createElement('canvas');
+      snap.width=art.width; snap.height=art.height;
+      snap.getContext('2d').drawImage(art,0,0);
+    }
+    dpr=Math.min(2,window.devicePixelRatio||1);
+    W=window.innerWidth; H=window.innerHeight; CX=W/2; CY=H/2;
+    art.width=Math.round(W*dpr); art.height=Math.round(H*dpr);
+    ovl.width=art.width; ovl.height=art.height;
+    art.style.width=ovl.style.width=W+'px';
+    art.style.height=ovl.style.height=H+'px';
+    actx.setTransform(dpr,0,0,dpr,0,0);
+    octx.setTransform(dpr,0,0,dpr,0,0);
+    actx.fillStyle='#0f0f1a'; actx.fillRect(0,0,W,H);
+    if(snap) actx.drawImage(snap,(W-snap.width/dpr)/2,(H-snap.height/dpr)/2,snap.width/dpr,snap.height/dpr);
+    actx.lineCap='round'; actx.lineJoin='round';
+    computeScale();
+    prev=null;
+  }
+  window.addEventListener('resize',resize);
+
+  /* ---------- curve math ---------- */
+  var t=0, prev=null, done=false, paused=false, hue=140, scale=1, period=1;
+  function gcd(a,b){ while(b){ var x=a%b; a=b; b=x; } return a; }
+  function computeScale(){
+    var maxR=Math.max(state.R,(state.R-state.r)+state.d);
+    scale=(Math.min(W,H)/2-30)/maxR;
+    var g=gcd(state.R,state.r);
+    period=2*Math.PI*(state.r/g)+0.02;
+  }
+  function point(tt){
+    var Rr=state.R-state.r, k=Rr/state.r;
+    return [
+      CX+scale*(Rr*Math.cos(tt)+state.d*Math.cos(k*tt)),
+      CY+scale*(Rr*Math.sin(tt)-state.d*Math.sin(k*tt))
+    ];
+  }
+  function restart(){
+    t=0; prev=null; done=false;
+    computeScale();
+    if(state.autoClear) clearArt();
+    statusEl.textContent='DRAWING…';
+  }
+  function clearArt(){
+    actx.fillStyle='#0f0f1a'; actx.fillRect(0,0,W,H);
+  }
+  function penColor(){
+    if(state.rainbow) return 'hsl('+((hue+t*26)%360).toFixed(0)+',100%,62%)';
+    return state.color;
+  }
+
+  /* ---------- animation ---------- */
+  function frame(){
+    if(!paused && !done){
+      var steps=state.speed*4;
+      var dt=0.012;
+      actx.lineWidth=1.6;
+      for(var i=0;i<steps;i++){
+        t+=dt;
+        var p=point(t);
+        if(prev){
+          actx.strokeStyle=penColor();
+          actx.shadowColor=actx.strokeStyle;
+          actx.shadowBlur=5;
+          actx.beginPath();
+          actx.moveTo(prev[0],prev[1]);
+          actx.lineTo(p[0],p[1]);
+          actx.stroke();
+        }
+        prev=p;
+        if(t>=period){
+          done=true;
+          statusEl.textContent='COMPLETE · RANDOMIZE OR TWEAK THE GEARS';
+          break;
+        }
+      }
+      actx.shadowBlur=0;
+    }
+    drawGears();
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- gear guides + pen on overlay ---------- */
+  function drawGears(){
+    octx.clearRect(0,0,W,H);
+    var Rr=(state.R-state.r)*scale;
+    /* outer ring */
+    octx.strokeStyle='rgba(61,220,132,0.10)';
+    octx.lineWidth=1;
+    octx.beginPath(); octx.arc(CX,CY,state.R*scale,0,Math.PI*2); octx.stroke();
+    var p=point(t);
+    if(!done){
+      /* rolling gear */
+      var gx=CX+Rr*Math.cos(t), gy=CY+Rr*Math.sin(t);
+      octx.strokeStyle='rgba(61,220,132,0.22)';
+      octx.beginPath(); octx.arc(gx,gy,state.r*scale,0,Math.PI*2); octx.stroke();
+      octx.strokeStyle='rgba(61,220,132,0.30)';
+      octx.beginPath(); octx.moveTo(gx,gy); octx.lineTo(p[0],p[1]); octx.stroke();
+      octx.fillStyle='rgba(61,220,132,0.5)';
+      octx.beginPath(); octx.arc(gx,gy,2.5,0,Math.PI*2); octx.fill();
+    }
+    /* pen point */
+    var pulse=done ? 4+2*Math.sin(performance.now()/300) : 4;
+    octx.fillStyle='#ffffff';
+    octx.shadowColor=state.rainbow?'hsl('+((hue+t*26)%360).toFixed(0)+',100%,62%)':state.color;
+    octx.shadowBlur=14;
+    octx.beginPath(); octx.arc(p[0],p[1],pulse,0,Math.PI*2); octx.fill();
+    octx.shadowBlur=0;
+  }
+
+  /* ---------- controls ---------- */
+  var $=function(id){ return document.getElementById(id); };
+  var sliders={ R:$('Rs'), r:$('rs'), d:$('ds'), speed:$('ss') };
+  var vals={ R:$('Rv'), r:$('rv'), d:$('dv'), speed:$('sv') };
+  function syncUI(){
+    ['R','r','d','speed'].forEach(function(k){
+      sliders[k].value=state[k]; vals[k].textContent=state[k];
+    });
+    $('rainbowBtn').classList.toggle('on',state.rainbow);
+    $('autoClearBtn').classList.toggle('on',state.autoClear);
+    $('colorPick').value=state.color;
+  }
+  ['R','r','d'].forEach(function(k){
+    sliders[k].addEventListener('input',function(){
+      state[k]=+this.value;
+      if(k==='r' && state.r>=state.R) state.r=state.R-5;
+      vals[k].textContent=state[k];
+      restart(); save();
+    });
+  });
+  sliders.speed.addEventListener('input',function(){
+    state.speed=+this.value; vals.speed.textContent=state.speed; save();
+  });
+  $('rainbowBtn').addEventListener('click',function(){
+    state.rainbow=!state.rainbow; this.classList.toggle('on',state.rainbow); save();
+  });
+  $('colorPick').addEventListener('input',function(){
+    state.color=this.value; state.rainbow=false;
+    $('rainbowBtn').classList.remove('on'); save();
+  });
+  $('autoClearBtn').addEventListener('click',function(){
+    state.autoClear=!state.autoClear;
+    this.classList.toggle('on',state.autoClear); save();
+  });
+  $('pauseBtn').addEventListener('click',function(){
+    paused=!paused;
+    this.textContent=paused?'▶':'❚❚';
+    this.classList.toggle('on',paused);
+  });
+  $('clearBtn').addEventListener('click',function(){ clearArt(); restart(); });
+  $('randBtn').addEventListener('click',function(){
+    state.R=80+Math.floor(Math.random()*160);
+    state.r=10+Math.floor(Math.random()*Math.min(100,state.R-20));
+    state.d=20+Math.floor(Math.random()*125);
+    hue=Math.floor(Math.random()*360);
+    if(!state.rainbow) state.color=hslToHex(hue,100,62);
+    syncUI(); restart(); save();
+  });
+  function hslToHex(h,s,l){
+    s/=100; l/=100;
+    var a=s*Math.min(l,1-l);
+    var f=function(n){
+      var k=(n+h/30)%12;
+      var c=l-a*Math.max(-1,Math.min(k-3,9-k,1));
+      return Math.round(255*c).toString(16).padStart(2,'0');
+    };
+    return '#'+f(0)+f(8)+f(4);
+  }
+  $('saveBtn').addEventListener('click',function(){
+    var tmp=document.createElement('canvas');
+    tmp.width=art.width; tmp.height=art.height;
+    var tc=tmp.getContext('2d');
+    tc.fillStyle='#0f0f1a'; tc.fillRect(0,0,tmp.width,tmp.height);
+    tc.drawImage(art,0,0);
+    var a=document.createElement('a');
+    a.download='spirograph.png';
+    a.href=tmp.toDataURL('image/png');
+    a.click();
+  });
+  $('panelToggle').addEventListener('click',function(){
+    $('panel').classList.toggle('open');
+  });
+  document.addEventListener('keydown',function(e){
+    var tg=e.target.tagName;
+    if(tg==='INPUT'||tg==='TEXTAREA'||tg==='SELECT') return;
+    if(e.code==='Space'){ e.preventDefault(); $('pauseBtn').click(); }
+    else if(e.key==='r'||e.key==='R'){ $('randBtn').click(); }
+  });
+
+  /* ---------- init ---------- */
+  syncUI();
+  resize();
+  restart();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

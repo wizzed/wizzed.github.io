@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keno — Wizzed Arcade</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--acc:#22e5ee}
+  html,body{min-height:100%}
+  body{
+    background:#0f0f1a;
+    background-image:radial-gradient(ellipse 110% 70% at 50% -12%, rgba(34,229,238,.13), transparent 60%),
+      radial-gradient(ellipse 90% 60% at 50% 118%, rgba(20,60,60,.5), transparent 70%);
+    color:#c9f7fa;font-family:'Courier New',ui-monospace,Menlo,monospace;
+    min-height:100vh;overflow-x:hidden;user-select:none;-webkit-user-select:none;
+  }
+  a.back{position:fixed;top:8px;left:10px;z-index:60;color:#7deff5;text-decoration:none;
+    font-size:12px;letter-spacing:1px;opacity:.75;border:1px solid rgba(34,229,238,.35);
+    padding:3px 8px;border-radius:6px;background:rgba(15,15,26,.85)}
+  a.back:hover{opacity:1;box-shadow:0 0 10px rgba(34,229,238,.5)}
+  header{text-align:center;padding:6px 90px 0}
+  h1{font-size:clamp(14px,2.4vw,22px);letter-spacing:5px;color:var(--acc);
+    text-shadow:0 0 10px rgba(34,229,238,.9),0 0 28px rgba(34,229,238,.45)}
+  .sub{font-size:10px;letter-spacing:2px;color:#5aa3a8;margin-top:1px}
+  #bank{position:fixed;top:8px;right:10px;z-index:60;font-size:13px;color:#39ffa0;
+    border:1px solid rgba(57,255,160,.4);border-radius:8px;padding:3px 10px;
+    background:rgba(15,15,26,.85);text-shadow:0 0 8px rgba(57,255,160,.7)}
+
+  #wrap{display:flex;gap:10px;max-width:940px;margin:4px auto 0;padding:0 10px 12px;align-items:flex-start}
+  #board{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;flex:1;
+    background:rgba(15,15,26,.7);border:1px solid rgba(34,229,238,.35);border-radius:12px;
+    padding:8px;box-shadow:0 0 18px rgba(34,229,238,.12)}
+  .spot{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12px;
+    border:1px solid rgba(34,229,238,.25);border-radius:6px;cursor:pointer;color:#8adfe5;
+    background:rgba(34,229,238,.04);transition:background .12s,box-shadow .12s,color .12s}
+  .spot:hover{background:rgba(34,229,238,.15)}
+  .spot.pick{background:rgba(34,229,238,.28);color:#eafeff;border-color:var(--acc);
+    box-shadow:0 0 8px rgba(34,229,238,.6)}
+  .spot.drawn{color:#ffd166;border-color:rgba(255,209,102,.5)}
+  .spot.hit{background:#ffd166;color:#1c1c2e;border-color:#fff;font-weight:bold;
+    box-shadow:0 0 14px rgba(255,209,102,.95);animation:hitpop .5s}
+  @keyframes hitpop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
+  .spot.locked{cursor:default}
+
+  #side{flex:0 0 236px;display:flex;flex-direction:column;gap:8px}
+  #hopper{background:rgba(15,15,26,.75);border:1px solid rgba(34,229,238,.35);border-radius:12px;
+    padding:8px;text-align:center;position:relative}
+  #globe{width:64px;height:64px;margin:0 auto 4px;border-radius:50%;position:relative;
+    background:radial-gradient(circle at 35% 30%, rgba(34,229,238,.35), rgba(34,229,238,.08) 60%, rgba(34,229,238,.15));
+    border:2px solid rgba(34,229,238,.6);box-shadow:0 0 18px rgba(34,229,238,.5),inset 0 0 14px rgba(34,229,238,.3)}
+  #globe.spin::before,#globe.spin::after{content:'';position:absolute;width:12px;height:12px;border-radius:50%;
+    background:#ffd166;box-shadow:0 0 6px rgba(255,209,102,.9)}
+  #globe.spin::before{animation:orb1 .5s linear infinite;top:10px;left:12px}
+  #globe.spin::after{animation:orb2 .38s linear infinite;bottom:12px;right:10px}
+  @keyframes orb1{0%{transform:translate(0,0)}25%{transform:translate(22px,8px)}50%{transform:translate(10px,26px)}75%{transform:translate(-2px,12px)}100%{transform:translate(0,0)}}
+  @keyframes orb2{0%{transform:translate(0,0)}33%{transform:translate(-18px,-10px)}66%{transform:translate(-4px,-22px)}100%{transform:translate(0,0)}}
+  #bigBall{position:absolute;top:6px;right:10px;width:44px;height:44px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #fff, #ffd166 55%, #b8912f);color:#1c1c2e;
+    display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:16px;
+    box-shadow:0 0 16px rgba(255,209,102,.9);opacity:0;transform:scale(.3)}
+  #bigBall.pop{animation:ballpop .55s ease-out forwards}
+  @keyframes ballpop{0%{opacity:0;transform:scale(.3) translateY(20px)}55%{opacity:1;transform:scale(1.2)}100%{opacity:1;transform:scale(1)}}
+  #tray{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;min-height:44px;margin-top:4px}
+  .mini{width:19px;height:19px;border-radius:50%;font-size:9px;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 35% 30%, #eafeff, #9adfe5 60%, #3a7f86);color:#12222a;font-weight:bold}
+  .mini.h{background:radial-gradient(circle at 35% 30%, #fff, #ffd166 60%, #b8912f);box-shadow:0 0 6px rgba(255,209,102,.8)}
+  #drawStat{font-size:10px;letter-spacing:1px;color:#7deff5;margin-top:3px;min-height:14px}
+
+  #payt{background:rgba(15,15,26,.75);border:1px solid rgba(34,229,238,.3);border-radius:12px;padding:6px 10px}
+  #payt h3{font-size:9px;letter-spacing:2px;color:#5aa3a8;margin-bottom:3px}
+  #payt table{width:100%;border-collapse:collapse;font-size:11px}
+  #payt td{padding:1px 4px;color:#8adfe5}
+  #payt td:last-child{text-align:right;color:#c9f7fa}
+  #payt tr.now td{color:#ffd166;text-shadow:0 0 8px rgba(255,209,102,.8);font-weight:bold}
+  #payt .none{font-size:10px;color:#5aa3a8;padding:4px 0}
+
+  #ctl{background:rgba(15,15,26,.75);border:1px solid rgba(34,229,238,.3);border-radius:12px;padding:8px 10px}
+  .row{display:flex;gap:5px;margin-bottom:6px;align-items:center;flex-wrap:wrap}
+  .lbl{font-size:9px;letter-spacing:2px;color:#5aa3a8;width:100%}
+  .bet{font-family:inherit;font-size:11px;padding:4px 8px;border-radius:7px;cursor:pointer;
+    background:transparent;border:1px solid rgba(34,229,238,.4);color:#8adfe5}
+  .bet.sel{background:rgba(34,229,238,.25);color:#eafeff;box-shadow:0 0 8px rgba(34,229,238,.6)}
+  button.act{font-family:inherit;font-size:11px;letter-spacing:1px;padding:5px 10px;border-radius:8px;
+    cursor:pointer;background:transparent;border:1px solid rgba(34,229,238,.5);color:#7deff5}
+  button.act:hover{box-shadow:0 0 8px rgba(34,229,238,.5)}
+  #playBtn{width:100%;font-family:inherit;font-size:14px;letter-spacing:3px;padding:8px 0;border-radius:10px;
+    background:linear-gradient(180deg,#0c4a50,#072a2e);color:#eafeff;border:1px solid var(--acc);
+    cursor:pointer;box-shadow:0 0 12px rgba(34,229,238,.5)}
+  #playBtn:hover:not(:disabled){box-shadow:0 0 22px rgba(34,229,238,.9)}
+  #playBtn:disabled{opacity:.45;cursor:default;box-shadow:none}
+
+  #histBox{background:rgba(15,15,26,.75);border:1px solid rgba(34,229,238,.25);border-radius:12px;padding:6px 10px}
+  #histBox h3{font-size:9px;letter-spacing:2px;color:#5aa3a8;margin-bottom:3px}
+  #histList{font-size:10px;line-height:1.6;max-height:70px;overflow:hidden}
+  #histList .w{color:#39ffa0}
+  #histList .l{color:#6a8f97}
+  #msg{max-width:940px;margin:0 auto;text-align:center;font-size:12px;letter-spacing:1px;
+    color:#ffd166;min-height:18px;padding:0 10px 10px;text-shadow:0 0 8px rgba(255,209,102,.6)}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>◉ KENO ◉</h1>
+  <div class="sub">PICK 1–10 SPOTS · 20 BALLS DRAWN · HIT BIG</div>
+</header>
+<div id="bank">$1000</div>
+
+<div id="wrap">
+  <div id="board"></div>
+  <div id="side">
+    <div id="hopper">
+      <div id="globe"></div>
+      <div id="bigBall">?</div>
+      <div id="tray"></div>
+      <div id="drawStat">Pick your numbers, then PLAY</div>
+    </div>
+    <div id="ctl">
+      <div class="row"><span class="lbl">BET</span>
+        <button class="bet" data-v="1">$1</button>
+        <button class="bet sel" data-v="5">$5</button>
+        <button class="bet" data-v="10">$10</button>
+        <button class="bet" data-v="25">$25</button>
+        <button class="bet" data-v="100">$100</button>
+      </div>
+      <div class="row">
+        <button class="act" id="qpBtn">⚡ QUICK PICK</button>
+        <button class="act" id="clrBtn">CLEAR</button>
+      </div>
+      <button id="playBtn">PLAY</button>
+    </div>
+    <div id="payt"><h3 id="paytTitle">PAYTABLE</h3><div id="paytBody"><div class="none">Pick spots to see pays</div></div></div>
+    <div id="histBox"><h3>RESULTS</h3><div id="histList"></div></div>
+  </div>
+</div>
+<div id="msg">Welcome to the Keno lounge — pick up to 10 numbers.</div>
+
+<script>
+'use strict';
+(function(){
+const LSK='wizzed-keno';
+const $=id=>document.getElementById(id);
+
+/* ---------- audio ---------- */
+let AC=null;
+function ensureAC(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+  if(AC&&AC.state==='suspended')AC.resume(); }
+document.addEventListener('pointerdown',ensureAC);
+function beep(f,dur,type,g){ if(!AC)return; try{
+  const o=AC.createOscillator(),ga=AC.createGain();
+  o.type=type||'square';o.frequency.value=f;
+  ga.gain.setValueAtTime(g||0.04,AC.currentTime);
+  ga.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+(dur||0.07));
+  o.connect(ga);ga.connect(AC.destination);o.start();o.stop(AC.currentTime+(dur||0.07)+0.02);
+}catch(e){} }
+
+/* ---------- paytable (multiplier of bet) ---------- */
+const PAY={
+  1:{1:3},
+  2:{2:9},
+  3:{2:2,3:27},
+  4:{2:1,3:5,4:75},
+  5:{3:2,4:15,5:300},
+  6:{3:1,4:6,5:75,6:1500},
+  7:{4:2,5:15,6:150,7:3000},
+  8:{5:10,6:75,7:750,8:10000},
+  9:{5:5,6:30,7:200,8:2500,9:10000},
+  10:{5:3,6:15,7:80,8:500,9:2500,10:10000}
+};
+
+/* ---------- state ---------- */
+let bank=1000;
+try{const j=JSON.parse(localStorage.getItem(LSK));if(j&&typeof j.bank==='number'&&j.bank>0)bank=j.bank;}catch(e){}
+function save(){try{localStorage.setItem(LSK,JSON.stringify({bank}));}catch(e){}}
+let picks=new Set(), bet=5, drawing=false;
+
+const boardEl=$('board'),cells=[];
+for(let n=1;n<=80;n++){
+  const c=document.createElement('div');
+  c.className='spot';c.textContent=n;
+  c.addEventListener('click',()=>toggle(n));
+  boardEl.appendChild(c);cells[n]=c;
+}
+function toggle(n){
+  if(drawing)return;
+  if(picks.has(n)){picks.delete(n);cells[n].classList.remove('pick');}
+  else{
+    if(picks.size>=10){msg('Maximum 10 spots.');beep(140,0.1,'sawtooth',0.05);return;}
+    picks.add(n);cells[n].classList.add('pick');
+  }
+  beep(500,0.03,'triangle',0.04);
+  renderPaytable(0);
+}
+$('qpBtn').addEventListener('click',()=>{
+  if(drawing)return;
+  const n=picks.size>0?picks.size:10;
+  clearPicks();
+  const pool=[];for(let i=1;i<=80;i++)pool.push(i);
+  for(let i=0;i<n;i++){
+    const j=i+Math.floor(Math.random()*(pool.length-i));
+    [pool[i],pool[j]]=[pool[j],pool[i]];
+    picks.add(pool[i]);cells[pool[i]].classList.add('pick');
+  }
+  beep(620,0.06,'triangle',0.05);
+  msg('Quick pick: '+n+' spots.');
+  renderPaytable(0);
+});
+$('clrBtn').addEventListener('click',()=>{if(!drawing){clearPicks();renderPaytable(0);msg('Board cleared.');}});
+function clearPicks(){picks.clear();cells.forEach(c=>c&&c.classList.remove('pick','drawn','hit'));}
+function clearMarks(){cells.forEach(c=>c&&c.classList.remove('drawn','hit'));}
+
+document.querySelectorAll('.bet').forEach(b=>{
+  b.addEventListener('click',()=>{
+    if(drawing)return;
+    bet=+b.dataset.v;beep(560,0.04,'triangle',0.04);
+    document.querySelectorAll('.bet').forEach(x=>x.classList.toggle('sel',x===b));
+    renderPaytable(0);
+  });
+});
+
+function msg(t){$('msg').textContent=t;}
+function renderBank(){$('bank').textContent='$'+bank;}
+function renderPaytable(hits){
+  const n=picks.size,body=$('paytBody');
+  $('paytTitle').textContent='PAYTABLE · PICK '+n+' · BET $'+bet;
+  if(!n||!PAY[n]){body.innerHTML='<div class="none">Pick spots to see pays</div>';return;}
+  let html='<table>';
+  const tiers=Object.keys(PAY[n]).map(Number).sort((a,b)=>a-b);
+  for(const t of tiers){
+    html+='<tr'+(hits===t?' class="now"':'')+'><td>'+t+' HIT'+(t>1?'S':'')+'</td><td>×'+PAY[n][t]+' = $'+(PAY[n][t]*bet)+'</td></tr>';
+  }
+  html+='</table>';
+  body.innerHTML=html;
+}
+
+/* ---------- draw ---------- */
+$('playBtn').addEventListener('click',()=>{
+  if(drawing)return;
+  if(picks.size===0){msg('Pick at least 1 number first.');beep(140,0.1,'sawtooth',0.05);return;}
+  if(bank<bet){msg('Not enough bankroll for that bet.');beep(140,0.1,'sawtooth',0.05);return;}
+  bank-=bet;renderBank();save();
+  drawing=true;$('playBtn').disabled=true;
+  clearMarks();$('tray').innerHTML='';
+  $('globe').classList.add('spin');
+  const pool=[];for(let i=1;i<=80;i++)pool.push(i);
+  const drawn=[];
+  for(let i=0;i<20;i++){
+    const j=i+Math.floor(Math.random()*(pool.length-i));
+    [pool[i],pool[j]]=[pool[j],pool[i]];
+    drawn.push(pool[i]);
+  }
+  let idx=0,hits=0;
+  const step=()=>{
+    if(idx>=20){finish(hits);return;}
+    const n=drawn[idx++];
+    const isHit=picks.has(n);
+    if(isHit)hits++;
+    const bb=$('bigBall');
+    bb.textContent=n;bb.classList.remove('pop');void bb.offsetWidth;bb.classList.add('pop');
+    const m=document.createElement('div');m.className='mini'+(isHit?' h':'');m.textContent=n;
+    $('tray').appendChild(m);
+    cells[n].classList.add(isHit?'hit':'drawn');
+    $('drawStat').textContent='BALL '+idx+'/20 · HITS: '+hits;
+    renderPaytable(hits);
+    if(isHit){beep(880,0.07,'square',0.05);setTimeout(()=>beep(1180,0.06,'square',0.04),60);}
+    else beep(330+idx*8,0.03,'triangle',0.03);
+    setTimeout(step,idx<20?185:400);
+  };
+  step();
+});
+function finish(hits){
+  $('globe').classList.remove('spin');
+  const n=picks.size;
+  const mult=(PAY[n]&&PAY[n][hits])||0;
+  const win=mult*bet;
+  if(win>0){
+    bank+=win;
+    msg('★ '+hits+'/'+n+' HITS — YOU WIN $'+win+' (×'+mult+') ★');
+    beep(520,0.1,'square',0.05);setTimeout(()=>beep(780,0.1,'square',0.05),110);
+    setTimeout(()=>beep(1040,0.14,'square',0.05),230);
+  }else{
+    msg(hits+'/'+n+' hits — no pay this round.');
+    beep(180,0.12,'sawtooth',0.04);
+  }
+  addHist(n,hits,win);
+  if(bank<=0){bank=1000;msg('Busted! The lounge staked you a fresh $1000.');}
+  renderBank();save();
+  drawing=false;$('playBtn').disabled=false;
+}
+function addHist(n,hits,win){
+  const el=document.createElement('div');
+  el.className=win>0?'w':'l';
+  el.textContent='PICK '+n+' · '+hits+' hits · '+(win>0?'+$'+win:'-$'+bet);
+  const list=$('histList');
+  list.prepend(el);
+  while(list.children.length>5)list.lastChild.remove();
+}
+
+/* ---------- boot: dress the table ---------- */
+renderBank();
+(function preset(){ // a friendly starter pattern so the board never looks blank
+  [7,13,27,40,54,66,71].forEach(n=>{picks.add(n);cells[n].classList.add('pick');});
+  renderPaytable(0);
+})();
+})();
+</script>
+</body>
+</html>

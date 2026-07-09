@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matrix Rain · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#00ff66; --accent-soft:rgba(0,255,102,.5);
+  --panel:#161623; --line:#2c2c46; --text:#e0ffe9; --dim:#6f9a80;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%; overflow:hidden;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+}
+#rain{ position:fixed; inset:0; display:block; z-index:1; }
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+#gear{
+  position:fixed; top:10px; right:12px; z-index:60;
+  font-family:inherit; font-size:12px; letter-spacing:1px; cursor:pointer;
+  background:rgba(15,15,26,.9); color:var(--accent); border:2px solid var(--line); padding:4px 10px;
+  text-transform:uppercase;
+}
+#gear:hover{ border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+#panel{
+  position:fixed; top:44px; right:12px; z-index:55;
+  background:rgba(22,22,35,.93); border:2px solid var(--line);
+  box-shadow:0 0 0 1px #000, 0 0 22px var(--accent-soft);
+  padding:10px 12px; width:220px;
+  display:flex; flex-direction:column; gap:8px;
+}
+#panel.closed{ display:none; }
+.lbl{ font-size:9px; letter-spacing:1px; color:var(--dim); display:flex; justify-content:space-between; }
+.lbl b{ color:var(--accent); }
+.row{ display:flex; align-items:center; gap:6px; }
+input[type=range]{
+  flex:1; -webkit-appearance:none; appearance:none; height:9px;
+  background:#0c0c16; border:1px solid var(--line); outline:none; cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:16px; height:20px;
+  background:var(--accent); border:2px solid #000; box-shadow:0 0 10px var(--accent); cursor:pointer;
+}
+input[type=range]::-moz-range-thumb{
+  width:14px; height:18px; border-radius:0;
+  background:var(--accent); border:2px solid #000; box-shadow:0 0 10px var(--accent); cursor:pointer;
+}
+.swatches{ display:flex; gap:6px; }
+.swatches button{
+  flex:1; height:24px; cursor:pointer; border:2px solid var(--line); background:#121220;
+  position:relative;
+}
+.swatches button::after{
+  content:''; position:absolute; inset:4px; background:var(--c);
+  box-shadow:0 0 8px var(--c);
+}
+.swatches button.on{ border-color:#fff; }
+#wordIn{
+  font-family:inherit; font-size:13px; width:100%; letter-spacing:2px;
+  background:#0a0a12; color:var(--accent); border:1px solid var(--line); padding:5px 7px;
+  text-transform:uppercase;
+}
+#wordIn:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+#hint{
+  position:fixed; bottom:10px; left:50%; transform:translateX(-50%); z-index:50;
+  font-size:10px; letter-spacing:2px; color:var(--dim); pointer-events:none;
+  background:rgba(15,15,26,.72); padding:3px 10px; border:1px solid var(--line);
+}
+#titleTag{
+  position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:50;
+  font-size:14px; letter-spacing:6px; color:var(--accent); pointer-events:none;
+  text-shadow:0 0 8px var(--accent), 0 0 26px var(--accent-soft);
+}
+</style>
+</head>
+<body>
+<canvas id="rain"></canvas>
+<a class="back" href="../index.html">← Arcade</a>
+<div id="titleTag">MATRIX RAIN</div>
+<button id="gear">☰ CTRL</button>
+<div id="panel">
+  <span class="lbl"><span>SPEED</span><b id="spdV"></b></span>
+  <div class="row"><input type="range" id="spd" min="3" max="30" aria-label="Rain speed"></div>
+  <span class="lbl"><span>DENSITY</span><b id="denV"></b></span>
+  <div class="row"><input type="range" id="den" min="20" max="100" aria-label="Column density"></div>
+  <span class="lbl"><span>GLYPH SIZE</span><b id="sizV"></b></span>
+  <div class="row"><input type="range" id="siz" min="10" max="28" aria-label="Glyph size"></div>
+  <span class="lbl"><span>COLOR</span></span>
+  <div class="swatches">
+    <button data-c="green" style="--c:#00ff66" aria-label="Green"></button>
+    <button data-c="cyan" style="--c:#00e5ff" aria-label="Cyan"></button>
+    <button data-c="pink" style="--c:#ff4fd8" aria-label="Pink"></button>
+    <button data-c="amber" style="--c:#ffb020" aria-label="Amber"></button>
+  </div>
+  <span class="lbl"><span>YOUR TEXT IN THE RAIN</span></span>
+  <input id="wordIn" maxlength="16" placeholder="WIZZED" autocomplete="off">
+</div>
+<div id="hint">CLICK ANYWHERE FOR A RIPPLE</div>
+<script>
+'use strict';
+(function(){
+  var LS_KEY='wizzed-matrix-rain';
+  var COLORS={
+    green:{ main:'#00ff66', head:'#d8ffe8' },
+    cyan:{ main:'#00e5ff', head:'#d8f9ff' },
+    pink:{ main:'#ff4fd8', head:'#ffdcf6' },
+    amber:{ main:'#ffb020', head:'#ffedcd' }
+  };
+  var state={ speed:14, density:85, size:16, color:'green', word:'', open:true };
+  try{
+    var s=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
+    if(typeof s.speed==='number') state.speed=Math.min(30,Math.max(3,s.speed));
+    if(typeof s.density==='number') state.density=Math.min(100,Math.max(20,s.density));
+    if(typeof s.size==='number') state.size=Math.min(28,Math.max(10,s.size));
+    if(COLORS[s.color]) state.color=s.color;
+    if(typeof s.word==='string') state.word=s.word.slice(0,16);
+    if(typeof s.open==='boolean') state.open=s.open;
+  }catch(e){}
+  function save(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){} }
+
+  var cv=document.getElementById('rain'), ctx=cv.getContext('2d');
+  var W=0,H=0;
+
+  /* glyph set: halfwidth katakana + latin + digits */
+  var GLYPHS=[];
+  (function(){
+    for(var i=0xFF66;i<=0xFF9D;i++) GLYPHS.push(String.fromCharCode(i));
+    var extra='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<>*+=:';
+    for(var j=0;j<extra.length;j++) GLYPHS.push(extra[j]);
+  })();
+  function randGlyph(){ return GLYPHS[(Math.random()*GLYPHS.length)|0]; }
+
+  /* ---------- columns ---------- */
+  var cols=[], colSeed=[];
+  for(var cs=0;cs<600;cs++) colSeed.push(Math.random());
+  function rebuild(){
+    W=window.innerWidth; H=window.innerHeight;
+    cv.width=W; cv.height=H;
+    ctx.fillStyle='#0f0f1a'; ctx.fillRect(0,0,W,H);
+    var n=Math.ceil(W/state.size);
+    cols=[];
+    for(var i=0;i<n;i++){
+      cols.push({
+        y:Math.floor(Math.random()*(H/state.size)),
+        vary:0.6+Math.random()*0.8,
+        acc:Math.random(),
+        prevGlyph:randGlyph(),
+        wordIdx:-1
+      });
+    }
+    ctx.font='bold '+state.size+'px "Courier New", ui-monospace, monospace';
+    ctx.textBaseline='top';
+  }
+  window.addEventListener('resize',rebuild);
+
+  /* ---------- ripples ---------- */
+  var ripples=[];
+  document.addEventListener('pointerdown',function(e){
+    var t=e.target;
+    if(t.closest && (t.closest('#panel')||t.closest('#gear')||t.closest('a.back'))) return;
+    ripples.push({ x:e.clientX, y:e.clientY, r:0 });
+    if(ripples.length>6) ripples.shift();
+  });
+
+  /* ---------- main loop ---------- */
+  var lastT=0;
+  function frame(t){
+    var dt=Math.min(0.05,(t-lastT)/1000)||0.016; lastT=t;
+    var c=COLORS[state.color], size=state.size;
+    /* trail fade */
+    ctx.fillStyle='rgba(15,15,26,0.08)';
+    ctx.fillRect(0,0,W,H);
+    ctx.font='bold '+size+'px "Courier New", ui-monospace, monospace';
+    var rate=state.speed;
+    var word=state.word;
+    for(var i=0;i<cols.length;i++){
+      if(colSeed[i%600]*100>state.density) continue;
+      var col=cols[i];
+      col.acc+=dt*rate*col.vary;
+      while(col.acc>=1){
+        col.acc-=1;
+        var x=i*size, y=col.y*size;
+        /* repaint previous head in body color */
+        ctx.fillStyle=c.main;
+        ctx.fillText(col.prevGlyph,x,y-size);
+        var ch, isWord=false;
+        if(col.wordIdx>=0 && word){
+          ch=word[col.wordIdx];
+          col.wordIdx++;
+          if(col.wordIdx>=word.length) col.wordIdx=-1;
+          isWord=true;
+        }else{
+          ch=randGlyph();
+        }
+        /* head glyph, bright */
+        if(isWord){
+          ctx.fillStyle='#ffffff';
+          ctx.shadowColor='#ffffff'; ctx.shadowBlur=10;
+          ctx.fillText(ch,x,y);
+          ctx.shadowBlur=0;
+        }else{
+          ctx.fillStyle=c.head;
+          ctx.fillText(ch,x,y);
+        }
+        col.prevGlyph=ch;
+        col.y++;
+        if(y>H && Math.random()>0.975){
+          col.y=0;
+          col.vary=0.6+Math.random()*0.8;
+          col.wordIdx=(word && Math.random()<0.18)?0:-1;
+        }
+      }
+    }
+    /* ripples */
+    if(ripples.length){
+      var maxR=Math.hypot(W,H)*0.6;
+      for(var rI=ripples.length-1;rI>=0;rI--){
+        var rp=ripples[rI];
+        rp.r+=dt*520;
+        var alpha=1-rp.r/maxR;
+        if(alpha<=0){ ripples.splice(rI,1); continue; }
+        ctx.strokeStyle=c.head;
+        ctx.globalAlpha=alpha*0.8;
+        ctx.lineWidth=2;
+        ctx.shadowColor=c.main; ctx.shadowBlur=16;
+        ctx.beginPath(); ctx.arc(rp.x,rp.y,rp.r,0,Math.PI*2); ctx.stroke();
+        ctx.shadowBlur=0;
+        /* light glyphs where ring crosses columns */
+        ctx.fillStyle=c.head;
+        for(var ci=0;ci<cols.length;ci++){
+          var dx=ci*size+size/2-rp.x;
+          if(Math.abs(dx)>rp.r) continue;
+          var dy=Math.sqrt(rp.r*rp.r-dx*dx);
+          var y1=rp.y-dy, y2=rp.y+dy;
+          if(y1>-size && y1<H) ctx.fillText(randGlyph(),ci*size,Math.floor(y1/size)*size);
+          if(dy>1 && y2>-size && y2<H) ctx.fillText(randGlyph(),ci*size,Math.floor(y2/size)*size);
+        }
+        ctx.globalAlpha=1;
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- controls ---------- */
+  var $=function(id){ return document.getElementById(id); };
+  var panel=$('panel');
+  function applyAccent(){
+    var c=COLORS[state.color];
+    document.documentElement.style.setProperty('--accent',c.main);
+    document.documentElement.style.setProperty('--accent-soft',c.main+'55');
+  }
+  function syncUI(){
+    $('spd').value=state.speed; $('spdV').textContent=state.speed;
+    $('den').value=state.density; $('denV').textContent=state.density+'%';
+    $('siz').value=state.size; $('sizV').textContent=state.size+'px';
+    $('wordIn').value=state.word;
+    var sw=document.querySelectorAll('.swatches button');
+    for(var i=0;i<sw.length;i++) sw[i].classList.toggle('on',sw[i].dataset.c===state.color);
+    panel.classList.toggle('closed',!state.open);
+    applyAccent();
+  }
+  $('spd').addEventListener('input',function(){
+    state.speed=+this.value; $('spdV').textContent=state.speed; save();
+  });
+  $('den').addEventListener('input',function(){
+    state.density=+this.value; $('denV').textContent=state.density+'%'; save();
+  });
+  $('siz').addEventListener('input',function(){
+    state.size=+this.value; $('sizV').textContent=state.size+'px'; rebuild(); save();
+  });
+  var sw=document.querySelectorAll('.swatches button');
+  for(var swi=0;swi<sw.length;swi++){
+    sw[swi].addEventListener('click',function(){
+      state.color=this.dataset.c;
+      for(var j=0;j<sw.length;j++) sw[j].classList.toggle('on',sw[j]===this);
+      applyAccent(); save();
+    });
+  }
+  $('wordIn').addEventListener('input',function(){
+    state.word=this.value.toUpperCase().replace(/\s+/g,'').slice(0,16);
+    save();
+  });
+  $('gear').addEventListener('click',function(){
+    state.open=!state.open;
+    panel.classList.toggle('closed',!state.open);
+    save();
+  });
+
+  /* ---------- init ---------- */
+  syncUI();
+  rebuild();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

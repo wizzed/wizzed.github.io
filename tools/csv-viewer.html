@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSV Viewer · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#3ddc84; --accent-soft:rgba(61,220,132,.45);
+  --panel:#161623; --line:#2c2c46; --text:#eaf6f8; --dim:#8fa0ab;
+  --cyan:#00e5ff; --pink:#ff6ec7; --amber:#ffb454;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:18px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{
+  display:grid; grid-template-columns:minmax(260px,.85fr) minmax(320px,1.7fr);
+  gap:14px; max-width:1200px; margin:8px auto 0; padding:0 14px;
+  align-items:start;
+}
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:10px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(61,220,132,.08);
+}
+.panel h2{
+  font-size:11px; letter-spacing:3px; color:var(--accent);
+  text-shadow:0 0 8px var(--accent-soft); margin-bottom:8px;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.toolbar{ display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+button.btn{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:6px 10px;
+}
+button.btn:hover{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+button.btn.primary{ color:var(--accent); border-color:var(--accent-soft); }
+label.file{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--cyan); border:1px solid var(--line); padding:6px 10px;
+  display:inline-block;
+}
+label.file:hover{ border-color:var(--cyan); box-shadow:0 0 10px rgba(0,229,255,.35); }
+label.file input{ display:none; }
+textarea{
+  width:100%; min-height:150px; resize:vertical;
+  background:#0b0b14; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:12px; line-height:1.5; padding:9px; outline:none;
+  white-space:pre; overflow:auto;
+}
+textarea:focus{ border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft) inset; }
+.filterrow{ display:flex; gap:6px; margin-bottom:8px; align-items:center; flex-wrap:wrap; }
+.filterrow input[type=text]{
+  flex:1 1 160px; min-width:120px;
+  background:#0b0b14; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:12px; padding:7px 9px; outline:none;
+}
+.filterrow input[type=text]:focus{ border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+.badge{
+  font-size:10px; letter-spacing:1px; color:var(--bg); background:var(--accent);
+  padding:4px 8px; white-space:nowrap; box-shadow:0 0 10px var(--accent-soft);
+}
+.badge.dim{ background:#20203a; color:var(--dim); box-shadow:none; }
+.tablewrap{
+  overflow:auto; max-height:340px; border:1px solid var(--line); background:#0b0b14;
+}
+table{ border-collapse:collapse; width:100%; font-size:12px; }
+thead th{
+  position:sticky; top:0; z-index:5;
+  background:#191930; color:var(--accent); text-align:left;
+  padding:7px 10px; white-space:nowrap; cursor:pointer; user-select:none;
+  border-bottom:2px solid var(--accent-soft); border-right:1px solid var(--line);
+  letter-spacing:1px; font-size:11px;
+}
+thead th:hover{ background:#22224a; text-shadow:0 0 8px var(--accent-soft); }
+thead th .arrow{ color:var(--cyan); font-size:10px; margin-left:5px; opacity:.9; }
+thead th.num{ color:var(--cyan); }
+tbody td{
+  padding:5px 10px; border-bottom:1px solid #1c1c30; border-right:1px solid #16162a;
+  white-space:nowrap; max-width:280px; overflow:hidden; text-overflow:ellipsis;
+}
+tbody td.num{ text-align:right; color:var(--amber); font-variant-numeric:tabular-nums; }
+tbody tr:nth-child(even){ background:rgba(255,255,255,.018); }
+tbody tr:hover{ background:rgba(61,220,132,.09); }
+.rowidx{ color:var(--dim); text-align:right; font-size:10px; }
+.stats{ margin-top:12px; }
+.statgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+.statcard{ background:#101020; border:1px solid var(--line); padding:8px 9px; }
+.statcard .cn{ color:var(--cyan); font-size:11px; letter-spacing:1px; margin-bottom:5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.statcard .grid4{ display:grid; grid-template-columns:1fr 1fr; gap:3px 8px; font-size:10px; }
+.statcard .grid4 span{ color:var(--dim); }
+.statcard .grid4 b{ color:var(--amber); font-weight:bold; }
+.empty{ color:var(--dim); font-size:12px; padding:14px; text-align:center; }
+.errbox{ color:var(--pink); font-size:11px; margin-bottom:8px; min-height:14px; letter-spacing:.5px; }
+footer{ text-align:center; margin-top:14px; font-size:10px; color:var(--dim); letter-spacing:2px; }
+@media (max-width:760px){
+  main{ grid-template-columns:1fr; }
+  .tablewrap{ max-height:300px; }
+}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>CSV VIEWER</h1>
+  <div class="sub">PARSE &middot; SORT &middot; FILTER &middot; ANALYZE</div>
+</header>
+<main>
+  <section class="panel">
+    <h2>&#9646; INPUT</h2>
+    <div class="toolbar">
+      <button class="btn primary" id="btnParse" type="button">PARSE &#9654;</button>
+      <label class="file">OPEN FILE<input type="file" id="fileIn" accept=".csv,.tsv,.txt,text/csv"></label>
+      <button class="btn" id="btnDemo" type="button">DEMO</button>
+      <button class="btn" id="btnClear" type="button">CLEAR</button>
+    </div>
+    <div class="errbox" id="err"></div>
+    <textarea id="csvIn" spellcheck="false" aria-label="CSV text input"></textarea>
+  </section>
+  <section class="panel">
+    <h2>
+      <span>&#9646; TABLE</span>
+      <span class="badge" id="rowCount">0 ROWS</span>
+    </h2>
+    <div class="filterrow">
+      <input type="text" id="filter" placeholder="filter rows (matches any cell)…" aria-label="Filter rows">
+      <button class="btn" id="btnExport" type="button">EXPORT CSV</button>
+    </div>
+    <div class="tablewrap" id="tableWrap">
+      <div class="empty">No data yet. Paste CSV and press PARSE, or load the DEMO.</div>
+    </div>
+    <div class="stats">
+      <h2 style="margin-top:12px">&#9646; NUMERIC COLUMN STATS</h2>
+      <div class="statgrid" id="statGrid"><div class="empty">Numeric column stats appear here.</div></div>
+    </div>
+  </section>
+</main>
+<footer>WIZZED ARCADE // CSV VIEWER</footer>
+<script>
+"use strict";
+var LS_KEY = "wizzed-csv-viewer";
+
+var DEMO_CSV = [
+  'Player,Game,Score,Level,Coins,Date,Country',
+  'PixelKid,Meteor Dodge,184320,12,540,2026-01-14,USA',
+  'NeonQueen,Gem Crush,271840,20,880,2026-02-03,Japan',
+  '"Vex ""The Storm"" Ray",Asteroids,99870,9,310,2026-01-28,Canada',
+  'GlitchWolf,Maze Muncher,152600,15,470,2026-03-11,Germany',
+  'ByteBaron,"Cavern Quest, Deep",203450,18,720,2026-02-19,UK',
+  'SynthSue,Simon,88120,7,220,2026-01-09,France',
+  'RetroRex,Pong,45230,5,120,2026-02-27,Brazil',
+  'ArcadeAce,Sokoban,167990,14,610,2026-03-02,USA',
+  'DiskDiva,Flappy,73450,8,290,2026-01-22,Japan',
+  'ChipChamp,Tank Battle,198770,17,660,2026-02-14,Sweden',
+  'LaserLina,Missile Command,142380,13,450,2026-03-08,Spain',
+  'VoltViper,Star Squadron,225610,19,790,2026-01-31,USA',
+  'MegaMoe,Hangman,61200,6,180,2026-02-06,Canada',
+  'CosmoCat,Nonogram,178900,16,590,2026-03-15,Italy',
+  'FuzzFox,Whack-A-Mole,54780,5,150,2026-01-18,Japan',
+  'TurboTia,Blackjack,211430,18,700,2026-02-22,UK',
+  'JadeJolt,Reversi,133210,12,420,2026-03-05,Germany',
+  'OrbitOllie,Runner,97650,9,330,2026-01-26,USA',
+  'PulsePam,Lights Out,156040,14,500,2026-02-11,France',
+  'ZapZane,Fruit Slice,189320,16,640,2026-03-19,Brazil',
+  'HexHana,Type Racer,244770,20,860,2026-02-01,Japan'
+].join("\n");
+
+// ---------- CSV PARSER (RFC-4180-ish) ----------
+// Handles quoted fields with commas, escaped "" quotes, CRLF/LF, trailing newline.
+function parseCSV(text, delim){
+  delim = delim || ",";
+  var rows = [];
+  var field = "";
+  var row = [];
+  var i = 0, n = text.length;
+  var inQuotes = false;
+  var started = false; // whether current row has any content
+  function pushField(){ row.push(field); field = ""; }
+  function pushRow(){ pushField(); rows.push(row); row = []; started = false; }
+  while(i < n){
+    var c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
+      }
+      field += c; i++; continue;
+    } else {
+      if(c === '"'){ inQuotes = true; started = true; i++; continue; }
+      if(c === delim){ pushField(); started = true; i++; continue; }
+      if(c === '\r'){
+        if(text[i+1] === '\n') i++;
+        pushRow(); i++; continue;
+      }
+      if(c === '\n'){ pushRow(); i++; continue; }
+      field += c; started = true; i++; continue;
+    }
+  }
+  // flush trailing field/row if any content exists
+  if(field.length > 0 || row.length > 0 || started){ pushRow(); }
+  // drop a single trailing empty row created by a terminal newline
+  if(rows.length && rows[rows.length-1].length === 1 && rows[rows.length-1][0] === ""){
+    rows.pop();
+  }
+  return rows;
+}
+
+function detectDelim(text){
+  var firstLine = text.split(/\r?\n/)[0] || "";
+  var tabs = (firstLine.match(/\t/g)||[]).length;
+  var commas = (firstLine.match(/,/g)||[]).length;
+  var semis = (firstLine.match(/;/g)||[]).length;
+  if(tabs > commas && tabs > semis) return "\t";
+  if(semis > commas) return ";";
+  return ",";
+}
+
+// ---------- CSV SERIALIZER ----------
+function csvEscape(v){
+  v = (v === null || v === undefined) ? "" : String(v);
+  if(/[",\r\n]/.test(v)){ return '"' + v.replace(/"/g,'""') + '"'; }
+  return v;
+}
+function toCSV(headers, rows){
+  var out = [headers.map(csvEscape).join(",")];
+  for(var r=0;r<rows.length;r++){ out.push(rows[r].map(csvEscape).join(",")); }
+  return out.join("\r\n");
+}
+
+// ---------- TYPE HELPERS ----------
+function isNumericStr(s){
+  if(s === null || s === undefined) return false;
+  s = String(s).trim();
+  if(s === "") return false;
+  // strip common thousands separators / currency for detection
+  var t = s.replace(/[$,%\s]/g,"");
+  if(t === "" || t === "-" || t === "+") return false;
+  return !isNaN(t) && isFinite(Number(t));
+}
+function numVal(s){
+  return Number(String(s).replace(/[$,%\s]/g,""));
+}
+
+// ---------- STATE ----------
+var state = { headers: [], rows: [], numericCols: [], sortCol: -1, sortDir: 1 };
+
+var el = {
+  csvIn: document.getElementById("csvIn"),
+  err: document.getElementById("err"),
+  tableWrap: document.getElementById("tableWrap"),
+  statGrid: document.getElementById("statGrid"),
+  rowCount: document.getElementById("rowCount"),
+  filter: document.getElementById("filter")
+};
+
+function lsGet(){ try{ return localStorage.getItem(LS_KEY); }catch(e){ return null; } }
+function lsSet(v){ try{ localStorage.setItem(LS_KEY, v); }catch(e){} }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function nfmt(n){
+  if(!isFinite(n)) return "–";
+  var r = Math.round(n*100)/100;
+  return r.toLocaleString("en-US");
+}
+
+function computeNumericCols(){
+  var cols = [];
+  var nc = state.headers.length;
+  for(var c=0;c<nc;c++){
+    var seen = 0, ok = 0;
+    for(var r=0;r<state.rows.length;r++){
+      var v = state.rows[r][c];
+      if(v === undefined || v === null || String(v).trim()==="") continue;
+      seen++;
+      if(isNumericStr(v)) ok++;
+    }
+    // numeric if there is at least one value and all non-empty are numeric
+    if(seen > 0 && ok === seen) cols.push(c);
+  }
+  state.numericCols = cols;
+}
+
+function ingest(text){
+  el.err.textContent = "";
+  var delim = detectDelim(text);
+  var matrix;
+  try{ matrix = parseCSV(text, delim); }
+  catch(e){ el.err.textContent = "Parse error: " + e.message; return false; }
+  if(!matrix.length){
+    state.headers = []; state.rows = [];
+    el.err.textContent = "No rows found.";
+    state.numericCols = []; state.sortCol = -1;
+    render();
+    return false;
+  }
+  var maxLen = 0;
+  for(var i=0;i<matrix.length;i++){ if(matrix[i].length>maxLen) maxLen = matrix[i].length; }
+  state.headers = matrix[0].slice();
+  // pad header names for ragged rows
+  while(state.headers.length < maxLen){ state.headers.push("col" + (state.headers.length+1)); }
+  state.rows = matrix.slice(1).map(function(r){
+    var row = r.slice();
+    while(row.length < state.headers.length) row.push("");
+    return row;
+  });
+  state.sortCol = -1; state.sortDir = 1;
+  computeNumericCols();
+  render();
+  return true;
+}
+
+function currentRows(){
+  var q = el.filter.value.trim().toLowerCase();
+  var rows = state.rows;
+  if(q){
+    rows = rows.filter(function(r){
+      for(var c=0;c<r.length;c++){ if(String(r[c]).toLowerCase().indexOf(q) !== -1) return true; }
+      return false;
+    });
+  }
+  if(state.sortCol >= 0){
+    var c = state.sortCol, dir = state.sortDir;
+    var isNum = state.numericCols.indexOf(c) !== -1;
+    rows = rows.slice().sort(function(a,b){
+      var av = a[c], bv = b[c];
+      var ae = (av===undefined||String(av).trim()===""), be = (bv===undefined||String(bv).trim()==="");
+      if(ae && be) return 0;
+      if(ae) return 1;      // empties sink to bottom
+      if(be) return -1;
+      if(isNum){ return (numVal(av) - numVal(bv)) * dir; }
+      return String(av).localeCompare(String(bv), undefined, {numeric:true, sensitivity:"base"}) * dir;
+    });
+  }
+  return rows;
+}
+
+function render(){
+  var rows = currentRows();
+  if(!state.headers.length){
+    el.tableWrap.innerHTML = '<div class="empty">No data yet. Paste CSV and press PARSE, or load the DEMO.</div>';
+    el.statGrid.innerHTML = '<div class="empty">Numeric column stats appear here.</div>';
+    el.rowCount.textContent = "0 ROWS";
+    el.rowCount.className = "badge dim";
+    return;
+  }
+  el.rowCount.className = "badge";
+  var total = state.rows.length;
+  el.rowCount.textContent = rows.length === total
+    ? (total + " ROW" + (total===1?"":"S"))
+    : (rows.length + " / " + total + " ROWS");
+
+  // build table
+  var html = '<table><thead><tr><th class="rowidx">#</th>';
+  for(var c=0;c<state.headers.length;c++){
+    var isNum = state.numericCols.indexOf(c) !== -1;
+    var arrow = "";
+    if(state.sortCol === c){ arrow = '<span class="arrow">' + (state.sortDir===1?"&#9650;":"&#9660;") + '</span>'; }
+    html += '<th data-col="'+c+'" class="'+(isNum?"num":"")+'" title="click to sort">'+esc(state.headers[c])+arrow+'</th>';
+  }
+  html += '</tr></thead><tbody>';
+  if(!rows.length){
+    html += '<tr><td colspan="'+(state.headers.length+1)+'" class="empty">No rows match the filter.</td></tr>';
+  } else {
+    for(var r=0;r<rows.length;r++){
+      html += '<tr><td class="rowidx">'+(r+1)+'</td>';
+      for(var cc=0;cc<state.headers.length;cc++){
+        var val = rows[r][cc];
+        var numCls = state.numericCols.indexOf(cc) !== -1 ? " class=\"num\"" : "";
+        html += '<td'+numCls+' title="'+esc(val)+'">'+esc(val)+'</td>';
+      }
+      html += '</tr>';
+    }
+  }
+  html += '</tbody></table>';
+  el.tableWrap.innerHTML = html;
+
+  // wire header clicks
+  var ths = el.tableWrap.querySelectorAll("th[data-col]");
+  for(var t=0;t<ths.length;t++){
+    ths[t].addEventListener("click", function(){
+      var c = parseInt(this.getAttribute("data-col"),10);
+      if(state.sortCol === c){ state.sortDir = -state.sortDir; }
+      else { state.sortCol = c; state.sortDir = 1; }
+      render();
+    });
+  }
+  renderStats(rows);
+}
+
+function renderStats(rows){
+  if(!state.numericCols.length){
+    el.statGrid.innerHTML = '<div class="empty">No numeric columns detected in this dataset.</div>';
+    return;
+  }
+  var cards = "";
+  for(var k=0;k<state.numericCols.length;k++){
+    var c = state.numericCols[k];
+    var min=Infinity, max=-Infinity, sum=0, cnt=0;
+    for(var r=0;r<rows.length;r++){
+      var v = rows[r][c];
+      if(v===undefined || String(v).trim()==="") continue;
+      var n = numVal(v);
+      if(!isFinite(n)) continue;
+      if(n<min) min=n; if(n>max) max=n; sum+=n; cnt++;
+    }
+    var avg = cnt ? sum/cnt : NaN;
+    cards += '<div class="statcard"><div class="cn">'+esc(state.headers[c])+'</div>'+
+      '<div class="grid4">'+
+        '<span>min</span><b>'+(cnt?nfmt(min):"–")+'</b>'+
+        '<span>max</span><b>'+(cnt?nfmt(max):"–")+'</b>'+
+        '<span>avg</span><b>'+(cnt?nfmt(avg):"–")+'</b>'+
+        '<span>sum</span><b>'+(cnt?nfmt(sum):"–")+'</b>'+
+      '</div></div>';
+  }
+  el.statGrid.innerHTML = cards;
+}
+
+// ---------- EVENTS ----------
+document.getElementById("btnParse").addEventListener("click", function(){
+  if(ingest(el.csvIn.value)) lsSet(el.csvIn.value);
+});
+document.getElementById("btnDemo").addEventListener("click", function(){
+  el.csvIn.value = DEMO_CSV;
+  el.filter.value = "";
+  ingest(DEMO_CSV);
+  lsSet(DEMO_CSV);
+});
+document.getElementById("btnClear").addEventListener("click", function(){
+  el.csvIn.value = ""; el.filter.value = "";
+  state.headers = []; state.rows = []; state.numericCols = []; state.sortCol = -1;
+  el.err.textContent = "";
+  render();
+  lsSet("");
+});
+document.getElementById("fileIn").addEventListener("change", function(){
+  var f = this.files && this.files[0];
+  if(!f) return;
+  var reader = new FileReader();
+  reader.onload = function(){
+    el.csvIn.value = String(reader.result || "");
+    el.filter.value = "";
+    if(ingest(el.csvIn.value)) lsSet(el.csvIn.value);
+  };
+  reader.onerror = function(){ el.err.textContent = "Could not read file."; };
+  reader.readAsText(f);
+  this.value = ""; // allow re-selecting the same file
+});
+document.getElementById("btnExport").addEventListener("click", function(){
+  var btn = this;
+  if(!state.headers.length){ btn.textContent="NOTHING TO EXPORT"; setTimeout(function(){btn.textContent="EXPORT CSV";},1000); return; }
+  var out = toCSV(state.headers, currentRows());
+  try{
+    var blob = new Blob([out], {type:"text/csv;charset=utf-8"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = "wizzed-export.csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+    btn.textContent = "EXPORTED!";
+  }catch(e){ btn.textContent = "EXPORT FAILED"; }
+  setTimeout(function(){ btn.textContent = "EXPORT CSV"; }, 1100);
+});
+var filterTimer = null;
+el.filter.addEventListener("input", function(){
+  if(filterTimer) clearTimeout(filterTimer);
+  filterTimer = setTimeout(render, 90);
+});
+window.addEventListener("resize", function(){ /* layout is CSS-driven; nothing forced */ });
+
+// ---------- INIT ----------
+(function init(){
+  var saved = lsGet();
+  var text = (saved !== null && saved !== "") ? saved : DEMO_CSV;
+  el.csvIn.value = text;
+  ingest(text);
+})();
+</script>
+</body>
+</html>

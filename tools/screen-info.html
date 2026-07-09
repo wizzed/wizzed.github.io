@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Device Dashboard · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ffb454; --accent-soft:rgba(255,180,84,.45);
+  --panel:#161623; --line:#2c2c46; --text:#eaf6f8; --dim:#8fa0ab;
+  --cyan:#00e5ff; --green:#3ddc84; --pink:#ff6ec7; --red:#ff5b6e;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:22px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+.bar{
+  max-width:1140px; margin:8px auto 0; padding:0 14px;
+  display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+}
+.chips{ display:flex; gap:7px; flex-wrap:wrap; }
+.chip{
+  font-size:10px; letter-spacing:1px; padding:5px 9px; border:1px solid var(--line);
+  background:#101020; color:var(--cyan); white-space:nowrap;
+}
+.chip b{ color:var(--text); }
+.chip.os{ color:var(--green); }
+.chip.br{ color:var(--pink); }
+button.btn{
+  font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--accent); border:1px solid var(--accent-soft); padding:8px 13px;
+}
+button.btn:hover{ border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft); }
+main{ max-width:1140px; margin:12px auto 0; padding:0 14px; }
+.grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; }
+.tile{
+  background:var(--panel); border:2px solid var(--line); padding:12px 13px 13px;
+  box-shadow:0 0 0 1px #000, 0 0 18px rgba(255,180,84,.06);
+  opacity:0; transform:translateY(10px) scale(.98);
+  animation:pop .5s ease forwards;
+  position:relative; overflow:hidden;
+}
+.tile::before{
+  content:""; position:absolute; left:0; top:0; width:100%; height:2px;
+  background:linear-gradient(90deg, transparent, var(--accent-soft), transparent);
+}
+@keyframes pop{ to{ opacity:1; transform:none; } }
+.tile .lbl{ font-size:9px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; margin-bottom:7px; display:flex; align-items:center; gap:6px; }
+.tile .ico{ font-size:12px; filter:drop-shadow(0 0 4px var(--accent-soft)); }
+.tile .big{ font-size:clamp(16px,2.4vw,22px); color:#fff; text-shadow:0 0 8px var(--accent-soft); word-break:break-word; line-height:1.15; }
+.tile .big.amber{ color:var(--accent); }
+.tile .big.cyan{ color:var(--cyan); text-shadow:0 0 8px rgba(0,229,255,.5); }
+.tile .big.green{ color:var(--green); text-shadow:0 0 8px rgba(61,220,132,.5); }
+.tile .big.red{ color:var(--red); text-shadow:0 0 8px rgba(255,91,110,.5); }
+.tile .sub{ font-size:10px; color:var(--dim); margin-top:5px; letter-spacing:.5px; word-break:break-word; }
+.tile.wide{ grid-column:span 2; }
+.tile.na .big{ color:var(--dim); text-shadow:none; }
+.meter{ height:8px; background:#0b0b14; border:1px solid var(--line); margin-top:8px; position:relative; }
+.meter i{ display:block; height:100%; background:linear-gradient(90deg,#7a5a20,var(--accent)); box-shadow:0 0 8px var(--accent-soft); transition:width .4s; }
+.reportwrap{ margin-top:14px; }
+.reportwrap h2{ font-size:11px; letter-spacing:3px; color:var(--accent); text-shadow:0 0 8px var(--accent-soft); margin-bottom:8px; }
+textarea#report{
+  width:100%; min-height:150px; resize:vertical;
+  background:#0b0b14; color:var(--dim); border:1px solid var(--line);
+  font-family:inherit; font-size:12px; line-height:1.55; padding:11px; outline:none; white-space:pre;
+}
+textarea#report:focus{ border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+footer{ text-align:center; margin-top:16px; font-size:10px; color:var(--dim); letter-spacing:2px; }
+@media (max-width:520px){
+  .tile.wide{ grid-column:span 1; }
+  .grid{ grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); }
+}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>DEVICE DASHBOARD</h1>
+  <div class="sub">LIVE HARDWARE &amp; DISPLAY TELEMETRY</div>
+</header>
+<div class="bar">
+  <div class="chips" id="chips"></div>
+  <button class="btn" id="btnCopy" type="button">&#128203; COPY REPORT</button>
+</div>
+<main>
+  <div class="grid" id="grid"></div>
+  <div class="reportwrap">
+    <h2>&#9646; TEXT REPORT</h2>
+    <textarea id="report" readonly spellcheck="false" aria-label="Device report text"></textarea>
+  </div>
+</main>
+<footer>WIZZED ARCADE // DEVICE DASHBOARD</footer>
+<script>
+"use strict";
+// Every optional API is wrapped so a missing one yields "n/a", never a thrown error.
+function safe(fn, fallback){ try{ var v=fn(); return (v===undefined||v===null||v==="")?(fallback==null?"n/a":fallback):v; }catch(e){ return fallback==null?"n/a":fallback; } }
+
+// Tile definitions: order matters for stagger animation.
+var TILES = [
+  {id:"screen",   ico:"&#128421;", lbl:"Screen Resolution", cls:"cyan"},
+  {id:"avail",    ico:"&#128208;", lbl:"Available Screen",  cls:"amber"},
+  {id:"viewport", ico:"&#9707;",   lbl:"Viewport (live)",   cls:"green"},
+  {id:"dpr",      ico:"&#10022;",  lbl:"Pixel Ratio",       cls:"amber"},
+  {id:"colordepth",ico:"&#127912;",lbl:"Color Depth",       cls:"cyan"},
+  {id:"scheme",   ico:"&#127761;", lbl:"Color Scheme",      cls:"amber"},
+  {id:"orient",   ico:"&#8635;",   lbl:"Orientation",       cls:"green"},
+  {id:"touch",    ico:"&#9995;",   lbl:"Touch Points",      cls:"cyan"},
+  {id:"cores",    ico:"&#9881;",   lbl:"CPU Cores",         cls:"amber"},
+  {id:"memory",   ico:"&#128190;", lbl:"Device Memory",     cls:"green"},
+  {id:"online",   ico:"&#128246;", lbl:"Network Status",    cls:"green"},
+  {id:"conn",     ico:"&#128225;", lbl:"Connection",        cls:"cyan"},
+  {id:"battery",  ico:"&#128267;", lbl:"Battery",           cls:"green"},
+  {id:"tz",       ico:"&#128336;", lbl:"Timezone",          cls:"amber"},
+  {id:"locale",   ico:"&#127760;", lbl:"Locale & Language", cls:"cyan"},
+  {id:"gpu",      ico:"&#127918;", lbl:"GPU Renderer",      cls:"green", wide:true},
+  {id:"platform", ico:"&#128187;", lbl:"Platform",          cls:"amber"},
+  {id:"cookies",  ico:"&#127850;", lbl:"Cookies / DNT",     cls:"cyan"}
+];
+
+var grid = document.getElementById("grid");
+var tileEls = {};
+(function buildTiles(){
+  var html = "";
+  for(var i=0;i<TILES.length;i++){
+    var t = TILES[i];
+    html += '<div class="tile'+(t.wide?" wide":"")+'" id="tile-'+t.id+'" style="animation-delay:'+(i*45)+'ms">'+
+      '<div class="lbl"><span class="ico">'+t.ico+'</span>'+t.lbl+'</div>'+
+      '<div class="big '+t.cls+'" id="v-'+t.id+'">…</div>'+
+      '<div class="sub" id="s-'+t.id+'"></div>'+
+      '<div id="x-'+t.id+'"></div>'+
+    '</div>';
+  }
+  grid.innerHTML = html;
+  for(var j=0;j<TILES.length;j++){
+    tileEls[TILES[j].id] = {
+      tile: document.getElementById("tile-"+TILES[j].id),
+      big: document.getElementById("v-"+TILES[j].id),
+      sub: document.getElementById("s-"+TILES[j].id),
+      extra: document.getElementById("x-"+TILES[j].id)
+    };
+  }
+})();
+
+function setTile(id, value, sub, naFlag){
+  var e = tileEls[id]; if(!e) return;
+  e.big.innerHTML = (value===undefined||value===null||value==="") ? "n/a" : value;
+  e.sub.innerHTML = sub || "";
+  if(naFlag || value==="n/a"){ e.tile.classList.add("na"); } else { e.tile.classList.remove("na"); }
+}
+
+// ---- data collectors ----
+function getScheme(){
+  try{
+    if(window.matchMedia){
+      if(matchMedia("(prefers-color-scheme: dark)").matches) return "Dark";
+      if(matchMedia("(prefers-color-scheme: light)").matches) return "Light";
+    }
+  }catch(e){}
+  return "No preference";
+}
+function getReducedMotion(){
+  try{ return (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) ? "reduced motion" : "motion ok"; }
+  catch(e){ return ""; }
+}
+function getOrientation(){
+  try{
+    if(screen.orientation && screen.orientation.type) return screen.orientation.type;
+  }catch(e){}
+  try{
+    if(window.matchMedia){
+      return matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape";
+    }
+  }catch(e){}
+  return "n/a";
+}
+function getConnection(){
+  try{
+    var c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if(!c) return null;
+    var eff = c.effectiveType || "?";
+    var extra = [];
+    if(typeof c.downlink==="number") extra.push(c.downlink+" Mb/s");
+    if(typeof c.rtt==="number") extra.push(c.rtt+"ms rtt");
+    if(c.saveData) extra.push("data saver");
+    return {type:eff.toUpperCase(), sub:extra.join(" · ")};
+  }catch(e){ return null; }
+}
+function getGPU(){
+  try{
+    var cnv = document.createElement("canvas");
+    var gl = cnv.getContext("webgl") || cnv.getContext("experimental-webgl");
+    if(!gl) return null;
+    var out = {};
+    var dbg = gl.getExtension("WEBGL_debug_renderer_info");
+    if(dbg){
+      out.renderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
+      out.vendor = gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL);
+    }
+    if(!out.renderer){ out.renderer = gl.getParameter(gl.RENDERER); }
+    if(!out.vendor){ out.vendor = gl.getParameter(gl.VENDOR); }
+    return out;
+  }catch(e){ return null; }
+}
+function parseUA(){
+  var ua = safe(function(){ return navigator.userAgent; }, "");
+  var browser = "Unknown", bver = "";
+  var os = "Unknown";
+  // OS
+  if(/Windows NT 10/.test(ua)) os="Windows 10/11";
+  else if(/Windows NT 6\.3/.test(ua)) os="Windows 8.1";
+  else if(/Windows/.test(ua)) os="Windows";
+  else if(/Android/.test(ua)){ var am=ua.match(/Android[\s/]([\d.]+)/); os="Android"+(am?" "+am[1]:""); }
+  else if(/iPhone|iPad|iPod/.test(ua)){ var im=ua.match(/OS (\d+[_.]\d+)/); os="iOS"+(im?" "+im[1].replace(/_/g,"."):""); }
+  else if(/Mac OS X/.test(ua)){ var mm=ua.match(/Mac OS X (\d+[_.]\d+)/); os="macOS"+(mm?" "+mm[1].replace(/_/g,"."):""); }
+  else if(/CrOS/.test(ua)) os="ChromeOS";
+  else if(/Linux/.test(ua)) os="Linux";
+  // Browser (order matters)
+  var m;
+  if(/Edg\//.test(ua)){ browser="Edge"; m=ua.match(/Edg\/([\d.]+)/); }
+  else if(/OPR\//.test(ua)||/Opera/.test(ua)){ browser="Opera"; m=ua.match(/(?:OPR|Opera)[\s/]([\d.]+)/); }
+  else if(/SamsungBrowser/.test(ua)){ browser="Samsung Internet"; m=ua.match(/SamsungBrowser\/([\d.]+)/); }
+  else if(/Firefox\//.test(ua)){ browser="Firefox"; m=ua.match(/Firefox\/([\d.]+)/); }
+  else if(/Chrome\//.test(ua)){ browser="Chrome"; m=ua.match(/Chrome\/([\d.]+)/); }
+  else if(/Version\/[\d.]+.*Safari/.test(ua)){ browser="Safari"; m=ua.match(/Version\/([\d.]+)/); }
+  else if(/Safari\//.test(ua)){ browser="Safari"; }
+  if(m && m[1]) bver = m[1].split(".")[0];
+  return {ua:ua, browser:browser, bver:bver, os:os};
+}
+
+var uaInfo = parseUA();
+
+// ---- chips ----
+(function renderChips(){
+  var chips = document.getElementById("chips");
+  var html = "";
+  html += '<span class="chip br">BROWSER <b>'+esc(uaInfo.browser)+(uaInfo.bver?" "+uaInfo.bver:"")+'</b></span>';
+  html += '<span class="chip os">OS <b>'+esc(uaInfo.os)+'</b></span>';
+  html += '<span class="chip">ENGINE <b>'+esc(detectEngine())+'</b></span>';
+  chips.innerHTML = html;
+})();
+function detectEngine(){
+  var ua = uaInfo.ua;
+  if(/Gecko\/|Firefox/.test(ua) && !/like Gecko/.test(ua)) return "Gecko";
+  if(/AppleWebKit/.test(ua)){
+    if(/Chrome|Chromium|Edg|OPR/.test(ua)) return "Blink";
+    return "WebKit";
+  }
+  return "n/a";
+}
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+// ---- populate static + live tiles ----
+function refreshLive(){
+  setTile("viewport", (window.innerWidth||0)+" &times; "+(window.innerHeight||0),
+    safe(function(){ return "doc "+document.documentElement.clientWidth+"×"+document.documentElement.clientHeight; },""));
+  setTile("dpr", safe(function(){ return (window.devicePixelRatio||1); }),
+    safe(function(){ return Math.round((window.devicePixelRatio||1)*100)+"% scaling"; },""));
+  setTile("orient", esc(getOrientation()),
+    safe(function(){ return "angle "+(screen.orientation&&screen.orientation.angle!=null?screen.orientation.angle:window.orientation||0)+"°"; },""));
+  setTile("scheme", getScheme(), getReducedMotion());
+  buildReport();
+}
+function populate(){
+  setTile("screen", safe(function(){ return screen.width+" &times; "+screen.height; }),
+    safe(function(){ return screen.width*screen.height/1000000; }, "") ? (Math.round(screen.width*screen.height/10000)/100)+" MP" : "");
+  setTile("avail", safe(function(){ return screen.availWidth+" &times; "+screen.availHeight; }),
+    "usable desktop area");
+  setTile("colordepth", safe(function(){ return screen.colorDepth+"-bit"; }),
+    safe(function(){ return "pixel depth "+screen.pixelDepth+"-bit"; },""));
+  setTile("touch", safe(function(){ return navigator.maxTouchPoints!=null?navigator.maxTouchPoints:0; }),
+    safe(function(){ return ("ontouchstart" in window)?"touch events on":"no touch events"; },""));
+  var cores = safe(function(){ return navigator.hardwareConcurrency; }, null);
+  if(cores==null||cores==="n/a"){ setTile("cores","n/a","", true); }
+  else { setTile("cores", cores, "logical processors"); }
+  var mem = safe(function(){ return navigator.deviceMemory; }, null);
+  if(mem==null||mem==="n/a"){ setTile("memory","n/a","API not exposed", true); }
+  else { setTile("memory", mem+" GB", "approx. RAM (rounded)"); }
+  // connection
+  var conn = getConnection();
+  if(conn){ setTile("conn", conn.type, conn.sub); } else { setTile("conn","n/a","not reported", true); }
+  // timezone
+  setTile("tz", safe(function(){ return Intl.DateTimeFormat().resolvedOptions().timeZone; }),
+    safe(function(){
+      var off = -new Date().getTimezoneOffset(); var sign=off>=0?"+":"-"; off=Math.abs(off);
+      return "UTC"+sign+Math.floor(off/60)+":"+("0"+(off%60)).slice(-2);
+    },""));
+  setTile("locale", safe(function(){ return navigator.language; }),
+    safe(function(){ return (navigator.languages&&navigator.languages.length)? navigator.languages.join(", ") : ""; },""));
+  setTile("platform", safe(function(){
+      if(navigator.userAgentData && navigator.userAgentData.platform) return navigator.userAgentData.platform;
+      return navigator.platform;
+    }),
+    safe(function(){ return uaInfo.browser+" / "+uaInfo.os; },""));
+  setTile("cookies", safe(function(){ return navigator.cookieEnabled?"Enabled":"Disabled"; }),
+    safe(function(){
+      var dnt = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      return "DNT: "+((dnt==="1"||dnt==="yes")?"on":(dnt==="0"?"off":"unset"));
+    },""));
+  // GPU
+  var gpu = getGPU();
+  if(gpu && gpu.renderer){ setTile("gpu", esc(String(gpu.renderer)), esc("Vendor: "+(gpu.vendor||"n/a"))); }
+  else { setTile("gpu","n/a","WebGL unavailable or masked", true); }
+  refreshLive();
+  setupOnline();
+  setupBattery();
+}
+
+// ---- online status (live) ----
+function setupOnline(){
+  function upd(){
+    var on = safe(function(){ return navigator.onLine; }, true);
+    var e = tileEls.online;
+    if(on){ e.big.className="big green"; setTile("online","ONLINE","connected to network"); }
+    else { e.big.className="big red"; setTile("online","OFFLINE","no network connection"); }
+    buildReport();
+  }
+  try{ window.addEventListener("online", upd); window.addEventListener("offline", upd); }catch(e){}
+  upd();
+}
+
+// ---- battery (live, guarded) ----
+var batteryData = null;
+function setupBattery(){
+  var e = tileEls.battery;
+  if(!navigator.getBattery){
+    // Older API surface?
+    var b = navigator.battery || navigator.mozBattery || navigator.webkitBattery;
+    if(b){ applyBattery(b); watchBattery(b); return; }
+    setTile("battery","n/a","Battery API unsupported", true); buildReport();
+    return;
+  }
+  try{
+    navigator.getBattery().then(function(b){
+      applyBattery(b); watchBattery(b);
+    }, function(){ setTile("battery","n/a","battery info blocked", true); buildReport(); });
+  }catch(err){ setTile("battery","n/a","battery info blocked", true); buildReport(); }
+}
+function watchBattery(b){
+  try{
+    b.addEventListener("levelchange", function(){ applyBattery(b); });
+    b.addEventListener("chargingchange", function(){ applyBattery(b); });
+  }catch(e){}
+}
+function applyBattery(b){
+  try{
+    var pct = Math.round((b.level!=null?b.level:0)*100);
+    var charging = !!b.charging;
+    batteryData = {pct:pct, charging:charging};
+    var e = tileEls.battery;
+    e.big.className = "big " + (charging?"green":(pct<=20?"red":"amber"));
+    e.big.innerHTML = pct + "% " + (charging?"&#9889;":"");
+    e.sub.innerHTML = charging ? "charging" : "on battery";
+    e.extra.innerHTML = '<div class="meter"><i style="width:'+pct+'%"></i></div>';
+    buildReport();
+  }catch(err){ setTile("battery","n/a","", true); }
+}
+
+// ---- text report ----
+function plain(id){
+  var e = tileEls[id]; if(!e) return "n/a";
+  return e.big.textContent.replace(/\s+/g," ").trim() || "n/a";
+}
+function buildReport(){
+  var lines = [];
+  lines.push("=== WIZZED ARCADE :: DEVICE REPORT ===");
+  lines.push("Generated: " + new Date().toString());
+  lines.push("");
+  lines.push("Browser      : " + uaInfo.browser + (uaInfo.bver?" "+uaInfo.bver:"") + "  (" + detectEngine() + ")");
+  lines.push("OS / Platform: " + uaInfo.os + "  /  " + plain("platform"));
+  lines.push("Screen       : " + plain("screen") + "   avail " + plain("avail"));
+  lines.push("Viewport     : " + plain("viewport"));
+  lines.push("Pixel ratio  : " + plain("dpr") + "   color depth " + plain("colordepth"));
+  lines.push("Color scheme : " + plain("scheme"));
+  lines.push("Orientation  : " + plain("orient"));
+  lines.push("Touch points : " + plain("touch"));
+  lines.push("CPU cores    : " + plain("cores"));
+  lines.push("Device memory: " + plain("memory"));
+  lines.push("Network      : " + plain("online") + "   connection " + plain("conn"));
+  lines.push("Battery      : " + plain("battery"));
+  lines.push("Timezone     : " + plain("tz"));
+  lines.push("Locale       : " + plain("locale"));
+  lines.push("GPU          : " + plain("gpu"));
+  lines.push("Cookies/DNT  : " + plain("cookies"));
+  lines.push("");
+  lines.push("User-Agent   : " + (uaInfo.ua||"n/a"));
+  document.getElementById("report").value = lines.join("\n");
+}
+
+// ---- copy ----
+document.getElementById("btnCopy").addEventListener("click", function(){
+  var btn = this;
+  var text = document.getElementById("report").value;
+  var done = function(){ btn.innerHTML="&#10003; COPIED!"; setTimeout(function(){ btn.innerHTML="&#128203; COPY REPORT"; },1100); };
+  var fallback = function(){
+    try{ var ta=document.getElementById("report"); ta.removeAttribute("readonly"); ta.select(); document.execCommand("copy"); ta.setAttribute("readonly","readonly"); }catch(e){}
+    done();
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done, fallback);
+  } else { fallback(); }
+});
+
+// ---- live listeners ----
+var rzTimer=null;
+window.addEventListener("resize", function(){ if(rzTimer) clearTimeout(rzTimer); rzTimer=setTimeout(refreshLive,80); });
+try{
+  if(window.matchMedia){
+    var mqd = matchMedia("(prefers-color-scheme: dark)");
+    var handler = function(){ refreshLive(); };
+    if(mqd.addEventListener) mqd.addEventListener("change", handler);
+    else if(mqd.addListener) mqd.addListener(handler);
+    var mqo = matchMedia("(orientation: portrait)");
+    if(mqo.addEventListener) mqo.addEventListener("change", handler);
+    else if(mqo.addListener) mqo.addListener(handler);
+  }
+}catch(e){}
+try{
+  if(screen.orientation && screen.orientation.addEventListener){
+    screen.orientation.addEventListener("change", refreshLive);
+  }
+}catch(e){}
+
+// ---- go ----
+populate();
+</script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Case Converter · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#3ddc84; --accent-soft:rgba(61,220,132,.45);
+  --panel:#161623; --line:#2c2c46; --text:#eef8ef; --dim:#8fa89a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:24px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:900px; margin:8px auto 0; padding:0 14px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:10px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(61,220,132,.08);
+  margin-bottom:12px;
+}
+.panel h2{
+  font-size:11px; letter-spacing:3px; color:var(--accent);
+  text-shadow:0 0 8px var(--accent-soft); margin-bottom:8px;
+}
+textarea{
+  width:100%; min-height:74px; resize:vertical;
+  background:#0b0b14; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:13px; line-height:1.5; padding:9px;
+  outline:none;
+}
+textarea:focus{ border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft) inset, 0 0 8px var(--accent-soft); }
+.toolbar{ display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+button{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:5px 10px;
+}
+button:hover{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+button.ok{ color:#0f0f1a; background:var(--accent); border-color:var(--accent); box-shadow:0 0 12px var(--accent); }
+.row{
+  display:grid; grid-template-columns:118px 1fr 44px 62px; gap:8px; align-items:center;
+  border:1px solid var(--line); background:#101020; padding:7px 8px; margin-bottom:7px;
+}
+.row .lbl{
+  font-size:10px; letter-spacing:1px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.row .out{
+  font-size:12px; color:#fff; white-space:pre-wrap; word-break:break-word;
+  max-height:64px; overflow-y:auto; line-height:1.45;
+}
+.row .out:empty::before{ content:"—"; color:var(--dim); }
+.row .cnt{ font-size:10px; color:var(--dim); text-align:right; }
+@media (max-width:560px){
+  .row{ grid-template-columns:96px 1fr; }
+  .row .cnt{ grid-column:1; text-align:left; }
+  .row .copy{ grid-column:2; justify-self:end; }
+}
+footer{ text-align:center; margin-top:10px; font-size:10px; color:var(--dim); letter-spacing:2px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>CASE CONVERTER</h1>
+  <div class="sub">10 CASE STYLES · LIVE · COPY-READY</div>
+</header>
+<main>
+  <section class="panel">
+    <h2>&#9646; INPUT</h2>
+    <textarea id="txt" spellcheck="false" aria-label="Text to convert"></textarea>
+    <div class="toolbar">
+      <button id="btnClear" type="button">CLEAR</button>
+      <button id="btnSample" type="button">SAMPLE</button>
+    </div>
+  </section>
+  <section class="panel">
+    <h2>&#9646; CONVERSIONS</h2>
+    <div id="rows"></div>
+  </section>
+</main>
+<footer>WIZZED ARCADE // TOOL 02</footer>
+<script>
+"use strict";
+function capWord(w){ return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }
+function tokenize(s){
+  return s
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean);
+}
+function toUpper(s){ return s.toUpperCase(); }
+function toLower(s){ return s.toLowerCase(); }
+function toTitle(s){
+  return s.toLowerCase().replace(/[a-z0-9]+(?:['’][a-z0-9]+)*/gi, function(w){
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  });
+}
+function toSentence(s){
+  var out = s.toLowerCase();
+  return out.replace(/(^\s*[a-zà-öø-ÿ])|([.!?]\s+[a-zà-öø-ÿ])/g, function(m){
+    return m.toUpperCase();
+  });
+}
+function toCamel(s){
+  var t = tokenize(s);
+  return t.map(function(w,i){ return i === 0 ? w.toLowerCase() : capWord(w); }).join("");
+}
+function toPascal(s){
+  return tokenize(s).map(capWord).join("");
+}
+function toSnake(s){
+  return tokenize(s).map(function(w){return w.toLowerCase();}).join("_");
+}
+function toKebab(s){
+  return tokenize(s).map(function(w){return w.toLowerCase();}).join("-");
+}
+function toConstant(s){
+  return tokenize(s).map(function(w){return w.toUpperCase();}).join("_");
+}
+function toAlternating(s){
+  var out = "", lower = true;
+  for(var i=0;i<s.length;i++){
+    var c = s[i];
+    if(/[a-zA-Z]/.test(c)){
+      out += lower ? c.toLowerCase() : c.toUpperCase();
+      lower = !lower;
+    } else out += c;
+  }
+  return out;
+}
+var CASES = [
+  ["UPPERCASE", toUpper],
+  ["lowercase", toLower],
+  ["Title Case", toTitle],
+  ["Sentence case", toSentence],
+  ["camelCase", toCamel],
+  ["PascalCase", toPascal],
+  ["snake_case", toSnake],
+  ["kebab-case", toKebab],
+  ["CONSTANT_CASE", toConstant],
+  ["aLtErNaTiNg", toAlternating]
+];
+// ---- DOM ----
+var LS_KEY = "wizzed-case-converter";
+var DEMO = "welcome to the WIZZED arcade: high scores reset at midnight!";
+var txt = document.getElementById("txt");
+var rowsEl = document.getElementById("rows");
+var outs = [];
+
+function lsGet(){ try{ return localStorage.getItem(LS_KEY); }catch(e){ return null; } }
+function lsSet(v){ try{ localStorage.setItem(LS_KEY, v); }catch(e){} }
+
+CASES.forEach(function(pair, idx){
+  var row = document.createElement("div");
+  row.className = "row";
+  var lbl = document.createElement("div");
+  lbl.className = "lbl";
+  lbl.textContent = pair[0];
+  var out = document.createElement("div");
+  out.className = "out";
+  var cnt = document.createElement("div");
+  cnt.className = "cnt";
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "copy";
+  btn.textContent = "COPY";
+  btn.addEventListener("click", function(){ copyText(outs[idx].out.textContent, btn); });
+  row.appendChild(lbl); row.appendChild(out); row.appendChild(cnt); row.appendChild(btn);
+  rowsEl.appendChild(row);
+  outs.push({ fn: pair[1], out: out, cnt: cnt });
+});
+
+function copyText(t, btn){
+  var done = function(){
+    btn.classList.add("ok"); btn.textContent = "OK!";
+    setTimeout(function(){ btn.classList.remove("ok"); btn.textContent = "COPY"; }, 900);
+  };
+  var fallback = function(){
+    var ta = document.createElement("textarea");
+    ta.value = t;
+    ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand("copy"); }catch(e){}
+    document.body.removeChild(ta);
+    done();
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(done, fallback);
+  } else { fallback(); }
+}
+function render(){
+  var v = txt.value;
+  outs.forEach(function(o){
+    var r = o.fn(v);
+    o.out.textContent = r;
+    o.cnt.textContent = r.length + "ch";
+  });
+}
+txt.addEventListener("input", function(){ render(); lsSet(txt.value); });
+document.getElementById("btnClear").addEventListener("click", function(){
+  txt.value = ""; render(); lsSet(""); txt.focus();
+});
+document.getElementById("btnSample").addEventListener("click", function(){
+  txt.value = DEMO; render(); lsSet(DEMO);
+});
+var saved = lsGet();
+txt.value = (saved !== null && saved !== "") ? saved : DEMO;
+render();
+</script>
+</body>
+</html>

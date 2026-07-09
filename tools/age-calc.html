@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Age Calculator · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#b388ff; --soft:rgba(179,136,255,.45);
+  --panel:#171327; --line:#382b56; --text:#efe8ff; --dim:#948ab8;
+  --gold:#ffd54a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:8px 12px 40px;
+}
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:linear-gradient(rgba(179,136,255,.035) 1px,transparent 1px),
+             linear-gradient(90deg,rgba(179,136,255,.035) 1px,transparent 1px);
+  background-size:28px 28px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:6px 8px 2px; position:relative; z-index:1; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:860px; margin:8px auto 0; position:relative; z-index:1; }
+.panel{
+  background:var(--panel); border:2px solid var(--line);
+  box-shadow:0 0 22px rgba(179,136,255,.10), inset 0 1px 0 rgba(255,255,255,.05);
+  padding:12px 14px;
+}
+#top{ display:flex; flex-wrap:wrap; gap:12px; align-items:stretch; }
+#birth{ flex:1 1 230px; min-width:220px; display:flex; flex-direction:column; gap:8px; }
+#birth label{ font-size:10px; letter-spacing:2px; color:var(--dim); }
+#birth input{
+  font-family:inherit; font-size:15px; font-weight:bold; color:var(--accent);
+  background:#0a0c16; border:2px solid var(--line); padding:8px 10px; outline:none; width:100%;
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+#birth input:focus{ border-color:var(--accent); box-shadow:inset 0 2px 8px rgba(0,0,0,.6), 0 0 12px var(--soft); }
+#birth .born{ font-size:11px; color:var(--dim); letter-spacing:1px; line-height:1.6; }
+#birth .born b{ color:var(--gold); font-weight:normal; text-shadow:0 0 6px rgba(255,213,74,.5); }
+#exact{ flex:2 1 320px; min-width:280px; display:flex; flex-direction:column; justify-content:center; gap:8px; text-align:center; }
+#ageBig{ font-size:clamp(20px,3.6vw,30px); font-weight:bold; color:var(--accent); text-shadow:0 0 10px var(--soft), 0 0 32px var(--soft); }
+#ageBig span{ color:var(--text); font-size:.55em; font-weight:normal; }
+#ageSmall{ font-size:12px; color:var(--dim); letter-spacing:1px; }
+#nextBday{
+  font-size:12px; color:var(--dim); letter-spacing:1px; border-top:1px dashed var(--line); padding-top:8px;
+}
+#nextBday b{ color:var(--gold); font-weight:normal; text-shadow:0 0 6px rgba(255,213,74,.5); }
+#tiles{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px; margin-top:12px;
+}
+.tile{
+  background:var(--panel); border:2px solid var(--line); padding:10px 8px 9px;
+  text-align:center; box-shadow:0 0 14px rgba(179,136,255,.07);
+}
+.tile .ico{ font-size:17px; line-height:1; margin-bottom:5px; }
+.tile .num{
+  font-size:clamp(13px,2vw,17px); font-weight:bold; color:var(--accent);
+  text-shadow:0 0 7px var(--soft); overflow-wrap:anywhere;
+}
+.tile .lbl{ font-size:9px; letter-spacing:2px; color:var(--dim); margin-top:4px; text-transform:uppercase; }
+.tile.gold .num{ color:var(--gold); text-shadow:0 0 7px rgba(255,213,74,.5); }
+footer{
+  text-align:center; font-size:10px; color:var(--dim); letter-spacing:1px;
+  margin-top:12px; position:relative; z-index:1;
+}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>AGE CALCULATOR</h1>
+  <div class="sub">CALENDAR-EXACT · LEAP-YEAR SAFE · TICKING LIVE</div>
+</header>
+<main>
+  <section class="panel" id="top">
+    <div id="birth">
+      <label for="bDate">BIRTH DATE</label>
+      <input id="bDate" type="date" value="1990-06-15" min="1900-01-01">
+      <label for="bTime">BIRTH TIME</label>
+      <input id="bTime" type="time" value="08:30">
+      <div class="born" id="bornLine"></div>
+    </div>
+    <div id="exact">
+      <div id="ageBig">—</div>
+      <div id="ageSmall"></div>
+      <div id="nextBday"></div>
+    </div>
+  </section>
+  <div id="tiles">
+    <div class="tile gold"><div class="ico">📅</div><div class="num" id="tDays">—</div><div class="lbl">days lived</div></div>
+    <div class="tile gold"><div class="ico">🗓️</div><div class="num" id="tWeeks">—</div><div class="lbl">weeks lived</div></div>
+    <div class="tile gold"><div class="ico">⏰</div><div class="num" id="tHours">—</div><div class="lbl">hours lived</div></div>
+    <div class="tile"><div class="ico">❤️</div><div class="num" id="tBeats">—</div><div class="lbl">≈ heartbeats</div></div>
+    <div class="tile"><div class="ico">🫁</div><div class="num" id="tBreaths">—</div><div class="lbl">≈ breaths</div></div>
+    <div class="tile"><div class="ico">🌕</div><div class="num" id="tMoons">—</div><div class="lbl">full moons seen</div></div>
+    <div class="tile"><div class="ico">☀️</div><div class="num" id="tOrbits">—</div><div class="lbl">orbits of the sun</div></div>
+    <div class="tile"><div class="ico">✨</div><div class="num" id="tZodiac">—</div><div class="lbl">zodiac sign</div></div>
+    <div class="tile"><div class="ico">🐉</div><div class="num" id="tChinese">—</div><div class="lbl">chinese year</div></div>
+  </div>
+</main>
+<footer>heartbeats ≈ 70/min · breaths ≈ 16/min · lunar month = 29.53 days · chinese year by calendar year</footer>
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-age-calc';
+var $=function(id){ return document.getElementById(id); };
+var bDate=$('bDate'), bTime=$('bTime');
+
+try{
+  var raw=localStorage.getItem(LS_KEY);
+  if(raw){
+    var s=JSON.parse(raw);
+    if(s && /^\d{4}-\d{2}-\d{2}$/.test(s.date||'')) bDate.value=s.date;
+    if(s && /^\d{2}:\d{2}$/.test(s.time||'')) bTime.value=s.time;
+  }
+}catch(e){}
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({date:bDate.value,time:bTime.value})); }catch(e){}
+}
+
+function birthMoment(){
+  var d=bDate.value, t=bTime.value||'00:00';
+  var md=/^(\d{4})-(\d{2})-(\d{2})$/.exec(d);
+  var mt=/^(\d{2}):(\d{2})$/.exec(t);
+  if(!md) return null;
+  var hh=mt?+mt[1]:0, mm=mt?+mt[2]:0;
+  var b=new Date(+md[1], +md[2]-1, +md[3], hh, mm, 0, 0);
+  if(isNaN(b.getTime())) return null;
+  return b;
+}
+
+/* exact calendar diff, borrows through seconds → years */
+function diffYMD(b,n){
+  var s=n.getSeconds()-b.getSeconds();
+  var mi=n.getMinutes()-b.getMinutes();
+  var h=n.getHours()-b.getHours();
+  var d=n.getDate()-b.getDate();
+  var m=n.getMonth()-b.getMonth();
+  var y=n.getFullYear()-b.getFullYear();
+  if(s<0){ s+=60; mi--; }
+  if(mi<0){ mi+=60; h--; }
+  if(h<0){ h+=24; d--; }
+  if(d<0){
+    m--;
+    d+=new Date(n.getFullYear(), n.getMonth(), 0).getDate(); /* days in month before n */
+  }
+  if(m<0){ m+=12; y--; }
+  return {y:y,m:m,d:d,h:h,mi:mi,s:s};
+}
+
+function nextBirthday(b,now){
+  var bm=b.getMonth(), bd=b.getDate();
+  for(var y=now.getFullYear(); y<now.getFullYear()+3; y++){
+    /* Feb 29 birthdays roll to Mar 1 in common years (JS does this automatically) */
+    var cand=new Date(y,bm,bd,0,0,0,0);
+    if(cand.getTime()>now.getTime()) return cand;
+  }
+  return null;
+}
+
+var WD=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+var MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function zodiac(m,d){ /* m: 1..12 */
+  var z=[
+    [1,20,'Aquarius ♒'],[2,19,'Pisces ♓'],[3,21,'Aries ♈'],[4,20,'Taurus ♉'],
+    [5,21,'Gemini ♊'],[6,21,'Cancer ♋'],[7,23,'Leo ♌'],[8,23,'Virgo ♍'],
+    [9,23,'Libra ♎'],[10,23,'Scorpio ♏'],[11,22,'Sagittarius ♐'],[12,22,'Capricorn ♑']
+  ];
+  /* sign for (m,d): if before this month's boundary, it's the previous sign */
+  var idx=m-1;
+  if(d<z[idx][1]) idx=(idx+11)%12;
+  return z[idx][2];
+}
+var ANIMALS=['Rat 🐀','Ox 🐂','Tiger 🐅','Rabbit 🐇','Dragon 🐉','Snake 🐍','Horse 🐎','Goat 🐐','Monkey 🐒','Rooster 🐓','Dog 🐕','Pig 🐖'];
+var ELEMENTS=['Wood','Wood','Fire','Fire','Earth','Earth','Metal','Metal','Water','Water'];
+function chineseYear(y){
+  var a=ANIMALS[((y-4)%12+12)%12];
+  var e=ELEMENTS[((y-4)%10+10)%10];
+  return e+' '+a;
+}
+function grp(n){
+  n=Math.floor(n);
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+}
+
+function render(){
+  var b=birthMoment();
+  var now=new Date();
+  if(!b || b.getTime()>now.getTime()){
+    $('ageBig').textContent = b ? 'not born yet!' : '—';
+    $('ageSmall').textContent = b ? 'that date is in the future' : 'pick a valid birth date';
+    $('bornLine').textContent=''; $('nextBday').textContent='';
+    ['tDays','tWeeks','tHours','tBeats','tBreaths','tMoons','tOrbits','tZodiac','tChinese']
+      .forEach(function(id){ $(id).textContent='—'; });
+    return;
+  }
+  var a=diffYMD(b,now);
+  $('ageBig').innerHTML=a.y+'<span> yrs </span>'+a.m+'<span> mos </span>'+a.d+'<span> days</span>';
+  $('ageSmall').textContent='+ '+a.h+' h '+a.mi+' min '+a.s+' s';
+
+  $('bornLine').innerHTML='Born on a <b>'+WD[b.getDay()]+'</b><br>'+
+    MO[b.getMonth()]+' '+b.getDate()+', '+b.getFullYear()+' at '+
+    ('0'+b.getHours()).slice(-2)+':'+('0'+b.getMinutes()).slice(-2);
+
+  var nb=nextBirthday(b,now);
+  if(nb){
+    var msLeft=nb.getTime()-now.getTime();
+    var dLeft=Math.floor(msLeft/86400000);
+    var hLeft=Math.floor(msLeft%86400000/3600000);
+    var mLeft=Math.floor(msLeft%3600000/60000);
+    var turning=nb.getFullYear()-b.getFullYear();
+    $('nextBday').innerHTML='🎂 turns <b>'+turning+'</b> in <b>'+dLeft+'d '+hLeft+'h '+mLeft+'m</b> — '+
+      WD[nb.getDay()]+', '+MO[nb.getMonth()]+' '+nb.getDate()+' '+nb.getFullYear();
+  }else{
+    $('nextBday').textContent='';
+  }
+
+  var ms=now.getTime()-b.getTime();
+  var days=ms/86400000, hours=ms/3600000, minutes=ms/60000;
+  $('tDays').textContent=grp(days);
+  $('tWeeks').textContent=grp(days/7);
+  $('tHours').textContent=grp(hours);
+  $('tBeats').textContent=grp(minutes*70);
+  $('tBreaths').textContent=grp(minutes*16);
+  $('tMoons').textContent=grp(days/29.530589);
+  $('tOrbits').textContent=(days/365.2425).toFixed(2);
+  $('tZodiac').textContent=zodiac(b.getMonth()+1,b.getDate());
+  $('tChinese').textContent=chineseYear(b.getFullYear());
+}
+
+bDate.addEventListener('input',function(){ render(); save(); });
+bTime.addEventListener('input',function(){ render(); save(); });
+render();
+setInterval(render,1000);
+})();
+</script>
+</body>
+</html>

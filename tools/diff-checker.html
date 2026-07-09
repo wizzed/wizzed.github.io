@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diff Checker · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#b388ff; --accent-soft:rgba(179,136,255,.45);
+  --panel:#161623; --line:#2c2c46; --text:#f1ecf8; --dim:#9b8fae;
+  --add:#3ddc84; --del:#ff5470;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:24px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:1060px; margin:8px auto 0; padding:0 14px; }
+.inputs{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:10px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(179,136,255,.08);
+  margin-bottom:12px;
+}
+.panel h2{
+  font-size:11px; letter-spacing:3px; color:var(--accent);
+  text-shadow:0 0 8px var(--accent-soft); margin-bottom:8px;
+}
+textarea{
+  width:100%; min-height:130px; resize:vertical;
+  background:#0b0b14; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:12px; line-height:1.5; padding:9px;
+  outline:none; white-space:pre;
+}
+textarea:focus{ border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft) inset, 0 0 8px var(--accent-soft); }
+.toolbar{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+button{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:5px 10px;
+}
+button:hover{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+button.ok{ color:#0f0f1a; background:var(--accent); border-color:var(--accent); box-shadow:0 0 12px var(--accent); }
+.statbar{ margin-left:auto; display:flex; gap:10px; font-size:11px; letter-spacing:1px; }
+.statbar .a{ color:var(--add); text-shadow:0 0 6px rgba(61,220,132,.5); }
+.statbar .d{ color:var(--del); text-shadow:0 0 6px rgba(255,84,112,.5); }
+.statbar .u{ color:var(--dim); }
+#diffOut{
+  background:#0b0b14; border:1px solid var(--line);
+  font-size:12px; line-height:1.55; overflow-x:auto; max-height:56vh; overflow-y:auto;
+}
+.dl{
+  display:grid; grid-template-columns:38px 38px 16px 1fr; gap:0;
+  white-space:pre-wrap; word-break:break-word;
+}
+.dl > span{ padding:1px 6px; }
+.dl .ln{ text-align:right; color:#565672; font-size:10px; user-select:none; border-right:1px solid #1d1d30; padding-top:3px; }
+.dl .sign{ text-align:center; user-select:none; }
+.dl.add{ background:rgba(61,220,132,.10); }
+.dl.add .sign, .dl.add .body{ color:var(--add); }
+.dl.del{ background:rgba(255,84,112,.10); }
+.dl.del .sign, .dl.del .body{ color:var(--del); }
+.dl.same .body{ color:#b9b3c9; }
+.dl .body .wd{ background:rgba(255,84,112,.4); color:#fff; border-radius:2px; }
+.dl .body .wa{ background:rgba(61,220,132,.4); color:#fff; border-radius:2px; }
+#diffOut .empty{ color:var(--dim); font-size:11px; padding:12px; }
+@media (max-width:640px){ .inputs{ grid-template-columns:1fr; } }
+footer{ text-align:center; margin-top:10px; font-size:10px; color:var(--dim); letter-spacing:2px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>DIFF CHECKER</h1>
+  <div class="sub">LINE + WORD LEVEL COMPARISON</div>
+</header>
+<main>
+  <div class="inputs">
+    <section class="panel">
+      <h2>&#9646; ORIGINAL</h2>
+      <textarea id="txtA" spellcheck="false" aria-label="Original text"></textarea>
+    </section>
+    <section class="panel">
+      <h2>&#9646; CHANGED</h2>
+      <textarea id="txtB" spellcheck="false" aria-label="Changed text"></textarea>
+    </section>
+  </div>
+  <section class="panel">
+    <div class="toolbar">
+      <button id="btnSwap" type="button">&#8646; SWAP SIDES</button>
+      <button id="btnCopy" type="button">COPY RESULT</button>
+      <button id="btnSample" type="button">SAMPLE</button>
+      <span class="statbar">
+        <span class="a" id="stAdd">+0 added</span>
+        <span class="d" id="stDel">-0 removed</span>
+        <span class="u" id="stSame">0 unchanged</span>
+      </span>
+    </div>
+    <div id="diffOut"></div>
+  </section>
+</main>
+<footer>WIZZED ARCADE // TOOL 04</footer>
+<script>
+"use strict";
+// Line-level LCS diff -> list of ops {t:'same'|'del'|'ins', a:idxA, b:idxB}
+function diffLines(aLines, bLines){
+  var aStart = 0, aEnd = aLines.length, bStart = 0, bEnd = bLines.length;
+  var ops = [];
+  // trim common prefix
+  while(aStart < aEnd && bStart < bEnd && aLines[aStart] === bLines[bStart]){
+    ops.push({t:"same", a:aStart, b:bStart});
+    aStart++; bStart++;
+  }
+  // trim common suffix
+  var suffix = [];
+  while(aEnd > aStart && bEnd > bStart && aLines[aEnd-1] === bLines[bEnd-1]){
+    aEnd--; bEnd--;
+    suffix.push({t:"same", a:aEnd, b:bEnd});
+  }
+  suffix.reverse();
+  var n = aEnd - aStart, m = bEnd - bStart;
+  if(n === 0){
+    for(var bi=bStart; bi<bEnd; bi++) ops.push({t:"ins", a:-1, b:bi});
+  } else if(m === 0){
+    for(var ai=aStart; ai<aEnd; ai++) ops.push({t:"del", a:ai, b:-1});
+  } else if(n * m > 2000000){
+    // too large for full LCS: treat middle as replace block
+    for(var x=aStart; x<aEnd; x++) ops.push({t:"del", a:x, b:-1});
+    for(var y=bStart; y<bEnd; y++) ops.push({t:"ins", a:-1, b:y});
+  } else {
+    // LCS DP over the trimmed middle
+    var W = m + 1;
+    var dp = new Int32Array((n+1) * W);
+    for(var i=n-1; i>=0; i--){
+      for(var j=m-1; j>=0; j--){
+        if(aLines[aStart+i] === bLines[bStart+j]){
+          dp[i*W+j] = dp[(i+1)*W + j+1] + 1;
+        } else {
+          var down = dp[(i+1)*W + j], right = dp[i*W + j+1];
+          dp[i*W+j] = down >= right ? down : right;
+        }
+      }
+    }
+    var ii = 0, jj = 0;
+    while(ii < n && jj < m){
+      if(aLines[aStart+ii] === bLines[bStart+jj]){
+        ops.push({t:"same", a:aStart+ii, b:bStart+jj});
+        ii++; jj++;
+      } else if(dp[(ii+1)*W + jj] >= dp[ii*W + jj+1]){
+        ops.push({t:"del", a:aStart+ii, b:-1});
+        ii++;
+      } else {
+        ops.push({t:"ins", a:-1, b:bStart+jj});
+        jj++;
+      }
+    }
+    while(ii < n){ ops.push({t:"del", a:aStart+ii, b:-1}); ii++; }
+    while(jj < m){ ops.push({t:"ins", a:-1, b:bStart+jj}); jj++; }
+  }
+  return ops.concat(suffix);
+}
+// Word-level LCS between two lines. Returns [delHTMLParts, insHTMLParts] as arrays of {s,changed}
+function diffWords(aLine, bLine){
+  var A = aLine.split(/(\s+)/).filter(function(s){return s.length;});
+  var B = bLine.split(/(\s+)/).filter(function(s){return s.length;});
+  var n = A.length, m = B.length;
+  if(n * m > 250000){
+    return [[{s:aLine, c:true}], [{s:bLine, c:true}]];
+  }
+  var W = m + 1;
+  var dp = new Int32Array((n+1) * W);
+  for(var i=n-1; i>=0; i--){
+    for(var j=m-1; j>=0; j--){
+      if(A[i] === B[j]) dp[i*W+j] = dp[(i+1)*W + j+1] + 1;
+      else {
+        var d = dp[(i+1)*W + j], r = dp[i*W + j+1];
+        dp[i*W+j] = d >= r ? d : r;
+      }
+    }
+  }
+  var outA = [], outB = [], ii = 0, jj = 0;
+  while(ii < n && jj < m){
+    if(A[ii] === B[jj]){
+      outA.push({s:A[ii], c:false}); outB.push({s:B[jj], c:false});
+      ii++; jj++;
+    } else if(dp[(ii+1)*W + jj] >= dp[ii*W + jj+1]){
+      outA.push({s:A[ii], c:true}); ii++;
+    } else {
+      outB.push({s:B[jj], c:true}); jj++;
+    }
+  }
+  while(ii < n){ outA.push({s:A[ii], c:true}); ii++; }
+  while(jj < m){ outB.push({s:B[jj], c:true}); jj++; }
+  return [outA, outB];
+}
+// Group ops into render rows, pairing del-runs with ins-runs for word diff
+function buildRows(ops, aLines, bLines){
+  var rows = [];
+  var k = 0;
+  while(k < ops.length){
+    var op = ops[k];
+    if(op.t === "same"){
+      rows.push({type:"same", aNo:op.a+1, bNo:op.b+1, text:aLines[op.a]});
+      k++;
+      continue;
+    }
+    var dels = [], inss = [];
+    while(k < ops.length && ops[k].t === "del"){ dels.push(ops[k]); k++; }
+    while(k < ops.length && ops[k].t === "ins"){ inss.push(ops[k]); k++; }
+    var pairs = Math.min(dels.length, inss.length);
+    for(var p=0; p<dels.length; p++){
+      var row = {type:"del", aNo:dels[p].a+1, bNo:null, text:aLines[dels[p].a]};
+      if(p < pairs){
+        row.parts = diffWords(aLines[dels[p].a], bLines[inss[p].b])[0];
+      }
+      rows.push(row);
+    }
+    for(var q=0; q<inss.length; q++){
+      var row2 = {type:"ins", aNo:null, bNo:inss[q].b+1, text:bLines[inss[q].b]};
+      if(q < pairs){
+        row2.parts = diffWords(aLines[dels[q].a], bLines[inss[q].b])[1];
+      }
+      rows.push(row2);
+    }
+  }
+  return rows;
+}
+// ---- DOM ----
+var LS_KEY = "wizzed-diff-checker";
+var DEMO_A = "# Wizzed Arcade Changelog\n- neon marquee flickers on load\n- coin slot accepts tokens\n- high score table stores top 5\n- attract mode starts after 30s\n- sound: chiptune loop v1\n- cabinet art: purple gradient";
+var DEMO_B = "# Wizzed Arcade Changelog\n- neon marquee flickers on load\n- coin slot accepts tokens and coins\n- high score table stores top 10\n- attract mode starts after 30s\n- sound: chiptune loop v2 (remastered)\n- cabinet art: purple gradient\n- new: two-player versus mode";
+
+var txtA = document.getElementById("txtA");
+var txtB = document.getElementById("txtB");
+var diffOut = document.getElementById("diffOut");
+var stAdd = document.getElementById("stAdd");
+var stDel = document.getElementById("stDel");
+var stSame = document.getElementById("stSame");
+var lastRows = [];
+
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({a:txtA.value, b:txtB.value})); }catch(e){}
+}
+function partsHTML(parts, cls){
+  return parts.map(function(p){
+    return p.c ? '<span class="'+cls+'">' + esc(p.s) + '</span>' : esc(p.s);
+  }).join("");
+}
+function render(){
+  var aLines = txtA.value.split("\n");
+  var bLines = txtB.value.split("\n");
+  var ops = diffLines(aLines, bLines);
+  lastRows = buildRows(ops, aLines, bLines);
+  var nAdd = 0, nDel = 0, nSame = 0;
+  var html = lastRows.map(function(r){
+    var body;
+    if(r.type === "same"){ nSame++; body = esc(r.text); }
+    else if(r.type === "del"){ nDel++; body = r.parts ? partsHTML(r.parts,"wd") : esc(r.text); }
+    else { nAdd++; body = r.parts ? partsHTML(r.parts,"wa") : esc(r.text); }
+    var cls = r.type === "same" ? "same" : (r.type === "del" ? "del" : "add");
+    var sign = r.type === "same" ? "&nbsp;" : (r.type === "del" ? "-" : "+");
+    return '<div class="dl ' + cls + '">' +
+      '<span class="ln">' + (r.aNo || "") + '</span>' +
+      '<span class="ln">' + (r.bNo || "") + '</span>' +
+      '<span class="sign">' + sign + '</span>' +
+      '<span class="body">' + (body || "&nbsp;") + '</span></div>';
+  }).join("");
+  diffOut.innerHTML = html || '<div class="empty">Both sides are empty — paste text above.</div>';
+  stAdd.textContent = "+" + nAdd + " added";
+  stDel.textContent = "-" + nDel + " removed";
+  stSame.textContent = nSame + " unchanged";
+}
+txtA.addEventListener("input", function(){ render(); save(); });
+txtB.addEventListener("input", function(){ render(); save(); });
+document.getElementById("btnSwap").addEventListener("click", function(){
+  var t = txtA.value; txtA.value = txtB.value; txtB.value = t;
+  render(); save();
+});
+document.getElementById("btnSample").addEventListener("click", function(){
+  txtA.value = DEMO_A; txtB.value = DEMO_B;
+  render(); save();
+});
+document.getElementById("btnCopy").addEventListener("click", function(){
+  var btn = this;
+  var out = lastRows.map(function(r){
+    var sign = r.type === "same" ? "  " : (r.type === "del" ? "- " : "+ ");
+    return sign + r.text;
+  }).join("\n");
+  var done = function(){
+    btn.classList.add("ok"); btn.textContent = "COPIED!";
+    setTimeout(function(){ btn.classList.remove("ok"); btn.textContent = "COPY RESULT"; }, 900);
+  };
+  var fallback = function(){
+    var ta = document.createElement("textarea");
+    ta.value = out;
+    ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand("copy"); }catch(e){}
+    document.body.removeChild(ta);
+    done();
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(out).then(done, fallback);
+  } else { fallback(); }
+});
+(function init(){
+  var a = DEMO_A, b = DEMO_B;
+  try{
+    var saved = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if(saved && typeof saved.a === "string" && typeof saved.b === "string" && (saved.a || saved.b)){
+      a = saved.a; b = saved.b;
+    }
+  }catch(e){}
+  txtA.value = a; txtB.value = b;
+  render();
+})();
+</script>
+</body>
+</html>

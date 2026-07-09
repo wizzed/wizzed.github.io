@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contrast Checker · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#3ddc84; --accent-soft:rgba(61,220,132,.45);
+  --panel:#161623; --line:#2c2c46; --text:#ecf6ee; --dim:#8b9c90;
+  --fail:#ff4560;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:20px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:8px 8px 2px; }
+h1{
+  display:inline-block; font-size:clamp(16px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:1px; }
+main{
+  display:flex; flex-wrap:wrap; gap:12px; justify-content:center; align-items:stretch;
+  max-width:920px; margin:6px auto 0; padding:0 12px;
+}
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:10px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(61,220,132,.08);
+}
+#left{ flex:1 1 300px; max-width:380px; display:flex; flex-direction:column; gap:10px; }
+.colorRow{ display:flex; align-items:center; gap:8px; }
+.colorRow label{ width:34px; font-size:11px; color:var(--dim); letter-spacing:1px; }
+.colorRow input[type=color]{
+  width:40px; height:30px; padding:0; border:1px solid var(--line); background:none; cursor:pointer; flex:none;
+}
+.colorRow input[type=text]{
+  flex:1; font-family:inherit; font-size:13px; padding:5px 7px; min-width:0;
+  background:#0c0c16; color:var(--text); border:1px solid var(--line); outline:none;
+}
+.colorRow input[type=text]:focus{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+.colorRow input.bad{ border-color:var(--fail); box-shadow:0 0 8px rgba(255,69,96,.5); }
+#btnRow{ display:flex; gap:8px; }
+#btnRow button{
+  flex:1; font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:7px 6px;
+}
+#btnRow button:hover{ color:var(--accent); border-color:var(--accent); }
+#nudgeBtn{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 6px var(--accent); }
+#nudgeBtn:hover{ box-shadow:0 0 12px var(--accent-soft); }
+#ratioBox{ text-align:center; padding:8px 4px 4px; }
+#ratioVal{
+  font-size:clamp(34px,7vw,52px); letter-spacing:2px; line-height:1;
+  color:var(--fail); text-shadow:0 0 10px var(--fail), 0 0 34px rgba(255,69,96,.5);
+  transition:color .2s;
+}
+#ratioVal.pass{ color:var(--accent); text-shadow:0 0 10px var(--accent), 0 0 34px var(--accent-soft); }
+#ratioLbl{ font-size:10px; color:var(--dim); letter-spacing:3px; margin-top:3px; }
+#badges{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.badge{
+  border:1px solid var(--line); padding:6px 8px; font-size:10px; letter-spacing:1px;
+  display:flex; justify-content:space-between; align-items:center; background:#111120;
+}
+.badge .res{ font-size:11px; font-weight:bold; }
+.badge.pass .res{ color:var(--accent); text-shadow:0 0 8px var(--accent); }
+.badge.pass{ border-color:rgba(61,220,132,.5); }
+.badge.fail .res{ color:var(--fail); text-shadow:0 0 8px var(--fail); }
+.badge.fail{ border-color:rgba(255,69,96,.5); }
+#right{ flex:1 1 340px; max-width:460px; display:flex; flex-direction:column; }
+#sample{
+  flex:1; border:2px solid var(--line); padding:22px 20px; min-height:230px;
+  box-shadow:0 0 0 1px #000; display:flex; flex-direction:column; gap:12px; justify-content:center;
+  transition:background .2s;
+}
+#sample h2{ font-size:clamp(20px,3.4vw,30px); letter-spacing:2px; font-family:inherit; }
+#sample p{ font-size:13px; line-height:1.55; }
+#sample .btn{
+  align-self:flex-start; font-family:inherit; font-size:12px; letter-spacing:1px;
+  padding:8px 16px; border:2px solid currentColor; background:transparent; color:inherit; cursor:pointer;
+}
+#sampleLbl{ font-size:10px; color:var(--dim); letter-spacing:2px; text-align:center; margin-top:6px; }
+#toast{
+  position:fixed; left:50%; bottom:18px; transform:translateX(-50%) translateY(60px);
+  background:#000; color:var(--accent); border:1px solid var(--accent); padding:6px 14px;
+  font-size:11px; letter-spacing:1px; transition:transform .25s; z-index:99;
+  text-shadow:0 0 8px var(--accent); box-shadow:0 0 14px var(--accent-soft); pointer-events:none;
+}
+#toast.show{ transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>◑ CONTRAST CHECKER ◐</h1>
+  <div class="sub">WCAG 2.1 · AA / AAA</div>
+</header>
+<main>
+  <div class="panel" id="left">
+    <div class="colorRow">
+      <label>TEXT</label>
+      <input type="color" id="fgPick">
+      <input type="text" id="fgHex" spellcheck="false">
+    </div>
+    <div class="colorRow">
+      <label>BG</label>
+      <input type="color" id="bgPick">
+      <input type="text" id="bgHex" spellcheck="false">
+    </div>
+    <div id="btnRow">
+      <button id="swapBtn">⇅ SWAP</button>
+      <button id="nudgeBtn">✦ NUDGE TO PASS</button>
+    </div>
+    <div id="ratioBox">
+      <div id="ratioVal">0.00</div>
+      <div id="ratioLbl">CONTRAST RATIO : 1</div>
+    </div>
+    <div id="badges">
+      <div class="badge" id="bAAn"><span>AA · NORMAL ≥4.5</span><span class="res">—</span></div>
+      <div class="badge" id="bAAl"><span>AA · LARGE ≥3.0</span><span class="res">—</span></div>
+      <div class="badge" id="bAAAn"><span>AAA · NORMAL ≥7.0</span><span class="res">—</span></div>
+      <div class="badge" id="bAAAl"><span>AAA · LARGE ≥4.5</span><span class="res">—</span></div>
+    </div>
+  </div>
+  <div id="right">
+    <div id="sample">
+      <h2>NEON HEADLINE</h2>
+      <p>Body copy sample — the quick brown fox jumps over the lazy dog, then checks its contrast ratio before shipping to production. 0123456789.</p>
+      <button class="btn" type="button">CALL TO ACTION</button>
+    </div>
+    <div id="sampleLbl">LIVE PREVIEW</div>
+  </div>
+</main>
+<div id="toast"></div>
+<script>
+(function(){
+"use strict";
+var LS_KEY="wizzed-contrast-check";
+var $=function(id){return document.getElementById(id);};
+// default: just fails AA normal (ratio ≈ 4.43) so NUDGE has something to fix
+var state={ fg:"#ad4df5", bg:"#14142a" };
+
+function parseHex(str){
+  var m=/^#?([0-9a-f]{6})$/i.exec(String(str).trim());
+  if(m)return "#"+m[1].toLowerCase();
+  m=/^#?([0-9a-f]{3})$/i.exec(String(str).trim());
+  if(m)return "#"+m[1].split("").map(function(c){return c+c;}).join("").toLowerCase();
+  return null;
+}
+function hexToRgb(hex){
+  var n=parseInt(hex.slice(1),16);
+  return [(n>>16)&255,(n>>8)&255,n&255];
+}
+function luminance(hex){
+  var c=hexToRgb(hex).map(function(v){
+    v/=255; return v<=0.03928? v/12.92 : Math.pow((v+0.055)/1.055,2.4);
+  });
+  return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2];
+}
+function ratio(a,b){
+  var l1=luminance(a), l2=luminance(b);
+  var hi=Math.max(l1,l2), lo=Math.min(l1,l2);
+  return (hi+0.05)/(lo+0.05);
+}
+function rgbToHsl(r,g,b){
+  r/=255;g/=255;b/=255;
+  var max=Math.max(r,g,b),min=Math.min(r,g,b),h=0,s=0,l=(max+min)/2,d=max-min;
+  if(d!==0){
+    s=l>0.5? d/(2-max-min) : d/(max+min);
+    if(max===r)h=((g-b)/d)%6; else if(max===g)h=(b-r)/d+2; else h=(r-g)/d+4;
+    h*=60; if(h<0)h+=360;
+  }
+  return [h,s*100,l*100];
+}
+function hslToHex(h,s,l){
+  h=((h%360)+360)%360; s/=100; l/=100;
+  var c=(1-Math.abs(2*l-1))*s, x=c*(1-Math.abs((h/60)%2-1)), m=l-c/2, r=0,g=0,b=0;
+  if(h<60){r=c;g=x;}else if(h<120){r=x;g=c;}else if(h<180){g=c;b=x;}
+  else if(h<240){g=x;b=c;}else if(h<300){r=x;b=c;}else{r=c;b=x;}
+  function q(v){return ("0"+Math.round((v+m)*255).toString(16)).slice(-2);}
+  return "#"+q(r)+q(g)+q(b);
+}
+
+var toastTimer=null;
+function toast(msg){
+  var t=$("toast"); t.textContent=msg; t.classList.add("show");
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.classList.remove("show");},1500);
+}
+
+function setBadge(id,pass){
+  var el=$(id);
+  el.classList.toggle("pass",pass);
+  el.classList.toggle("fail",!pass);
+  el.querySelector(".res").textContent=pass?"PASS":"FAIL";
+}
+
+function render(skip){
+  var r=ratio(state.fg,state.bg);
+  if(skip!=="fg"){ $("fgHex").value=state.fg; $("fgHex").classList.remove("bad"); }
+  if(skip!=="bg"){ $("bgHex").value=state.bg; $("bgHex").classList.remove("bad"); }
+  $("fgPick").value=state.fg; $("bgPick").value=state.bg;
+  var sample=$("sample");
+  sample.style.background=state.bg;
+  sample.style.color=state.fg;
+  sample.style.borderColor=state.fg;
+  $("ratioVal").textContent=(Math.floor(r*100)/100).toFixed(2);
+  $("ratioVal").classList.toggle("pass",r>=4.5);
+  setBadge("bAAn",r>=4.5);
+  setBadge("bAAl",r>=3);
+  setBadge("bAAAn",r>=7);
+  setBadge("bAAAl",r>=4.5);
+  save();
+}
+
+// nudge: minimally adjust the TEXT color's lightness until AA normal (4.5) passes
+function nudge(){
+  var target=4.5;
+  if(ratio(state.fg,state.bg)>=target){ toast("ALREADY PASSES AA"); return; }
+  var rgb=hexToRgb(state.fg), hsl=rgbToHsl(rgb[0],rgb[1],rgb[2]);
+  var best=null;
+  for(var d=1;d<=100;d++){
+    var up=hsl[2]+d, down=hsl[2]-d, hex;
+    if(up<=100){
+      hex=hslToHex(hsl[0],hsl[1],up);
+      if(ratio(hex,state.bg)>=target){ best=hex; break; }
+    }
+    if(down>=0){
+      hex=hslToHex(hsl[0],hsl[1],down);
+      if(ratio(hex,state.bg)>=target){ best=hex; break; }
+    }
+  }
+  if(best){
+    state.fg=best; render();
+    toast("TEXT NUDGED TO "+best.toUpperCase());
+  }else{
+    toast("NO SAME-HUE FIX — TRY ANOTHER HUE");
+  }
+}
+
+$("fgPick").addEventListener("input",function(){ state.fg=this.value; render(); });
+$("bgPick").addEventListener("input",function(){ state.bg=this.value; render(); });
+$("fgHex").addEventListener("input",function(){
+  var h=parseHex(this.value);
+  if(h){ state.fg=h; this.classList.remove("bad"); render("fg"); }
+  else this.classList.add("bad");
+});
+$("bgHex").addEventListener("input",function(){
+  var h=parseHex(this.value);
+  if(h){ state.bg=h; this.classList.remove("bad"); render("bg"); }
+  else this.classList.add("bad");
+});
+$("swapBtn").addEventListener("click",function(){
+  var t=state.fg; state.fg=state.bg; state.bg=t; render();
+});
+$("nudgeBtn").addEventListener("click",nudge);
+
+function save(){
+  try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){}
+}
+function load(){
+  try{
+    var d=JSON.parse(localStorage.getItem(LS_KEY));
+    if(d&&parseHex(d.fg)&&parseHex(d.bg)){ state.fg=parseHex(d.fg); state.bg=parseHex(d.bg); }
+  }catch(e){}
+}
+load();
+render();
+})();
+</script>
+</body>
+</html>

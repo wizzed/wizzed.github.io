@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flag Quiz — Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f1a;
+    --accent: #ff7a3d;
+    --accent-dim: rgba(255,122,61,.35);
+    --good: #00ff9d;
+    --bad: #ff4060;
+    --panel: #191930;
+    --line: #2a2a4a;
+    --dim: #8888c0;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: #e8e8ff;
+    font-family: 'Courier New', ui-monospace, monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 8px 12px 16px;
+    overflow-x: hidden;
+  }
+  a.back {
+    position: fixed; top: 10px; left: 12px;
+    color: #8888c0; text-decoration: none; font-size: 13px; letter-spacing: 1px;
+    padding: 4px 8px; border: 1px solid #2a2a4a; border-radius: 6px;
+    background: rgba(15,15,26,.8); z-index: 50;
+  }
+  a.back:hover { color: var(--accent); border-color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+  h1 {
+    margin-top: 2px;
+    font-size: clamp(20px, 4.5vmin, 32px);
+    letter-spacing: 6px;
+    color: var(--accent);
+    text-shadow: 0 0 8px var(--accent), 0 0 28px var(--accent-dim);
+    text-transform: uppercase;
+  }
+  #hud { display: flex; gap: 8px; margin: 5px 0 6px; flex-wrap: wrap; justify-content: center; }
+  .hudbox {
+    background: #191930; border: 1px solid #2a2a4a; border-radius: 8px;
+    padding: 3px 12px; font-size: 10px; letter-spacing: 1px; color: var(--dim); text-align: center; min-width: 72px;
+    user-select: none; -webkit-user-select: none;
+  }
+  .hudbox b { display: block; color: var(--accent); font-size: 17px; text-shadow: 0 0 8px var(--accent); }
+  .hr { color: var(--bad); text-shadow: 0 0 8px var(--bad); font-style: normal; }
+  .hr.off { color: #333350; text-shadow: none; }
+  #controls { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; align-items: center; user-select: none; -webkit-user-select: none; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .chip {
+    background: #191930; border: 1px solid #2a2a4a; color: var(--dim);
+    border-radius: 999px; padding: 4px 10px; font-family: inherit; font-weight: bold;
+    font-size: 10px; letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    touch-action: manipulation; user-select: none; -webkit-user-select: none;
+  }
+  .chip:hover { border-color: var(--accent); color: #d8d8f8; }
+  .chip.on { color: var(--accent); border-color: var(--accent); box-shadow: 0 0 10px var(--accent-dim); text-shadow: 0 0 6px var(--accent); }
+  #arena {
+    width: 100%; max-width: 620px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 0 18px rgba(255,122,61,.12);
+    padding: 8px 14px 12px;
+    text-align: center;
+  }
+  #flagbox { min-height: clamp(92px, 21vmin, 140px); display: flex; align-items: center; justify-content: center; user-select: none; -webkit-user-select: none; }
+  .femoji.big {
+    font-size: clamp(84px, 21vmin, 124px);
+    line-height: 1.1;
+    filter: drop-shadow(0 0 14px rgba(255,122,61,.4)) drop-shadow(0 2px 6px rgba(0,0,0,.6));
+  }
+  .fcard {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: bold; letter-spacing: 4px; color: #fff;
+    background: linear-gradient(160deg, #2a2a4a, #191930);
+    border: 3px solid var(--accent); border-radius: 14px;
+    box-shadow: 0 0 16px var(--accent-dim), inset 0 0 24px rgba(255,122,61,.12);
+    text-shadow: 0 0 10px var(--accent);
+  }
+  .fcard.big { width: 184px; height: 116px; font-size: 50px; }
+  .femoji.opt { font-size: clamp(38px, 10vmin, 54px); line-height: 1.1; filter: drop-shadow(0 0 8px rgba(255,122,61,.3)); }
+  .fcard.opt { width: 84px; height: 54px; font-size: 23px; letter-spacing: 2px; border-width: 2px; border-radius: 10px; }
+  .bigname {
+    font-size: clamp(21px, 5.2vmin, 33px); font-weight: bold; letter-spacing: 2px; color: #fff;
+    text-shadow: 0 0 12px var(--accent), 0 0 34px var(--accent-dim);
+    text-transform: uppercase; padding: 6px 4px;
+  }
+  #prompt { font-size: 10px; letter-spacing: 3px; color: var(--dim); margin: 0 0 9px; }
+  #answers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ans {
+    background: #23233d; border: 1px solid #34345a; border-radius: 8px;
+    color: #e8e8ff; font-family: inherit; font-weight: bold; font-size: 13px; letter-spacing: .5px;
+    padding: 9px 10px; cursor: pointer; display: flex; align-items: center; gap: 9px;
+    text-align: left; min-height: 44px;
+    transition: border-color .12s, box-shadow .12s, opacity .2s;
+    touch-action: manipulation; user-select: none; -webkit-user-select: none;
+  }
+  .ans:hover:not(.good):not(.bad):not(.dim) { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-dim); }
+  .ans:active:not(.good):not(.bad):not(.dim) { transform: scale(.98); }
+  .ans .num { flex: 0 0 auto; border: 1px solid #34345a; border-radius: 4px; padding: 1px 6px; color: var(--dim); font-size: 10px; }
+  .ans .txt { flex: 1; }
+  .ans.flagopt { justify-content: center; min-height: 72px; gap: 10px; }
+  .ans.good { border-color: var(--good); background: rgba(0,255,157,.1); box-shadow: 0 0 12px rgba(0,255,157,.4); }
+  .ans.good .num { color: var(--good); border-color: var(--good); }
+  .ans.bad { border-color: var(--bad); background: rgba(255,64,96,.1); box-shadow: 0 0 12px rgba(255,64,96,.4); }
+  .ans.bad .num { color: var(--bad); border-color: var(--bad); }
+  .ans.dim { opacity: .4; }
+  #fb { min-height: 18px; font-size: 13px; letter-spacing: 1px; margin-top: 9px; color: var(--dim); font-weight: bold; }
+  #fb.good { color: var(--good); text-shadow: 0 0 8px var(--good); }
+  #fb.bad { color: var(--bad); text-shadow: 0 0 8px var(--bad); }
+  #hint { font-size: 9px; letter-spacing: 2px; color: #555580; margin-top: 6px; user-select: none; -webkit-user-select: none; }
+  #miletxt {
+    position: fixed; top: 38%; left: 50%; transform: translate(-50%,-50%);
+    font-size: clamp(30px, 8vmin, 46px); font-weight: bold; letter-spacing: 6px;
+    color: var(--accent); text-shadow: 0 0 16px var(--accent), 0 0 50px var(--accent);
+    opacity: 0; pointer-events: none; z-index: 80; text-transform: uppercase; white-space: nowrap;
+  }
+  #miletxt.go { animation: mile .9s ease-out; }
+  @keyframes mile {
+    0% { opacity: 0; transform: translate(-50%,-50%) scale(.5); }
+    20% { opacity: 1; transform: translate(-50%,-50%) scale(1.15); }
+    60% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%,-50%) scale(1.08); }
+  }
+  .ov {
+    position: fixed; inset: 0; background: rgba(10,10,20,.88);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 100;
+  }
+  .ov.show { opacity: 1; pointer-events: auto; }
+  .panel2 {
+    background: var(--panel); border: 2px solid var(--accent); border-radius: 12px;
+    box-shadow: 0 0 30px var(--accent-dim), 0 0 80px rgba(255,122,61,.15);
+    padding: 18px 26px 22px; text-align: center; max-width: 92vw; max-height: 92vh; overflow: auto;
+  }
+  .panel2 h2 { color: var(--accent); letter-spacing: 4px; font-size: 22px; text-shadow: 0 0 12px var(--accent); margin-bottom: 10px; text-transform: uppercase; }
+  .stats { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px; max-width: 460px; }
+  .st { background: #12122a; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; min-width: 88px; }
+  .st span { display: block; font-size: 9px; letter-spacing: 1px; color: var(--dim); }
+  .st b { font-size: 18px; color: var(--accent); text-shadow: 0 0 8px var(--accent); }
+  .sub { color: #9a9ac8; font-size: 11px; letter-spacing: 1px; margin-bottom: 12px; }
+  .sub b { color: var(--accent); }
+  .ovlabel { font-size: 9px; letter-spacing: 2px; color: #555580; margin: 6px 0 4px; }
+  .btn {
+    background: var(--accent); color: #2a1005; border: none; font-family: inherit;
+    font-weight: bold; font-size: 15px; letter-spacing: 2px; padding: 11px 26px;
+    border-radius: 6px; cursor: pointer; text-transform: uppercase;
+    box-shadow: 0 0 14px var(--accent-dim); touch-action: manipulation;
+    user-select: none; -webkit-user-select: none; margin-top: 10px;
+  }
+  .btn:hover { box-shadow: 0 0 26px var(--accent); }
+  .abtn {
+    background: #23233d; border: 1px solid #34345a; color: #d8d8f8; font-family: inherit;
+    font-weight: bold; font-size: 12px; letter-spacing: 1px; padding: 11px 16px;
+    border-radius: 6px; cursor: pointer; text-transform: uppercase; touch-action: manipulation;
+    user-select: none; -webkit-user-select: none; margin-top: 10px;
+  }
+  .abtn:hover { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-dim); }
+  .btnrow { display: flex; gap: 10px; justify-content: center; align-items: center; }
+  @media (max-height: 560px) {
+    h1 { font-size: 18px; letter-spacing: 4px; }
+    #hud { margin: 3px 0 4px; }
+    .hudbox b { font-size: 15px; }
+    #flagbox { min-height: 84px; }
+    .femoji.big { font-size: 80px; }
+    .fcard.big { width: 148px; height: 94px; font-size: 40px; }
+    #hint { display: none; }
+    .ans { min-height: 38px; padding: 6px 10px; }
+    .ans.flagopt { min-height: 60px; }
+    .femoji.opt { font-size: 38px; }
+  }
+  @media (max-width: 430px) {
+    #answers.names { grid-template-columns: 1fr; }
+    .hudbox { min-width: 62px; padding: 3px 8px; }
+    #controls { gap: 8px; }
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<h1>Flag Quiz</h1>
+<div id="hud">
+  <div class="hudbox">LIVES<b id="h-lives"><i class="hr">&#9829;</i><i class="hr">&#9829;</i><i class="hr">&#9829;</i></b></div>
+  <div class="hudbox">SCORE<b id="h-score">0</b></div>
+  <div class="hudbox">STREAK<b id="h-streak">0</b></div>
+  <div class="hudbox">TIER<b id="h-tier">1</b></div>
+  <div class="hudbox">BEST SCORE<b id="h-best">0</b></div>
+  <div class="hudbox">BEST STREAK<b id="h-beststk">0</b></div>
+</div>
+<div id="controls">
+  <div class="chips" id="regchips"></div>
+  <div class="chips" id="modechips"></div>
+</div>
+<div id="arena">
+  <div id="flagbox"></div>
+  <div id="prompt">WHICH COUNTRY IS THIS?</div>
+  <div id="answers" class="names"></div>
+  <div id="fb">&nbsp;</div>
+  <div id="hint">KEYS 1&ndash;4 ANSWER &middot; ENTER NEXT</div>
+</div>
+<div id="miletxt"></div>
+<div id="confirmov" class="ov">
+  <div class="panel2">
+    <h2 id="cf-title">Switch?</h2>
+    <p class="sub">Your current round will restart.</p>
+    <div class="btnrow">
+      <button class="btn" id="cf-yes" style="margin-top:0">Restart</button>
+      <button class="abtn" id="cf-no" style="margin-top:0">Cancel</button>
+    </div>
+  </div>
+</div>
+<div id="overlay" class="ov">
+  <div class="panel2">
+    <h2>Game Over</h2>
+    <div id="ov-stats" class="stats"></div>
+    <div class="sub" id="ov-life"></div>
+    <div class="ovlabel">MODE</div>
+    <div class="chips" id="ov-modechips"></div>
+    <div class="ovlabel">REGION</div>
+    <div class="chips" id="ov-regchips"></div>
+    <button class="btn" id="againbtn">Play Again</button>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+
+  /* ------- country data: { n: name, c: ISO 3166-1 alpha-2, r: region, t: tier 1 famous / 2 medium / 3 obscure } ------- */
+  var DATA = [
+    /* Africa (54) */
+    { n: 'Algeria', c: 'DZ', r: 'Africa', t: 2 }, { n: 'Angola', c: 'AO', r: 'Africa', t: 2 }, { n: 'Benin', c: 'BJ', r: 'Africa', t: 3 },
+    { n: 'Botswana', c: 'BW', r: 'Africa', t: 2 }, { n: 'Burkina Faso', c: 'BF', r: 'Africa', t: 3 }, { n: 'Burundi', c: 'BI', r: 'Africa', t: 3 },
+    { n: 'Cape Verde', c: 'CV', r: 'Africa', t: 3 }, { n: 'Cameroon', c: 'CM', r: 'Africa', t: 2 }, { n: 'Central African Republic', c: 'CF', r: 'Africa', t: 3 },
+    { n: 'Chad', c: 'TD', r: 'Africa', t: 3 }, { n: 'Comoros', c: 'KM', r: 'Africa', t: 3 }, { n: 'Republic of the Congo', c: 'CG', r: 'Africa', t: 3 },
+    { n: 'DR Congo', c: 'CD', r: 'Africa', t: 2 }, { n: 'Djibouti', c: 'DJ', r: 'Africa', t: 3 }, { n: 'Egypt', c: 'EG', r: 'Africa', t: 1 },
+    { n: 'Equatorial Guinea', c: 'GQ', r: 'Africa', t: 3 }, { n: 'Eritrea', c: 'ER', r: 'Africa', t: 3 }, { n: 'Eswatini', c: 'SZ', r: 'Africa', t: 3 },
+    { n: 'Ethiopia', c: 'ET', r: 'Africa', t: 2 }, { n: 'Gabon', c: 'GA', r: 'Africa', t: 3 }, { n: 'Gambia', c: 'GM', r: 'Africa', t: 3 },
+    { n: 'Ghana', c: 'GH', r: 'Africa', t: 2 }, { n: 'Guinea', c: 'GN', r: 'Africa', t: 3 }, { n: 'Guinea-Bissau', c: 'GW', r: 'Africa', t: 3 },
+    { n: 'Ivory Coast', c: 'CI', r: 'Africa', t: 2 }, { n: 'Kenya', c: 'KE', r: 'Africa', t: 1 }, { n: 'Lesotho', c: 'LS', r: 'Africa', t: 3 },
+    { n: 'Liberia', c: 'LR', r: 'Africa', t: 3 }, { n: 'Libya', c: 'LY', r: 'Africa', t: 2 }, { n: 'Madagascar', c: 'MG', r: 'Africa', t: 2 },
+    { n: 'Malawi', c: 'MW', r: 'Africa', t: 3 }, { n: 'Mali', c: 'ML', r: 'Africa', t: 2 }, { n: 'Mauritania', c: 'MR', r: 'Africa', t: 3 },
+    { n: 'Mauritius', c: 'MU', r: 'Africa', t: 3 }, { n: 'Morocco', c: 'MA', r: 'Africa', t: 1 }, { n: 'Mozambique', c: 'MZ', r: 'Africa', t: 2 },
+    { n: 'Namibia', c: 'NA', r: 'Africa', t: 2 }, { n: 'Niger', c: 'NE', r: 'Africa', t: 3 }, { n: 'Nigeria', c: 'NG', r: 'Africa', t: 1 },
+    { n: 'Rwanda', c: 'RW', r: 'Africa', t: 2 }, { n: 'Sao Tome and Principe', c: 'ST', r: 'Africa', t: 3 }, { n: 'Senegal', c: 'SN', r: 'Africa', t: 2 },
+    { n: 'Seychelles', c: 'SC', r: 'Africa', t: 3 }, { n: 'Sierra Leone', c: 'SL', r: 'Africa', t: 3 }, { n: 'Somalia', c: 'SO', r: 'Africa', t: 2 },
+    { n: 'South Africa', c: 'ZA', r: 'Africa', t: 1 }, { n: 'South Sudan', c: 'SS', r: 'Africa', t: 3 }, { n: 'Sudan', c: 'SD', r: 'Africa', t: 2 },
+    { n: 'Tanzania', c: 'TZ', r: 'Africa', t: 2 }, { n: 'Togo', c: 'TG', r: 'Africa', t: 3 }, { n: 'Tunisia', c: 'TN', r: 'Africa', t: 2 },
+    { n: 'Uganda', c: 'UG', r: 'Africa', t: 2 }, { n: 'Zambia', c: 'ZM', r: 'Africa', t: 2 }, { n: 'Zimbabwe', c: 'ZW', r: 'Africa', t: 2 },
+    /* Americas (35) */
+    { n: 'Antigua and Barbuda', c: 'AG', r: 'Americas', t: 3 }, { n: 'Argentina', c: 'AR', r: 'Americas', t: 1 }, { n: 'Bahamas', c: 'BS', r: 'Americas', t: 3 },
+    { n: 'Barbados', c: 'BB', r: 'Americas', t: 3 }, { n: 'Belize', c: 'BZ', r: 'Americas', t: 3 }, { n: 'Bolivia', c: 'BO', r: 'Americas', t: 2 },
+    { n: 'Brazil', c: 'BR', r: 'Americas', t: 1 }, { n: 'Canada', c: 'CA', r: 'Americas', t: 1 }, { n: 'Chile', c: 'CL', r: 'Americas', t: 2 },
+    { n: 'Colombia', c: 'CO', r: 'Americas', t: 2 }, { n: 'Costa Rica', c: 'CR', r: 'Americas', t: 2 }, { n: 'Cuba', c: 'CU', r: 'Americas', t: 2 },
+    { n: 'Dominica', c: 'DM', r: 'Americas', t: 3 }, { n: 'Dominican Republic', c: 'DO', r: 'Americas', t: 2 }, { n: 'Ecuador', c: 'EC', r: 'Americas', t: 2 },
+    { n: 'El Salvador', c: 'SV', r: 'Americas', t: 3 }, { n: 'Grenada', c: 'GD', r: 'Americas', t: 3 }, { n: 'Guatemala', c: 'GT', r: 'Americas', t: 2 },
+    { n: 'Guyana', c: 'GY', r: 'Americas', t: 3 }, { n: 'Haiti', c: 'HT', r: 'Americas', t: 2 }, { n: 'Honduras', c: 'HN', r: 'Americas', t: 2 },
+    { n: 'Jamaica', c: 'JM', r: 'Americas', t: 2 }, { n: 'Mexico', c: 'MX', r: 'Americas', t: 1 }, { n: 'Nicaragua', c: 'NI', r: 'Americas', t: 3 },
+    { n: 'Panama', c: 'PA', r: 'Americas', t: 2 }, { n: 'Paraguay', c: 'PY', r: 'Americas', t: 2 }, { n: 'Peru', c: 'PE', r: 'Americas', t: 2 },
+    { n: 'Saint Kitts and Nevis', c: 'KN', r: 'Americas', t: 3 }, { n: 'Saint Lucia', c: 'LC', r: 'Americas', t: 3 },
+    { n: 'Saint Vincent and the Grenadines', c: 'VC', r: 'Americas', t: 3 }, { n: 'Suriname', c: 'SR', r: 'Americas', t: 3 },
+    { n: 'Trinidad and Tobago', c: 'TT', r: 'Americas', t: 3 }, { n: 'United States', c: 'US', r: 'Americas', t: 1 },
+    { n: 'Uruguay', c: 'UY', r: 'Americas', t: 2 }, { n: 'Venezuela', c: 'VE', r: 'Americas', t: 2 },
+    /* Asia (49) */
+    { n: 'Afghanistan', c: 'AF', r: 'Asia', t: 2 }, { n: 'Armenia', c: 'AM', r: 'Asia', t: 3 }, { n: 'Azerbaijan', c: 'AZ', r: 'Asia', t: 3 },
+    { n: 'Bahrain', c: 'BH', r: 'Asia', t: 3 }, { n: 'Bangladesh', c: 'BD', r: 'Asia', t: 2 }, { n: 'Bhutan', c: 'BT', r: 'Asia', t: 3 },
+    { n: 'Brunei', c: 'BN', r: 'Asia', t: 3 }, { n: 'Cambodia', c: 'KH', r: 'Asia', t: 2 }, { n: 'China', c: 'CN', r: 'Asia', t: 1 },
+    { n: 'Cyprus', c: 'CY', r: 'Asia', t: 3 }, { n: 'Georgia', c: 'GE', r: 'Asia', t: 3 }, { n: 'India', c: 'IN', r: 'Asia', t: 1 },
+    { n: 'Indonesia', c: 'ID', r: 'Asia', t: 1 }, { n: 'Iran', c: 'IR', r: 'Asia', t: 2 }, { n: 'Iraq', c: 'IQ', r: 'Asia', t: 2 },
+    { n: 'Israel', c: 'IL', r: 'Asia', t: 1 }, { n: 'Japan', c: 'JP', r: 'Asia', t: 1 }, { n: 'Jordan', c: 'JO', r: 'Asia', t: 2 },
+    { n: 'Kazakhstan', c: 'KZ', r: 'Asia', t: 2 }, { n: 'Kuwait', c: 'KW', r: 'Asia', t: 2 }, { n: 'Kyrgyzstan', c: 'KG', r: 'Asia', t: 3 },
+    { n: 'Laos', c: 'LA', r: 'Asia', t: 3 }, { n: 'Lebanon', c: 'LB', r: 'Asia', t: 2 }, { n: 'Malaysia', c: 'MY', r: 'Asia', t: 2 },
+    { n: 'Maldives', c: 'MV', r: 'Asia', t: 3 }, { n: 'Mongolia', c: 'MN', r: 'Asia', t: 2 }, { n: 'Myanmar', c: 'MM', r: 'Asia', t: 2 },
+    { n: 'Nepal', c: 'NP', r: 'Asia', t: 2 }, { n: 'North Korea', c: 'KP', r: 'Asia', t: 2 }, { n: 'Oman', c: 'OM', r: 'Asia', t: 3 },
+    { n: 'Pakistan', c: 'PK', r: 'Asia', t: 2 }, { n: 'Palestine', c: 'PS', r: 'Asia', t: 3 }, { n: 'Philippines', c: 'PH', r: 'Asia', t: 2 },
+    { n: 'Qatar', c: 'QA', r: 'Asia', t: 2 }, { n: 'Saudi Arabia', c: 'SA', r: 'Asia', t: 1 }, { n: 'Singapore', c: 'SG', r: 'Asia', t: 2 },
+    { n: 'South Korea', c: 'KR', r: 'Asia', t: 1 }, { n: 'Sri Lanka', c: 'LK', r: 'Asia', t: 2 }, { n: 'Syria', c: 'SY', r: 'Asia', t: 2 },
+    { n: 'Taiwan', c: 'TW', r: 'Asia', t: 2 }, { n: 'Tajikistan', c: 'TJ', r: 'Asia', t: 3 }, { n: 'Thailand', c: 'TH', r: 'Asia', t: 1 },
+    { n: 'Timor-Leste', c: 'TL', r: 'Asia', t: 3 }, { n: 'Turkey', c: 'TR', r: 'Asia', t: 1 }, { n: 'Turkmenistan', c: 'TM', r: 'Asia', t: 3 },
+    { n: 'United Arab Emirates', c: 'AE', r: 'Asia', t: 1 }, { n: 'Uzbekistan', c: 'UZ', r: 'Asia', t: 3 }, { n: 'Vietnam', c: 'VN', r: 'Asia', t: 1 },
+    { n: 'Yemen', c: 'YE', r: 'Asia', t: 3 },
+    /* Europe (45) */
+    { n: 'Albania', c: 'AL', r: 'Europe', t: 2 }, { n: 'Andorra', c: 'AD', r: 'Europe', t: 3 }, { n: 'Austria', c: 'AT', r: 'Europe', t: 2 },
+    { n: 'Belarus', c: 'BY', r: 'Europe', t: 2 }, { n: 'Belgium', c: 'BE', r: 'Europe', t: 2 }, { n: 'Bosnia and Herzegovina', c: 'BA', r: 'Europe', t: 3 },
+    { n: 'Bulgaria', c: 'BG', r: 'Europe', t: 2 }, { n: 'Croatia', c: 'HR', r: 'Europe', t: 2 }, { n: 'Czechia', c: 'CZ', r: 'Europe', t: 2 },
+    { n: 'Denmark', c: 'DK', r: 'Europe', t: 1 }, { n: 'Estonia', c: 'EE', r: 'Europe', t: 2 }, { n: 'Finland', c: 'FI', r: 'Europe', t: 1 },
+    { n: 'France', c: 'FR', r: 'Europe', t: 1 }, { n: 'Germany', c: 'DE', r: 'Europe', t: 1 }, { n: 'Greece', c: 'GR', r: 'Europe', t: 1 },
+    { n: 'Hungary', c: 'HU', r: 'Europe', t: 2 }, { n: 'Iceland', c: 'IS', r: 'Europe', t: 2 }, { n: 'Ireland', c: 'IE', r: 'Europe', t: 1 },
+    { n: 'Italy', c: 'IT', r: 'Europe', t: 1 }, { n: 'Kosovo', c: 'XK', r: 'Europe', t: 3 }, { n: 'Latvia', c: 'LV', r: 'Europe', t: 2 },
+    { n: 'Liechtenstein', c: 'LI', r: 'Europe', t: 3 }, { n: 'Lithuania', c: 'LT', r: 'Europe', t: 2 }, { n: 'Luxembourg', c: 'LU', r: 'Europe', t: 2 },
+    { n: 'Malta', c: 'MT', r: 'Europe', t: 2 }, { n: 'Moldova', c: 'MD', r: 'Europe', t: 3 }, { n: 'Monaco', c: 'MC', r: 'Europe', t: 3 },
+    { n: 'Montenegro', c: 'ME', r: 'Europe', t: 3 }, { n: 'Netherlands', c: 'NL', r: 'Europe', t: 1 }, { n: 'North Macedonia', c: 'MK', r: 'Europe', t: 3 },
+    { n: 'Norway', c: 'NO', r: 'Europe', t: 1 }, { n: 'Poland', c: 'PL', r: 'Europe', t: 1 }, { n: 'Portugal', c: 'PT', r: 'Europe', t: 1 },
+    { n: 'Romania', c: 'RO', r: 'Europe', t: 2 }, { n: 'Russia', c: 'RU', r: 'Europe', t: 1 }, { n: 'San Marino', c: 'SM', r: 'Europe', t: 3 },
+    { n: 'Serbia', c: 'RS', r: 'Europe', t: 2 }, { n: 'Slovakia', c: 'SK', r: 'Europe', t: 2 }, { n: 'Slovenia', c: 'SI', r: 'Europe', t: 2 },
+    { n: 'Spain', c: 'ES', r: 'Europe', t: 1 }, { n: 'Sweden', c: 'SE', r: 'Europe', t: 1 }, { n: 'Switzerland', c: 'CH', r: 'Europe', t: 1 },
+    { n: 'Ukraine', c: 'UA', r: 'Europe', t: 1 }, { n: 'United Kingdom', c: 'GB', r: 'Europe', t: 1 }, { n: 'Vatican City', c: 'VA', r: 'Europe', t: 3 },
+    /* Oceania (14) */
+    { n: 'Australia', c: 'AU', r: 'Oceania', t: 1 }, { n: 'Fiji', c: 'FJ', r: 'Oceania', t: 2 }, { n: 'Kiribati', c: 'KI', r: 'Oceania', t: 3 },
+    { n: 'Marshall Islands', c: 'MH', r: 'Oceania', t: 3 }, { n: 'Micronesia', c: 'FM', r: 'Oceania', t: 3 }, { n: 'Nauru', c: 'NR', r: 'Oceania', t: 3 },
+    { n: 'New Zealand', c: 'NZ', r: 'Oceania', t: 1 }, { n: 'Palau', c: 'PW', r: 'Oceania', t: 3 }, { n: 'Papua New Guinea', c: 'PG', r: 'Oceania', t: 2 },
+    { n: 'Samoa', c: 'WS', r: 'Oceania', t: 2 }, { n: 'Solomon Islands', c: 'SB', r: 'Oceania', t: 3 }, { n: 'Tonga', c: 'TO', r: 'Oceania', t: 2 },
+    { n: 'Tuvalu', c: 'TV', r: 'Oceania', t: 3 }, { n: 'Vanuatu', c: 'VU', r: 'Oceania', t: 3 }
+  ];
+
+  var REGIONS = ['All', 'Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
+  var MODES = [{ v: 'normal', l: 'FLAG → NAME' }, { v: 'reverse', l: 'NAME → FLAG' }];
+  var KEY = 'wizzed-flags-quiz';
+
+  function $(id) { return document.getElementById(id); }
+
+  /* ------- persistence ------- */
+  function load() {
+    var d = { bestScore: 0, bestStreakNormal: 0, bestStreakReverse: 0, gamesPlayed: 0, totalCorrect: 0, totalAnswered: 0 };
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) {
+        var o = JSON.parse(raw);
+        for (var k in d) { if (typeof o[k] === 'number' && isFinite(o[k])) d[k] = o[k]; }
+      }
+    } catch (e) {}
+    return d;
+  }
+  var store = load();
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
+
+  /* ------- audio (lazy AudioContext on first gesture-driven sound) ------- */
+  var actx = null;
+  function tone(f, d, dl, ty, v) {
+    try {
+      if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+      var t = actx.currentTime + (dl || 0);
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = ty || 'square';
+      o.frequency.value = f;
+      g.gain.setValueAtTime(v || 0.1, t);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + d);
+      o.connect(g); g.connect(actx.destination);
+      o.start(t); o.stop(t + d + 0.03);
+    } catch (e) {}
+  }
+  function sndCorrect() { tone(659, 0.09, 0); tone(880, 0.14, 0.08); }
+  function sndWrong() { tone(233, 0.16, 0, 'sawtooth', 0.08); tone(164, 0.22, 0.1, 'sawtooth', 0.08); }
+  function sndLife() { tone(196, 0.18, 0.24, 'triangle', 0.12); tone(123, 0.3, 0.36, 'triangle', 0.12); }
+  function sndMile() { tone(523, 0.08, 0); tone(659, 0.08, 0.07); tone(784, 0.08, 0.14); tone(1047, 0.2, 0.21); }
+  function sndOver() { tone(392, 0.15, 0, 'square', 0.09); tone(311, 0.15, 0.15, 'square', 0.09); tone(262, 0.15, 0.3, 'square', 0.09); tone(196, 0.4, 0.45, 'square', 0.09); }
+
+  /* ------- flag rendering + emoji support detection ------- */
+  function flagEmoji(code) {
+    return String.fromCodePoint(0x1F1E6 + code.charCodeAt(0) - 65, 0x1F1E6 + code.charCodeAt(1) - 65);
+  }
+  function detectEmoji() {
+    try {
+      var cv = document.createElement('canvas');
+      cv.width = 36; cv.height = 36;
+      var x = cv.getContext('2d');
+      if (!x) return true;
+      x.textBaseline = 'middle';
+      x.font = '28px sans-serif';
+      x.fillText(flagEmoji('US'), 0, 18);
+      var d = x.getImageData(0, 0, 36, 36).data;
+      for (var i = 0; i < d.length; i += 4) {
+        if (d[i + 3] > 20) {
+          var r = d[i], g = d[i + 1], b = d[i + 2];
+          if (Math.abs(r - g) > 14 || Math.abs(g - b) > 14 || Math.abs(r - b) > 14) return true;
+        }
+      }
+      return false;
+    } catch (e) { return true; }
+  }
+  var emojiOK = detectEmoji();
+  function flagHTML(code, cls) {
+    if (emojiOK) return '<span class="femoji ' + cls + '">' + flagEmoji(code) + '</span>';
+    return '<span class="fcard ' + cls + '">' + code + '</span>';
+  }
+
+  /* ------- game state ------- */
+  var mode = 'normal', region = 'All';
+  var lives = 3, score = 0, streak = 0, roundBest = 0, roundCorrect = 0, roundAnswered = 0;
+  var used = {}, usedCount = 0;
+  var locked = false, over = false, curQ = null;
+  var advTimer = null, pendingFn = null;
+  var pendingChange = null;
+
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function bestStreakKey() { return mode === 'reverse' ? 'bestStreakReverse' : 'bestStreakNormal'; }
+  function curTier() { return roundCorrect >= 18 ? 3 : roundCorrect >= 8 ? 2 : 1; }
+  function eligible() {
+    return DATA.filter(function (c) { return region === 'All' || c.r === region; });
+  }
+  function notUsed(c) { return !used[c.c]; }
+
+  function drawAnswer() {
+    var rp = eligible();
+    var maxT = curTier();
+    var pool = rp.filter(function (c) { return c.t <= maxT; });
+    if (pool.length < 10) pool = rp; /* small pool: mix all tiers */
+    var fresh = pool.filter(notUsed);
+    if (!fresh.length) { pool = rp; fresh = pool.filter(notUsed); } /* unlock all tiers before recycling */
+    if (!fresh.length) { used = {}; usedCount = 0; fresh = pool.slice(); } /* pool exhausted: recycle */
+    var a = fresh[Math.floor(Math.random() * fresh.length)];
+    used[a.c] = true; usedCount++;
+    return a;
+  }
+
+  function distractors(ans) {
+    var out = [], seen = {};
+    seen[ans.c] = true;
+    var stages = [
+      DATA.filter(function (c) { return c.r === ans.r && Math.abs(c.t - ans.t) <= 1; }),
+      DATA.filter(function (c) { return c.r === ans.r; }),
+      DATA.filter(function (c) { return Math.abs(c.t - ans.t) <= 1; }),
+      DATA
+    ];
+    for (var s = 0; s < stages.length && out.length < 3; s++) {
+      var cand = shuffle(stages[s].slice());
+      for (var i = 0; i < cand.length && out.length < 3; i++) {
+        if (!seen[cand[i].c]) { seen[cand[i].c] = true; out.push(cand[i]); }
+      }
+    }
+    return out;
+  }
+
+  /* ------- rendering ------- */
+  function nextQuestion() {
+    if (over) return;
+    locked = false;
+    var ans = drawAnswer();
+    var opts = shuffle(distractors(ans).concat([ans]));
+    curQ = { a: ans, o: opts, ci: opts.indexOf(ans) };
+    var fbx = $('flagbox'), an = $('answers'), html = '', i;
+    if (mode === 'normal') {
+      fbx.innerHTML = flagHTML(ans.c, 'big');
+      $('prompt').textContent = 'WHICH COUNTRY IS THIS?';
+      an.className = 'names';
+      for (i = 0; i < opts.length; i++) {
+        html += '<button class="ans" data-i="' + i + '"><span class="num">' + (i + 1) + '</span><span class="txt">' + opts[i].n + '</span></button>';
+      }
+    } else {
+      fbx.innerHTML = '<div class="bigname">' + ans.n + '</div>';
+      $('prompt').textContent = 'PICK THE FLAG';
+      an.className = 'flags';
+      for (i = 0; i < opts.length; i++) {
+        html += '<button class="ans flagopt" data-i="' + i + '"><span class="num">' + (i + 1) + '</span>' + flagHTML(opts[i].c, 'opt') + '</button>';
+      }
+    }
+    an.innerHTML = html;
+    var fb = $('fb');
+    fb.innerHTML = '&nbsp;';
+    fb.className = '';
+    updateHud();
+  }
+
+  function schedule(fn, ms) {
+    clearTimeout(advTimer);
+    pendingFn = fn;
+    advTimer = setTimeout(function () { pendingFn = null; fn(); }, ms);
+  }
+  function advanceNow() {
+    if (pendingFn) {
+      clearTimeout(advTimer);
+      var f = pendingFn;
+      pendingFn = null;
+      f();
+    }
+  }
+
+  function setFb(t, cls) {
+    var f = $('fb');
+    f.textContent = t;
+    f.className = cls || '';
+  }
+  function flashMile(t) {
+    var m = $('miletxt');
+    m.textContent = t;
+    m.classList.remove('go');
+    void m.offsetWidth;
+    m.classList.add('go');
+  }
+
+  function updateHud() {
+    var h = '', i;
+    for (i = 0; i < 3; i++) h += '<i class="hr' + (i < lives ? '' : ' off') + '">♥</i>';
+    $('h-lives').innerHTML = h;
+    $('h-score').textContent = score;
+    $('h-streak').textContent = streak;
+    $('h-tier').textContent = curTier();
+    $('h-best').textContent = store.bestScore;
+    $('h-beststk').textContent = store[bestStreakKey()];
+  }
+
+  function answer(i) {
+    if (locked || over || !curQ) return;
+    if (i < 0 || i > 3) return;
+    locked = true;
+    roundAnswered++;
+    store.totalAnswered++;
+    var btns = $('answers').querySelectorAll('.ans');
+    var ok = i === curQ.ci;
+    for (var j = 0; j < btns.length; j++) {
+      if (j === curQ.ci) btns[j].classList.add('good');
+      else if (j === i) btns[j].classList.add('bad');
+      else btns[j].classList.add('dim');
+    }
+    if (ok) {
+      var pts = 10 + Math.min(20, streak * 2);
+      score += pts;
+      streak++;
+      roundCorrect++;
+      store.totalCorrect++;
+      if (streak > roundBest) roundBest = streak;
+      if (streak > store[bestStreakKey()]) store[bestStreakKey()] = streak;
+      if (streak % 5 === 0) { flashMile('STREAK ' + streak + '!'); sndMile(); }
+      else sndCorrect();
+      setFb('+' + pts + ' — CORRECT!', 'good');
+      save();
+      updateHud();
+      schedule(nextQuestion, 750);
+    } else {
+      lives--;
+      streak = 0;
+      sndWrong();
+      sndLife();
+      setFb('IT WAS ' + curQ.a.n.toUpperCase(), 'bad');
+      save();
+      updateHud();
+      if (lives <= 0) schedule(doGameOver, 1300);
+      else schedule(nextQuestion, 1300);
+    }
+  }
+
+  function stat(l, v) { return '<div class="st"><span>' + l + '</span><b>' + v + '</b></div>'; }
+
+  function doGameOver() {
+    over = true;
+    locked = true;
+    closeConfirm();
+    store.gamesPlayed++;
+    if (score > store.bestScore) store.bestScore = score;
+    save();
+    updateHud();
+    var acc = roundAnswered ? Math.round(100 * roundCorrect / roundAnswered) : 0;
+    var lacc = store.totalAnswered ? Math.round(100 * store.totalCorrect / store.totalAnswered) : 0;
+    $('ov-stats').innerHTML =
+      stat('SCORE', score) +
+      stat('BEST SCORE', store.bestScore) +
+      stat('BEST STREAK', roundBest) +
+      stat('ALL-TIME STREAK', store[bestStreakKey()]) +
+      stat('ACCURACY', acc + '%');
+    $('ov-life').innerHTML = 'GAMES PLAYED: <b>' + store.gamesPlayed + '</b> &nbsp;&middot;&nbsp; LIFETIME ACCURACY: <b>' + lacc + '%</b>';
+    syncChips();
+    $('overlay').classList.add('show');
+    sndOver();
+  }
+
+  function restart() {
+    clearTimeout(advTimer);
+    pendingFn = null;
+    over = false; locked = false;
+    lives = 3; score = 0; streak = 0;
+    roundBest = 0; roundCorrect = 0; roundAnswered = 0;
+    used = {}; usedCount = 0; curQ = null;
+    $('overlay').classList.remove('show');
+    closeConfirm();
+    nextQuestion();
+  }
+
+  /* ------- region / mode chips ------- */
+  function makeChips(container, items, kind) {
+    for (var i = 0; i < items.length; i++) {
+      (function (it) {
+        var v = typeof it === 'string' ? it : it.v;
+        var l = typeof it === 'string' ? (it === 'All' ? 'ALL' : it.toUpperCase()) : it.l;
+        var b = document.createElement('button');
+        b.className = 'chip';
+        b.dataset.kind = kind;
+        b.dataset.v = v;
+        b.textContent = l;
+        b.addEventListener('click', function () { requestChange(kind, v); });
+        container.appendChild(b);
+      })(items[i]);
+    }
+  }
+  function syncChips() {
+    var chips = document.querySelectorAll('.chip');
+    for (var i = 0; i < chips.length; i++) {
+      var b = chips[i];
+      var on = b.dataset.kind === 'region' ? b.dataset.v === region : b.dataset.v === mode;
+      b.classList.toggle('on', on);
+    }
+  }
+  function applyChange(kind, v) {
+    if (kind === 'region') region = v;
+    else mode = v;
+  }
+  function requestChange(kind, v) {
+    if (kind === 'region' && v === region) return;
+    if (kind === 'mode' && v === mode) return;
+    if (over) { applyChange(kind, v); syncChips(); updateHud(); return; } /* takes effect on Play Again */
+    if (roundAnswered === 0) { applyChange(kind, v); syncChips(); restart(); return; }
+    pendingChange = { kind: kind, v: v };
+    $('cf-title').textContent = kind === 'region'
+      ? 'SWITCH TO ' + (v === 'All' ? 'ALL REGIONS' : v.toUpperCase()) + '?'
+      : 'SWITCH TO ' + (v === 'reverse' ? 'REVERSE' : 'NORMAL') + ' MODE?';
+    $('confirmov').classList.add('show');
+  }
+  function closeConfirm() {
+    pendingChange = null;
+    $('confirmov').classList.remove('show');
+  }
+  function confirmYes() {
+    if (pendingChange) {
+      applyChange(pendingChange.kind, pendingChange.v);
+      pendingChange = null;
+      $('confirmov').classList.remove('show');
+      syncChips();
+      restart();
+    } else {
+      closeConfirm();
+    }
+  }
+
+  /* ------- events ------- */
+  $('answers').addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('.ans') : null;
+    if (b) answer(parseInt(b.dataset.i, 10));
+  });
+  $('arena').addEventListener('click', function (e) {
+    /* tap anywhere (not an answer button) during the reveal pause to advance early */
+    if (pendingFn && !over && !(e.target && e.target.closest && e.target.closest('.ans'))) advanceNow();
+  });
+  $('againbtn').addEventListener('click', restart);
+  $('cf-yes').addEventListener('click', confirmYes);
+  $('cf-no').addEventListener('click', closeConfirm);
+  $('confirmov').addEventListener('click', function (e) {
+    if (e.target === $('confirmov')) closeConfirm();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if ($('confirmov').classList.contains('show')) {
+      if (e.key === 'Enter') { e.preventDefault(); confirmYes(); }
+      else if (e.key === 'Escape') closeConfirm();
+      return;
+    }
+    if (over) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); restart(); }
+      return;
+    }
+    if (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4') {
+      answer(e.key.charCodeAt(0) - 49);
+    } else if (e.key === 'Enter') {
+      advanceNow();
+    }
+  });
+
+  /* ------- init: build chips, start immediately ------- */
+  makeChips($('regchips'), REGIONS, 'region');
+  makeChips($('modechips'), MODES, 'mode');
+  makeChips($('ov-regchips'), REGIONS, 'region');
+  makeChips($('ov-modechips'), MODES, 'mode');
+  syncChips();
+  restart();
+})();
+</script>
+</body>
+</html>

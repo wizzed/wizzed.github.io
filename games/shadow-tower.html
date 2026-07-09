@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shadow Tower — Wizzed Arcade</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:#0f0f1a;color:#fecdd3;
+    font-family:'Courier New',ui-monospace,monospace;
+    display:flex;align-items:center;justify-content:center;
+    height:100vh;overflow:hidden;
+  }
+  a.back{
+    position:fixed;top:10px;left:12px;z-index:40;
+    color:#8888aa;text-decoration:none;font-size:13px;
+    padding:4px 9px;border:1px solid #33334d;background:rgba(15,15,26,.85);
+  }
+  a.back:hover{color:#f43f5e;border-color:#f43f5e;text-shadow:0 0 6px #f43f5e}
+  #app{
+    width:780px;max-width:98vw;height:480px;max-height:98vh;
+    border:2px solid #881337;background:#10101c;position:relative;overflow:hidden;
+    box-shadow:0 0 24px rgba(244,63,94,.35),0 0 80px rgba(244,63,94,.12);
+    display:flex;flex-direction:column;
+  }
+  #hdr{
+    padding:6px 10px 4px 88px;background:#131322;border-bottom:1px solid #4c0519;
+    font-size:12px;display:flex;align-items:center;gap:14px;white-space:nowrap;
+  }
+  #hdr b{color:#f43f5e;text-shadow:0 0 8px rgba(244,63,94,.8);letter-spacing:1px;font-size:13px}
+  #hdr .s{color:#9ca3af}#hdr .s span{color:#fda4af;font-weight:bold}
+  #hdr .s .gold{color:#fde047}
+  #prog{display:flex;gap:2px;padding:5px 10px;background:#131322;border-bottom:1px solid #4c0519}
+  #prog i{flex:1;height:7px;background:#26263f;display:block}
+  #prog i.done{background:#9f1239}
+  #prog i.cur{background:#f43f5e;box-shadow:0 0 6px #f43f5e}
+  #prog i.boss{border:1px solid #fbbf24}
+  #relics{
+    padding:3px 10px;font-size:14px;min-height:24px;background:#0d0d18;
+    border-bottom:1px solid #26263f;color:#fda4af;
+  }
+  #relics .r{cursor:help;margin-right:4px}
+  #stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0}
+  #floorTitle{position:absolute;top:8px;width:100%;text-align:center;font-size:13px;color:#fda4af;letter-spacing:2px}
+  #cards{display:flex;gap:22px;perspective:900px}
+  .card{width:128px;height:182px;cursor:pointer;position:relative}
+  .cardIn{
+    position:absolute;inset:0;transition:transform .5s;transform-style:preserve-3d;
+    transform:rotateY(180deg);
+  }
+  .card.flip .cardIn{transform:rotateY(0)}
+  .card:not(.flip) .cardIn{transform:rotateY(180deg)}
+  .face,.backf{
+    position:absolute;inset:0;backface-visibility:hidden;border:2px solid #4c0519;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+    background:#151526;
+  }
+  .backf{
+    transform:rotateY(180deg);
+    background:repeating-linear-gradient(45deg,#1c1c30 0 8px,#151526 8px 16px);
+    color:#f43f5e;font-size:34px;text-shadow:0 0 12px rgba(244,63,94,.8);
+  }
+  .face .ico{font-size:44px;filter:drop-shadow(0 0 8px rgba(244,63,94,.5))}
+  .face .nm{font-size:13px;font-weight:bold;letter-spacing:1px}
+  .face .d{font-size:10px;color:#9ca3af;text-align:center;padding:0 8px;line-height:1.4}
+  .card.flip:hover .face{border-color:#f43f5e;box-shadow:0 0 14px rgba(244,63,94,.6)}
+  .card.picked .face{border-color:#fbbf24}
+  #combat{
+    position:absolute;inset:0;background:#10101cee;display:none;
+    flex-direction:column;padding:10px 16px;
+  }
+  #fighters{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .ftr{width:220px;background:#151526;border:1px solid #4c0519;padding:6px 10px;text-align:center;transition:transform .08s}
+  .ftr.hit{transform:translateX(6px);border-color:#f43f5e}
+  .ftr .fico{font-size:42px;line-height:1.2}
+  .ftr .fnm{font-size:12px;font-weight:bold}
+  .ftr .fstats{font-size:11px;color:#9ca3af;margin-top:2px}
+  .fbar{height:10px;background:#1e1e33;border:1px solid #000;margin-top:4px}
+  .ffill{height:100%;background:linear-gradient(90deg,#ef4444,#f97316);transition:width .15s}
+  #vs{font-size:26px;color:#f43f5e;align-self:center;text-shadow:0 0 10px #f43f5e}
+  #clog{
+    flex:1;margin-top:8px;background:#0d0d18;border:1px solid #26263f;
+    font-size:11.5px;line-height:1.5;padding:6px 10px;overflow-y:auto;color:#c9c9e3;
+  }
+  #clog .p{color:#fda4af}#clog .e{color:#f87171}#clog .g{color:#4ade80}#clog .y{color:#fde047}
+  #cbtn{margin-top:8px;display:none;justify-content:center}
+  #panel{
+    position:absolute;inset:0;background:#10101cee;display:none;
+    flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;
+  }
+  #panel .pico{font-size:52px;margin-bottom:8px;filter:drop-shadow(0 0 12px rgba(244,63,94,.5))}
+  #panel h2{color:#fda4af;font-size:19px;margin-bottom:8px;letter-spacing:1px}
+  #panel p{font-size:13px;color:#c9c9e3;max-width:480px;line-height:1.6;margin-bottom:14px}
+  .btnrow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  button.act{
+    font-family:inherit;font-size:13px;padding:8px 16px;cursor:pointer;
+    background:#1f1626;color:#fda4af;border:1px solid #881337;
+  }
+  button.act:hover{background:#4c0519;color:#fff;box-shadow:0 0 10px rgba(244,63,94,.6)}
+  button.act:disabled{opacity:.4;cursor:default}
+  #toast{
+    position:absolute;left:50%;bottom:12px;transform:translateX(-50%);
+    background:#1c1c30;border:1px solid #fbbf24;color:#fde047;font-size:12px;
+    padding:6px 14px;display:none;z-index:30;box-shadow:0 0 12px rgba(251,191,36,.5);
+    text-align:center;
+  }
+  #title{
+    position:absolute;inset:0;z-index:35;cursor:pointer;
+    background:radial-gradient(ellipse at 50% 20%,rgba(244,63,94,.14),transparent 55%),rgba(15,15,26,.97);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  }
+  #title .tower{font-size:15px;line-height:1.25;letter-spacing:2px;margin-bottom:6px;white-space:pre}
+  #title h1{
+    font-size:42px;color:#f43f5e;letter-spacing:6px;
+    text-shadow:0 0 18px #e11d48,0 0 60px rgba(225,29,72,.5);
+  }
+  #title .sub{color:#fda4af;font-size:13px;margin:8px 0 2px;line-height:1.7}
+  #title .meta{color:#fde047;font-size:12px;margin-top:10px}
+  #title .go{color:#f43f5e;font-size:16px;font-weight:bold;margin-top:14px;animation:blink 1.1s steps(2) infinite}
+  @keyframes blink{50%{opacity:.2}}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<div id="app">
+  <div id="hdr">
+    <b>SHADOW TOWER</b>
+    <span class="s">🏰 floor <span id="uiFloor">1</span>/30</span>
+    <span class="s">❤️ <span id="uiHp"></span></span>
+    <span class="s">⚔️ <span id="uiAtk"></span></span>
+    <span class="s">🛡️ <span id="uiDef"></span></span>
+    <span class="s">💰 <span class="gold" id="uiGold">0</span></span>
+  </div>
+  <div id="prog"></div>
+  <div id="relics"></div>
+  <div id="stage">
+    <div id="floorTitle"></div>
+    <div id="cards"></div>
+    <div id="combat">
+      <div id="fighters">
+        <div class="ftr" id="fP">
+          <div class="fico">🥷</div><div class="fnm">YOU</div>
+          <div class="fstats" id="fPs"></div>
+          <div class="fbar"><div class="ffill" id="fPb"></div></div>
+        </div>
+        <div id="vs">⚔</div>
+        <div class="ftr" id="fE">
+          <div class="fico" id="fEi">💀</div><div class="fnm" id="fEn">?</div>
+          <div class="fstats" id="fEs"></div>
+          <div class="fbar"><div class="ffill" id="fEb"></div></div>
+        </div>
+      </div>
+      <div id="clog"></div>
+      <div id="cbtn" class="btnrow"><button class="act" id="contBtn">CONTINUE ▶</button></div>
+    </div>
+    <div id="panel">
+      <div class="pico" id="pIco">❓</div>
+      <h2 id="pTitle"></h2>
+      <p id="pText"></p>
+      <div class="btnrow" id="pBtns"></div>
+    </div>
+  </div>
+  <div id="toast"></div>
+  <div id="title">
+    <div class="tower">🌑
+🔺
+🟥🟥
+🟪🟪🟪
+🟥🟥🟥🟥
+🚪</div>
+    <h1>SHADOW TOWER</h1>
+    <div class="sub">climb 30 floors · flip a card, seal your fate · relics stack · bosses at 10 / 20 / 30<br>
+    death ends the run — but every milestone unlocks new relics forever</div>
+    <div class="meta" id="metaTxt"></div>
+    <div class="go">▶ CLICK or press ENTER to enter the tower ◀</div>
+  </div>
+</div>
+<script>
+'use strict';
+const SAVEKEY='wizzed-shadow-tower';
+const $=id=>document.getElementById(id);
+
+/* ---------- audio ---------- */
+let AC=null;
+function initAudio(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(AC&&AC.state==='suspended')AC.resume();}
+function beep(f,d,type,v){
+  if(!AC)return;
+  try{
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type=type||'square';o.frequency.value=f;
+    g.gain.value=v||0.035;g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+d);
+    o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d);
+  }catch(e){}
+}
+const sfxFlip=()=>beep(500+Math.random()*200,0.05,'triangle',0.03);
+const sfxPick=()=>beep(660,0.08,'square',0.04);
+const sfxHitP=()=>beep(150,0.09,'sawtooth',0.05);
+const sfxHitE=()=>beep(240,0.07,'square',0.04);
+const sfxGold=()=>{beep(880,0.06,'square',0.035);setTimeout(()=>beep(1174,0.08,'square',0.035),60);};
+const sfxRelic=()=>[659,830,988,1318].forEach((f,i)=>setTimeout(()=>beep(f,0.11,'square',0.04),i*80));
+const sfxDeath=()=>[262,196,147,98].forEach((f,i)=>setTimeout(()=>beep(f,0.22,'triangle',0.06),i*160));
+const sfxWin=()=>[523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>beep(f,0.15,'square',0.05),i*110));
+const sfxBoss=()=>beep(65,0.7,'sawtooth',0.08);
+
+/* ---------- relics ---------- */
+const RELICS={
+  thorns:{name:'Thorns Band',icon:'🌵',desc:'attackers take 2 damage back',base:true},
+  fang:{name:'Vampire Fang',icon:'🧛',desc:'heal 25% of damage you deal',base:true},
+  coin:{name:'Lucky Coin',icon:'🪙',desc:'+50% gold gains',base:true},
+  skin:{name:'Iron Skin',icon:'🛡️',desc:'+2 DEF (on pickup)',base:true},
+  drum:{name:'War Drum',icon:'🥁',desc:'+3 ATK (on pickup)',base:true},
+  heart:{name:'Heart Amulet',icon:'💗',desc:'+15 max HP (on pickup)',base:true},
+  whet:{name:'Whetstone',icon:'🪨',desc:'+1 ATK per 5 floors climbed',unlock:'reach floor 5'},
+  skull:{name:'Skull Trophy',icon:'💀',desc:'+3 damage vs elites & bosses',unlock:'slay an elite'},
+  gate:{name:'Gate Shard',icon:'🚪',desc:'heal 8 after every combat',unlock:'defeat the Gatekeeper'},
+  phoenix:{name:'Phoenix Feather',icon:'🪶',desc:'cheat death once per run',unlock:'reach floor 15'},
+  mirror:{name:'Mirror Shard',icon:'🪞',desc:'double damage on round 1',unlock:'defeat the Mirror Wraith'},
+  gauntlet:{name:'Golden Gauntlet',icon:'🥇',desc:'+1 ATK per 50 gold held',unlock:'hold 100 gold'},
+  crown:{name:'Crown of Shadows',icon:'👑',desc:'+5 ATK, +3 DEF (on pickup)',unlock:'conquer the tower'},
+};
+
+/* ---------- meta save ---------- */
+let META={unlocks:[],bestFloor:0,runs:0,wins:0,elites:0};
+let RUNSAVE=null;
+function saveAll(){
+  try{localStorage.setItem(SAVEKEY,JSON.stringify({meta:META,run:RUNSAVE}));}catch(e){}
+}
+(function(){
+  try{
+    const d=JSON.parse(localStorage.getItem(SAVEKEY)||'null');
+    if(d){
+      if(d.meta)META={unlocks:d.meta.unlocks||[],bestFloor:d.meta.bestFloor||0,runs:d.meta.runs||0,wins:d.meta.wins||0,elites:d.meta.elites||0};
+      RUNSAVE=d.run||null;
+    }
+  }catch(e){}
+})();
+function relicPool(){
+  const p=[];
+  for(const k in RELICS){
+    if(RELICS[k].base||META.unlocks.includes(k))p.push(k);
+  }
+  return p;
+}
+function toast(msg,ms){
+  const t=$('toast');
+  t.innerHTML=msg;t.style.display='block';
+  clearTimeout(t._to);
+  t._to=setTimeout(()=>{t.style.display='none';},ms||2600);
+}
+function unlockCheck(){
+  const tries=[
+    ['whet',P&&P.floor>=5],
+    ['skull',META.elites>=1],
+    ['phoenix',P&&P.floor>=15],
+    ['gauntlet',P&&P.gold>=100],
+  ];
+  for(const [k,cond] of tries){
+    if(cond&&!META.unlocks.includes(k)){
+      META.unlocks.push(k);
+      toast('🔓 META UNLOCK: '+RELICS[k].icon+' '+RELICS[k].name+' — '+RELICS[k].desc+'<br>(now in the relic pool, forever)',3600);
+      sfxRelic();
+    }
+  }
+  saveAll();
+}
+function unlockDirect(k){
+  if(!META.unlocks.includes(k)){
+    META.unlocks.push(k);
+    toast('🔓 META UNLOCK: '+RELICS[k].icon+' '+RELICS[k].name+' — '+RELICS[k].desc+'<br>(now in the relic pool, forever)',3600);
+    sfxRelic();saveAll();
+  }
+}
+
+/* ---------- run state ---------- */
+let P=null;
+function newRun(){
+  P={floor:1,hp:50,maxHp:50,atk:6,def:1,gold:0,relics:[],phoenixUsed:false,alive:true};
+  META.runs++;
+  RUNSAVE=snapshot();saveAll();
+}
+function snapshot(){
+  return {floor:P.floor,hp:P.hp,maxHp:P.maxHp,atk:P.atk,def:P.def,gold:P.gold,
+    relics:P.relics.slice(),phoenixUsed:P.phoenixUsed};
+}
+function restoreRun(){
+  const r=RUNSAVE;
+  P={floor:r.floor,hp:r.hp,maxHp:r.maxHp,atk:r.atk,def:r.def,gold:r.gold,
+    relics:(r.relics||[]).slice(),phoenixUsed:!!r.phoenixUsed,alive:true};
+}
+function has(k){return P.relics.includes(k);}
+function effAtk(enemy){
+  let a=P.atk;
+  if(has('whet'))a+=Math.floor(P.floor/5);
+  if(has('gauntlet'))a+=Math.floor(P.gold/50);
+  if(enemy&&(enemy.elite||enemy.boss)&&has('skull'))a+=3;
+  return a;
+}
+function gainGold(n){
+  n=Math.round(n*(has('coin')?1.5:1));
+  P.gold+=n;sfxGold();
+  return n;
+}
+function heal(n){
+  n=Math.min(n,P.maxHp-P.hp);
+  P.hp+=n;
+  return n;
+}
+function gainRelic(){
+  const owned=P.relics;
+  const avail=relicPool().filter(k=>!owned.includes(k));
+  if(!avail.length){
+    const g=gainGold(40);
+    toast('relic pool exhausted — +'+g+'g instead');
+    return null;
+  }
+  const k=avail[Math.floor(Math.random()*avail.length)];
+  P.relics.push(k);
+  const R=RELICS[k];
+  if(k==='skin')P.def+=2;
+  if(k==='drum')P.atk+=3;
+  if(k==='heart'){P.maxHp+=15;P.hp+=15;}
+  if(k==='crown'){P.atk+=5;P.def+=3;}
+  toast('✨ RELIC: '+R.icon+' '+R.name+' — '+R.desc,3000);
+  sfxRelic();
+  return k;
+}
+
+/* ---------- UI ---------- */
+function renderHUD(){
+  if(!P)return;
+  $('uiFloor').textContent=P.floor;
+  $('uiHp').textContent=P.hp+'/'+P.maxHp;
+  $('uiAtk').textContent=effAtk(null);
+  $('uiDef').textContent=P.def;
+  $('uiGold').textContent=P.gold;
+  const pr=$('prog');
+  if(!pr.children.length){
+    for(let i=1;i<=30;i++){
+      const s=document.createElement('i');
+      if(i%10===0)s.classList.add('boss');
+      pr.appendChild(s);
+    }
+  }
+  [...pr.children].forEach((s,i)=>{
+    s.classList.toggle('done',i+1<P.floor);
+    s.classList.toggle('cur',i+1===P.floor);
+  });
+  $('relics').innerHTML=P.relics.length?
+    P.relics.map(k=>'<span class="r" title="'+RELICS[k].name+': '+RELICS[k].desc+'">'+RELICS[k].icon+'</span>').join('')+
+    ' <span style="color:#64748b;font-size:10px">(hover for details)</span>'
+    :'<span style="color:#64748b;font-size:11px">no relics yet — fight elites, open treasure, brave mysteries</span>';
+}
+
+/* ---------- cards ---------- */
+const CARDT={
+  fight:{ico:'⚔️',nm:'FIGHT',d:'a denizen of the tower blocks the stair'},
+  elite:{ico:'💢',nm:'ELITE',d:'a champion — deadly, but drops a relic'},
+  treasure:{ico:'💰',nm:'TREASURE',d:'gold glitters in the gloom'},
+  rest:{ico:'🏕️',nm:'REST',d:'a safe alcove — heal or train'},
+  mystery:{ico:'❓',nm:'MYSTERY',d:'something strange stirs here...'},
+  boss:{ico:'👹',nm:'BOSS',d:'the floor trembles beneath you'}
+};
+let dealt=[],pickable=false;
+function deal(){
+  RUNSAVE=snapshot();saveAll();
+  unlockCheck();
+  renderHUD();
+  $('combat').style.display='none';
+  $('panel').style.display='none';
+  const wrap=$('cards');
+  wrap.innerHTML='';
+  $('floorTitle').textContent='— FLOOR '+P.floor+' — choose a card —';
+  if(P.floor%10===0){
+    dealt=['boss'];
+  }else{
+    dealt=[];
+    const pool=['fight','fight','fight','fight','treasure','treasure','rest','rest','mystery'];
+    if(P.floor>=3)pool.push('elite');
+    if(P.floor>=6)pool.push('elite');
+    for(let i=0;i<3;i++){
+      let c=pool[Math.floor(Math.random()*pool.length)];
+      if(i===2&&c===dealt[0]&&c===dealt[1])c=c==='fight'?'rest':'fight';
+      dealt.push(c);
+    }
+  }
+  pickable=false;
+  dealt.forEach((type,i)=>{
+    const t=CARDT[type];
+    const c=document.createElement('div');
+    c.className='card';
+    c.innerHTML='<div class="cardIn"><div class="face"><div class="ico">'+t.ico+'</div>'+
+      '<div class="nm">'+t.nm+'</div><div class="d">'+t.d+'</div></div>'+
+      '<div class="backf">🌑</div></div>';
+    c.addEventListener('click',()=>{
+      if(!pickable||!c.classList.contains('flip'))return;
+      pickable=false;
+      c.classList.add('picked');
+      sfxPick();
+      setTimeout(()=>resolveCard(type),250);
+    });
+    $('cards').appendChild(c);
+    setTimeout(()=>{c.classList.add('flip');sfxFlip();},350+i*260);
+  });
+  setTimeout(()=>{pickable=true;},350+dealt.length*260+300);
+}
+function resolveCard(type){
+  if(type==='fight')startCombat(makeEnemy(false));
+  else if(type==='elite')startCombat(makeEnemy(true));
+  else if(type==='boss')startCombat(makeBoss());
+  else if(type==='treasure')doTreasure();
+  else if(type==='rest')doRest();
+  else if(type==='mystery')doMystery();
+}
+function nextFloor(){
+  P.floor++;
+  META.bestFloor=Math.max(META.bestFloor,P.floor);
+  if(P.floor>30){winRun();return;}
+  deal();
+}
+
+/* ---------- enemies ---------- */
+const ENEMIES=[['🦇','Shade Bat'],['🕷️','Web Fiend'],['🧟','Husk'],['💀','Bone Guard'],
+  ['👺','Tower Imp'],['🐍','Coil Horror'],['👻','Gloom Wisp'],['🧌','Stair Brute'],['🎃','Hollow King']];
+function makeEnemy(elite){
+  const f=P.floor;
+  const e=ENEMIES[Math.floor(Math.random()*ENEMIES.length)];
+  let hp=Math.round(14+f*4.2),atk=Math.round(4+f*0.85),def=Math.floor(f*0.22),gold=10+f*2;
+  if(elite){hp=Math.round(hp*1.65);atk+=3;def+=1;gold=Math.round(gold*2.2);}
+  return {icon:e[0],name:(elite?'ELITE ':'')+e[1],hp,maxHp:hp,atk,def,gold,elite,boss:false};
+}
+function makeBoss(){
+  if(P.floor===10)return {icon:'🗿',name:'THE GATEKEEPER',hp:85,maxHp:85,atk:8,def:2,gold:60,
+    boss:true,gimmick:'enrage',gtxt:'gains +1 ATK every round'};
+  if(P.floor===20){
+    const a=Math.max(10,effAtk(null)-2),d=Math.floor(P.def/2);
+    return {icon:'🪞',name:'MIRROR WRAITH',hp:130,maxHp:130,atk:a,def:d,gold:120,
+      boss:true,gimmick:'mirror',gtxt:'copied your strength (ATK '+a+', DEF '+d+')'};
+  }
+  return {icon:'🌑',name:'THE TOWER LORD',hp:190,maxHp:190,atk:16,def:4,gold:250,
+    boss:true,gimmick:'lord',gtxt:'regenerates 4 HP/round · awakens below half HP'};
+}
+
+/* ---------- combat ---------- */
+let CB=null;
+function clog(html){
+  const d=document.createElement('div');
+  d.innerHTML=html;
+  $('clog').appendChild(d);
+  $('clog').scrollTop=$('clog').scrollHeight;
+}
+function startCombat(e){
+  CB={e,round:0,over:false};
+  $('cards').innerHTML='';
+  $('panel').style.display='none';
+  $('combat').style.display='flex';
+  $('clog').innerHTML='';
+  $('cbtn').style.display='none';
+  $('fEi').textContent=e.icon;
+  $('fEn').textContent=e.name;
+  $('floorTitle').textContent='— FLOOR '+P.floor+' — combat —';
+  if(e.boss){sfxBoss();clog('<span class="y">☠ '+e.name+' — '+e.gtxt+'</span>');}
+  else clog('<span class="e">'+e.name+' lunges from the dark!</span>');
+  updateFighters();
+  setTimeout(combatRound,700);
+}
+function updateFighters(){
+  $('fPs').textContent='ATK '+effAtk(CB?CB.e:null)+' · DEF '+P.def;
+  $('fPb').style.width=Math.max(0,P.hp/P.maxHp*100)+'%';
+  $('fP').querySelector('.fnm').textContent='YOU — '+Math.max(0,P.hp)+'/'+P.maxHp;
+  if(CB){
+    const e=CB.e;
+    $('fEs').textContent='ATK '+e.atk+' · DEF '+e.def;
+    $('fEb').style.width=Math.max(0,e.hp/e.maxHp*100)+'%';
+    $('fEn').textContent=e.name+' — '+Math.max(0,e.hp)+'/'+e.maxHp;
+  }
+  renderHUD();
+}
+function hitAnim(id){
+  const el=$(id);
+  el.classList.remove('hit');void el.offsetWidth;el.classList.add('hit');
+}
+function combatRound(){
+  if(!CB||CB.over)return;
+  const e=CB.e;
+  CB.round++;
+  // boss gimmicks (start of round)
+  if(e.gimmick==='enrage'&&CB.round>1){e.atk++;clog('<span class="y">🗿 the Gatekeeper enrages: ATK '+e.atk+'</span>');}
+  if(e.gimmick==='lord'){
+    if(CB.round>1&&e.hp<e.maxHp){const r=Math.min(4,e.maxHp-e.hp);e.hp+=r;clog('<span class="y">🌑 the Tower Lord regenerates +'+r+'</span>');}
+    if(!e.awake&&e.hp<=e.maxHp/2){e.awake=true;e.atk+=4;clog('<span class="y">🌑 THE TOWER LORD AWAKENS — ATK '+e.atk+'!</span>');sfxBoss();}
+  }
+  // player strikes
+  let dmg=Math.max(1,effAtk(e)-e.def);
+  if(CB.round===1&&has('mirror')){dmg*=2;clog('<span class="p">🪞 Mirror Shard — first strike doubled!</span>');}
+  e.hp-=dmg;
+  hitAnim('fE');sfxHitE();
+  clog('<span class="p">▶ round '+CB.round+': you hit '+e.name+' for <b>'+dmg+'</b></span>');
+  if(has('fang')){
+    const h=heal(Math.max(1,Math.round(dmg*0.25)));
+    if(h>0)clog('<span class="g">🧛 lifesteal +'+h+'</span>');
+  }
+  updateFighters();
+  if(e.hp<=0){combatWin();return;}
+  // enemy strikes
+  setTimeout(()=>{
+    if(!CB||CB.over)return;
+    const edmg=Math.max(1,e.atk-P.def);
+    P.hp-=edmg;
+    hitAnim('fP');sfxHitP();
+    clog('<span class="e">◀ '+e.name+' hits you for <b>'+edmg+'</b></span>');
+    if(has('thorns')&&e.hp>0){
+      e.hp-=2;
+      clog('<span class="p">🌵 thorns dig back for 2</span>');
+      if(e.hp<=0){updateFighters();combatWin();return;}
+    }
+    if(P.hp<=0){
+      if(has('phoenix')&&!P.phoenixUsed){
+        P.phoenixUsed=true;P.hp=1;
+        clog('<span class="y">🪶 PHOENIX FEATHER! You refuse to die — 1 HP!</span>');
+        sfxRelic();
+      }else{
+        updateFighters();runOver();return;
+      }
+    }
+    updateFighters();
+    setTimeout(combatRound,620);
+  },420);
+}
+function combatWin(){
+  CB.over=true;
+  const e=CB.e;
+  clog('<span class="g">★ '+e.name+' is destroyed!</span>');
+  const g=gainGold(e.gold);
+  clog('<span class="y">+'+g+' gold</span>');
+  if(e.elite){
+    META.elites++;
+    gainRelic();
+    const boon=Math.floor(Math.random()*3);
+    if(boon===0){P.atk+=2;clog('<span class="g">champion\'s boon: +2 ATK</span>');}
+    else if(boon===1){P.def+=1;clog('<span class="g">champion\'s boon: +1 DEF</span>');}
+    else{P.maxHp+=8;P.hp+=8;clog('<span class="g">champion\'s boon: +8 max HP</span>');}
+  }else if(e.boss){
+    gainRelic();
+    const h=heal(P.maxHp);
+    clog('<span class="g">the floor\'s seal breaks — fully healed (+'+h+')</span>');
+    if(P.floor===10)unlockDirect('gate');
+    if(P.floor===20)unlockDirect('mirror');
+  }else if(Math.random()<0.15){
+    gainRelic();
+  }
+  if(has('gate')){
+    const h=heal(8);
+    if(h>0)clog('<span class="g">🚪 Gate Shard mends you +'+h+'</span>');
+  }
+  unlockCheck();
+  updateFighters();
+  $('cbtn').style.display='flex';
+  $('contBtn').textContent=P.floor>=30?'CLAIM THE TOWER ▶':'CLIMB ON ▶ floor '+(P.floor+1);
+  $('contBtn').onclick=()=>{CB=null;nextFloor();};
+}
+
+/* ---------- non-combat cards ---------- */
+function showPanel(ico,title,text,btns){
+  $('cards').innerHTML='';
+  $('combat').style.display='none';
+  $('panel').style.display='flex';
+  $('pIco').textContent=ico;
+  $('pTitle').textContent=title;
+  $('pText').innerHTML=text;
+  const w=$('pBtns');
+  w.innerHTML='';
+  btns.forEach(([label,fn])=>{
+    const b=document.createElement('button');
+    b.className='act';b.innerHTML=label;
+    b.addEventListener('click',fn);
+    w.appendChild(b);
+  });
+  renderHUD();
+}
+function doTreasure(){
+  const base=20+P.floor*2;
+  const g=gainGold(base);
+  let extra='';
+  if(Math.random()<0.3){gainRelic();extra='<br>…and something ancient beneath the coins.';}
+  showPanel('💰','TREASURE','You pry open a strongbox: <b style="color:#fde047">+'+g+' gold</b>.'+extra,
+    [['CLIMB ON ▶',()=>nextFloor()]]);
+}
+function doRest(){
+  showPanel('🏕️','A QUIET ALCOVE','Embers of an old campfire. You have time for one thing:',
+    [
+     ['😴 Rest — heal '+Math.round(P.maxHp*0.35)+' HP',()=>{const h=heal(Math.round(P.maxHp*0.35));toast('+'+h+' HP');nextFloor();}],
+     ['🏋️ Train — +2 ATK',()=>{P.atk+=2;toast('+2 ATK');nextFloor();}],
+     ['🧱 Fortify — +1 DEF',()=>{P.def+=1;toast('+1 DEF');nextFloor();}]
+    ]);
+}
+function doMystery(){
+  const roll=Math.floor(Math.random()*5);
+  if(roll===0){
+    showPanel('⛩️','BLOOD SHRINE','A shrine hums with red light. Carved beneath: <i>"strength for suffering."</i>',
+      [['Offer 12 HP → +3 ATK',()=>{P.hp=Math.max(1,P.hp-12);P.atk+=3;toast('+3 ATK');nextFloor();}],
+       ['Walk away',()=>nextFloor()]]);
+  }else if(roll===1){
+    showPanel('🧙','WANDERING MERCHANT','A hooded figure spreads strange wares on a cloth.',
+      [[ '🎁 Relic — 60g',()=>{if(P.gold<60){toast('not enough gold');return;}P.gold-=60;gainRelic();nextFloor();}],
+       ['🧪 Potion (heal 25) — 25g',()=>{if(P.gold<25){toast('not enough gold');return;}P.gold-=25;const h=heal(25);toast('+'+h+' HP');nextFloor();}],
+       ['Leave',()=>nextFloor()]]);
+  }else if(roll===2){
+    showPanel('⛲','DARK FOUNTAIN','Black water, faintly glowing. It smells of rain and old magic.',
+      [['Drink deep',()=>{
+          if(Math.random()<0.75){const h=heal(Math.round(P.maxHp*0.5));toast('the water blesses you: +'+h+' HP');}
+          else{P.hp=Math.max(1,P.hp-8);toast('it was cursed! -8 HP');sfxHitP();}
+          nextFloor();
+        }],
+       ['Don\'t risk it',()=>nextFloor()]]);
+  }else if(roll===3){
+    showPanel('🎲','SHADOW GAMBLER','A grinning shade shakes a cup of bone dice. <i>"Double or nothing, climber?"</i>',
+      [['Bet 30g',()=>{
+          if(P.gold<30){toast('not enough gold');return;}
+          if(Math.random()<0.5){const g=gainGold(60);toast('🎲 you win! +'+g+'g');}
+          else{P.gold-=30;toast('🎲 the dice betray you. -30g');sfxHitP();}
+          nextFloor();
+        }],
+       ['Never gamble with shades',()=>nextFloor()]]);
+  }else{
+    showPanel('🕸️','COLLAPSED PASSAGE','The floor here is riddled with traps and webbing. You can dash through or pick your way around.',
+      [['🏃 Dash (risk 10 HP)',()=>{
+          if(Math.random()<0.5){toast('untouched! and you found 25g');gainGold(25);}
+          else{P.hp=Math.max(1,P.hp-10);toast('a dart clips you: -10 HP');sfxHitP();}
+          nextFloor();
+        }],
+       ['🐌 Go around safely',()=>nextFloor()]]);
+  }
+}
+
+/* ---------- run end ---------- */
+function runOver(){
+  P.alive=false;
+  RUNSAVE=null;
+  META.bestFloor=Math.max(META.bestFloor,P.floor);
+  saveAll();
+  sfxDeath();
+  showPanel('☠️','THE TOWER CLAIMS YOU',
+    'You fell on floor <b>'+P.floor+'</b> with '+P.gold+' gold and '+P.relics.length+' relics.<br>'+
+    'Best climb: floor '+META.bestFloor+' · runs: '+META.runs+' · relics unlocked: '+relicPool().length+'/'+Object.keys(RELICS).length+
+    '<br><span style="color:#64748b">meta-unlocks are forever. The tower is not going anywhere.</span>',
+    [['⚔️ CLIMB AGAIN',()=>{newRun();deal();}]]);
+}
+function winRun(){
+  META.wins++;
+  unlockDirect('crown');
+  RUNSAVE=null;
+  saveAll();
+  sfxWin();
+  showPanel('👑','THE TOWER IS YOURS',
+    'Thirty floors. The Tower Lord\'s throne is empty, and the shadow bows to <b>you</b>.<br>'+
+    'Final hoard: '+P.gold+' gold · '+P.relics.length+' relics · wins: '+META.wins+
+    '<br><span style="color:#fde047">The Crown of Shadows joins your relic pool. Climb again, ruler.</span>',
+    [['⚔️ NEW CLIMB',()=>{newRun();deal();}]]);
+}
+
+/* ---------- boot ---------- */
+function startGame(){
+  initAudio();
+  $('title').style.display='none';
+  if(RUNSAVE&&RUNSAVE.floor){
+    restoreRun();
+    toast('run resumed — floor '+P.floor);
+  }else{
+    newRun();
+  }
+  deal();
+}
+(function(){
+  const m=$('metaTxt');
+  const parts=[];
+  if(META.bestFloor>0)parts.push('best: floor '+META.bestFloor);
+  if(META.runs>0)parts.push(META.runs+' runs');
+  if(META.wins>0)parts.push('👑×'+META.wins);
+  parts.push('relic pool: '+relicPool().length+'/'+Object.keys(RELICS).length);
+  if(RUNSAVE&&RUNSAVE.floor)parts.push('▶ run in progress: floor '+RUNSAVE.floor);
+  m.textContent=parts.join(' · ');
+  $('title').addEventListener('click',startGame);
+  addEventListener('keydown',e=>{
+    if($('title').style.display!=='none'&&(e.key==='Enter'||e.key===' ')){
+      e.preventDefault();startGame();
+    }
+  });
+})();
+</script>
+</body>
+</html>

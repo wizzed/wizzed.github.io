@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shadow Designer · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#00e5ff; --accent-soft:rgba(0,229,255,.45);
+  --panel:#161623; --line:#2c2c46; --text:#eaf7fa; --dim:#87979d;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:20px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:8px 8px 2px; }
+h1{
+  display:inline-block; font-size:clamp(16px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:1px; }
+main{
+  display:flex; flex-wrap:wrap; gap:12px; justify-content:center; align-items:stretch;
+  max-width:980px; margin:6px auto 0; padding:0 12px;
+}
+#stage{
+  flex:1 1 320px; min-height:280px; border:2px solid var(--line);
+  box-shadow:0 0 0 1px #000; position:relative;
+  display:flex; align-items:center; justify-content:center;
+}
+#stage.bg-dark{ background:#191926; }
+#stage.bg-light{ background:#e9e9f2; }
+#stage.bg-grad{ background:linear-gradient(135deg,#232346,#0d0d18); }
+#stage.bg-grid{
+  background:#14141f;
+  background-image:linear-gradient(rgba(0,229,255,.07) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,255,.07) 1px,transparent 1px);
+  background-size:22px 22px;
+}
+#bgChips{ position:absolute; top:8px; right:8px; display:flex; gap:5px; }
+.bgChip{
+  width:20px; height:20px; border:1px solid var(--line); cursor:pointer;
+}
+.bgChip.on{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+#boxTarget{
+  width:min(46%,190px); aspect-ratio:1.25; background:#232336; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  color:#8ea3ad; font-size:11px; letter-spacing:2px;
+}
+#stage.bg-light #boxTarget{ background:#fafaff; color:#666; }
+#textTarget{
+  font-size:clamp(30px,6vw,54px); letter-spacing:4px; color:#f2f2ff; display:none;
+  font-family:inherit; font-weight:bold;
+}
+#stage.bg-light #textTarget{ color:#222; }
+#panel{
+  flex:1 1 380px; max-width:480px; background:var(--panel); border:2px solid var(--line);
+  padding:10px; box-shadow:0 0 0 1px #000; display:flex; flex-direction:column; gap:8px;
+}
+.tabs{ display:flex; gap:6px; }
+.tabs button{
+  flex:1; font-family:inherit; font-size:11px; letter-spacing:2px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:6px 0;
+}
+.tabs button.on{
+  color:#fff; border-color:var(--accent);
+  box-shadow:0 0 10px var(--accent-soft); text-shadow:0 0 6px var(--accent);
+}
+.secTitle{ font-size:10px; color:var(--dim); letter-spacing:2px; display:flex; justify-content:space-between; align-items:center;}
+#layers{ display:flex; flex-direction:column; gap:4px; max-height:110px; overflow-y:auto; }
+.layer{
+  display:flex; align-items:center; gap:6px; border:1px solid var(--line); padding:4px 6px;
+  cursor:pointer; font-size:10px; background:#111120;
+}
+.layer.sel{ border-color:var(--accent); box-shadow:0 0 8px rgba(0,229,255,.25); }
+.layer i{ width:14px; height:14px; border:1px solid #000; flex:none; }
+.layer span{ flex:1; color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.layer.sel span{ color:var(--text); }
+.layer button{
+  font-family:inherit; font-size:10px; cursor:pointer; background:#121220; color:var(--dim);
+  border:1px solid var(--line); width:20px; height:20px; line-height:1; flex:none; padding:0;
+}
+.layer button:hover{ color:var(--accent); border-color:var(--accent); }
+.layer button.del:hover{ color:#ff4560; border-color:#ff4560; }
+.layer button:disabled{ opacity:.25; cursor:default; }
+#addLayer{
+  font-family:inherit; font-size:9px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--accent); border:1px solid var(--accent); padding:2px 8px;
+}
+#addLayer:disabled{ opacity:.35; cursor:default; }
+.ctl{ display:flex; align-items:center; gap:8px; }
+.ctl label{ width:52px; font-size:10px; color:var(--dim); letter-spacing:1px; }
+.ctl output{ width:42px; font-size:11px; text-align:right; color:var(--text); }
+input[type=range]{
+  -webkit-appearance:none; appearance:none; flex:1; height:6px; background:#22223a; outline:none;
+  border:1px solid var(--line); min-width:50px;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:13px; height:16px; background:var(--accent);
+  box-shadow:0 0 8px var(--accent); cursor:pointer;
+}
+input[type=range]::-moz-range-thumb{
+  width:13px; height:16px; background:var(--accent); border:none; border-radius:0;
+  box-shadow:0 0 8px var(--accent); cursor:pointer;
+}
+#colorCtl input[type=color]{
+  width:38px; height:26px; padding:0; border:1px solid var(--line); background:none; cursor:pointer; flex:none;
+}
+#insetCtl{ gap:6px; }
+#insetCtl input{ accent-color:var(--accent); width:15px; height:15px; cursor:pointer; }
+#insetCtl label[for=inset]{ width:auto; cursor:pointer; }
+#cssRow{ display:flex; gap:6px; align-items:stretch; }
+#cssOut{
+  flex:1; font-family:inherit; font-size:10px; background:#0c0c16; color:#8be28b;
+  border:1px solid var(--line); padding:6px; resize:none; height:56px; outline:none;
+  white-space:pre-wrap; word-break:break-all;
+}
+#copyBtn{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--accent); border:1px solid var(--accent); padding:0 10px;
+  text-shadow:0 0 6px var(--accent);
+}
+#copyBtn:hover{ box-shadow:0 0 12px var(--accent-soft); }
+#presets{ display:flex; gap:6px; flex-wrap:wrap; }
+#presets button{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:5px 9px;
+}
+#presets button:hover{ color:var(--accent); border-color:var(--accent); }
+#toast{
+  position:fixed; left:50%; bottom:18px; transform:translateX(-50%) translateY(60px);
+  background:#000; color:var(--accent); border:1px solid var(--accent); padding:6px 14px;
+  font-size:11px; letter-spacing:1px; transition:transform .25s; z-index:99;
+  text-shadow:0 0 8px var(--accent); box-shadow:0 0 14px var(--accent-soft); pointer-events:none;
+}
+#toast.show{ transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>❏ SHADOW DESIGNER ❏</h1>
+  <div class="sub">BOX-SHADOW · TEXT-SHADOW · LAYERED</div>
+</header>
+<main>
+  <div id="stage" class="bg-dark">
+    <div id="bgChips">
+      <div class="bgChip on" data-bg="bg-dark" style="background:#191926" title="dark"></div>
+      <div class="bgChip" data-bg="bg-light" style="background:#e9e9f2" title="light"></div>
+      <div class="bgChip" data-bg="bg-grad" style="background:linear-gradient(135deg,#232346,#0d0d18)" title="gradient"></div>
+      <div class="bgChip" data-bg="bg-grid" style="background:#14141f;background-image:linear-gradient(rgba(0,229,255,.3) 1px,transparent 1px);background-size:5px 5px" title="grid"></div>
+    </div>
+    <div id="boxTarget">PREVIEW</div>
+    <div id="textTarget">NEON GLOW</div>
+  </div>
+  <div id="panel">
+    <div class="tabs" id="tabRow">
+      <button data-tab="box" class="on">BOX SHADOW</button>
+      <button data-tab="text">TEXT SHADOW</button>
+    </div>
+    <div class="secTitle"><span>LAYERS</span><button id="addLayer">＋ ADD LAYER</button></div>
+    <div id="layers"></div>
+    <div class="ctl"><label>X</label><input type="range" id="sX" min="-60" max="60"><output id="oX"></output></div>
+    <div class="ctl"><label>Y</label><input type="range" id="sY" min="-60" max="60"><output id="oY"></output></div>
+    <div class="ctl"><label>BLUR</label><input type="range" id="sBlur" min="0" max="120"><output id="oBlur"></output></div>
+    <div class="ctl" id="spreadCtl"><label>SPREAD</label><input type="range" id="sSpread" min="-40" max="60"><output id="oSpread"></output></div>
+    <div class="ctl" id="colorCtl">
+      <label>COLOR</label><input type="color" id="sColor">
+      <input type="range" id="sAlpha" min="0" max="100"><output id="oAlpha"></output>
+    </div>
+    <div class="ctl" id="insetCtl">
+      <label>INSET</label><input type="checkbox" id="inset"><label for="inset" style="color:var(--dim)">draw inside the box</label>
+    </div>
+    <div class="secTitle"><span>CSS OUTPUT</span></div>
+    <div id="cssRow">
+      <textarea id="cssOut" readonly spellcheck="false"></textarea>
+      <button id="copyBtn">COPY</button>
+    </div>
+    <div class="secTitle"><span>PRESETS</span></div>
+    <div id="presets">
+      <button data-p="soft">SOFT</button>
+      <button data-p="neu">NEUMORPHIC</button>
+      <button data-p="neon">NEON GLOW</button>
+      <button data-p="depth">LAYERED DEPTH</button>
+    </div>
+  </div>
+</main>
+<div id="toast">COPIED!</div>
+<script>
+(function(){
+"use strict";
+var LS_KEY="wizzed-css-shadow";
+var $=function(id){return document.getElementById(id);};
+
+function L(x,y,blur,spread,color,alpha,inset){
+  return {x:x,y:y,blur:blur,spread:spread,color:color,alpha:alpha,inset:!!inset};
+}
+var PRESETS={
+  soft:{ bg:"bg-light",
+    box:[L(0,10,30,-6,"#000000",35,false)],
+    text:[L(0,3,8,0,"#000000",45,false)] },
+  neu:{ bg:"bg-light",
+    box:[L(-10,-10,24,0,"#ffffff",90,false),L(10,10,24,0,"#a3a3c2",60,false)],
+    text:[L(-2,-2,3,0,"#ffffff",90,false),L(2,2,3,0,"#9a9ab8",70,false)] },
+  neon:{ bg:"bg-dark",
+    box:[L(0,0,14,0,"#00e5ff",90,false),L(0,0,45,6,"#ff00e0",55,false),L(0,0,95,14,"#7a2bff",45,false)],
+    text:[L(0,0,8,0,"#00e5ff",95,false),L(0,0,26,0,"#ff00e0",80,false),L(0,0,60,0,"#7a2bff",70,false)] },
+  depth:{ bg:"bg-dark",
+    box:[L(0,2,4,0,"#000000",50,false),L(0,8,16,-2,"#000000",45,false),L(0,24,48,-8,"#000000",55,false)],
+    text:[L(0,1,0,0,"#000000",80,false),L(0,4,6,0,"#000000",55,false),L(0,10,20,0,"#000000",45,false)] }
+};
+
+var state={
+  tab:"box",
+  bg:"bg-dark",
+  sel:{box:0,text:0},
+  box:PRESETS.neon.box.map(copyL),
+  text:PRESETS.neon.text.map(copyL)
+};
+function copyL(l){return L(l.x,l.y,l.blur,l.spread,l.color,l.alpha,l.inset);}
+
+function rgba(hex,alpha){
+  var n=parseInt(hex.slice(1),16);
+  return "rgba("+((n>>16)&255)+", "+((n>>8)&255)+", "+(n&255)+", "+(Math.round(alpha)/100)+")";
+}
+function layerCss(l,isBox){
+  var s=(l.inset&&isBox?"inset ":"")+l.x+"px "+l.y+"px "+l.blur+"px ";
+  if(isBox)s+=l.spread+"px ";
+  return s+rgba(l.color,l.alpha);
+}
+function fullCss(){
+  var isBox=state.tab==="box";
+  var list=state[state.tab].map(function(l){return layerCss(l,isBox);}).join(",\n  ");
+  return (isBox?"box-shadow":"text-shadow")+": "+list+";";
+}
+
+var toastTimer=null;
+function toast(msg){
+  var t=$("toast"); t.textContent=msg; t.classList.add("show");
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.classList.remove("show");},1100);
+}
+function copyText(txt){
+  function ok(){toast("CSS COPIED");}
+  function fallback(){
+    try{
+      var ta=document.createElement("textarea");
+      ta.value=txt;ta.style.position="fixed";ta.style.opacity="0";
+      document.body.appendChild(ta);ta.select();
+      document.execCommand("copy");document.body.removeChild(ta);ok();
+    }catch(e){toast("COPY FAILED");}
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(ok,fallback);
+  else fallback();
+}
+
+function selLayer(){
+  var arr=state[state.tab];
+  var i=Math.min(state.sel[state.tab],arr.length-1);
+  state.sel[state.tab]=i;
+  return arr[i];
+}
+
+function renderLayers(){
+  var isBox=state.tab==="box";
+  var arr=state[state.tab];
+  var box=$("layers"); box.innerHTML="";
+  arr.forEach(function(l,i){
+    var row=document.createElement("div"); row.className="layer"+(i===state.sel[state.tab]?" sel":"");
+    var sw=document.createElement("i"); sw.style.background=l.color;
+    sw.style.boxShadow="0 0 6px "+rgba(l.color,l.alpha);
+    var lbl=document.createElement("span");
+    lbl.textContent=(i+1)+" · "+layerCss(l,isBox);
+    var up=document.createElement("button"); up.textContent="↑"; up.title="move up"; up.disabled=i===0;
+    var dn=document.createElement("button"); dn.textContent="↓"; dn.title="move down"; dn.disabled=i===arr.length-1;
+    var del=document.createElement("button"); del.textContent="×"; del.className="del"; del.title="remove";
+    del.disabled=arr.length<=1;
+    up.addEventListener("click",function(e){
+      e.stopPropagation();
+      arr.splice(i-1,0,arr.splice(i,1)[0]); state.sel[state.tab]=i-1; render(true);
+    });
+    dn.addEventListener("click",function(e){
+      e.stopPropagation();
+      arr.splice(i+1,0,arr.splice(i,1)[0]); state.sel[state.tab]=i+1; render(true);
+    });
+    del.addEventListener("click",function(e){
+      e.stopPropagation();
+      if(arr.length>1){ arr.splice(i,1); render(true); }
+    });
+    row.addEventListener("click",function(){ state.sel[state.tab]=i; render(true); });
+    row.appendChild(sw); row.appendChild(lbl); row.appendChild(up); row.appendChild(dn); row.appendChild(del);
+    box.appendChild(row);
+  });
+  $("addLayer").disabled=arr.length>=8;
+}
+
+function renderControls(){
+  var l=selLayer(), isBox=state.tab==="box";
+  $("sX").value=l.x; $("oX").textContent=l.x+"px";
+  $("sY").value=l.y; $("oY").textContent=l.y+"px";
+  $("sBlur").value=l.blur; $("oBlur").textContent=l.blur+"px";
+  $("sSpread").value=l.spread; $("oSpread").textContent=l.spread+"px";
+  $("sColor").value=l.color;
+  $("sAlpha").value=l.alpha; $("oAlpha").textContent=l.alpha+"%";
+  $("inset").checked=l.inset;
+  $("spreadCtl").style.display=isBox?"flex":"none";
+  $("insetCtl").style.display=isBox?"flex":"none";
+}
+
+function render(rebuild){
+  var isBox=state.tab==="box";
+  var css=fullCss();
+  var shadowVal=css.slice(css.indexOf(":")+1).replace(/;\s*$/,"").trim();
+  $("boxTarget").style.display=isBox?"flex":"none";
+  $("textTarget").style.display=isBox?"none":"block";
+  if(isBox){ $("boxTarget").style.boxShadow=shadowVal; }
+  else{ $("textTarget").style.textShadow=shadowVal; }
+  $("cssOut").value=css;
+  Array.prototype.forEach.call($("tabRow").children,function(b){
+    b.classList.toggle("on",b.dataset.tab===state.tab);
+  });
+  var stage=$("stage");
+  stage.className=state.bg;
+  Array.prototype.forEach.call(document.querySelectorAll(".bgChip"),function(c){
+    c.classList.toggle("on",c.dataset.bg===state.bg);
+  });
+  if(rebuild)renderLayers();
+  renderControls();
+  save();
+}
+
+// slider bindings
+function bindSlider(id,outId,prop,unit){
+  $(id).addEventListener("input",function(){
+    var l=selLayer(); l[prop]=parseInt(this.value,10);
+    $(outId).textContent=l[prop]+unit;
+    render(true);
+  });
+}
+bindSlider("sX","oX","x","px");
+bindSlider("sY","oY","y","px");
+bindSlider("sBlur","oBlur","blur","px");
+bindSlider("sSpread","oSpread","spread","px");
+bindSlider("sAlpha","oAlpha","alpha","%");
+$("sColor").addEventListener("input",function(){
+  selLayer().color=this.value; render(true);
+});
+$("inset").addEventListener("change",function(){
+  selLayer().inset=this.checked; render(true);
+});
+
+Array.prototype.forEach.call($("tabRow").children,function(b){
+  b.addEventListener("click",function(){ state.tab=b.dataset.tab; render(true); });
+});
+Array.prototype.forEach.call(document.querySelectorAll(".bgChip"),function(c){
+  c.addEventListener("click",function(){ state.bg=c.dataset.bg; render(false); });
+});
+$("addLayer").addEventListener("click",function(){
+  var arr=state[state.tab];
+  if(arr.length>=8)return;
+  arr.push(L(0,6,18,0,"#00e5ff",60,false));
+  state.sel[state.tab]=arr.length-1;
+  render(true);
+});
+$("copyBtn").addEventListener("click",function(){copyText($("cssOut").value);});
+Array.prototype.forEach.call(document.querySelectorAll("#presets button"),function(b){
+  b.addEventListener("click",function(){
+    var p=PRESETS[b.dataset.p];
+    state.box=p.box.map(copyL);
+    state.text=p.text.map(copyL);
+    state.bg=p.bg;
+    state.sel={box:0,text:0};
+    render(true);
+  });
+});
+
+function validLayer(l){
+  return l&&typeof l.x==="number"&&typeof l.y==="number"&&typeof l.blur==="number"
+    &&typeof l.spread==="number"&&/^#[0-9a-f]{6}$/i.test(l.color)&&typeof l.alpha==="number";
+}
+function save(){
+  try{
+    localStorage.setItem(LS_KEY,JSON.stringify({
+      tab:state.tab,bg:state.bg,sel:state.sel,box:state.box,text:state.text
+    }));
+  }catch(e){}
+}
+function load(){
+  try{
+    var d=JSON.parse(localStorage.getItem(LS_KEY));
+    if(d&&Array.isArray(d.box)&&d.box.length&&d.box.every(validLayer)
+      &&Array.isArray(d.text)&&d.text.length&&d.text.every(validLayer)){
+      state.box=d.box.map(copyL);
+      state.text=d.text.map(copyL);
+      if(d.tab==="text"||d.tab==="box")state.tab=d.tab;
+      if(typeof d.bg==="string"&&/^bg-(dark|light|grad|grid)$/.test(d.bg))state.bg=d.bg;
+      if(d.sel&&typeof d.sel.box==="number"&&typeof d.sel.text==="number")state.sel=d.sel;
+    }
+  }catch(e){}
+}
+load();
+renderLayers();
+render(true);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCII Banner · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#aaff00; --accent-soft:rgba(170,255,0,.4);
+  --panel:#161623; --line:#2c2c46; --text:#eefae2; --dim:#93a180;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:20px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:8px 8px 2px; }
+h1{
+  display:inline-block; font-size:clamp(16px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:1px; }
+#wrap{ max-width:960px; margin:6px auto 0; padding:0 12px; }
+#bar{
+  display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  background:var(--panel); border:2px solid var(--line); padding:8px 10px;
+  box-shadow:0 0 0 1px #000;
+}
+#txt{
+  flex:1; min-width:160px; font-family:inherit; font-size:14px; letter-spacing:2px;
+  padding:6px 9px; background:#0c0c16; color:var(--text); border:1px solid var(--line);
+  outline:none; text-transform:uppercase;
+}
+#txt:focus{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+#bar label{ font-size:10px; color:var(--dim); letter-spacing:1px; }
+select{
+  font-family:inherit; font-size:11px; background:#0c0c16; color:var(--text);
+  border:1px solid var(--line); padding:5px 6px; outline:none;
+}
+select:focus{ border-color:var(--accent); }
+#sizeBtns{ display:flex; gap:0; }
+#sizeBtns button{
+  font-family:inherit; font-size:11px; cursor:pointer; width:30px; padding:5px 0;
+  background:#121220; color:var(--dim); border:1px solid var(--line);
+}
+#sizeBtns button.on{
+  color:#0f0f1a; background:var(--accent); border-color:var(--accent); font-weight:bold;
+  box-shadow:0 0 10px var(--accent-soft);
+}
+#copyBtn{
+  font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--accent); border:1px solid var(--accent); padding:6px 12px;
+  text-shadow:0 0 6px var(--accent);
+}
+#copyBtn:hover{ box-shadow:0 0 12px var(--accent-soft); }
+#stage{
+  margin-top:10px; background:#0a0a12; border:2px solid var(--line);
+  box-shadow:0 0 0 1px #000, inset 0 0 40px rgba(170,255,0,.05), 0 0 26px rgba(170,255,0,.08);
+  padding:18px 14px; overflow-x:auto; min-height:220px;
+  display:flex; align-items:center;
+}
+#out{
+  font-family:'Courier New', ui-monospace, monospace; line-height:1.02; white-space:pre;
+  color:var(--accent); text-shadow:0 0 5px var(--accent-soft); margin:0 auto;
+}
+#out.style-neon{ text-shadow:none; }
+#note{ text-align:center; font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:6px; }
+#toast{
+  position:fixed; left:50%; bottom:18px; transform:translateX(-50%) translateY(60px);
+  background:#000; color:var(--accent); border:1px solid var(--accent); padding:6px 14px;
+  font-size:11px; letter-spacing:1px; transition:transform .25s; z-index:99;
+  text-shadow:0 0 8px var(--accent); box-shadow:0 0 14px var(--accent-soft); pointer-events:none;
+}
+#toast.show{ transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>▓▒░ ASCII BANNER ░▒▓</h1>
+  <div class="sub">TYPE · STYLE · COPY</div>
+</header>
+<div id="wrap">
+  <div id="bar">
+    <input id="txt" maxlength="20" spellcheck="false" placeholder="TYPE SOMETHING…" value="WIZZED">
+    <label>STYLE</label>
+    <select id="style">
+      <option value="hash"># hashes</option>
+      <option value="block" selected>█ blocks</option>
+      <option value="shade">▓ shades</option>
+      <option value="neon">neon</option>
+    </select>
+    <label>SIZE</label>
+    <div id="sizeBtns">
+      <button data-s="8">S</button>
+      <button data-s="12">M</button>
+      <button data-s="16" class="on">L</button>
+    </div>
+    <button id="copyBtn">⧉ COPY TEXT</button>
+  </div>
+  <div id="stage"><pre id="out"></pre></div>
+  <div id="note">A–Z · 0–9 · ! ? . -  — 5×7 embedded pixel font</div>
+</div>
+<div id="toast">COPIED!</div>
+<script>
+(function(){
+"use strict";
+var LS_KEY="wizzed-ascii-art";
+var $=function(id){return document.getElementById(id);};
+
+// 5x7 pixel font: 7 rows of 5 cells, "X"=on "."=off
+var FONT={
+"A":[".XXX.","X...X","X...X","XXXXX","X...X","X...X","X...X"],
+"B":["XXXX.","X...X","X...X","XXXX.","X...X","X...X","XXXX."],
+"C":[".XXX.","X...X","X....","X....","X....","X...X",".XXX."],
+"D":["XXXX.","X...X","X...X","X...X","X...X","X...X","XXXX."],
+"E":["XXXXX","X....","X....","XXXX.","X....","X....","XXXXX"],
+"F":["XXXXX","X....","X....","XXXX.","X....","X....","X...."],
+"G":[".XXX.","X...X","X....","X.XXX","X...X","X...X",".XXX."],
+"H":["X...X","X...X","X...X","XXXXX","X...X","X...X","X...X"],
+"I":["XXXXX","..X..","..X..","..X..","..X..","..X..","XXXXX"],
+"J":["....X","....X","....X","....X","....X","X...X",".XXX."],
+"K":["X...X","X..X.","X.X..","XX...","X.X..","X..X.","X...X"],
+"L":["X....","X....","X....","X....","X....","X....","XXXXX"],
+"M":["X...X","XX.XX","X.X.X","X.X.X","X...X","X...X","X...X"],
+"N":["X...X","XX..X","X.X.X","X..XX","X...X","X...X","X...X"],
+"O":[".XXX.","X...X","X...X","X...X","X...X","X...X",".XXX."],
+"P":["XXXX.","X...X","X...X","XXXX.","X....","X....","X...."],
+"Q":[".XXX.","X...X","X...X","X...X","X.X.X","X..X.",".XX.X"],
+"R":["XXXX.","X...X","X...X","XXXX.","X.X..","X..X.","X...X"],
+"S":[".XXXX","X....","X....",".XXX.","....X","....X","XXXX."],
+"T":["XXXXX","..X..","..X..","..X..","..X..","..X..","..X.."],
+"U":["X...X","X...X","X...X","X...X","X...X","X...X",".XXX."],
+"V":["X...X","X...X","X...X","X...X","X...X",".X.X.","..X.."],
+"W":["X...X","X...X","X...X","X.X.X","X.X.X","XX.XX","X...X"],
+"X":["X...X","X...X",".X.X.","..X..",".X.X.","X...X","X...X"],
+"Y":["X...X","X...X",".X.X.","..X..","..X..","..X..","..X.."],
+"Z":["XXXXX","....X","...X.","..X..",".X...","X....","XXXXX"],
+"0":[".XXX.","X...X","X..XX","X.X.X","XX..X","X...X",".XXX."],
+"1":["..X..",".XX..","..X..","..X..","..X..","..X..","XXXXX"],
+"2":[".XXX.","X...X","....X","...X.","..X..",".X...","XXXXX"],
+"3":[".XXX.","X...X","....X","..XX.","....X","X...X",".XXX."],
+"4":["...X.","..XX.",".X.X.","X..X.","XXXXX","...X.","...X."],
+"5":["XXXXX","X....","XXXX.","....X","....X","X...X",".XXX."],
+"6":[".XXX.","X....","X....","XXXX.","X...X","X...X",".XXX."],
+"7":["XXXXX","....X","...X.","..X..",".X...",".X...",".X..."],
+"8":[".XXX.","X...X","X...X",".XXX.","X...X","X...X",".XXX."],
+"9":[".XXX.","X...X","X...X",".XXXX","....X","....X",".XXX."],
+" ":[".....",".....",".....",".....",".....",".....","....."],
+"!":["..X..","..X..","..X..","..X..","..X..",".....","..X.."],
+"?":[".XXX.","X...X","....X","...X.","..X..",".....","..X.."],
+".":[".....",".....",".....",".....",".....",".XX..",".XX.."],
+"-":[".....",".....",".....","XXXXX",".....",".....","....."]
+};
+var SHADE_ROW=["░","▒","▓","█","▓","▒","░"];
+
+var state={ text:"WIZZED", style:"block", size:16 };
+
+function cleanText(t){
+  t=t.toUpperCase();
+  var out="";
+  for(var i=0;i<t.length;i++){
+    out+=FONT.hasOwnProperty(t[i])?t[i]:" ";
+  }
+  return out;
+}
+
+// returns array of 7 row-strings of on/off cells for whole banner
+function rasterize(text){
+  var rows=[];
+  for(var r=0;r<7;r++){
+    var line="";
+    for(var i=0;i<text.length;i++){
+      line+=FONT[text[i]][r]+(i<text.length-1?".":"");
+    }
+    rows.push(line);
+  }
+  return rows;
+}
+
+function bannerText(styleName){
+  var text=cleanText(state.text)||" ";
+  var rows=rasterize(text);
+  return rows.map(function(row,r){
+    var ch=styleName==="hash"?"#":styleName==="shade"?SHADE_ROW[r]:"█";
+    return row.replace(/X/g,ch).replace(/\./g," ");
+  }).join("\n");
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function render(){
+  var out=$("out");
+  out.style.fontSize=state.size+"px";
+  out.className=state.style==="neon"?"style-neon":"";
+  if(state.style==="neon"){
+    var text=cleanText(state.text)||" ";
+    var rows=rasterize(text);
+    var width=rows[0].length||1;
+    var html="";
+    for(var r=0;r<7;r++){
+      for(var c=0;c<width;c++){
+        if(rows[r][c]==="X"){
+          var hue=Math.round(300+c/width*180)%360;
+          html+='<span style="color:hsl('+hue+',100%,62%);text-shadow:0 0 6px hsl('+hue+',100%,55%)">█</span>';
+        }else html+=" ";
+      }
+      if(r<6)html+="\n";
+    }
+    out.innerHTML=html;
+  }else{
+    out.textContent=bannerText(state.style);
+  }
+  save();
+}
+
+var toastTimer=null;
+function toast(msg){
+  var t=$("toast"); t.textContent=msg; t.classList.add("show");
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.classList.remove("show");},1200);
+}
+function copyBanner(){
+  var txt=bannerText(state.style==="neon"?"block":state.style);
+  function ok(){toast("BANNER COPIED");}
+  function fallback(){
+    try{
+      var ta=document.createElement("textarea");
+      ta.value=txt;ta.style.position="fixed";ta.style.opacity="0";
+      document.body.appendChild(ta);ta.select();
+      document.execCommand("copy");document.body.removeChild(ta);ok();
+    }catch(e){toast("COPY FAILED");}
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(ok,fallback);
+  else fallback();
+}
+
+$("txt").addEventListener("input",function(){
+  state.text=this.value; render();
+});
+$("style").addEventListener("change",function(){
+  state.style=this.value; render();
+});
+Array.prototype.forEach.call(document.querySelectorAll("#sizeBtns button"),function(b){
+  b.addEventListener("click",function(){
+    state.size=parseInt(b.dataset.s,10);
+    Array.prototype.forEach.call(document.querySelectorAll("#sizeBtns button"),function(x){
+      x.classList.toggle("on",x===b);
+    });
+    render();
+  });
+});
+$("copyBtn").addEventListener("click",copyBanner);
+
+function save(){
+  try{ localStorage.setItem(LS_KEY,JSON.stringify(state)); }catch(e){}
+}
+function load(){
+  try{
+    var d=JSON.parse(localStorage.getItem(LS_KEY));
+    if(d){
+      if(typeof d.text==="string")state.text=d.text.slice(0,20);
+      if(["hash","block","shade","neon"].indexOf(d.style)>=0)state.style=d.style;
+      if([8,12,16].indexOf(d.size)>=0)state.size=d.size;
+    }
+  }catch(e){}
+  $("txt").value=state.text;
+  $("style").value=state.style;
+  Array.prototype.forEach.call(document.querySelectorAll("#sizeBtns button"),function(x){
+    x.classList.toggle("on",parseInt(x.dataset.s,10)===state.size);
+  });
+}
+load();
+render();
+})();
+</script>
+</body>
+</html>

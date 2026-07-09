@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Graph Plotter · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#39ff14; --soft:rgba(57,255,20,.4);
+  --panel:#0c160c; --line:#1f4a1f; --text:#e6ffe6; --dim:#7fb87f;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:8px 12px 40px;
+}
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:linear-gradient(rgba(57,255,20,.03) 1px,transparent 1px),
+             linear-gradient(90deg,rgba(57,255,20,.03) 1px,transparent 1px);
+  background-size:28px 28px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:6px 8px 2px; position:relative; z-index:1; }
+h1{ display:inline-block; font-size:clamp(17px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--soft); }
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:960px; margin:8px auto 0; position:relative; z-index:1; display:grid; grid-template-columns:1fr 300px; gap:12px; }
+@media(max-width:760px){ main{ grid-template-columns:1fr; } }
+.panel{
+  background:var(--panel); border:2px solid var(--line);
+  box-shadow:0 0 22px rgba(57,255,20,.08), inset 0 1px 0 rgba(255,255,255,.04);
+  padding:10px 12px;
+}
+.lbl{ font-size:10px; letter-spacing:3px; color:var(--dim); margin-bottom:8px; text-transform:uppercase; }
+.lbl b{ color:var(--accent); font-weight:normal; text-shadow:0 0 6px var(--soft); }
+.plotwrap{ position:relative; }
+canvas{ display:block; width:100%; height:clamp(300px,54vh,470px); background:#060d06; border:1px solid var(--line); touch-action:none; cursor:crosshair; }
+#readout{
+  position:absolute; top:8px; right:8px; z-index:3; pointer-events:none;
+  background:rgba(6,13,6,.86); border:1px solid var(--line); padding:6px 9px;
+  font-size:11px; letter-spacing:1px; line-height:1.5; min-width:120px;
+}
+#readout .rx{ color:var(--accent); text-shadow:0 0 6px var(--soft); }
+#readout .fv{ display:flex; align-items:center; gap:6px; }
+#readout .fv i{ width:9px; height:9px; display:inline-block; }
+#zoombtns{ position:absolute; left:8px; bottom:8px; z-index:3; display:flex; gap:5px; }
+#zoombtns button, .zbtn{
+  font-family:inherit; font-size:14px; width:30px; height:30px; cursor:pointer; line-height:1;
+  color:var(--accent); background:rgba(6,13,6,.86); border:1px solid var(--line); padding:0;
+}
+#zoombtns button:hover{ border-color:var(--accent); box-shadow:0 0 10px var(--soft); }
+.side{ display:flex; flex-direction:column; gap:12px; }
+.fnrow{ display:flex; align-items:center; gap:7px; margin-bottom:8px; }
+.fnrow:last-child{ margin-bottom:0; }
+.fnrow input[type=color]{ width:26px; height:30px; padding:0; border:1px solid var(--line); background:#060d06; cursor:pointer; flex:0 0 auto; }
+.fnrow .pre{ font-size:12px; color:var(--dim); flex:0 0 auto; }
+.fnrow input[type=text]{
+  flex:1; min-width:0; font-family:inherit; font-size:14px; color:var(--accent); background:#081008;
+  border:2px solid var(--line); padding:6px 8px; outline:none; letter-spacing:1px; text-shadow:0 0 6px var(--soft);
+}
+.fnrow input[type=text]:focus{ border-color:var(--accent); box-shadow:0 0 10px var(--soft); }
+.fnrow input[type=text].bad{ color:#ff6b6b; border-color:#7a3030; text-shadow:none; }
+.fnrow .tog{ width:20px; height:20px; flex:0 0 auto; border:2px solid var(--line); background:#081008; cursor:pointer; position:relative; }
+.fnrow .tog.on{ border-color:var(--accent); }
+.fnrow .tog.on::after{ content:''; position:absolute; inset:3px; background:var(--accent); box-shadow:0 0 8px var(--soft); }
+.err{ font-size:10px; color:#ff8080; letter-spacing:1px; min-height:12px; margin-top:2px; }
+.hint{ font-size:9px; color:var(--dim); letter-spacing:0.5px; line-height:1.5; margin-top:6px; }
+table{ width:100%; border-collapse:collapse; font-size:11px; }
+th,td{ padding:3px 5px; border-bottom:1px solid var(--line); text-align:right; }
+th{ font-size:9px; color:var(--dim); letter-spacing:1px; }
+td.x{ color:var(--dim); }
+td.y{ color:var(--accent); text-shadow:0 0 5px var(--soft); }
+.tblwrap{ overflow-x:auto; }
+.actions{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+button.btn{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  color:var(--accent); background:#0a140a; border:2px solid var(--line);
+  padding:6px 9px; box-shadow:0 3px 0 #051005; text-transform:uppercase;
+}
+button.btn:hover{ border-color:var(--accent); box-shadow:0 3px 0 #051005,0 0 10px var(--soft); }
+button.btn:active{ transform:translateY(2px); box-shadow:0 1px 0 #051005; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>GRAPH PLOTTER</h1>
+  <div class="sub">y = f(x) · DRAG TO PAN · WHEEL / PINCH TO ZOOM</div>
+</header>
+<main>
+  <section class="panel plotwrap">
+    <canvas id="cv"></canvas>
+    <div id="readout"></div>
+    <div id="zoombtns">
+      <button id="zin" title="zoom in">＋</button>
+      <button id="zout" title="zoom out">－</button>
+      <button id="zreset" title="reset view" style="width:auto;padding:0 8px;font-size:10px;">RESET</button>
+    </div>
+  </section>
+  <aside class="side">
+    <div class="panel">
+      <div class="lbl">FUNCTIONS <b>y = f(x)</b></div>
+      <div id="fns"></div>
+      <div class="err" id="err"></div>
+      <div class="hint">funcs: sin cos tan asin acos atan sqrt abs log ln exp floor round · consts: pi e · ops: + − * / ^ ( )</div>
+    </div>
+    <div class="panel">
+      <div class="lbl">TABLE OF <b>VALUES</b></div>
+      <div class="tblwrap"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+      <div class="actions">
+        <button class="btn" id="fitBtn">Fit −10…10</button>
+        <button class="btn" id="clrBtn">Clear f2–f4</button>
+      </div>
+    </div>
+  </aside>
+</main>
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-graph-plot';
+var $=function(id){ return document.getElementById(id); };
+
+/* ================= expression parser (shunting-yard) ================= */
+var FN={
+  sin:Math.sin, cos:Math.cos, tan:Math.tan,
+  asin:Math.asin, acos:Math.acos, atan:Math.atan,
+  sqrt:Math.sqrt, abs:Math.abs,
+  log:function(v){ return Math.log(v)/Math.LN10; }, ln:Math.log,
+  exp:Math.exp, floor:Math.floor, round:Math.round
+};
+var PREC={'+':2,'-':2,'*':3,'/':3,'^':5};
+var RIGHT={'^':true};
+var UPREC=4; /* unary minus/plus precedence: below ^, above * and + */
+
+function tokenize(s){
+  var toks=[], i=0, n=s.length;
+  var numRe=/^(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?/;
+  var idRe=/^[a-zA-Z]+/;
+  function prevT(){ return toks.length?toks[toks.length-1].t:null; }
+  while(i<n){
+    var c=s.charAt(i);
+    if(c===' '||c==='\t'){ i++; continue; }
+    if((c>='0'&&c<='9')||c==='.'){
+      var m=s.slice(i).match(numRe);
+      if(!m) throw 'bad number';
+      toks.push({t:'num',v:parseFloat(m[0])}); i+=m[0].length; continue;
+    }
+    if(/[a-zA-Z]/.test(c)){
+      var mm=s.slice(i).match(idRe), id=mm[0].toLowerCase(); i+=mm[0].length;
+      if(id==='x') toks.push({t:'x'});
+      else if(id==='pi') toks.push({t:'num',v:Math.PI});
+      else if(id==='e') toks.push({t:'num',v:Math.E});
+      else if(FN[id]) toks.push({t:'fn',v:id});
+      else throw 'unknown "'+id+'"';
+      continue;
+    }
+    if(c==='('){ toks.push({t:'lp'}); i++; continue; }
+    if(c===')'){ toks.push({t:'rp'}); i++; continue; }
+    if('+-*/^'.indexOf(c)>=0){
+      var pt=prevT();
+      var unary=(pt===null||pt==='op'||pt==='uop'||pt==='lp');
+      if((c==='-'||c==='+') && unary) toks.push({t:'uop',v:c});
+      else toks.push({t:'op',v:c});
+      i++; continue;
+    }
+    throw 'unexpected "'+c+'"';
+  }
+  return toks;
+}
+function toRPN(toks){
+  var out=[], st=[];
+  for(var k=0;k<toks.length;k++){
+    var t=toks[k];
+    if(t.t==='num'||t.t==='x') out.push(t);
+    else if(t.t==='fn') st.push(t);
+    else if(t.t==='uop') st.push(t);
+    else if(t.t==='op'){
+      while(st.length){
+        var top=st[st.length-1];
+        if(top.t==='op'){
+          var pTop=PREC[top.v], pCur=PREC[t.v];
+          if(pTop>pCur || (pTop===pCur && !RIGHT[t.v])){ out.push(st.pop()); continue; }
+        } else if(top.t==='uop'){
+          if(UPREC>PREC[t.v]){ out.push(st.pop()); continue; }
+        } else if(top.t==='fn'){ out.push(st.pop()); continue; }
+        break;
+      }
+      st.push(t);
+    }
+    else if(t.t==='lp') st.push(t);
+    else if(t.t==='rp'){
+      var found=false;
+      while(st.length){ var x=st.pop(); if(x.t==='lp'){ found=true; break; } out.push(x); }
+      if(!found) throw 'mismatched )';
+      if(st.length && st[st.length-1].t==='fn') out.push(st.pop());
+    }
+  }
+  while(st.length){ var y=st.pop(); if(y.t==='lp') throw 'mismatched ('; out.push(y); }
+  return out;
+}
+function validate(rpn){
+  var depth=0;
+  for(var i=0;i<rpn.length;i++){
+    var t=rpn[i];
+    if(t.t==='num'||t.t==='x') depth++;
+    else if(t.t==='uop'||t.t==='fn'){ if(depth<1) throw 'incomplete expression'; }
+    else if(t.t==='op'){ if(depth<2) throw 'incomplete expression'; depth--; }
+  }
+  if(depth!==1) throw 'incomplete expression';
+}
+function compile(expr){
+  try{
+    var toks=tokenize(expr);
+    if(!toks.length) return {empty:true};
+    var rpn=toRPN(toks);
+    validate(rpn);
+    return { fn:function(x){
+      var s=[], sp=0;
+      for(var i=0;i<rpn.length;i++){
+        var t=rpn[i];
+        if(t.t==='num') s[sp++]=t.v;
+        else if(t.t==='x') s[sp++]=x;
+        else if(t.t==='uop'){ var a=s[--sp]; s[sp++]=(t.v==='-'?-a:a); }
+        else if(t.t==='op'){ var b=s[--sp], a2=s[--sp];
+          s[sp++]= t.v==='+'?a2+b : t.v==='-'?a2-b : t.v==='*'?a2*b : t.v==='/'?a2/b : Math.pow(a2,b); }
+        else if(t.t==='fn'){ var v=s[--sp]; s[sp++]=FN[t.v](v); }
+      }
+      return s[sp-1];
+    }};
+  }catch(e){ return {err:String(e)}; }
+}
+
+/* ================= view + plotting ================= */
+var cv=$('cv'), ctx=cv.getContext('2d');
+var W=0,H=0,DPR=1;
+var view={ cx:0, cy:0, scale:36 }; /* pixels per math unit */
+var COLORS_DEFAULT=['#00e5ff','#ff3d7f','#ffd166','#39ff14'];
+
+function fit(){
+  DPR=window.devicePixelRatio||1;
+  var w=cv.clientWidth||600, h=cv.clientHeight||360;
+  cv.width=Math.round(w*DPR); cv.height=Math.round(h*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  W=w; H=h;
+}
+function sx(mx){ return W/2 + (mx-view.cx)*view.scale; }
+function sy(my){ return H/2 - (my-view.cy)*view.scale; }
+function mx(px){ return view.cx + (px-W/2)/view.scale; }
+function my(py){ return view.cy - (py-H/2)/view.scale; }
+
+function niceStep(raw){
+  var p=Math.pow(10,Math.floor(Math.log(raw)/Math.LN10));
+  var f=raw/p, nf;
+  if(f<1.5) nf=1; else if(f<3) nf=2; else if(f<7) nf=5; else nf=10;
+  return nf*p;
+}
+function fmt(v){
+  if(v===0) return '0';
+  var a=Math.abs(v);
+  if(a<1e-4||a>=1e6) return v.toExponential(1);
+  return String(parseFloat(v.toFixed(6)));
+}
+
+var funcs=[]; /* {expr,color,on,compiled} */
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  var left=mx(0), right=mx(W), top=my(0), bottom=my(H);
+  var step=niceStep(70/view.scale);
+  /* minor grid */
+  ctx.lineWidth=1;
+  ctx.strokeStyle='rgba(57,255,20,0.07)';
+  var minor=step/5;
+  ctx.beginPath();
+  for(var gx=Math.ceil(left/minor)*minor; gx<=right; gx+=minor){ var X=sx(gx); ctx.moveTo(X,0); ctx.lineTo(X,H); }
+  for(var gy=Math.ceil(bottom/minor)*minor; gy<=top; gy+=minor){ var Y=sy(gy); ctx.moveTo(0,Y); ctx.lineTo(W,Y); }
+  ctx.stroke();
+  /* major grid */
+  ctx.strokeStyle='rgba(57,255,20,0.18)';
+  ctx.beginPath();
+  for(var gx2=Math.ceil(left/step)*step; gx2<=right; gx2+=step){ var X2=sx(gx2); ctx.moveTo(X2,0); ctx.lineTo(X2,H); }
+  for(var gy2=Math.ceil(bottom/step)*step; gy2<=top; gy2+=step){ var Y2=sy(gy2); ctx.moveTo(0,Y2); ctx.lineTo(W,Y2); }
+  ctx.stroke();
+  /* axes */
+  ctx.strokeStyle='rgba(180,255,180,0.75)'; ctx.lineWidth=1.5;
+  ctx.beginPath();
+  var ax=sy(0), ay=sx(0);
+  ctx.moveTo(0,ax); ctx.lineTo(W,ax);
+  ctx.moveTo(ay,0); ctx.lineTo(ay,H);
+  ctx.stroke();
+  /* labels */
+  ctx.fillStyle='#8fd88f'; ctx.font='10px "Courier New",monospace';
+  var labelY=Math.min(Math.max(sy(0)+12,12),H-2);
+  ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  for(var lx=Math.ceil(left/step)*step; lx<=right; lx+=step){
+    if(Math.abs(lx)<step/1e6) continue;
+    ctx.fillText(fmt(lx), sx(lx), labelY);
+  }
+  var labelX=Math.min(Math.max(sx(0)+4,4),W-4);
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  for(var ly=Math.ceil(bottom/step)*step; ly<=top; ly+=step){
+    if(Math.abs(ly)<step/1e6) continue;
+    ctx.fillText(fmt(ly), labelX, sy(ly));
+  }
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  ctx.fillStyle='#b6ffb6'; ctx.fillText('0', sx(0)+4, sy(0)+12);
+
+  /* plot functions */
+  for(var f=0;f<funcs.length;f++){
+    var F=funcs[f];
+    if(!F.on || !F.compiled || !F.compiled.fn) continue;
+    var fn=F.compiled.fn;
+    ctx.strokeStyle=F.color; ctx.lineWidth=2;
+    ctx.shadowColor=F.color; ctx.shadowBlur=6;
+    ctx.beginPath();
+    var pen=false, prevY=null;
+    for(var px=0;px<=W;px++){
+      var xv=mx(px), yv;
+      try{ yv=fn(xv); }catch(e){ yv=NaN; }
+      if(!isFinite(yv)){ pen=false; prevY=null; continue; }
+      var Y=sy(yv);
+      /* break on huge vertical jumps (asymptotes) */
+      if(prevY!==null && Math.abs(Y-prevY)>H*4){ pen=false; }
+      if(!pen){ ctx.moveTo(px,Y); pen=true; } else ctx.lineTo(px,Y);
+      prevY=Y;
+    }
+    ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+  drawCrosshair();
+}
+
+/* ---------- crosshair + readout ---------- */
+var hover={active:false, px:0, py:0};
+var readout=$('readout');
+function drawCrosshair(){
+  if(!hover.active) return;
+  ctx.save();
+  ctx.strokeStyle='rgba(255,255,255,0.35)'; ctx.lineWidth=1;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath();
+  ctx.moveTo(hover.px,0); ctx.lineTo(hover.px,H);
+  ctx.moveTo(0,hover.py); ctx.lineTo(W,hover.py);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  var xv=mx(hover.px);
+  /* dots on curves */
+  for(var f=0;f<funcs.length;f++){
+    var F=funcs[f]; if(!F.on||!F.compiled||!F.compiled.fn) continue;
+    var yv; try{ yv=F.compiled.fn(xv); }catch(e){ yv=NaN; }
+    if(isFinite(yv)){
+      ctx.fillStyle=F.color; ctx.beginPath(); ctx.arc(sx(xv),sy(yv),3.5,0,Math.PI*2); ctx.fill();
+    }
+  }
+  ctx.restore();
+  renderReadout(xv);
+}
+function renderReadout(xv){
+  var html='<div class="rx">x = '+fmt2(xv)+'</div>';
+  html+='<div class="rx">y = '+fmt2(my(hover.py))+'</div>';
+  for(var f=0;f<funcs.length;f++){
+    var F=funcs[f]; if(!F.on||!F.compiled||!F.compiled.fn) continue;
+    var yv; try{ yv=F.compiled.fn(xv); }catch(e){ yv=NaN; }
+    html+='<div class="fv"><i style="background:'+F.color+'"></i>f'+(f+1)+' = '+(isFinite(yv)?fmt2(yv):'—')+'</div>';
+  }
+  readout.innerHTML=html;
+}
+function fmt2(v){
+  if(!isFinite(v)) return '—';
+  var a=Math.abs(v);
+  if(a!==0 && (a<1e-3||a>=1e5)) return v.toExponential(2);
+  return String(Math.round(v*1000)/1000);
+}
+function idleReadout(){
+  hover.active=false;
+  var html='<div class="rx" style="color:var(--dim)">hover the plot</div>';
+  for(var f=0;f<funcs.length;f++){
+    var F=funcs[f]; if(!F.on) continue;
+    html+='<div class="fv"><i style="background:'+F.color+'"></i>f'+(f+1)+'</div>';
+  }
+  readout.innerHTML=html;
+}
+
+/* ---------- table of values ---------- */
+function buildTable(){
+  var thead=$('tbl').tHead||$('tbl').createTHead();
+  var tbody=$('tbl').tBodies[0]||$('tbl').createTBody();
+  var active=[]; for(var f=0;f<funcs.length;f++){ if(funcs[f].on && funcs[f].compiled && funcs[f].compiled.fn) active.push(f); }
+  var hh='<tr><th>x</th>';
+  for(var a=0;a<active.length;a++) hh+='<th style="color:'+funcs[active[a]].color+'">f'+(active[a]+1)+'</th>';
+  hh+='</tr>'; thead.innerHTML=hh;
+  var left=mx(0), right=mx(W), N=9, rows='';
+  for(var i=0;i<N;i++){
+    var xv=left+(right-left)*i/(N-1);
+    rows+='<tr><td class="x">'+fmt2(xv)+'</td>';
+    for(var b=0;b<active.length;b++){
+      var yv; try{ yv=funcs[active[b]].compiled.fn(xv); }catch(e){ yv=NaN; }
+      rows+='<td class="y">'+(isFinite(yv)?fmt2(yv):'—')+'</td>';
+    }
+    rows+='</tr>';
+  }
+  tbody.innerHTML=rows;
+}
+
+function redraw(){ draw(); buildTable(); }
+
+/* ---------- function input rows ---------- */
+var fnsEl=$('fns'), errEl=$('err');
+function buildRows(){
+  fnsEl.innerHTML='';
+  for(var f=0;f<funcs.length;f++){
+    (function(idx){
+      var F=funcs[idx];
+      var row=document.createElement('div'); row.className='fnrow';
+      var tog=document.createElement('div'); tog.className='tog'+(F.on?' on':''); tog.title='toggle';
+      var col=document.createElement('input'); col.type='color'; col.value=F.color;
+      var pre=document.createElement('span'); pre.className='pre'; pre.textContent='y=';
+      var inp=document.createElement('input'); inp.type='text'; inp.value=F.expr; inp.spellcheck=false; inp.autocomplete='off';
+      row.appendChild(tog); row.appendChild(col); row.appendChild(pre); row.appendChild(inp);
+      fnsEl.appendChild(row);
+      tog.addEventListener('click',function(){ F.on=!F.on; tog.classList.toggle('on',F.on); recompileAll(); redraw(); save(); });
+      col.addEventListener('input',function(){ F.color=col.value; if(!F.on){ F.on=true; tog.classList.add('on'); } recompileAll(); redraw(); save(); });
+      inp.addEventListener('input',function(){
+        F.expr=inp.value; var c=compile(inp.value); F.compiled=c;
+        if(c.err){ inp.classList.add('bad'); errEl.textContent='f'+(idx+1)+': '+c.err; }
+        else { inp.classList.remove('bad'); if(anyError()) showFirstError(); else errEl.textContent=''; if(inp.value.trim()&&!F.on){ F.on=true; tog.classList.add('on'); } }
+        redraw(); save();
+      });
+    })(f);
+  }
+}
+function anyError(){ for(var f=0;f<funcs.length;f++){ if(funcs[f].expr.trim() && funcs[f].compiled && funcs[f].compiled.err) return true; } return false; }
+function showFirstError(){ for(var f=0;f<funcs.length;f++){ if(funcs[f].expr.trim() && funcs[f].compiled && funcs[f].compiled.err){ errEl.textContent='f'+(f+1)+': '+funcs[f].compiled.err; return; } } errEl.textContent=''; }
+function recompileAll(){ for(var f=0;f<funcs.length;f++){ funcs[f].compiled=compile(funcs[f].expr); } showFirstError(); }
+
+/* ---------- interaction ---------- */
+var pointers={}, pcount=0, panLast=null, pinchDist=0, isDragging=false;
+function evtPos(e){ var r=cv.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top }; }
+cv.addEventListener('pointerdown',function(e){
+  cv.setPointerCapture(e.pointerId);
+  pointers[e.pointerId]=evtPos(e); pcount++;
+  if(pcount===1){ panLast=pointers[e.pointerId]; isDragging=true; }
+  else if(pcount===2){ var ps=vals(pointers); pinchDist=dist(ps[0],ps[1]); isDragging=false; }
+});
+cv.addEventListener('pointermove',function(e){
+  var p=evtPos(e);
+  if(pointers[e.pointerId]!==undefined) pointers[e.pointerId]=p;
+  if(pcount>=2){
+    var ps=vals(pointers); var nd=dist(ps[0],ps[1]); var mid={x:(ps[0].x+ps[1].x)/2,y:(ps[0].y+ps[1].y)/2};
+    if(pinchDist>0){ zoomAt(mid.x,mid.y, nd/pinchDist); }
+    pinchDist=nd; redraw();
+  } else if(isDragging && panLast){
+    var dx=p.x-panLast.x, dy=p.y-panLast.y;
+    view.cx -= dx/view.scale; view.cy += dy/view.scale;
+    panLast=p; hover.active=false; redraw(); save();
+  } else {
+    hover.active=true; hover.px=p.x; hover.py=p.y; draw();
+  }
+});
+function endPtr(e){
+  if(pointers[e.pointerId]!==undefined){ delete pointers[e.pointerId]; pcount=Math.max(0,pcount-1); }
+  if(pcount<2) pinchDist=0;
+  if(pcount===0){ isDragging=false; panLast=null; }
+  else if(pcount===1){ var ps=vals(pointers); panLast=ps[0]; isDragging=true; }
+}
+cv.addEventListener('pointerup',endPtr);
+cv.addEventListener('pointercancel',endPtr);
+cv.addEventListener('pointerleave',function(e){ if(pcount===0){ hover.active=false; idleReadout(); draw(); } });
+cv.addEventListener('wheel',function(e){
+  e.preventDefault();
+  var p=evtPos(e); var factor=e.deltaY<0?1.15:1/1.15;
+  zoomAt(p.x,p.y,factor); hover.active=true; hover.px=p.x; hover.py=p.y; redraw(); save();
+},{passive:false});
+function vals(o){ var r=[]; for(var k in o) r.push(o[k]); return r; }
+function dist(a,b){ var dx=a.x-b.x, dy=a.y-b.y; return Math.sqrt(dx*dx+dy*dy); }
+function zoomAt(px,py,factor){
+  var mX=mx(px), mY=my(py);
+  view.scale*=factor;
+  view.scale=Math.max(0.2,Math.min(view.scale,500000));
+  view.cx = mX-(px-W/2)/view.scale;
+  view.cy = mY+(py-H/2)/view.scale;
+}
+$('zin').addEventListener('click',function(){ zoomAt(W/2,H/2,1.3); redraw(); save(); });
+$('zout').addEventListener('click',function(){ zoomAt(W/2,H/2,1/1.3); redraw(); save(); });
+$('zreset').addEventListener('click',function(){ resetView(); redraw(); save(); });
+$('fitBtn').addEventListener('click',function(){ resetView(); redraw(); save(); });
+$('clrBtn').addEventListener('click',function(){
+  for(var f=1;f<funcs.length;f++){ funcs[f].expr=''; funcs[f].on=false; funcs[f].compiled=compile(''); }
+  buildRows(); recompileAll(); redraw(); save();
+});
+function resetView(){
+  view.cx=0; view.cy=0;
+  view.scale=(W>0?W:600)/20; /* ~ -10..10 across width */
+}
+
+/* ---------- persistence ---------- */
+function save(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      funcs:funcs.map(function(F){ return {expr:F.expr,color:F.color,on:F.on}; }),
+      view:{cx:view.cx,cy:view.cy,scale:view.scale}
+    }));
+  }catch(e){}
+}
+function load(){
+  try{ return JSON.parse(localStorage.getItem(LS_KEY)||'null'); }catch(e){ return null; }
+}
+
+/* ---------- init ---------- */
+function defaults(){
+  return [
+    {expr:'sin(x)', color:COLORS_DEFAULT[0], on:true},
+    {expr:'x^2/10', color:COLORS_DEFAULT[1], on:true},
+    {expr:'', color:COLORS_DEFAULT[2], on:false},
+    {expr:'', color:COLORS_DEFAULT[3], on:false}
+  ];
+}
+(function init(){
+  fit();
+  var s=load(), src;
+  if(s && s.funcs && s.funcs.length){
+    src=[]; for(var i=0;i<4;i++){ var d=s.funcs[i]||{expr:'',color:COLORS_DEFAULT[i],on:false};
+      src.push({expr:d.expr||'', color:d.color||COLORS_DEFAULT[i], on:!!d.on}); }
+  } else src=defaults();
+  funcs=src.map(function(F){ return {expr:F.expr,color:F.color,on:F.on,compiled:compile(F.expr)}; });
+  if(s && s.view && isFinite(s.view.scale) && s.view.scale>0){
+    view.cx=s.view.cx||0; view.cy=s.view.cy||0; view.scale=s.view.scale;
+  } else { resetView(); }
+  buildRows(); showFirstError(); idleReadout(); redraw();
+})();
+
+window.addEventListener('resize',function(){ fit(); redraw(); });
+})();
+</script>
+</body>
+</html>

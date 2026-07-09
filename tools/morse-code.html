@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morse Translator · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ffb000; --soft:rgba(255,176,0,.4);
+  --panel:#1a160c; --line:#5a4410; --text:#ffe9b0; --dim:#b89b5a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:8px 12px 40px;
+}
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:linear-gradient(rgba(255,176,0,.03) 1px,transparent 1px),
+             linear-gradient(90deg,rgba(255,176,0,.03) 1px,transparent 1px);
+  background-size:26px 26px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:6px 8px 2px; position:relative; z-index:1; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:900px; margin:8px auto 0; position:relative; z-index:1; display:flex; flex-direction:column; gap:12px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line);
+  box-shadow:0 0 22px rgba(255,176,0,.08), inset 0 1px 0 rgba(255,255,255,.04);
+  padding:12px 14px;
+}
+.lbl{ font-size:10px; letter-spacing:3px; color:var(--dim); margin-bottom:6px; text-transform:uppercase; }
+.lbl b{ color:var(--accent); font-weight:normal; text-shadow:0 0 6px var(--soft); }
+.io{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media(max-width:640px){ .io{ grid-template-columns:1fr; } }
+textarea{
+  width:100%; min-height:96px; resize:vertical; font-family:inherit;
+  font-size:16px; line-height:1.5; color:var(--accent); background:#100d05;
+  border:2px solid var(--line); padding:9px 11px; outline:none; letter-spacing:1px;
+  text-shadow:0 0 6px var(--soft); box-shadow:inset 0 2px 8px rgba(0,0,0,.6);
+}
+textarea:focus{ border-color:var(--accent); box-shadow:inset 0 2px 8px rgba(0,0,0,.6),0 0 12px var(--soft); }
+textarea#morse{ letter-spacing:3px; }
+.controls{ display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; }
+.slider{ display:flex; align-items:center; gap:8px; flex:1 1 220px; }
+.slider input[type=range]{ flex:1; -webkit-appearance:none; appearance:none; height:6px; background:#3a2e08; outline:none; border:1px solid var(--line); }
+.slider input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; appearance:none; width:16px; height:22px; background:var(--accent); box-shadow:0 0 10px var(--soft); cursor:pointer; }
+.slider input[type=range]::-moz-range-thumb{ width:16px; height:22px; border:none; background:var(--accent); box-shadow:0 0 10px var(--soft); cursor:pointer; }
+.slider .v{ font-size:12px; color:var(--accent); min-width:74px; text-shadow:0 0 6px var(--soft); }
+button.btn{
+  font-family:inherit; font-size:12px; letter-spacing:1px; cursor:pointer;
+  color:var(--accent); background:#140f04; border:2px solid var(--line);
+  padding:8px 13px; box-shadow:0 3px 0 #0a0802; text-transform:uppercase;
+}
+button.btn:hover{ border-color:var(--accent); box-shadow:0 3px 0 #0a0802,0 0 12px var(--soft); }
+button.btn:active{ transform:translateY(2px); box-shadow:0 1px 0 #0a0802; }
+button.btn.on{ color:#100d05; background:var(--accent); box-shadow:0 3px 0 #0a0802,0 0 14px var(--soft); }
+.grid2{ display:grid; grid-template-columns:1.1fr 1fr; gap:12px; }
+@media(max-width:720px){ .grid2{ grid-template-columns:1fr; } }
+#lamp{
+  height:130px; border:2px solid var(--line); background:#0a0803; position:relative;
+  display:flex; align-items:center; justify-content:center; overflow:hidden; transition:background .04s, box-shadow .04s;
+}
+#lamp.lit{ background:radial-gradient(circle at 50% 45%, #fff6d8, #ffb000 55%, #7a5300 100%); box-shadow:inset 0 0 40px rgba(255,255,255,.5),0 0 40px var(--accent); }
+#lampTxt{ font-size:12px; letter-spacing:2px; color:var(--dim); position:absolute; bottom:8px; z-index:2; }
+#lamp.lit #lampTxt{ color:#3a2a00; }
+#lampSym{ font-size:44px; color:#2a2208; font-weight:bold; z-index:2; }
+#lamp.lit #lampSym{ color:#fff; text-shadow:0 0 20px #fff; }
+.tapwrap{ display:flex; flex-direction:column; gap:9px; }
+#tapKey{
+  height:78px; font-family:inherit; font-size:14px; letter-spacing:2px; cursor:pointer;
+  color:var(--accent); background:#140f04; border:2px solid var(--line); box-shadow:0 4px 0 #0a0802;
+  user-select:none; touch-action:none; text-transform:uppercase;
+}
+#tapKey.down{ transform:translateY(3px); box-shadow:0 1px 0 #0a0802; color:#100d05; background:var(--accent); }
+.taprow{ display:flex; gap:8px; align-items:center; }
+.taprow .mini{ flex:0 0 auto; font-size:11px; padding:6px 10px; }
+#tapBuf{ flex:1; font-size:20px; letter-spacing:4px; color:var(--accent); min-height:26px; text-shadow:0 0 8px var(--soft); word-break:break-all; }
+#tapOut{ font-size:14px; letter-spacing:2px; color:var(--text); min-height:20px; word-break:break-word; }
+.chart{ display:grid; grid-template-columns:repeat(auto-fill,minmax(88px,1fr)); gap:5px; }
+.cell{ display:flex; align-items:baseline; gap:6px; border:1px solid var(--line); padding:4px 7px; background:#120e05; }
+.cell b{ color:var(--accent); font-size:14px; width:16px; text-shadow:0 0 6px var(--soft); }
+.cell span{ color:var(--dim); font-size:13px; letter-spacing:1px; }
+.cell.hot{ border-color:var(--accent); background:#241a05; box-shadow:0 0 12px var(--soft); }
+.cell.hot span{ color:var(--text); }
+#msg{ text-align:center; font-size:11px; color:var(--accent); letter-spacing:1px; min-height:14px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>MORSE TRANSLATOR</h1>
+  <div class="sub">TEXT ↔ DITS &amp; DAHS · SOUND · LIGHT · TAP INPUT</div>
+</header>
+<main>
+  <section class="panel">
+    <div class="io">
+      <div>
+        <div class="lbl">PLAIN <b>TEXT</b></div>
+        <textarea id="text" spellcheck="false" autocomplete="off" aria-label="plain text"></textarea>
+      </div>
+      <div>
+        <div class="lbl"><b>MORSE</b> CODE</div>
+        <textarea id="morse" spellcheck="false" autocomplete="off" aria-label="morse code"></textarea>
+      </div>
+    </div>
+    <div class="controls" style="margin-top:11px;">
+      <div class="slider">
+        <span style="font-size:11px;color:var(--dim);letter-spacing:1px;">SPEED</span>
+        <input id="wpm" type="range" min="5" max="40" step="1" value="18" aria-label="words per minute">
+        <span class="v" id="wpmV">18 WPM</span>
+      </div>
+      <button class="btn" id="play">▶ Play</button>
+      <button class="btn" id="stop">■ Stop</button>
+      <button class="btn" id="flash">Light Mode</button>
+      <button class="btn" id="swap">⇄ Swap</button>
+      <button class="btn" id="clear">Clear</button>
+    </div>
+  </section>
+
+  <section class="grid2">
+    <div class="panel">
+      <div class="lbl">FLASHING <b>LIGHT</b></div>
+      <div id="lamp"><div id="lampSym">·</div><div id="lampTxt">READY — PRESS PLAY</div></div>
+    </div>
+    <div class="panel tapwrap">
+      <div class="lbl">TAP <b>KEY</b> — HOLD SHORT = DIT · LONG = DAH</div>
+      <button id="tapKey">TAP HERE</button>
+      <div class="taprow">
+        <div id="tapBuf">·−</div>
+        <button class="btn mini" id="tapBack">⌫</button>
+        <button class="btn mini" id="tapSpace">␣ WORD</button>
+        <button class="btn mini" id="tapClear">CLR</button>
+      </div>
+      <div id="tapOut">A</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="lbl">REFERENCE <b>CHART</b></div>
+    <div class="chart" id="chart"></div>
+  </section>
+  <div id="msg"></div>
+</main>
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-morse-code';
+var $=function(id){ return document.getElementById(id); };
+
+/* ---------- morse table ---------- */
+var M={
+ 'A':'.-','B':'-...','C':'-.-.','D':'-..','E':'.','F':'..-.','G':'--.','H':'....',
+ 'I':'..','J':'.---','K':'-.-','L':'.-..','M':'--','N':'-.','O':'---','P':'.--.',
+ 'Q':'--.-','R':'.-.','S':'...','T':'-','U':'..-','V':'...-','W':'.--','X':'-..-',
+ 'Y':'-.--','Z':'--..','0':'-----','1':'.----','2':'..---','3':'...--','4':'....-',
+ '5':'.....','6':'-....','7':'--...','8':'---..','9':'----.','.':'.-.-.-',',':'--..--',
+ '?':'..--..','\'':'.----.','!':'-.-.--','/':'-..-.','(':'-.--.',')':'-.--.-',
+ '&':'.-...',':':'---...',';':'-.-.-.','=':'-...-','+':'.-.-.','-':'-....-',
+ '_':'..--.-','"':'.-..-.','$':'...-..-','@':'.--.-.'
+};
+var R={}; for(var k in M){ R[M[k]]=k; }
+
+/* ---------- convert ---------- */
+function textToMorse(t){
+  var words=String(t).toUpperCase().split(/ +/);
+  var out=[];
+  for(var w=0;w<words.length;w++){
+    if(words[w]==='') continue;
+    var chars=words[w].split(''), parts=[];
+    for(var i=0;i<chars.length;i++){
+      var c=chars[i];
+      if(c==='\n'){ parts.push('\n'); continue; }
+      if(M[c]) parts.push(M[c]);
+    }
+    out.push(parts.join(' '));
+  }
+  return out.join(' / ');
+}
+function morseToText(m){
+  var words=String(m).trim().split(/\s*\/\s*/);
+  var out=[];
+  for(var w=0;w<words.length;w++){
+    var syms=words[w].trim().split(/\s+/), letters=[];
+    for(var i=0;i<syms.length;i++){
+      var s=syms[i]; if(!s) continue;
+      letters.push(R[s]!==undefined?R[s]:'□'); /* box for unknown */
+    }
+    out.push(letters.join(''));
+  }
+  return out.join(' ');
+}
+
+var textEl=$('text'), morseEl=$('morse');
+var last={text:'',morse:''};
+function fromText(){
+  var t=textEl.value;
+  var m=textToMorse(t);
+  morseEl.value=m; last.text=t; last.morse=m; save();
+}
+function fromMorse(){
+  var m=morseEl.value;
+  var t=morseToText(m);
+  textEl.value=t; last.text=t; last.morse=m; save();
+}
+
+/* ---------- persistence ---------- */
+var wpmEl=$('wpm');
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({t:textEl.value, wpm:wpmEl.value})); }catch(e){}
+}
+function load(){
+  try{
+    var s=JSON.parse(localStorage.getItem(LS_KEY)||'null');
+    if(s){
+      if(typeof s.t==='string') textEl.value=s.t;
+      if(s.wpm) wpmEl.value=s.wpm;
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+/* ---------- audio ---------- */
+var AC=null, master=null;
+function ctx(){
+  if(!AC){
+    AC=new (window.AudioContext||window.webkitAudioContext)();
+    master=AC.createGain(); master.gain.value=0.0001; master.connect(AC.destination);
+  }
+  if(AC.state==='suspended') AC.resume();
+  return AC;
+}
+var TONE=600;
+function unitMs(){ return 1200/parseInt(wpmEl.value,10); }
+
+/* build timeline of {on,dur(ms)} from morse string */
+function timeline(m){
+  var u=unitMs(), seq=[];
+  var words=String(m).trim().split(/\s*\/\s*/);
+  for(var w=0;w<words.length;w++){
+    var syms=words[w].trim().split(/\s+/);
+    for(var i=0;i<syms.length;i++){
+      var s=syms[i]; if(!s) continue;
+      for(var j=0;j<s.length;j++){
+        seq.push({on:true,dur:(s[j]==='-'?3:1)*u});
+        if(j<s.length-1) seq.push({on:false,dur:u}); /* intra-char */
+      }
+      if(i<syms.length-1) seq.push({on:false,dur:3*u}); /* inter-char */
+    }
+    if(w<words.length-1) seq.push({on:false,dur:7*u}); /* word gap */
+  }
+  return seq;
+}
+
+var playing=false, rafId=0, playTimer=0;
+var lamp=$('lamp'), lampTxt=$('lampTxt'), lampSym=$('lampSym'), lightMode=false;
+
+function setLamp(on){
+  lamp.classList.toggle('lit',on);
+  lampSym.textContent=on?'●':'·';
+}
+function stopPlay(){
+  playing=false;
+  if(rafId) cancelAnimationFrame(rafId), rafId=0;
+  if(playTimer) clearTimeout(playTimer), playTimer=0;
+  if(AC && master){ try{ master.gain.cancelScheduledValues(AC.currentTime); master.gain.setValueAtTime(0.0001,AC.currentTime); }catch(e){} }
+  setLamp(false); lampTxt.textContent='READY — PRESS PLAY';
+  $('play').classList.remove('on');
+}
+function play(){
+  stopPlay();
+  var m=morseEl.value.trim();
+  if(!m){ flash('nothing to send'); return; }
+  var seq=timeline(m);
+  if(!seq.length){ flash('nothing to send'); return; }
+  playing=true; $('play').classList.add('on');
+  var ac=ctx();
+  var vol=lightMode?0.0001:0.28; /* light mode = silent flashing */
+  /* schedule audio via master gain gating a single oscillator */
+  var osc=ac.createOscillator(); osc.type='sine'; osc.frequency.value=TONE;
+  osc.connect(master);
+  var t0=ac.currentTime+0.06;
+  var t=t0, ramp=0.006;
+  master.gain.cancelScheduledValues(ac.currentTime);
+  master.gain.setValueAtTime(0.0001,ac.currentTime);
+  for(var i=0;i<seq.length;i++){
+    var d=seq[i].dur/1000;
+    if(seq[i].on && !lightMode){
+      master.gain.setValueAtTime(0.0001,t);
+      master.gain.exponentialRampToValueAtTime(vol,t+ramp);
+      master.gain.setValueAtTime(vol,t+Math.max(d-ramp,ramp));
+      master.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    }
+    t+=d;
+  }
+  osc.start(t0); osc.stop(t+0.05);
+  /* drive lamp + text highlight in real time */
+  var starts=[], acc=0;
+  for(var s=0;s<seq.length;s++){ starts.push(acc); acc+=seq[s].dur; }
+  var total=acc;
+  var perfStart=performance.now()+60;
+  lampTxt.textContent='SENDING…';
+  function loop(){
+    if(!playing) return;
+    var el=performance.now()-perfStart;
+    if(el<0){ rafId=requestAnimationFrame(loop); return; }
+    if(el>=total){ stopPlay(); return; }
+    /* find current segment */
+    var idx=0;
+    for(var q=0;q<seq.length;q++){ if(el>=starts[q]) idx=q; else break; }
+    setLamp(seq[idx].on);
+    rafId=requestAnimationFrame(loop);
+  }
+  rafId=requestAnimationFrame(loop);
+}
+
+/* Light-only mode: flash the panel with audio muted */
+var lightBtn=$('flash');
+lightBtn.addEventListener('click',function(){
+  lightMode=!lightMode;
+  lightBtn.classList.toggle('on',lightMode);
+  flash(lightMode?'light mode — audio muted while playing':'audio on');
+});
+
+/* ---------- controls ---------- */
+$('play').addEventListener('click',play);
+$('stop').addEventListener('click',stopPlay);
+$('swap').addEventListener('click',function(){
+  var t=textEl.value; textEl.value=morseToText(morseEl.value); morseEl.value=textToMorse(t); save();
+  highlightChart('');
+});
+$('clear').addEventListener('click',function(){
+  stopPlay(); textEl.value=''; morseEl.value=''; save(); highlightChart('');
+});
+
+textEl.addEventListener('input',function(){ fromText(); highlightLastChar(); });
+morseEl.addEventListener('input',function(){ fromMorse(); });
+wpmEl.addEventListener('input',function(){ $('wpmV').textContent=wpmEl.value+' WPM'; save(); });
+
+function highlightLastChar(){
+  var v=textEl.value.replace(/\s+$/,'');
+  var c=v.slice(-1).toUpperCase();
+  highlightChart(c);
+}
+
+/* ---------- flash message ---------- */
+var msgEl=$('msg'), msgT=null;
+function flash(t){ msgEl.textContent=t; if(msgT) clearTimeout(msgT); msgT=setTimeout(function(){ msgEl.textContent=''; },2200); }
+
+/* ---------- reference chart ---------- */
+var chart=$('chart'), cellMap={};
+(function buildChart(){
+  var order='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,?/'.split('');
+  order.forEach(function(c){
+    if(!M[c]) return;
+    var d=document.createElement('div'); d.className='cell';
+    d.innerHTML='<b>'+(c==='/'?'/':c)+'</b><span>'+M[c].replace(/\./g,'·').replace(/-/g,'−')+'</span>';
+    chart.appendChild(d); cellMap[c]=d;
+  });
+})();
+function highlightChart(c){
+  for(var k in cellMap) cellMap[k].classList.remove('hot');
+  if(cellMap[c]) cellMap[c].classList.add('hot');
+}
+
+/* ---------- tap key ---------- */
+var tapKey=$('tapKey'), tapBuf=$('tapBuf'), tapOut=$('tapOut');
+var tapSymbol='.-', tapWords=['A'], downAt=0, holdOsc=null, holdGain=null, letterTimer=0, wordTimer=0, committed='A';
+function tapUnit(){ return unitMs(); }
+function beepStart(){
+  var ac=ctx();
+  holdOsc=ac.createOscillator(); holdGain=ac.createGain();
+  holdOsc.type='sine'; holdOsc.frequency.value=TONE;
+  holdGain.gain.setValueAtTime(0.0001,ac.currentTime);
+  holdGain.gain.exponentialRampToValueAtTime(0.25,ac.currentTime+0.006);
+  holdOsc.connect(holdGain); holdGain.connect(ac.destination);
+  holdOsc.start();
+}
+function beepStop(){
+  if(holdOsc){ try{ var ac=AC; holdGain.gain.cancelScheduledValues(ac.currentTime); holdGain.gain.setValueAtTime(holdGain.gain.value,ac.currentTime); holdGain.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+0.01); holdOsc.stop(ac.currentTime+0.03);}catch(e){} holdOsc=null; holdGain=null; }
+}
+function renderTap(){
+  tapBuf.textContent=tapSymbol.replace(/\./g,'·').replace(/-/g,'−')||'—';
+  tapOut.textContent=committed||' ';
+}
+function commitLetter(){
+  if(!tapSymbol) return;
+  var ch=R[tapSymbol]!==undefined?R[tapSymbol]:'□';
+  committed+=ch; tapSymbol=''; renderTap();
+  syncTapToBoxes();
+}
+function syncTapToBoxes(){
+  /* push committed decoded text into the main boxes */
+  textEl.value=committed; fromText(); highlightChart(committed.slice(-1));
+}
+function tapDown(e){
+  e.preventDefault();
+  if(letterTimer) clearTimeout(letterTimer), letterTimer=0;
+  if(wordTimer) clearTimeout(wordTimer), wordTimer=0;
+  tapKey.classList.add('down'); downAt=performance.now();
+  if(!lightMode) beepStart();
+}
+function tapUp(e){
+  e.preventDefault();
+  if(!downAt) return;
+  tapKey.classList.remove('down'); beepStop();
+  var dur=performance.now()-downAt; downAt=0;
+  tapSymbol+=(dur >= tapUnit()*2 ? '-' : '.');
+  renderTap();
+  var u=tapUnit();
+  letterTimer=setTimeout(commitLetter, u*3);
+  wordTimer=setTimeout(function(){ commitLetter(); committed+=' '; renderTap(); syncTapToBoxes(); }, u*7);
+}
+tapKey.addEventListener('pointerdown',tapDown);
+tapKey.addEventListener('pointerup',tapUp);
+tapKey.addEventListener('pointerleave',function(e){ if(downAt) tapUp(e); });
+tapKey.addEventListener('pointercancel',function(e){ if(downAt) tapUp(e); });
+$('tapBack').addEventListener('click',function(){
+  if(tapSymbol) tapSymbol=tapSymbol.slice(0,-1);
+  else committed=committed.slice(0,-1);
+  renderTap(); syncTapToBoxes();
+});
+$('tapSpace').addEventListener('click',function(){
+  if(tapSymbol) commitLetter();
+  committed+=' '; renderTap(); syncTapToBoxes();
+});
+$('tapClear').addEventListener('click',function(){
+  tapSymbol=''; committed=''; renderTap(); syncTapToBoxes();
+});
+
+/* ---------- init ---------- */
+if(!load()){ textEl.value='SOS Wizzed Arcade'; }
+$('wpmV').textContent=wpmEl.value+' WPM';
+fromText();
+committed=textEl.value.toUpperCase();
+renderTap();
+highlightChart('S');
+window.addEventListener('resize',function(){});
+})();
+</script>
+</body>
+</html>

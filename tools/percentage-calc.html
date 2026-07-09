@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Percent Calculator · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ff4fd8; --soft:rgba(255,79,216,.45);
+  --panel:#1a1424; --line:#3b2b4e; --text:#f6e6f2; --dim:#a985a0;
+  --good:#3ddc84; --bad:#ff6b6b;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:8px 12px 40px;
+}
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:linear-gradient(rgba(255,79,216,.035) 1px,transparent 1px),
+             linear-gradient(90deg,rgba(255,79,216,.035) 1px,transparent 1px);
+  background-size:28px 28px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:6px 8px 2px; position:relative; z-index:1; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{
+  max-width:860px; margin:10px auto 0; position:relative; z-index:1;
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:12px;
+}
+.card{
+  background:var(--panel); border:2px solid var(--line);
+  box-shadow:0 0 22px rgba(255,79,216,.08), inset 0 1px 0 rgba(255,255,255,.05);
+  padding:12px 14px 14px; display:flex; flex-direction:column; gap:9px;
+}
+.card h2{
+  font-size:11px; letter-spacing:2px; color:var(--accent);
+  text-shadow:0 0 6px var(--soft); border-bottom:1px solid var(--line); padding-bottom:6px;
+}
+.row{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; font-size:13px; color:var(--dim); }
+.row input{
+  font-family:inherit; font-size:15px; font-weight:bold; color:var(--text);
+  background:#0a0c16; border:2px solid var(--line); outline:none;
+  padding:6px 8px; width:92px; text-align:right;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.6);
+}
+.row input:focus{ border-color:var(--accent); box-shadow:inset 0 2px 6px rgba(0,0,0,.6), 0 0 10px var(--soft); }
+.row input.bad{ color:var(--bad); }
+.res{
+  background:#0a0c16; border:1px solid var(--line); padding:9px 10px;
+  display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:auto;
+}
+.res .val{
+  font-size:clamp(17px,2.6vw,21px); font-weight:bold; color:var(--accent);
+  text-shadow:0 0 8px var(--soft); overflow-wrap:anywhere;
+}
+.res .val.up{ color:var(--good); text-shadow:0 0 8px rgba(61,220,132,.5); }
+.res .val.down{ color:var(--bad); text-shadow:0 0 8px rgba(255,107,107,.5); }
+.sub-res{ font-size:11px; color:var(--dim); letter-spacing:1px; min-height:14px; }
+.sub-res b{ color:var(--text); font-weight:normal; }
+button.copy{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer; flex:0 0 auto;
+  color:var(--dim); background:transparent; border:1px solid var(--line); padding:5px 9px;
+}
+button.copy:hover{ color:var(--accent); border-color:var(--accent); }
+button.copy.ok{ color:#031418; background:var(--good); border-color:var(--good); }
+footer{
+  text-align:center; font-size:10px; color:var(--dim); letter-spacing:1px;
+  margin-top:14px; position:relative; z-index:1;
+}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>PERCENT CALCULATOR</h1>
+  <div class="sub">FOUR LIVE CARDS · EVERY ANSWER ONE KEYSTROKE AWAY</div>
+</header>
+<main>
+  <section class="card" id="cardA">
+    <h2>WHAT IS X% OF Y</h2>
+    <div class="row">
+      <input id="aP" type="text" inputmode="decimal" value="15" autocomplete="off"> % of
+      <input id="aY" type="text" inputmode="decimal" value="80" autocomplete="off">
+    </div>
+    <div class="sub-res" id="aSub"></div>
+    <div class="res"><span class="val" id="aRes">…</span><button class="copy" type="button" data-for="aRes">COPY</button></div>
+  </section>
+
+  <section class="card" id="cardB">
+    <h2>X IS WHAT % OF Y</h2>
+    <div class="row">
+      <input id="bX" type="text" inputmode="decimal" value="25" autocomplete="off"> is what % of
+      <input id="bY" type="text" inputmode="decimal" value="200" autocomplete="off">
+    </div>
+    <div class="sub-res" id="bSub"></div>
+    <div class="res"><span class="val" id="bRes">…</span><button class="copy" type="button" data-for="bRes">COPY</button></div>
+  </section>
+
+  <section class="card" id="cardC">
+    <h2>% CHANGE FROM A TO B</h2>
+    <div class="row">
+      from <input id="cA" type="text" inputmode="decimal" value="150" autocomplete="off">
+      to <input id="cB" type="text" inputmode="decimal" value="180" autocomplete="off">
+    </div>
+    <div class="sub-res" id="cSub"></div>
+    <div class="res"><span class="val" id="cRes">…</span><button class="copy" type="button" data-for="cRes">COPY</button></div>
+  </section>
+
+  <section class="card" id="cardD">
+    <h2>DISCOUNT (− X% + OPTIONAL TAX)</h2>
+    <div class="row">
+      price <input id="dP" type="text" inputmode="decimal" value="60" autocomplete="off">
+      − <input id="dD" type="text" inputmode="decimal" value="25" autocomplete="off"> %
+      tax <input id="dT" type="text" inputmode="decimal" value="8" autocomplete="off"> %
+    </div>
+    <div class="sub-res" id="dSub"></div>
+    <div class="res"><span class="val" id="dRes">…</span><button class="copy" type="button" data-for="dRes">COPY</button></div>
+  </section>
+</main>
+<footer>results update live · copy buttons grab the answer</footer>
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-percentage-calc';
+var FIELDS=['aP','aY','bX','bY','cA','cB','dP','dD','dT'];
+var $=function(id){ return document.getElementById(id); };
+
+/* restore */
+try{
+  var raw=localStorage.getItem(LS_KEY);
+  if(raw){
+    var s=JSON.parse(raw);
+    if(s && typeof s==='object'){
+      FIELDS.forEach(function(f){ if(typeof s[f]==='string') $(f).value=s[f]; });
+    }
+  }
+}catch(e){}
+
+function save(){
+  var s={};
+  FIELDS.forEach(function(f){ s[f]=$(f).value; });
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(s)); }catch(e){}
+}
+
+function num(id){
+  var el=$(id);
+  var c=el.value.trim().replace(/[,$\s%]/g,'');
+  var n=(c===''||c==='-'||c==='.')?NaN:Number(c);
+  el.classList.toggle('bad', isNaN(n));
+  return n;
+}
+function round2(x){ return Math.round((x+Number.EPSILON)*100)/100; }
+function fmt(x,dec){
+  if(!isFinite(x)) return '—';
+  if(dec===undefined) dec=2;
+  var v=x.toFixed(dec);
+  /* trim useless trailing zeros but keep money-style pairs when dec===2 stays */
+  var parts=v.split('.');
+  var neg=parts[0].charAt(0)==='-';
+  var ip=(neg?parts[0].slice(1):parts[0]).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  return (neg?'-':'')+ip+(parts[1]?'.'+parts[1]:'');
+}
+function fmtSmart(x){
+  if(!isFinite(x)) return '—';
+  if(Math.abs(x)>=1e15) return x.toExponential(4);
+  var r=round2(x);
+  if(r===Math.trunc(r)) return fmt(r,0);
+  return fmt(r,2);
+}
+
+function calcA(){
+  var p=num('aP'), y=num('aY');
+  if(isNaN(p)||isNaN(y)){ $('aRes').textContent='—'; $('aSub').textContent=''; return; }
+  var r=p/100*y;
+  $('aRes').textContent=fmtSmart(r);
+  $('aSub').innerHTML='because <b>'+fmtSmart(p)+' ÷ 100 × '+fmtSmart(y)+'</b>';
+}
+function calcB(){
+  var x=num('bX'), y=num('bY');
+  if(isNaN(x)||isNaN(y)||y===0){ $('bRes').textContent=y===0?'÷0 !':'—'; $('bSub').textContent=y===0?'Y must not be zero':''; return; }
+  var r=x/y*100;
+  $('bRes').textContent=fmtSmart(r)+' %';
+  $('bSub').innerHTML='because <b>'+fmtSmart(x)+' ÷ '+fmtSmart(y)+' × 100</b>';
+}
+function calcC(){
+  var a=num('cA'), b=num('cB');
+  var el=$('cRes');
+  el.classList.remove('up','down');
+  if(isNaN(a)||isNaN(b)||a===0){ el.textContent=a===0?'÷0 !':'—'; $('cSub').textContent=a===0?'starting value must not be zero':''; return; }
+  var r=(b-a)/Math.abs(a)*100;
+  var word = r>0?'INCREASE':(r<0?'DECREASE':'NO CHANGE');
+  if(r>0) el.classList.add('up'); else if(r<0) el.classList.add('down');
+  el.textContent=(r>0?'+':'')+fmtSmart(r)+' %';
+  $('cSub').innerHTML='<b>'+word+'</b> · difference of <b>'+fmtSmart(b-a)+'</b>';
+}
+function calcD(){
+  var p=num('dP'), d=num('dD'), t=num('dT');
+  if(isNaN(t)&&$('dT').value.trim()===''){ t=0; $('dT').classList.remove('bad'); }
+  if(isNaN(p)||isNaN(d)||isNaN(t)){ $('dRes').textContent='—'; $('dSub').textContent=''; return; }
+  var savings=p*d/100;
+  var sale=p-savings;
+  var final=sale*(1+t/100);
+  $('dRes').textContent=fmt(round2(final),2);
+  $('dSub').innerHTML='sale price <b>'+fmt(round2(sale),2)+'</b> · you save <b>'+fmt(round2(savings),2)+'</b>'+(t?' · tax adds <b>'+fmt(round2(final-sale),2)+'</b>':'');
+}
+
+function recalcAll(){ calcA(); calcB(); calcC(); calcD(); }
+
+FIELDS.forEach(function(f){
+  $(f).addEventListener('input',function(){ recalcAll(); save(); });
+});
+
+/* copy buttons */
+function doCopy(text,btn){
+  function done(){
+    btn.classList.add('ok'); btn.textContent='COPIED';
+    setTimeout(function(){ btn.classList.remove('ok'); btn.textContent='COPY'; },900);
+  }
+  function fallback(){
+    var ta=document.createElement('textarea');
+    ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); done(); }catch(e){}
+    document.body.removeChild(ta);
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done,fallback);
+  }else fallback();
+}
+Array.prototype.forEach.call(document.querySelectorAll('button.copy'),function(btn){
+  btn.addEventListener('click',function(){
+    doCopy($(btn.getAttribute('data-for')).textContent, btn);
+  });
+});
+
+recalcAll();
+})();
+</script>
+</body>
+</html>

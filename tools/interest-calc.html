@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interest Calculator · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#2eff9e; --soft:rgba(46,255,158,.4);
+  --panel:#121a16; --line:#2b4e3d; --text:#e6fff2; --dim:#7fb89b;
+  --contrib:#1d9e6b; --simple:#ffd54a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:8px 12px 40px;
+}
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:linear-gradient(rgba(46,255,158,.035) 1px,transparent 1px),
+             linear-gradient(90deg,rgba(46,255,158,.035) 1px,transparent 1px);
+  background-size:28px 28px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:6px 8px 2px; position:relative; z-index:1; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:880px; margin:8px auto 0; position:relative; z-index:1; display:flex; flex-direction:column; gap:12px; }
+#top{ display:flex; flex-wrap:wrap; gap:12px; align-items:stretch; }
+.panel{
+  background:var(--panel); border:2px solid var(--line);
+  box-shadow:0 0 22px rgba(46,255,158,.10), inset 0 1px 0 rgba(255,255,255,.04);
+  padding:12px 14px;
+}
+#inputs{ flex:1 1 250px; min-width:240px; display:grid; grid-template-columns:1fr 1fr; gap:10px; align-content:start; }
+.field{ display:flex; flex-direction:column; gap:4px; }
+.field.wide{ grid-column:1/-1; }
+.field label{ font-size:9px; letter-spacing:1.5px; color:var(--dim); }
+.field input, .field select{
+  width:100%; font-family:inherit; font-size:16px; font-weight:bold;
+  color:var(--accent); background:#0a120e; border:2px solid var(--line);
+  padding:7px 9px; text-align:right; outline:none;
+  text-shadow:0 0 7px var(--soft);
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.6);
+}
+.field select{ text-align:left; cursor:pointer; text-shadow:none; color:var(--text); font-size:13px; }
+.field input:focus, .field select:focus{ border-color:var(--accent); box-shadow:inset 0 2px 8px rgba(0,0,0,.6), 0 0 12px var(--soft); }
+.field input.bad{ color:#ff6b6b; text-shadow:none; }
+#results{ flex:1 1 300px; min-width:270px; display:flex; flex-direction:column; gap:9px; }
+#finalLbl{ font-size:10px; letter-spacing:3px; color:var(--dim); }
+#finalVal{
+  font-size:clamp(26px,4.6vw,36px); font-weight:bold; color:var(--accent);
+  text-shadow:0 0 10px var(--soft), 0 0 34px var(--soft); line-height:1.1;
+}
+.line{ display:flex; justify-content:space-between; gap:8px; font-size:12px; color:var(--dim); letter-spacing:1px; }
+.line .v{ color:var(--text); font-weight:bold; }
+.line .v.c{ color:var(--contrib); }
+.line .v.i{ color:var(--accent); text-shadow:0 0 6px var(--soft); }
+.line .v.s{ color:var(--simple); }
+#bar{
+  display:flex; height:20px; border:1px solid var(--line); overflow:hidden; background:#0a120e;
+}
+#barC{ background:var(--contrib); box-shadow:inset 0 0 10px rgba(0,0,0,.35); }
+#barI{ background:var(--accent); box-shadow:0 0 14px var(--soft); }
+#barLegend{ display:flex; justify-content:space-between; font-size:10px; letter-spacing:1px; }
+#barLegend .c{ color:var(--contrib); } #barLegend .i{ color:var(--accent); }
+#chartPanel h2{ font-size:10px; letter-spacing:3px; color:var(--dim); margin-bottom:8px; }
+#chartPanel h2 b{ color:var(--accent); font-weight:normal; text-shadow:0 0 6px var(--soft); }
+#chartWrap{ position:relative; width:100%; }
+#chart{ width:100%; height:250px; display:block; cursor:crosshair; }
+#readout{
+  font-size:11px; color:var(--dim); letter-spacing:1px; margin-top:7px; min-height:14px; text-align:center;
+}
+#readout b{ font-weight:normal; }
+#readout .c{ color:var(--contrib); } #readout .i{ color:var(--accent); } #readout .t{ color:var(--text); } #readout .s{ color:var(--simple); }
+#legend{ display:flex; flex-wrap:wrap; gap:6px 16px; justify-content:center; font-size:10px; color:var(--dim); letter-spacing:1px; margin-top:5px; }
+#legend span{ display:flex; align-items:center; gap:5px; }
+#legend i{ width:12px; height:8px; display:inline-block; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>INTEREST CALCULATOR</h1>
+  <div class="sub">COMPOUND GROWTH · CONTRIBUTIONS · SIMPLE-INTEREST SHOWDOWN</div>
+</header>
+<main>
+  <div id="top">
+    <section class="panel" id="inputs">
+      <div class="field wide">
+        <label for="principal">STARTING PRINCIPAL ($)</label>
+        <input id="principal" type="text" inputmode="decimal" value="10000" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="monthly">MONTHLY ADD ($)</label>
+        <input id="monthly" type="text" inputmode="decimal" value="200" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="apr">APR (%)</label>
+        <input id="apr" type="text" inputmode="decimal" value="7" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="years">YEARS</label>
+        <input id="years" type="text" inputmode="numeric" value="20" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="compound">COMPOUNDING</label>
+        <select id="compound">
+          <option value="12" selected>monthly</option>
+          <option value="4">quarterly</option>
+          <option value="1">yearly</option>
+        </select>
+      </div>
+    </section>
+    <section class="panel" id="results">
+      <div>
+        <div id="finalLbl">FINAL BALANCE</div>
+        <div id="finalVal">—</div>
+      </div>
+      <div id="bar"><div id="barC"></div><div id="barI"></div></div>
+      <div id="barLegend"><span class="c" id="barCLbl"></span><span class="i" id="barILbl"></span></div>
+      <div class="line"><span>TOTAL CONTRIBUTED</span><span class="v c" id="rContrib">—</span></div>
+      <div class="line"><span>INTEREST EARNED</span><span class="v i" id="rInterest">—</span></div>
+      <div class="line"><span>SIMPLE INTEREST WOULD GIVE</span><span class="v s" id="rSimple">—</span></div>
+      <div class="line"><span>COMPOUNDING BONUS</span><span class="v i" id="rBonus">—</span></div>
+    </section>
+  </div>
+  <section class="panel" id="chartPanel">
+    <h2>YEAR BY YEAR — <b>HOVER THE CHART</b></h2>
+    <div id="chartWrap"><canvas id="chart"></canvas></div>
+    <div id="readout"></div>
+    <div id="legend">
+      <span><i style="background:var(--contrib)"></i>CONTRIBUTED</span>
+      <span><i style="background:var(--accent)"></i>+ COMPOUND INTEREST</span>
+      <span><i style="background:repeating-linear-gradient(90deg,var(--simple) 0 4px,transparent 4px 8px)"></i>SIMPLE INTEREST TOTAL</span>
+    </div>
+  </section>
+</main>
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-interest-calc';
+var $=function(id){ return document.getElementById(id); };
+var FIELDS=['principal','monthly','apr','years'];
+
+try{
+  var raw=localStorage.getItem(LS_KEY);
+  if(raw){
+    var s=JSON.parse(raw);
+    if(s && typeof s==='object'){
+      FIELDS.forEach(function(f){ if(typeof s[f]==='string') $(f).value=s[f]; });
+      if(s.compound==='12'||s.compound==='4'||s.compound==='1') $('compound').value=s.compound;
+    }
+  }
+}catch(e){}
+function save(){
+  var s={compound:$('compound').value};
+  FIELDS.forEach(function(f){ s[f]=$(f).value; });
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(s)); }catch(e){}
+}
+
+function num(id,min,max){
+  var el=$(id);
+  var c=el.value.trim().replace(/[,$\s%]/g,'');
+  var n=(c===''||c==='.')?NaN:Number(c);
+  var bad=!isFinite(n)||n<min||n>max;
+  el.classList.toggle('bad',bad);
+  return bad?NaN:n;
+}
+function money(x){
+  if(!isFinite(x)) return '—';
+  var neg=x<0; x=Math.abs(x);
+  var s=x.toFixed(2).split('.');
+  s[0]=s[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  return (neg?'-$':'$')+s[0]+'.'+s[1];
+}
+function moneyShort(x){
+  if(!isFinite(x)) return '';
+  var a=Math.abs(x), s;
+  if(a>=1e9) s=(x/1e9).toFixed(1)+'B';
+  else if(a>=1e6) s=(x/1e6).toFixed(1)+'M';
+  else if(a>=1e3) s=(x/1e3).toFixed(0)+'k';
+  else s=String(Math.round(x));
+  return '$'+s.replace(/\.0(?=[kMB])/,'');
+}
+
+/* ---- math ----
+   Compound: interest applied per period, contribution added at end of each period.
+   FV = P(1+r)^t + c((1+r)^t - 1)/r  (verified against the closed form)           */
+function computeCompound(P,cM,apr,years,n){
+  var r=apr/100/n, periods=Math.round(years*n), c=cM*12/n;
+  var bal=P, contrib=P;
+  var yearly=[{bal:P,contrib:P}];
+  for(var i=1;i<=periods;i++){
+    bal=bal*(1+r)+c;
+    contrib+=c;
+    if(i%n===0) yearly.push({bal:bal,contrib:contrib});
+  }
+  return {bal:bal,contrib:contrib,interest:bal-contrib,yearly:yearly};
+}
+/* Simple: interest accrues monthly on contributed capital only — never on interest */
+function computeSimple(P,cM,apr,years){
+  var rm=apr/100/12, contrib=P, interest=0;
+  var yearly=[P];
+  for(var m=1;m<=years*12;m++){
+    interest+=contrib*rm;
+    contrib+=cM;
+    if(m%12===0) yearly.push(contrib+interest);
+  }
+  return yearly;
+}
+
+var model=null;
+function recalc(){
+  var P=num('principal',0,1e12), cM=num('monthly',0,1e9),
+      apr=num('apr',0,100), years=num('years',1,80);
+  if([P,cM,apr,years].some(isNaN)){ model=null; renderResults(); draw(-1); return; }
+  years=Math.round(years);
+  var n=Number($('compound').value);
+  var comp=computeCompound(P,cM,apr,years,n);
+  var simple=computeSimple(P,cM,apr,years);
+  model={P:P,cM:cM,apr:apr,years:years,n:n,comp:comp,simple:simple};
+  renderResults();
+  draw(-1);
+}
+function renderResults(){
+  if(!model){
+    $('finalVal').textContent='—';
+    ['rContrib','rInterest','rSimple','rBonus'].forEach(function(id){ $(id).textContent='—'; });
+    $('barC').style.width='0'; $('barI').style.width='0';
+    $('barCLbl').textContent=''; $('barILbl').textContent='';
+    $('readout').textContent='fix the inputs to see results';
+    return;
+  }
+  var c=model.comp, simpleFinal=model.simple[model.simple.length-1];
+  $('finalVal').textContent=money(c.bal);
+  $('rContrib').textContent=money(c.contrib);
+  $('rInterest').textContent=money(c.interest);
+  $('rSimple').textContent=money(simpleFinal);
+  $('rBonus').textContent=money(c.bal-simpleFinal);
+  var pc=c.bal>0?c.contrib/c.bal*100:0;
+  $('barC').style.width=pc.toFixed(2)+'%';
+  $('barI').style.width=(100-pc).toFixed(2)+'%';
+  $('barCLbl').textContent='contributed '+pc.toFixed(0)+'%';
+  $('barILbl').textContent='interest '+(100-pc).toFixed(0)+'%';
+}
+
+/* ---- chart ---- */
+var canvas=$('chart'), ctx=canvas.getContext('2d');
+var geom=null;
+function niceStep(rough){
+  var mag=Math.pow(10,Math.floor(Math.log10(rough)));
+  var r=rough/mag;
+  return (r<=1?1:r<=2?2:r<=5?5:10)*mag;
+}
+function draw(hoverIdx){
+  var wrap=$('chartWrap');
+  var W=wrap.clientWidth, H=250;
+  if(W<10) return;
+  var dpr=window.devicePixelRatio||1;
+  if(canvas.width!==Math.round(W*dpr)||canvas.height!==Math.round(H*dpr)){
+    canvas.width=Math.round(W*dpr); canvas.height=Math.round(H*dpr);
+  }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  ctx.font='10px "Courier New", monospace';
+  if(!model){ geom=null; return; }
+
+  var L=52,R=10,T=10,B=22;
+  var pw=W-L-R, ph=H-T-B;
+  var years=model.years;
+  var maxV=Math.max(model.comp.bal, model.simple[model.simple.length-1])*1.05||1;
+  var step=niceStep(maxV/4);
+  maxV=Math.ceil(maxV/step)*step;
+  function X(y){ return L+ y/years*pw; }
+  function Y(v){ return T+ ph - v/maxV*ph; }
+  geom={L:L,pw:pw,years:years,X:X,Y:Y};
+
+  /* grid */
+  ctx.strokeStyle='rgba(46,255,158,.13)'; ctx.fillStyle='#7fb89b'; ctx.lineWidth=1;
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  for(var v=0;v<=maxV+1e-9;v+=step){
+    var yy=Y(v);
+    ctx.beginPath(); ctx.moveTo(L,yy); ctx.lineTo(W-R,yy); ctx.stroke();
+    ctx.fillText(moneyShort(v),L-6,yy);
+  }
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  var xs=Math.max(1,Math.ceil(years/10));
+  for(var yr=0;yr<=years;yr+=xs){
+    ctx.fillText(yr===0?'now':'y'+yr, X(yr), T+ph+6);
+  }
+
+  var Yr=model.comp.yearly;
+  /* contributed area */
+  ctx.beginPath();
+  ctx.moveTo(X(0),Y(0));
+  Yr.forEach(function(p,i){ ctx.lineTo(X(i),Y(p.contrib)); });
+  ctx.lineTo(X(years),Y(0)); ctx.closePath();
+  ctx.fillStyle='rgba(29,158,107,.55)'; ctx.fill();
+  /* interest area (between contrib and bal) */
+  ctx.beginPath();
+  Yr.forEach(function(p,i){ var fn=i===0?'moveTo':'lineTo'; ctx[fn](X(i),Y(p.bal)); });
+  for(var i=Yr.length-1;i>=0;i--) ctx.lineTo(X(i),Y(Yr[i].contrib));
+  ctx.closePath();
+  ctx.fillStyle='rgba(46,255,158,.30)'; ctx.fill();
+  /* balance line with glow */
+  ctx.save();
+  ctx.shadowColor='rgba(46,255,158,.8)'; ctx.shadowBlur=8;
+  ctx.strokeStyle='#2eff9e'; ctx.lineWidth=2;
+  ctx.beginPath();
+  Yr.forEach(function(p,i){ var fn=i===0?'moveTo':'lineTo'; ctx[fn](X(i),Y(p.bal)); });
+  ctx.stroke();
+  ctx.restore();
+  /* contrib top line */
+  ctx.strokeStyle='#1d9e6b'; ctx.lineWidth=1.5;
+  ctx.beginPath();
+  Yr.forEach(function(p,i){ var fn=i===0?'moveTo':'lineTo'; ctx[fn](X(i),Y(p.contrib)); });
+  ctx.stroke();
+  /* simple line dashed */
+  ctx.strokeStyle='#ffd54a'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+  ctx.beginPath();
+  model.simple.forEach(function(v,i){ var fn=i===0?'moveTo':'lineTo'; ctx[fn](X(i),Y(v)); });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  /* hover marker */
+  if(hoverIdx>=0 && hoverIdx<Yr.length){
+    var hx=X(hoverIdx);
+    ctx.strokeStyle='rgba(230,255,242,.35)';
+    ctx.beginPath(); ctx.moveTo(hx,T); ctx.lineTo(hx,T+ph); ctx.stroke();
+    [[Yr[hoverIdx].bal,'#2eff9e'],[Yr[hoverIdx].contrib,'#1d9e6b'],[model.simple[hoverIdx],'#ffd54a']].forEach(function(pt){
+      ctx.beginPath(); ctx.arc(hx,Y(pt[0]),3.5,0,Math.PI*2);
+      ctx.fillStyle=pt[1]; ctx.fill();
+      ctx.strokeStyle='#0f0f1a'; ctx.lineWidth=1; ctx.stroke();
+    });
+  }
+  renderReadout(hoverIdx);
+}
+function renderReadout(idx){
+  var el=$('readout');
+  if(!model){ return; }
+  var Yr=model.comp.yearly;
+  if(idx<0||idx>=Yr.length) idx=Yr.length-1;
+  var p=Yr[idx];
+  el.innerHTML='year <b class="t">'+idx+'</b> · balance <b class="t">'+money(p.bal)+
+    '</b> · contributed <b class="c">'+money(p.contrib)+
+    '</b> · interest <b class="i">'+money(p.bal-p.contrib)+
+    '</b> · simple <b class="s">'+money(model.simple[idx])+'</b>';
+}
+canvas.addEventListener('pointermove',function(e){
+  if(!model||!geom) return;
+  var rect=canvas.getBoundingClientRect();
+  var x=e.clientX-rect.left;
+  var idx=Math.round((x-geom.L)/geom.pw*geom.years);
+  idx=Math.max(0,Math.min(geom.years,idx));
+  draw(idx);
+});
+canvas.addEventListener('pointerleave',function(){ draw(-1); });
+window.addEventListener('resize',function(){ draw(-1); });
+
+FIELDS.forEach(function(f){ $(f).addEventListener('input',function(){ recalc(); save(); }); });
+$('compound').addEventListener('change',function(){ recalc(); save(); });
+recalc();
+})();
+</script>
+</body>
+</html>

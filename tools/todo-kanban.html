@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanban Board · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#00e5ff; --accent-soft:rgba(0,229,255,.45);
+  --panel:#161623; --line:#2c2c46; --text:#eaf7fa; --dim:#8f9bb0;
+  --l1:#00e5ff; --l2:#3ddc84; --l3:#ffb300; --l4:#ff4560; --l5:#b388ff;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:24px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(16px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:12px;
+  max-width:1060px; margin:6px auto 0; padding:0 12px; align-items:start;
+}
+@media (max-width:640px){ main{ grid-template-columns:1fr; } }
+.col{
+  background:var(--panel); border:2px solid var(--line);
+  box-shadow:0 0 0 1px #000, 0 0 18px rgba(0,229,255,.07);
+  display:flex; flex-direction:column; min-height:200px;
+}
+.col-head{
+  display:flex; align-items:center; gap:8px; padding:8px 10px;
+  border-bottom:2px solid var(--line); letter-spacing:2px; font-size:12px; font-weight:bold;
+}
+.col-head .cnt{
+  margin-left:auto; font-size:10px; padding:2px 7px; border:1px solid var(--line);
+  color:var(--dim); background:#101020;
+}
+#col-todo .col-head{ color:var(--l3); text-shadow:0 0 8px var(--l3); }
+#col-doing .col-head{ color:var(--l1); text-shadow:0 0 8px var(--l1); }
+#col-done .col-head{ color:var(--l2); text-shadow:0 0 8px var(--l2); }
+.col.over{ border-color:var(--accent); box-shadow:0 0 0 1px #000, 0 0 22px var(--accent-soft); }
+.list{ display:flex; flex-direction:column; gap:8px; padding:10px; min-height:70px; flex:1; }
+.hint{
+  border:1px dashed var(--line); color:#525d75; font-size:10px; letter-spacing:1px;
+  text-align:center; padding:14px 6px;
+}
+.card{
+  position:relative; background:#111120; border:1px solid var(--line);
+  border-left:5px solid var(--lc,var(--l1)); padding:8px 8px 6px 10px; cursor:grab;
+  box-shadow:0 2px 0 #000;
+}
+.card:hover{ border-color:#3d3d63; border-left-color:var(--lc); box-shadow:0 2px 0 #000, 0 0 12px rgba(0,229,255,.12); }
+.card.dragging{ opacity:.4; cursor:grabbing; }
+.card .txt{ font-size:12px; line-height:1.45; word-break:break-word; white-space:pre-wrap; cursor:text; }
+.card textarea{
+  width:100%; background:#0b0b15; color:var(--text); border:1px solid var(--accent);
+  font-family:inherit; font-size:12px; line-height:1.45; padding:4px; resize:vertical; min-height:44px;
+  outline:none; box-shadow:0 0 10px rgba(0,229,255,.25);
+}
+.card .row{ display:flex; align-items:center; gap:5px; margin-top:7px; }
+.dot{
+  width:12px; height:12px; border:1px solid #000; cursor:pointer; padding:0;
+  background:var(--dc); opacity:.45;
+}
+.dot:hover{ opacity:1; box-shadow:0 0 7px var(--dc); }
+.dot.on{ opacity:1; box-shadow:0 0 7px var(--dc), 0 0 2px #fff inset; }
+.card .row .sp{ flex:1; }
+.mini{
+  font-family:inherit; font-size:11px; line-height:1; cursor:pointer;
+  background:#1a1a2e; color:var(--dim); border:1px solid var(--line); padding:3px 6px;
+}
+.mini:hover:not(:disabled){ color:var(--accent); border-color:var(--accent); text-shadow:0 0 6px var(--accent); }
+.mini:disabled{ opacity:.25; cursor:default; }
+.mini.del:hover{ color:var(--l4); border-color:var(--l4); text-shadow:0 0 6px var(--l4); }
+.adder{ display:flex; gap:6px; padding:0 10px 10px; }
+.adder input{
+  flex:1; min-width:0; background:#0b0b15; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:12px; padding:6px 8px; outline:none;
+}
+.adder input:focus{ border-color:var(--accent); box-shadow:0 0 10px rgba(0,229,255,.25); }
+.adder button{
+  font-family:inherit; font-size:14px; cursor:pointer; background:#1a1a2e;
+  color:var(--accent); border:1px solid var(--line); padding:0 10px;
+}
+.adder button:hover{ border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+#clearDone{
+  font-family:inherit; font-size:9px; letter-spacing:1px; cursor:pointer;
+  background:#1a1a2e; color:var(--dim); border:1px solid var(--line); padding:3px 6px;
+}
+#clearDone:hover{ color:var(--l4); border-color:var(--l4); text-shadow:0 0 6px var(--l4); }
+footer{ text-align:center; font-size:10px; color:#4c576d; letter-spacing:1px; margin-top:14px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>KANBAN BOARD</h1>
+  <div class="sub">DRAG CARDS · CLICK TEXT TO EDIT · DOTS SET LABEL</div>
+</header>
+<main>
+  <section class="col" id="col-todo" data-col="todo">
+    <div class="col-head">TO-DO <span class="cnt">0</span></div>
+    <div class="list"></div>
+    <div class="adder"><input type="text" maxlength="140" placeholder="+ add a card…"><button title="Add card">+</button></div>
+  </section>
+  <section class="col" id="col-doing" data-col="doing">
+    <div class="col-head">DOING <span class="cnt">0</span></div>
+    <div class="list"></div>
+    <div class="adder"><input type="text" maxlength="140" placeholder="+ add a card…"><button title="Add card">+</button></div>
+  </section>
+  <section class="col" id="col-done" data-col="done">
+    <div class="col-head">DONE <span class="cnt">0</span>
+      <button id="clearDone" title="Remove all done cards">CLEAR ✕</button>
+    </div>
+    <div class="list"></div>
+    <div class="adder"><input type="text" maxlength="140" placeholder="+ add a card…"><button title="Add card">+</button></div>
+  </section>
+</main>
+<footer>saved automatically in this browser</footer>
+<script>
+(function(){
+"use strict";
+var KEY='wizzed-todo-kanban';
+var COLS=['todo','doing','done'];
+var LABELS=['l1','l2','l3','l4','l5'];
+var uid=function(){ return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); };
+
+function demo(){
+  return { todo:[
+      {id:uid(),text:'Design new arcade cabinet art',label:'l5'},
+      {id:uid(),text:'Fix high-score sorting bug',label:'l4'}
+    ], doing:[
+      {id:uid(),text:'Build the kanban board tool',label:'l1'},
+      {id:uid(),text:'Playtest Gem Crush level 9',label:'l3'}
+    ], done:[
+      {id:uid(),text:'Ship the pomodoro timer',label:'l2'}
+    ]};
+}
+function load(){
+  try{
+    var d=JSON.parse(localStorage.getItem(KEY));
+    if(d && COLS.every(function(c){return Array.isArray(d[c]);})) return d;
+  }catch(e){}
+  return demo();
+}
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){} }
+var state=load();
+
+function findCard(id){
+  for(var i=0;i<COLS.length;i++){
+    var arr=state[COLS[i]];
+    for(var j=0;j<arr.length;j++) if(arr[j].id===id) return {col:COLS[i],idx:j,card:arr[j]};
+  }
+  return null;
+}
+
+var editingId=null;
+function render(){
+  COLS.forEach(function(col,ci){
+    var sec=document.getElementById('col-'+col);
+    var list=sec.querySelector('.list');
+    list.innerHTML='';
+    var arr=state[col];
+    sec.querySelector('.cnt').textContent=String(arr.length);
+    if(!arr.length){
+      var h=document.createElement('div'); h.className='hint'; h.textContent='drop cards here';
+      list.appendChild(h);
+    }
+    arr.forEach(function(card){
+      list.appendChild(buildCard(card,ci));
+    });
+  });
+  save();
+}
+
+function buildCard(card,ci){
+  var el=document.createElement('div');
+  el.className='card'; el.draggable=true; el.dataset.id=card.id;
+  el.style.setProperty('--lc','var(--'+(card.label||'l1')+')');
+
+  if(editingId===card.id){
+    var ta=document.createElement('textarea');
+    ta.value=card.text; ta.maxLength=280;
+    el.appendChild(ta); el.draggable=false;
+    var commit=function(){
+      editingId=null;
+      var v=ta.value.trim();
+      if(v) card.text=v;
+      render();
+    };
+    ta.addEventListener('blur',commit);
+    ta.addEventListener('keydown',function(e){
+      if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); ta.blur(); }
+      if(e.key==='Escape'){ ta.value=card.text; ta.blur(); }
+    });
+    setTimeout(function(){ ta.focus(); ta.selectionStart=ta.value.length; },0);
+  }else{
+    var txt=document.createElement('div');
+    txt.className='txt'; txt.textContent=card.text; txt.title='click to edit';
+    txt.addEventListener('click',function(){ editingId=card.id; render(); });
+    el.appendChild(txt);
+  }
+
+  var row=document.createElement('div'); row.className='row';
+  LABELS.forEach(function(l){
+    var d=document.createElement('button');
+    d.className='dot'+(card.label===l?' on':'');
+    d.style.setProperty('--dc','var(--'+l+')');
+    d.title='label';
+    d.addEventListener('click',function(){ card.label=l; render(); });
+    row.appendChild(d);
+  });
+  var sp=document.createElement('span'); sp.className='sp'; row.appendChild(sp);
+
+  var left=document.createElement('button');
+  left.className='mini'; left.textContent='◀'; left.title='move left';
+  left.disabled=(ci===0);
+  left.addEventListener('click',function(){ moveCard(card.id,COLS[ci-1]); });
+  row.appendChild(left);
+
+  var right=document.createElement('button');
+  right.className='mini'; right.textContent='▶'; right.title='move right';
+  right.disabled=(ci===COLS.length-1);
+  right.addEventListener('click',function(){ moveCard(card.id,COLS[ci+1]); });
+  row.appendChild(right);
+
+  var del=document.createElement('button');
+  del.className='mini del'; del.textContent='✕'; del.title='delete card';
+  del.addEventListener('click',function(){
+    var f=findCard(card.id);
+    if(f) state[f.col].splice(f.idx,1);
+    render();
+  });
+  row.appendChild(del);
+  el.appendChild(row);
+
+  el.addEventListener('dragstart',function(e){
+    if(editingId){ e.preventDefault(); return; }
+    dragEl=el; el.classList.add('dragging');
+    try{ e.dataTransfer.setData('text/plain',card.id); }catch(err){}
+    e.dataTransfer.effectAllowed='move';
+  });
+  el.addEventListener('dragend',function(){
+    el.classList.remove('dragging');
+    dragEl=null;
+    document.querySelectorAll('.col.over').forEach(function(c){ c.classList.remove('over'); });
+    syncFromDOM();
+  });
+  return el;
+}
+
+function moveCard(id,toCol){
+  var f=findCard(id);
+  if(!f) return;
+  state[f.col].splice(f.idx,1);
+  state[toCol].push(f.card);
+  render();
+}
+
+/* ---- HTML5 drag & drop (live DOM reorder, then sync state) ---- */
+var dragEl=null;
+function afterElement(list,y){
+  var cards=[].slice.call(list.querySelectorAll('.card:not(.dragging)'));
+  var closest=null, closestOff=-Infinity;
+  cards.forEach(function(c){
+    var r=c.getBoundingClientRect();
+    var off=y-r.top-r.height/2;
+    if(off<0 && off>closestOff){ closestOff=off; closest=c; }
+  });
+  return closest;
+}
+function syncFromDOM(){
+  COLS.forEach(function(col){
+    var list=document.querySelector('#col-'+col+' .list');
+    var ids=[].slice.call(list.querySelectorAll('.card')).map(function(c){ return c.dataset.id; });
+    var cards=ids.map(function(id){ var f=findCard(id); return f&&f.card; }).filter(Boolean);
+    state[col]=cards;
+  });
+  render();
+}
+COLS.forEach(function(col){
+  var sec=document.getElementById('col-'+col);
+  var list=sec.querySelector('.list');
+  list.addEventListener('dragover',function(e){
+    if(!dragEl) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect='move';
+    var hint=list.querySelector('.hint'); if(hint) hint.remove();
+    var after=afterElement(list,e.clientY);
+    if(after) list.insertBefore(dragEl,after); else list.appendChild(dragEl);
+  });
+  sec.addEventListener('dragenter',function(){ if(dragEl) sec.classList.add('over'); });
+  sec.addEventListener('dragleave',function(e){
+    if(!sec.contains(e.relatedTarget)) sec.classList.remove('over');
+  });
+  sec.addEventListener('drop',function(e){ e.preventDefault(); sec.classList.remove('over'); });
+
+  var adder=sec.querySelector('.adder');
+  var input=adder.querySelector('input');
+  var add=function(){
+    var v=input.value.trim();
+    if(!v) return;
+    state[col].push({id:uid(),text:v,label:LABELS[(state.todo.length+state.doing.length+state.done.length)%5]});
+    input.value='';
+    render();
+    input.focus();
+  };
+  input.addEventListener('keydown',function(e){ if(e.key==='Enter') add(); });
+  adder.querySelector('button').addEventListener('click',add);
+});
+
+document.getElementById('clearDone').addEventListener('click',function(){
+  state.done=[];
+  render();
+});
+
+document.addEventListener('keydown',function(e){
+  if(e.key==='n' && !e.ctrlKey && !e.metaKey &&
+     document.activeElement && document.activeElement.tagName!=='INPUT' &&
+     document.activeElement.tagName!=='TEXTAREA'){
+    e.preventDefault();
+    document.querySelector('#col-todo .adder input').focus();
+  }
+});
+
+render();
+})();
+</script>
+</body>
+</html>

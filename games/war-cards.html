@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Card War — Wizzed Arcade</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--acc:#ff3355;--blu:#4da6ff;--cw:74px;--ch:104px}
+  html,body{min-height:100%}
+  body{
+    background:#0f0f1a;
+    background-image:radial-gradient(ellipse 100% 60% at 20% -10%, rgba(77,166,255,.12), transparent 55%),
+      radial-gradient(ellipse 100% 60% at 80% 115%, rgba(255,51,85,.13), transparent 55%);
+    color:#ffd9df;font-family:'Courier New',ui-monospace,Menlo,monospace;
+    min-height:100vh;overflow-x:hidden;user-select:none;-webkit-user-select:none;
+  }
+  a.back{position:fixed;top:8px;left:10px;z-index:60;color:#ff8ba0;text-decoration:none;
+    font-size:12px;letter-spacing:1px;opacity:.75;border:1px solid rgba(255,51,85,.35);
+    padding:3px 8px;border-radius:6px;background:rgba(15,15,26,.85)}
+  a.back:hover{opacity:1;box-shadow:0 0 10px rgba(255,51,85,.5)}
+  header{text-align:center;padding:6px 90px 0}
+  h1{font-size:clamp(14px,2.4vw,22px);letter-spacing:5px;color:var(--acc);
+    text-shadow:0 0 10px rgba(255,51,85,.9),0 0 28px rgba(255,51,85,.45)}
+  .sub{font-size:10px;letter-spacing:2px;color:#a86b78;margin-top:1px}
+  #bank{position:fixed;top:8px;right:10px;z-index:60;font-size:13px;color:#39ffa0;
+    border:1px solid rgba(57,255,160,.4);border-radius:8px;padding:3px 10px;
+    background:rgba(15,15,26,.85);text-shadow:0 0 8px rgba(57,255,160,.7)}
+
+  #arena{position:relative;max-width:820px;margin:6px auto 0;padding:0 10px;
+    display:flex;align-items:center;justify-content:center;gap:18px;min-height:240px}
+  .pile{text-align:center;position:relative}
+  .pile .stack{width:var(--cw);height:var(--ch);position:relative;margin:0 auto}
+  .pile .stack .pb{position:absolute;inset:0;border-radius:8px;
+    background:linear-gradient(135deg,#2b1650 0%,#47207a 50%,#2b1650 100%);
+    border:1px solid #8a5cff;box-shadow:0 0 8px rgba(138,92,255,.4)}
+  .pile .cnt{margin-top:6px;font-size:12px;font-weight:bold}
+  .pile .who{font-size:10px;letter-spacing:2px;margin-bottom:4px}
+  #pileYou .who,#pileYou .cnt{color:var(--blu);text-shadow:0 0 8px rgba(77,166,255,.7)}
+  #pileDl .who,#pileDl .cnt{color:var(--acc);text-shadow:0 0 8px rgba(255,51,85,.7)}
+  .pile.empty .stack .pb{opacity:.15}
+
+  #battle{display:flex;align-items:center;gap:16px;position:relative}
+  .slot{width:var(--cw);height:var(--ch);position:relative;perspective:700px}
+  .slot .ghost{position:absolute;inset:0;border:1px dashed rgba(255,217,223,.25);border-radius:8px}
+  .fcard{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .5s ease}
+  .fcard.flipped{transform:rotateY(180deg)}
+  .fcard .fb,.fcard .ff{position:absolute;inset:0;backface-visibility:hidden;border-radius:8px}
+  .fcard .fb{background:linear-gradient(135deg,#2b1650 0%,#47207a 50%,#2b1650 100%);border:1px solid #8a5cff}
+  .fcard .ff{transform:rotateY(180deg);background:#f7f3e8;border:1px solid #999;color:#1c1c2e;font-weight:bold}
+  .fcard .ff.red{color:#c9243f}
+  .ff .c1{position:absolute;top:3px;left:5px;font-size:15px;line-height:1.1}
+  .ff .c1 i{display:block;font-style:normal}
+  .ff .mid{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:34px}
+  .slot.winglow .fcard .ff{box-shadow:0 0 22px rgba(57,255,160,.95);border-color:#39ffa0}
+  .slot.loseglow .fcard .ff{opacity:.55}
+  #vs{font-size:20px;font-weight:bold;color:#ffd166;letter-spacing:2px;text-shadow:0 0 12px rgba(255,209,102,.8);
+    text-align:center;min-width:64px}
+  #vs .pot{display:block;font-size:10px;color:#a86b78;margin-top:3px;letter-spacing:1px}
+
+  #warZone{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:4px;
+    display:flex;gap:4px;z-index:5}
+  #warZone .burn{width:30px;height:42px;border-radius:4px;
+    background:linear-gradient(135deg,#2b1650,#47207a);border:1px solid #8a5cff;
+    animation:burnIn .4s backwards}
+  @keyframes burnIn{from{transform:translateY(-30px) rotate(20deg);opacity:0}to{opacity:1}}
+  #warBanner{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);z-index:20;
+    display:none;font-size:52px;font-weight:bold;letter-spacing:12px;color:var(--acc);
+    text-shadow:0 0 20px rgba(255,51,85,1),0 0 60px rgba(255,51,85,.6);pointer-events:none}
+  #warBanner.on{display:block}
+  #warBanner span{display:inline-block;animation:wletter .5s backwards}
+  #warBanner span:nth-child(2){animation-delay:.15s}
+  #warBanner span:nth-child(3){animation-delay:.3s}
+  @keyframes wletter{from{transform:scale(3) rotate(-18deg);opacity:0}to{transform:scale(1);opacity:1}}
+  #arena.quake{animation:quake .4s}
+  @keyframes quake{25%{transform:translateX(-6px)}50%{transform:translateX(5px)}75%{transform:translateX(-3px)}}
+
+  #score{display:flex;justify-content:center;gap:26px;margin-top:16px;font-size:12px;letter-spacing:1px}
+  #score .y{color:var(--blu)} #score .d{color:var(--acc)}
+  #score .s{color:#ffd166}
+  #msg{text-align:center;font-size:12px;letter-spacing:1px;color:#ffd166;min-height:18px;margin-top:6px;
+    text-shadow:0 0 8px rgba(255,209,102,.6)}
+
+  #controls{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;
+    margin-top:8px;padding:0 10px 6px}
+  #flipBtn{font-family:inherit;font-size:16px;letter-spacing:4px;padding:10px 34px;border-radius:12px;
+    background:linear-gradient(180deg,#4a1220,#2a0a12);color:#ffd9df;border:2px solid var(--acc);
+    cursor:pointer;box-shadow:0 0 14px rgba(255,51,85,.5)}
+  #flipBtn:hover:not(:disabled){box-shadow:0 0 26px rgba(255,51,85,.9)}
+  #flipBtn:disabled{opacity:.45;cursor:default;box-shadow:none}
+  .tog{display:flex;align-items:center;gap:5px;font-size:11px;color:#a86b78;letter-spacing:1px}
+  .tog input[type=checkbox]{accent-color:var(--acc);width:15px;height:15px;cursor:pointer}
+  .tog input[type=range]{accent-color:var(--acc);width:90px;cursor:pointer}
+  #modeRow{display:flex;justify-content:center;gap:6px;align-items:center;flex-wrap:wrap;padding:2px 10px 14px}
+  .opt{font-family:inherit;font-size:11px;padding:5px 10px;border-radius:8px;cursor:pointer;
+    background:transparent;border:1px solid rgba(255,51,85,.4);color:#ff8ba0;letter-spacing:1px}
+  .opt.sel{background:rgba(255,51,85,.22);color:#ffe3e8;box-shadow:0 0 8px rgba(255,51,85,.6)}
+  .opt:disabled{opacity:.4;cursor:default}
+  #wagerRow{display:none;gap:6px;align-items:center}
+  #wagerRow.on{display:flex}
+  .chipB{font-family:inherit;width:40px;height:40px;border-radius:50%;font-weight:bold;font-size:10px;
+    cursor:pointer;border:3px dashed rgba(0,0,0,.45);color:#111;box-shadow:0 2px 6px rgba(0,0,0,.6)}
+  .chipB.c25{background:radial-gradient(circle at 35% 30%, #b7f7d8, #39d98a 60%, #1e8f57)}
+  .chipB.c50{background:radial-gradient(circle at 35% 30%, #cfd8ff, #7f9bff 60%, #3d55b5)}
+  .chipB.c100{background:radial-gradient(circle at 35% 30%, #444, #222 60%, #000);color:#ffd166}
+  .chipB.sel{outline:3px solid #fff;outline-offset:1px}
+  #sessBtn{font-family:inherit;font-size:11px;letter-spacing:1px;padding:6px 10px;border-radius:8px;
+    background:linear-gradient(180deg,#0b4a2c,#062a19);color:#c8ffe4;border:1px solid #39ffa0;cursor:pointer}
+  #newBtn{font-family:inherit;font-size:11px;letter-spacing:1px;padding:6px 10px;border-radius:8px;
+    background:transparent;border:1px solid rgba(255,209,102,.5);color:#ffe08a;cursor:pointer}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>⚔ CARD WAR ⚔</h1>
+  <div class="sub">HIGH CARD TAKES ALL · TIES MEAN W-A-R</div>
+</header>
+<div id="bank">$1000</div>
+
+<div id="arena">
+  <div class="pile" id="pileYou">
+    <div class="who">YOUR DECK</div>
+    <div class="stack"><div class="pb" style="transform:translate(3px,3px)"></div><div class="pb"></div></div>
+    <div class="cnt" id="youCnt">26</div>
+  </div>
+  <div id="battle">
+    <div class="slot" id="slotYou"><div class="ghost"></div></div>
+    <div id="vs">VS<span class="pot" id="potLbl">POT 0</span></div>
+    <div class="slot" id="slotDl"><div class="ghost"></div></div>
+    <div id="warZone"></div>
+  </div>
+  <div class="pile" id="pileDl">
+    <div class="who">DEALER DECK</div>
+    <div class="stack"><div class="pb" style="transform:translate(3px,3px)"></div><div class="pb"></div></div>
+    <div class="cnt" id="dlCnt">26</div>
+  </div>
+  <div id="warBanner"><span>W</span><span>A</span><span>R</span></div>
+</div>
+
+<div id="score">
+  <span class="y">YOU: <b id="rY">0</b></span>
+  <span class="s">STREAK <b id="stk">0</b> · BEST <b id="bstk">0</b></span>
+  <span class="d">DEALER: <b id="rD">0</b></span>
+</div>
+<div id="msg">Press FLIP to battle — highest card wins the pot.</div>
+
+<div id="controls">
+  <button id="flipBtn">FLIP</button>
+  <label class="tog"><input type="checkbox" id="auto">AUTO</label>
+  <label class="tog">SPEED<input type="range" id="spd" min="250" max="1500" value="700" step="50"></label>
+</div>
+<div id="modeRow">
+  <button class="opt sel" id="mClassic">CLASSIC</button>
+  <button class="opt" id="mSession">20-FLIP WAGER</button>
+  <span id="wagerRow">
+    <button class="chipB c25 sel" data-v="25">$25</button>
+    <button class="chipB c50" data-v="50">$50</button>
+    <button class="chipB c100" data-v="100">$100</button>
+    <button id="sessBtn">DEAL SESSION</button>
+  </span>
+  <button id="newBtn">↺ NEW DECK</button>
+</div>
+
+<script>
+'use strict';
+(function(){
+const LSK='wizzed-war-cards';
+const $=id=>document.getElementById(id);
+const SUIT=['♣','♦','♠','♥'];
+const isRed=s=>s===1||s===3;
+const RCH=r=>r<=10?String(r):({11:'J',12:'Q',13:'K',14:'A'})[r];
+
+/* ---------- audio ---------- */
+let AC=null;
+function ensureAC(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+  if(AC&&AC.state==='suspended')AC.resume(); }
+document.addEventListener('pointerdown',ensureAC);
+function beep(f,dur,type,g){ if(!AC)return; try{
+  const o=AC.createOscillator(),ga=AC.createGain();
+  o.type=type||'square';o.frequency.value=f;
+  ga.gain.setValueAtTime(g||0.04,AC.currentTime);
+  ga.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+(dur||0.07));
+  o.connect(ga);ga.connect(AC.destination);o.start();o.stop(AC.currentTime+(dur||0.07)+0.02);
+}catch(e){} }
+const sFlip=()=>beep(420,0.05,'triangle',0.05);
+const sWin=()=>{beep(520,0.07,'square',0.045);setTimeout(()=>beep(760,0.09,'square',0.045),80);};
+const sLose=()=>beep(170,0.13,'sawtooth',0.045);
+const sWar=()=>{[220,180,150].forEach((f,i)=>setTimeout(()=>beep(f,0.16,'sawtooth',0.06),i*140));};
+
+/* ---------- persistence ---------- */
+let store={bank:1000,streak:0,best:0,wins:0,losses:0};
+try{const j=JSON.parse(localStorage.getItem(LSK));if(j&&typeof j==='object')store=Object.assign(store,j);}catch(e){}
+if(!(store.bank>0))store.bank=1000;
+function save(){try{localStorage.setItem(LSK,JSON.stringify(store));}catch(e){}}
+
+/* ---------- state ---------- */
+let mode='classic';
+let you=[],dealer=[],pot=[];
+let state='idle';           // idle | busy | over
+let roundsY=0,roundsD=0;
+let sessionActive=false,flipsLeft=0,wager=0,pendWager=25;
+let warLevel=0,lastAct=0;
+
+function newDeck(){
+  const d=[];for(let s=0;s<4;s++)for(let r=2;r<=14;r++)d.push({s,r});
+  for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]];}
+  return d;
+}
+function shuffleArr(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function freshGame(){
+  const d=newDeck();
+  you=d.slice(0,26);dealer=d.slice(26);
+  pot=[];roundsY=0;roundsD=0;warLevel=0;state='idle';
+  clearBattle();
+  msg(mode==='classic'?'Fresh deck split. Press FLIP — capture all 52 to win.':'Pick a wager and DEAL SESSION: beat the dealer over 20 flips.');
+  render();
+}
+function clearBattle(){
+  $('slotYou').innerHTML='<div class="ghost"></div>';
+  $('slotDl').innerHTML='<div class="ghost"></div>';
+  $('slotYou').className='slot';$('slotDl').className='slot';
+  $('warZone').innerHTML='';$('warBanner').classList.remove('on');
+}
+function msg(t){$('msg').textContent=t;}
+function render(){
+  $('bank').textContent='$'+store.bank;
+  $('youCnt').textContent=you.length;
+  $('dlCnt').textContent=dealer.length;
+  $('pileYou').classList.toggle('empty',you.length===0);
+  $('pileDl').classList.toggle('empty',dealer.length===0);
+  $('rY').textContent=roundsY;$('rD').textContent=roundsD;
+  $('stk').textContent=store.streak;$('bstk').textContent=store.best;
+  $('potLbl').textContent=(mode==='session'&&sessionActive)?('POT '+pot.length+' · '+flipsLeft+' FLIPS LEFT'):('POT '+pot.length);
+}
+
+/* ---------- card element ---------- */
+function flipCardEl(c){
+  const w=document.createElement('div');w.className='fcard';
+  const b=document.createElement('div');b.className='fb';
+  const f=document.createElement('div');f.className='ff'+(isRed(c.s)?' red':'');
+  f.innerHTML='<span class="c1">'+RCH(c.r)+'<i>'+SUIT[c.s]+'</i></span><span class="mid">'+SUIT[c.s]+'</span>';
+  w.appendChild(b);w.appendChild(f);
+  return w;
+}
+
+/* ---------- battle flow ---------- */
+function flip(){
+  if(state!=='idle')return;
+  if(mode==='session'&&!sessionActive){msg('Deal a session first (pick a wager) or switch to CLASSIC.');return;}
+  if(mode==='classic'&&(you.length===0||dealer.length===0)){classicOver();return;}
+  state='busy';warLevel=0;
+  battle();
+}
+function battle(){
+  if(you.length===0||dealer.length===0){bothOutOrForfeit();return;}
+  const pc=you.shift(),dc=dealer.shift();
+  pot.push(pc,dc);
+  render();
+  $('slotYou').innerHTML='<div class="ghost"></div>';
+  $('slotDl').innerHTML='<div class="ghost"></div>';
+  $('slotYou').className='slot';$('slotDl').className='slot';
+  const ey=flipCardEl(pc),ed=flipCardEl(dc);
+  $('slotYou').appendChild(ey);$('slotDl').appendChild(ed);
+  sFlip();
+  setTimeout(()=>{ey.classList.add('flipped');ed.classList.add('flipped');},120);
+  setTimeout(()=>{
+    if(pc.r>dc.r){glow(true);endRound(0,pc,dc);}
+    else if(pc.r<dc.r){glow(false);endRound(1,pc,dc);}
+    else startWar();
+  },720);
+}
+function glow(win){
+  $('slotYou').classList.add(win?'winglow':'loseglow');
+  $('slotDl').classList.add(win?'loseglow':'winglow');
+}
+function startWar(){
+  warLevel++;
+  sWar();
+  const wb=$('warBanner');
+  wb.classList.remove('on');void wb.offsetWidth;wb.classList.add('on');
+  $('arena').classList.remove('quake');void $('arena').offsetWidth;$('arena').classList.add('quake');
+  msg(warLevel>1?'DOUBLE WAR! The pot swells to '+(pot.length+8)+' cards…':'WAR! Three cards buried face-down each…');
+  if(you.length===0){endRound(1);return;}
+  if(dealer.length===0){endRound(0);return;}
+  const by=Math.min(3,you.length-1),bd=Math.min(3,dealer.length-1);
+  const burned=[];
+  for(let i=0;i<by;i++)burned.push(you.shift());
+  for(let i=0;i<bd;i++)burned.push(dealer.shift());
+  pot.push(...burned);
+  render();
+  const wz=$('warZone');
+  burned.forEach((c,i)=>{
+    const d=document.createElement('div');d.className='burn';d.style.animationDelay=(i*90)+'ms';
+    wz.appendChild(d);
+  });
+  setTimeout(()=>{ $('warBanner').classList.remove('on'); battle(); },1200);
+}
+function bothOutOrForfeit(){
+  // a side ran completely dry mid-war
+  if(you.length===0&&dealer.length===0){
+    msg('Both armies annihilated — the pot is lost to the void. A DRAW.');
+    pot=[];finishRoundCommon(null);
+    return;
+  }
+  endRound(you.length===0?1:0);
+}
+function endRound(winner,pc,dc){
+  const n=pot.length;
+  if(winner===0){
+    store.streak++;if(store.streak>store.best)store.best=store.streak;
+    roundsY++;sWin();
+    msg((pc&&dc?RCH(pc.r)+SUIT[pc.s]+' beats '+RCH(dc.r)+SUIT[dc.s]+' — ':'')+'you capture '+n+' card'+(n>1?'s':'')+(warLevel?' from the WAR!':'.'));
+  }else{
+    store.streak=0;roundsD++;sLose();
+    msg((pc&&dc?RCH(dc.r)+SUIT[dc.s]+' beats '+RCH(pc.r)+SUIT[pc.s]+' — ':'')+'dealer takes '+n+' card'+(n>1?'s':'')+(warLevel?' from the WAR.':'.'));
+  }
+  if(mode==='classic'){
+    const spoils=shuffleArr(pot.slice());
+    if(winner===0)you.push(...spoils);else dealer.push(...spoils);
+  }
+  pot=[];
+  save();
+  finishRoundCommon(winner);
+}
+function finishRoundCommon(winner){
+  setTimeout(()=>{
+    $('warZone').innerHTML='';
+    if(mode==='session'){
+      flipsLeft--;
+      if(flipsLeft<=0||you.length===0||dealer.length===0){sessionEnd();return;}
+      state='idle';render();
+    }else{
+      if(you.length===0||dealer.length===0){classicOver();return;}
+      state='idle';render();
+    }
+  },700);
+}
+function classicOver(){
+  state='over';render();
+  if(you.length===0&&dealer.length===0)msg('A perfect stalemate. Press NEW DECK.');
+  else if(dealer.length===0){msg('★ TOTAL VICTORY — all 52 cards are yours! Press NEW DECK. ★');sWin();}
+  else{msg('The dealer holds all 52 cards. Press NEW DECK for revenge.');sLose();}
+}
+function sessionEnd(){
+  state='over';sessionActive=false;
+  let result;
+  if(roundsY>roundsD){store.bank+=wager*2;store.wins++;result='SESSION WON '+roundsY+'–'+roundsD+' — wager pays 1:1, +$'+wager+'!';sWin();}
+  else if(roundsY===roundsD){store.bank+=wager;store.wins+=0;result='Session tied '+roundsY+'–'+roundsD+' — wager pushed back.';}
+  else{store.losses++;result='Session lost '+roundsY+'–'+roundsD+' — $'+wager+' to the house.';sLose();}
+  wager=0;
+  if(store.bank<=0){store.bank=1000;result+=' Busted — restaked to $1000.';}
+  save();render();
+  msg(result+' Deal again or switch modes.');
+  $('auto').checked=false;
+}
+
+/* ---------- controls ---------- */
+$('flipBtn').addEventListener('click',()=>{lastAct=Date.now();flip();});
+$('newBtn').addEventListener('click',()=>{
+  if(mode==='session'&&sessionActive){msg('Finish the session first!');return;}
+  sessionActive=false;wager=0;freshGame();
+});
+$('mClassic').addEventListener('click',()=>{
+  if(mode==='classic')return;
+  if(sessionActive){msg('Finish the session first!');return;}
+  mode='classic';
+  $('mClassic').classList.add('sel');$('mSession').classList.remove('sel');
+  $('wagerRow').classList.remove('on');
+  freshGame();
+});
+$('mSession').addEventListener('click',()=>{
+  if(mode==='session')return;
+  mode='session';sessionActive=false;
+  $('mSession').classList.add('sel');$('mClassic').classList.remove('sel');
+  $('wagerRow').classList.add('on');
+  freshGame();
+});
+document.querySelectorAll('.chipB').forEach(b=>{
+  b.addEventListener('click',()=>{
+    pendWager=+b.dataset.v;
+    document.querySelectorAll('.chipB').forEach(x=>x.classList.toggle('sel',x===b));
+    beep(560,0.04,'triangle',0.04);
+  });
+});
+$('sessBtn').addEventListener('click',()=>{
+  if(sessionActive){msg('Session already running — '+flipsLeft+' flips left.');return;}
+  if(store.bank<pendWager){msg('Bankroll too thin for $'+pendWager+'.');sLose();return;}
+  store.bank-=pendWager;wager=pendWager;save();
+  const d=newDeck();you=d.slice(0,26);dealer=d.slice(26);
+  pot=[];roundsY=0;roundsD=0;warLevel=0;
+  flipsLeft=20;sessionActive=true;state='idle';
+  clearBattle();render();
+  msg('$'+wager+' riding on 20 flips. Win more rounds than the dealer!');
+  beep(660,0.08,'triangle',0.05);
+});
+
+/* auto-play */
+setInterval(()=>{
+  if(!$('auto').checked)return;
+  if(state!=='idle')return;
+  if(mode==='session'&&!sessionActive)return;
+  if(Date.now()-lastAct<+$('spd').value)return;
+  lastAct=Date.now();flip();
+},100);
+
+/* ---------- boot: dress the table ---------- */
+freshGame();
+(function dress(){ // face-down cards waiting in the slots so the arena never looks empty
+  const cy=document.createElement('div');cy.className='fcard';cy.innerHTML='<div class="fb"></div>';
+  const cd=document.createElement('div');cd.className='fcard';cd.innerHTML='<div class="fb"></div>';
+  $('slotYou').appendChild(cy);$('slotDl').appendChild(cd);
+})();
+})();
+</script>
+</body>
+</html>

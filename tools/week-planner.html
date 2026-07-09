@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Week Planner · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ffb300; --accent-soft:rgba(255,179,0,.45);
+  --panel:#161623; --line:#2c2c46; --text:#fdf4e3; --dim:#8f9bb0; --red:#ff4560;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:18px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(16px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:1020px; margin:6px auto 0; padding:0 12px; }
+#wrap{
+  background:var(--panel); border:2px solid var(--line);
+  box-shadow:0 0 0 1px #000, 0 0 18px rgba(255,179,0,.08);
+  max-height:calc(100vh - 118px); min-height:220px; overflow:auto;
+}
+#gridBody{
+  position:relative;
+  display:grid; grid-template-columns:46px repeat(7,minmax(72px,1fr));
+  grid-auto-rows:26px; min-width:640px;
+}
+.dhead{
+  position:sticky; top:0; z-index:12; background:#101020;
+  border-bottom:2px solid var(--line); border-left:1px solid #1d1d31;
+  font-size:10px; letter-spacing:1px; color:var(--dim);
+  display:flex; align-items:center; justify-content:center; gap:5px; height:26px;
+}
+.dhead .dnum{ color:#5d688a; }
+.dhead.today{ color:var(--accent); text-shadow:0 0 8px var(--accent); border-bottom-color:var(--accent); }
+.dhead.today .dnum{ color:var(--accent); }
+.corner{ position:sticky; top:0; left:0; z-index:14; background:#101020; border-bottom:2px solid var(--line); }
+.tlab{
+  position:sticky; left:0; z-index:10; background:#101020;
+  font-size:9px; color:#5d688a; text-align:right; padding:2px 5px 0 0;
+  border-right:2px solid var(--line); border-top:1px solid #1d1d31;
+}
+.cell{
+  position:relative; border-left:1px solid #1d1d31; border-top:1px solid #1d1d31;
+  cursor:pointer;
+}
+.cell.today{ background:rgba(255,179,0,.045); }
+.cell:hover{ background:rgba(255,179,0,.10); }
+.cell.target{ background:rgba(255,179,0,.25); box-shadow:inset 0 0 0 1px var(--accent); }
+.blk{
+  position:absolute; inset:1px 2px; z-index:5; overflow:hidden;
+  background:#1b1b30;
+  background:color-mix(in srgb, var(--bc) 22%, #10101e);
+  border:1px solid var(--bc); border-left:4px solid var(--bc);
+  box-shadow:0 0 8px color-mix(in srgb, var(--bc) 45%, transparent);
+  font-size:9px; line-height:1.15; padding:2px 3px; color:#fff;
+  cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none;
+  white-space:nowrap; text-overflow:ellipsis;
+}
+.blk.lift{ opacity:.35; }
+#ghost{
+  position:fixed; z-index:90; pointer-events:none; display:none;
+  border:1px solid var(--accent); border-left:4px solid var(--accent);
+  background:rgba(255,179,0,.25); box-shadow:0 0 14px var(--accent-soft);
+  font-size:9px; padding:2px 4px; color:#fff; white-space:nowrap;
+}
+#nowLine{
+  position:absolute; z-index:8; height:2px; background:var(--red);
+  box-shadow:0 0 8px var(--red); pointer-events:none; display:none;
+}
+#nowLine::before{
+  content:''; position:absolute; left:-4px; top:-3px; width:8px; height:8px;
+  border-radius:50%; background:var(--red); box-shadow:0 0 8px var(--red);
+}
+#pop{
+  position:fixed; z-index:100; display:none; width:230px;
+  background:#12121f; border:2px solid var(--accent); padding:10px;
+  box-shadow:0 0 24px var(--accent-soft);
+}
+#pop.open{ display:block; }
+#pop .where{ font-size:9px; color:var(--dim); letter-spacing:1px; margin-bottom:6px; }
+#pop input{
+  width:100%; background:#0b0b15; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:12px; padding:6px 8px; outline:none;
+}
+#pop input:focus{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+#swatches{ display:flex; gap:6px; margin:9px 0; }
+#swatches button{
+  width:22px; height:22px; cursor:pointer; border:1px solid #000; background:var(--sc); padding:0;
+}
+#swatches button.on{ box-shadow:0 0 8px var(--sc), inset 0 0 0 2px #0f0f1a; border-color:#fff; }
+#pop .btns{ display:flex; gap:6px; }
+#pop .btns button{
+  flex:1; font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#1a1a2e; color:var(--text); border:1px solid var(--line); padding:6px 4px;
+}
+#popSave{ color:var(--accent); border-color:var(--accent) !important; text-shadow:0 0 6px var(--accent); }
+#popSave:hover{ box-shadow:0 0 10px var(--accent-soft); }
+#popDel:hover{ color:var(--red); border-color:var(--red) !important; }
+#popCancel:hover{ border-color:var(--dim) !important; }
+footer{ text-align:center; font-size:10px; color:#4c576d; letter-spacing:1px; margin-top:10px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>WEEK PLANNER</h1>
+  <div class="sub">CLICK A SLOT TO ADD · CLICK A BLOCK TO EDIT · DRAG TO MOVE</div>
+</header>
+<main>
+  <div id="wrap"><div id="gridBody"></div></div>
+</main>
+<div id="ghost"></div>
+<div id="pop">
+  <div class="where"></div>
+  <input type="text" id="popTitle" maxlength="60" placeholder="what's happening?">
+  <div id="swatches"></div>
+  <div class="btns">
+    <button id="popSave">SAVE</button>
+    <button id="popDel">DELETE</button>
+    <button id="popCancel">ESC</button>
+  </div>
+</div>
+<footer>saved automatically in this browser</footer>
+<script>
+(function(){
+"use strict";
+var KEY='wizzed-week-planner';
+var H0=7, H1=22;                      /* 7:00 .. 22:00 rows */
+var DAYS=['MON','TUE','WED','THU','FRI','SAT','SUN'];
+var COLORS=['#00e5ff','#3ddc84','#ffb300','#ff4560','#b388ff','#ff6ec7'];
+var uid=function(){ return 'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); };
+
+function demo(){
+  var b=[];
+  [0,1,2,3,4].forEach(function(d){ b.push({id:uid(),day:d,hour:9,title:'Standup',color:'#00e5ff'}); });
+  [0,2,4].forEach(function(d){ b.push({id:uid(),day:d,hour:18,title:'Gym 🏋️',color:'#ffb300'}); });
+  [1,3].forEach(function(d){ b.push({id:uid(),day:d,hour:20,title:'Study 📚',color:'#b388ff'}); });
+  b.push({id:uid(),day:4,hour:19,title:'Movie night 🎬',color:'#ff6ec7'});
+  b.push({id:uid(),day:5,hour:11,title:'Groceries 🛒',color:'#3ddc84'});
+  b.push({id:uid(),day:5,hour:19,title:'Dinner w/ friends 🍜',color:'#ff4560'});
+  b.push({id:uid(),day:6,hour:10,title:'Brunch ☕',color:'#ffb300'});
+  b.push({id:uid(),day:6,hour:20,title:'Game night 🎮',color:'#00e5ff'});
+  return {blocks:b};
+}
+function load(){
+  try{
+    var d=JSON.parse(localStorage.getItem(KEY));
+    if(d && Array.isArray(d.blocks)) return d;
+  }catch(e){}
+  return demo();
+}
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){} }
+var state=load();
+
+function todayCol(){ return (new Date().getDay()+6)%7; }   /* Mon=0 */
+function weekDates(){
+  var t=new Date(); t.setHours(12,0,0,0);
+  var mon=new Date(t); mon.setDate(t.getDate()-todayCol());
+  var out=[];
+  for(var i=0;i<7;i++){ var d=new Date(mon); d.setDate(mon.getDate()+i); out.push(d); }
+  return out;
+}
+function blockAt(day,hour){
+  for(var i=0;i<state.blocks.length;i++){
+    var b=state.blocks[i];
+    if(b.day===day && b.hour===hour) return b;
+  }
+  return null;
+}
+
+var gridBody=document.getElementById('gridBody');
+var cellIndex={};   /* 'day-hour' -> element */
+
+function render(){
+  gridBody.innerHTML='';
+  cellIndex={};
+  var corner=document.createElement('div'); corner.className='corner'; gridBody.appendChild(corner);
+  var dates=weekDates(), tc=todayCol();
+  DAYS.forEach(function(nm,i){
+    var h=document.createElement('div');
+    h.className='dhead'+(i===tc?' today':'');
+    h.textContent=nm;
+    var n=document.createElement('span'); n.className='dnum'; n.textContent=String(dates[i].getDate());
+    h.appendChild(n);
+    gridBody.appendChild(h);
+  });
+  for(var hr=H0;hr<=H1;hr++){
+    var t=document.createElement('div'); t.className='tlab';
+    t.textContent=(hr<10?'0':'')+hr+':00';
+    gridBody.appendChild(t);
+    for(var d=0;d<7;d++){
+      var c=document.createElement('div');
+      c.className='cell'+(d===tc?' today':'');
+      c.dataset.day=String(d); c.dataset.hour=String(hr);
+      cellIndex[d+'-'+hr]=c;
+      c.addEventListener('click',onCellClick);
+      gridBody.appendChild(c);
+      var b=blockAt(d,hr);
+      if(b) c.appendChild(buildBlock(b));
+    }
+  }
+  var line=document.createElement('div'); line.id='nowLine'; gridBody.appendChild(line);
+  positionNowLine();
+  save();
+}
+
+function buildBlock(b){
+  var el=document.createElement('div');
+  el.className='blk'; el.dataset.id=b.id;
+  el.style.setProperty('--bc',b.color);
+  el.textContent=b.title;
+  el.title=b.title;
+  el.addEventListener('pointerdown',function(e){ startPointer(e,el,b); });
+  return el;
+}
+
+/* ---------- now line ---------- */
+function positionNowLine(){
+  var line=document.getElementById('nowLine');
+  if(!line) return;
+  var now=new Date();
+  var hf=now.getHours()+now.getMinutes()/60;
+  if(hf<H0 || hf>H1+1){ line.style.display='none'; return; }
+  var hr=Math.min(H1,Math.floor(hf));
+  var cell=cellIndex[todayCol()+'-'+hr];
+  if(!cell){ line.style.display='none'; return; }
+  var frac=Math.min(1,hf-hr);
+  line.style.display='block';
+  line.style.left=cell.offsetLeft+'px';
+  line.style.width=cell.offsetWidth+'px';
+  line.style.top=(cell.offsetTop+frac*cell.offsetHeight-1)+'px';
+}
+setInterval(positionNowLine,30000);
+window.addEventListener('resize',positionNowLine);
+
+/* ---------- popover editor ---------- */
+var pop=document.getElementById('pop');
+var popTitle=document.getElementById('popTitle');
+var swatches=document.getElementById('swatches');
+var popState=null;   /* {day,hour,block|null} */
+var pickedColor=COLORS[0];
+COLORS.forEach(function(c){
+  var b=document.createElement('button');
+  b.style.setProperty('--sc',c); b.dataset.c=c; b.title='color';
+  b.addEventListener('click',function(){ pickedColor=c; markSwatch(); });
+  swatches.appendChild(b);
+});
+function markSwatch(){
+  [].forEach.call(swatches.children,function(b){
+    b.classList.toggle('on',b.dataset.c===pickedColor);
+  });
+}
+function openPop(day,hour,block,anchor){
+  popState={day:day,hour:hour,block:block||null};
+  pickedColor=block?block.color:COLORS[(day+hour)%COLORS.length];
+  markSwatch();
+  popTitle.value=block?block.title:'';
+  pop.querySelector('.where').textContent=DAYS[day]+' · '+(hour<10?'0':'')+hour+':00'+(block?'':' · NEW');
+  document.getElementById('popDel').style.display=block?'':'none';
+  pop.classList.add('open');
+  var r=anchor.getBoundingClientRect();
+  var pw=pop.offsetWidth, ph=pop.offsetHeight;
+  var x=Math.min(Math.max(6,r.left), window.innerWidth-pw-6);
+  var y=r.bottom+4;
+  if(y+ph>window.innerHeight-6) y=Math.max(6,r.top-ph-4);
+  pop.style.left=x+'px'; pop.style.top=y+'px';
+  setTimeout(function(){ popTitle.focus(); },0);
+}
+function closePop(){ pop.classList.remove('open'); popState=null; }
+document.getElementById('popSave').addEventListener('click',commitPop);
+popTitle.addEventListener('keydown',function(e){
+  if(e.key==='Enter') commitPop();
+  if(e.key==='Escape') closePop();
+});
+function commitPop(){
+  if(!popState) return;
+  var t=popTitle.value.trim();
+  if(!t){ popTitle.focus(); return; }
+  if(popState.block){
+    popState.block.title=t; popState.block.color=pickedColor;
+  }else{
+    var occ=blockAt(popState.day,popState.hour);   /* cell filled since pop opened */
+    if(occ){ occ.title=t; occ.color=pickedColor; }
+    else state.blocks.push({id:uid(),day:popState.day,hour:popState.hour,title:t,color:pickedColor});
+  }
+  closePop(); render();
+}
+document.getElementById('popDel').addEventListener('click',function(){
+  if(popState && popState.block){
+    state.blocks=state.blocks.filter(function(x){ return x.id!==popState.block.id; });
+  }
+  closePop(); render();
+});
+document.getElementById('popCancel').addEventListener('click',closePop);
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') closePop(); });
+document.addEventListener('pointerdown',function(e){
+  if(pop.classList.contains('open') && !pop.contains(e.target)){
+    var isBlk=e.target.closest && e.target.closest('.blk');
+    var isCell=e.target.classList && e.target.classList.contains('cell');
+    if(!isBlk && !isCell) closePop();
+  }
+});
+
+function onCellClick(e){
+  var cell=e.currentTarget;
+  if(e.target!==cell) return;              /* click landed on a block */
+  var d=+cell.dataset.day, hr=+cell.dataset.hour;
+  var b=blockAt(d,hr);
+  openPop(d,hr,b,cell);
+}
+
+/* ---------- pointer drag (mouse + touch) ---------- */
+var ghost=document.getElementById('ghost');
+function startPointer(e,el,b){
+  if(e.button!==undefined && e.button!==0) return;
+  e.preventDefault(); e.stopPropagation();
+  var sx=e.clientX, sy=e.clientY, dragging=false, targetCell=null;
+  var pid=e.pointerId;
+  try{ el.setPointerCapture(pid); }catch(err){}
+
+  function onMove(ev){
+    if(ev.pointerId!==pid) return;
+    if(!dragging){
+      if(Math.abs(ev.clientX-sx)+Math.abs(ev.clientY-sy)<8) return;
+      dragging=true;
+      el.classList.add('lift');
+      ghost.textContent=b.title;
+      ghost.style.setProperty('border-color',b.color);
+      ghost.style.display='block';
+    }
+    ghost.style.left=(ev.clientX+10)+'px';
+    ghost.style.top=(ev.clientY-10)+'px';
+    var under=document.elementFromPoint(ev.clientX,ev.clientY);
+    var cell=under && under.closest ? under.closest('.cell') : null;
+    if(targetCell && targetCell!==cell) targetCell.classList.remove('target');
+    targetCell=cell;
+    if(targetCell) targetCell.classList.add('target');
+  }
+  function onUp(ev){
+    if(ev.pointerId!==pid) return;
+    cleanup();
+    if(!dragging){
+      openPop(b.day,b.hour,b,el);
+      return;
+    }
+    if(targetCell){
+      var nd=+targetCell.dataset.day, nh=+targetCell.dataset.hour;
+      var occ=blockAt(nd,nh);
+      if(occ && occ.id!==b.id){          /* swap the two blocks */
+        occ.day=b.day; occ.hour=b.hour;
+      }
+      b.day=nd; b.hour=nh;
+      render();
+    }else{
+      render();
+    }
+  }
+  function onCancel(ev){
+    if(ev.pointerId!==pid) return;
+    cleanup(); render();
+  }
+  function cleanup(){
+    el.classList.remove('lift');
+    ghost.style.display='none';
+    if(targetCell) targetCell.classList.remove('target');
+    window.removeEventListener('pointermove',onMove);
+    window.removeEventListener('pointerup',onUp);
+    window.removeEventListener('pointercancel',onCancel);
+    try{ el.releasePointerCapture(pid); }catch(err){}
+  }
+  window.addEventListener('pointermove',onMove);
+  window.addEventListener('pointerup',onUp);
+  window.addEventListener('pointercancel',onCancel);
+}
+
+render();
+/* scroll grid so the workday is in view */
+var wrap=document.getElementById('wrap');
+var firstCell=cellIndex['0-9'];
+if(firstCell && new Date().getHours()>=11){
+  var target=cellIndex[todayCol()+'-'+Math.max(H0,Math.min(H1,new Date().getHours()-2))];
+  if(target) wrap.scrollTop=Math.max(0,target.offsetTop-40);
+}
+})();
+</script>
+</body>
+</html>

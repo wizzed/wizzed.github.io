@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Epoch Converter · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#00e5ff; --soft:rgba(0,229,255,.4);
+  --panel:#0c1719; --line:#144a52; --text:#d4fbff; --dim:#6fb3bd;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:8px 12px 40px;
+}
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:linear-gradient(rgba(0,229,255,.03) 1px,transparent 1px),
+             linear-gradient(90deg,rgba(0,229,255,.03) 1px,transparent 1px);
+  background-size:28px 28px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:6px 8px 2px; position:relative; z-index:1; }
+h1{ display:inline-block; font-size:clamp(17px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--soft); }
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:920px; margin:8px auto 0; position:relative; z-index:1; display:flex; flex-direction:column; gap:12px; }
+.grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media(max-width:720px){ .grid{ grid-template-columns:1fr; } }
+.panel{
+  background:var(--panel); border:2px solid var(--line);
+  box-shadow:0 0 22px rgba(0,229,255,.08), inset 0 1px 0 rgba(255,255,255,.04);
+  padding:12px 14px;
+}
+.lbl{ font-size:10px; letter-spacing:3px; color:var(--dim); margin-bottom:8px; text-transform:uppercase; }
+.lbl b{ color:var(--accent); font-weight:normal; text-shadow:0 0 6px var(--soft); }
+.clock{ text-align:center; }
+.big{ font-size:clamp(26px,7vw,46px); letter-spacing:2px; color:var(--accent); text-shadow:0 0 14px var(--soft); font-weight:bold; }
+.big small{ font-size:.42em; color:var(--dim); text-shadow:none; letter-spacing:1px; }
+.rowc{ display:flex; gap:8px; justify-content:center; margin-top:8px; flex-wrap:wrap; }
+.human{ font-size:13px; color:var(--text); margin-top:8px; letter-spacing:1px; }
+.tz{ font-size:11px; color:var(--dim); margin-top:3px; letter-spacing:1px; }
+input[type=text],input[type=number],input[type=date],input[type=time]{
+  font-family:inherit; font-size:16px; color:var(--accent); background:#08110f;
+  border:2px solid var(--line); padding:8px 10px; outline:none; letter-spacing:1px;
+  text-shadow:0 0 6px var(--soft); box-shadow:inset 0 2px 8px rgba(0,0,0,.6); width:100%;
+}
+input:focus{ border-color:var(--accent); box-shadow:inset 0 2px 8px rgba(0,0,0,.6),0 0 12px var(--soft); }
+input::-webkit-calendar-picker-indicator{ filter:invert(.7) sepia(1) saturate(5) hue-rotate(140deg); }
+button.btn{
+  font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer;
+  color:var(--accent); background:#0a1517; border:2px solid var(--line);
+  padding:7px 12px; box-shadow:0 3px 0 #041012; text-transform:uppercase; white-space:nowrap;
+}
+button.btn:hover{ border-color:var(--accent); box-shadow:0 3px 0 #041012,0 0 12px var(--soft); }
+button.btn:active{ transform:translateY(2px); box-shadow:0 1px 0 #041012; }
+.detect{ font-size:11px; color:var(--dim); margin-top:6px; min-height:14px; letter-spacing:1px; }
+.detect b{ color:var(--accent); }
+.out{ margin-top:9px; display:flex; flex-direction:column; gap:6px; }
+.orow{ display:flex; align-items:center; gap:9px; border:1px solid var(--line); padding:6px 9px; background:#09120f; }
+.orow .t{ flex:0 0 74px; font-size:10px; color:var(--dim); letter-spacing:1px; }
+.orow .val{ flex:1; font-size:13px; color:var(--text); word-break:break-all; }
+.orow .val.rel{ color:var(--accent); text-shadow:0 0 6px var(--soft); }
+.he{ display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; }
+.he > div{ flex:1 1 130px; }
+.he .lbl2{ font-size:9px; color:var(--dim); letter-spacing:1px; margin-bottom:3px; }
+.epout{ margin-top:9px; display:flex; gap:8px; flex-wrap:wrap; }
+.epbox{ flex:1 1 150px; border:1px solid var(--line); background:#09120f; padding:7px 9px; }
+.epbox .k{ font-size:9px; color:var(--dim); letter-spacing:1px; }
+.epbox .v{ font-size:15px; color:var(--accent); text-shadow:0 0 6px var(--soft); word-break:break-all; margin-top:2px; }
+table{ width:100%; border-collapse:collapse; font-size:12px; }
+th,td{ text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+th{ font-size:9px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; }
+td.mono{ color:var(--accent); text-shadow:0 0 6px var(--soft); white-space:nowrap; }
+td.nm{ color:var(--text); }
+td.dt{ color:var(--dim); }
+tr.mrow{ cursor:pointer; }
+tr.mrow:hover td{ background:#0c1c1e; }
+#msg{ text-align:center; font-size:11px; color:var(--accent); letter-spacing:1px; min-height:14px; }
+.tblwrap{ overflow-x:auto; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>EPOCH CONVERTER</h1>
+  <div class="sub">UNIX TIME ↔ HUMAN · LIVE · S · MS · µS</div>
+</header>
+<main>
+  <section class="panel clock">
+    <div class="lbl">CURRENT <b>UNIX TIME</b></div>
+    <div class="big"><span id="nowSec">—</span><small> s</small></div>
+    <div class="rowc">
+      <button class="btn" id="copySec">Copy seconds</button>
+      <button class="btn" id="copyMs">Copy millis <span id="nowMs" style="color:var(--dim)"></span></button>
+    </div>
+    <div class="human" id="nowHuman">—</div>
+    <div class="tz" id="nowTz">—</div>
+  </section>
+
+  <section class="grid">
+    <div class="panel">
+      <div class="lbl">EPOCH → <b>HUMAN</b></div>
+      <div style="display:flex;gap:8px;">
+        <input id="epIn" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="paste any epoch…">
+        <button class="btn" id="epNow">Now</button>
+      </div>
+      <div class="detect" id="epDetect"></div>
+      <div class="out" id="epOut"></div>
+    </div>
+
+    <div class="panel">
+      <div class="lbl">HUMAN → <b>EPOCH</b></div>
+      <div class="he">
+        <div><div class="lbl2">DATE</div><input id="hDate" type="date"></div>
+        <div><div class="lbl2">TIME</div><input id="hTime" type="time" step="1"></div>
+        <div style="flex:0 0 auto;align-self:flex-end;"><button class="btn" id="hNow">Now</button></div>
+      </div>
+      <div class="tz" id="hTz" style="margin-top:8px;">—</div>
+      <div class="epout" id="hEpOut"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="lbl">MILESTONE <b>TIMESTAMPS</b> — CLICK A ROW TO LOAD IT</div>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>Epoch (s)</th><th>Name</th><th>UTC Date</th></tr></thead>
+        <tbody id="miles"></tbody>
+      </table>
+    </div>
+  </section>
+  <div id="msg"></div>
+</main>
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-unix-time';
+var $=function(id){ return document.getElementById(id); };
+var msgEl=$('msg'), msgT=null;
+function flash(t){ msgEl.textContent=t; if(msgT) clearTimeout(msgT); msgT=setTimeout(function(){ msgEl.textContent=''; },1900); }
+function copy(txt){
+  var done=function(){ flash('copied: '+txt); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done,fallback);
+  } else fallback();
+  function fallback(){
+    try{ var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done(); }
+    catch(e){ flash('copy failed'); }
+  }
+}
+function pad(n,l){ n=String(n); while(n.length<l) n='0'+n; return n; }
+
+/* ---------- live clock ---------- */
+var nowSec=$('nowSec'), nowMs=$('nowMs'), nowHuman=$('nowHuman'), nowTz=$('nowTz');
+var MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function humanLocal(d){
+  return DAYS[d.getDay()]+' '+MONTHS[d.getMonth()]+' '+pad(d.getDate(),2)+' '+d.getFullYear()+'  '+
+    pad(d.getHours(),2)+':'+pad(d.getMinutes(),2)+':'+pad(d.getSeconds(),2);
+}
+function tzString(d){
+  var off=-d.getTimezoneOffset(); var sign=off>=0?'+':'-'; off=Math.abs(off);
+  var tzName='';
+  try{ tzName=Intl.DateTimeFormat().resolvedOptions().timeZone||''; }catch(e){}
+  return 'UTC'+sign+pad(Math.floor(off/60),2)+':'+pad(off%60,2)+(tzName?'  ·  '+tzName:'');
+}
+function tick(){
+  var ms=Date.now();
+  nowSec.textContent=Math.floor(ms/1000);
+  nowMs.textContent='('+ms+')';
+  var d=new Date(ms);
+  nowHuman.textContent=humanLocal(d);
+  nowTz.textContent=tzString(d);
+}
+tick();
+setInterval(tick,100);
+$('copySec').addEventListener('click',function(){ copy(String(Math.floor(Date.now()/1000))); });
+$('copyMs').addEventListener('click',function(){ copy(String(Date.now())); });
+
+/* ---------- epoch -> human ---------- */
+var epIn=$('epIn'), epDetect=$('epDetect'), epOut=$('epOut');
+function detectMs(raw){
+  /* returns {ms, unit} or null */
+  var t=String(raw).trim().replace(/[_,\s]/g,'');
+  if(t==='') return null;
+  if(!/^-?\d+(\.\d+)?$/.test(t)) return null;
+  var v=parseFloat(t);
+  if(!isFinite(v)) return null;
+  var a=Math.abs(v), unit, ms;
+  if(a<1e11){ unit='seconds'; ms=v*1000; }
+  else if(a<1e14){ unit='milliseconds'; ms=v; }
+  else { unit='microseconds'; ms=v/1000; }
+  return {ms:ms, unit:unit};
+}
+function isoUTC(d){
+  return d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1,2)+'-'+pad(d.getUTCDate(),2)+'T'+
+    pad(d.getUTCHours(),2)+':'+pad(d.getUTCMinutes(),2)+':'+pad(d.getUTCSeconds(),2)+'.'+pad(d.getUTCMilliseconds(),3)+'Z';
+}
+function humanUTC(d){
+  return DAYS[d.getUTCDay()]+' '+MONTHS[d.getUTCMonth()]+' '+pad(d.getUTCDate(),2)+' '+d.getUTCFullYear()+'  '+
+    pad(d.getUTCHours(),2)+':'+pad(d.getUTCMinutes(),2)+':'+pad(d.getUTCSeconds(),2)+' UTC';
+}
+function relative(ms){
+  var diff=ms-Date.now(); var future=diff>0; var s=Math.abs(diff)/1000;
+  var units=[['year',31536000],['month',2592000],['week',604800],['day',86400],['hour',3600],['minute',60],['second',1]];
+  for(var i=0;i<units.length;i++){
+    var n=Math.floor(s/units[i][1]);
+    if(n>=1 || units[i][0]==='second'){
+      var label=n+' '+units[i][0]+(n===1?'':'s');
+      return future?('in '+label):(label+' ago');
+    }
+  }
+  return 'just now';
+}
+function orow(t,v,cls){
+  return '<div class="orow"><div class="t">'+t+'</div><div class="val'+(cls?' '+cls:'')+'">'+v+'</div>'+
+    '<button class="btn cp" data-v="'+String(v).replace(/"/g,'&quot;')+'">Copy</button></div>';
+}
+function renderEpoch(raw,fromMilestone){
+  var d0=detectMs(raw);
+  if(!d0){ epDetect.textContent=raw?'not a number':''; epOut.innerHTML=''; return; }
+  var d=new Date(d0.ms);
+  if(isNaN(d.getTime())){ epDetect.textContent='out of range'; epOut.innerHTML=''; return; }
+  epDetect.innerHTML='detected: <b>'+d0.unit+'</b> · '+d0.ms.toLocaleString()+' ms';
+  epOut.innerHTML=
+    orow('LOCAL',humanLocal(d))+
+    orow('UTC',humanUTC(d))+
+    orow('ISO 8601',isoUTC(d))+
+    orow('RELATIVE',relative(d0.ms),'rel')+
+    orow('SECONDS',Math.floor(d0.ms/1000))+
+    orow('MILLIS',Math.round(d0.ms));
+  bindCopy(epOut);
+  if(!fromMilestone) save();
+}
+function bindCopy(scope){
+  var b=scope.querySelectorAll('.cp');
+  for(var i=0;i<b.length;i++){ b[i].onclick=function(){ copy(this.getAttribute('data-v')); }; }
+}
+epIn.addEventListener('input',function(){ renderEpoch(epIn.value,false); });
+$('epNow').addEventListener('click',function(){ epIn.value=String(Math.floor(Date.now()/1000)); renderEpoch(epIn.value,false); });
+
+/* ---------- human -> epoch ---------- */
+var hDate=$('hDate'), hTime=$('hTime'), hEpOut=$('hEpOut'), hTz=$('hTz');
+function renderHuman(){
+  var dv=hDate.value, tv=hTime.value||'00:00:00';
+  if(!dv){ hEpOut.innerHTML=''; hTz.textContent='—'; return; }
+  var parts=dv.split('-'), tp=tv.split(':');
+  var y=+parts[0], mo=+parts[1]-1, da=+parts[2];
+  var hh=+tp[0]||0, mi=+tp[1]||0, ss=+(tp[2]||0);
+  var d=new Date(y,mo,da,hh,mi,ss,0);
+  if(isNaN(d.getTime())){ hEpOut.innerHTML='invalid date'; return; }
+  var ms=d.getTime();
+  hTz.textContent='interpreted in local time · '+tzString(d)+'  →  '+humanUTC(d);
+  hEpOut.innerHTML=
+    '<div class="epbox"><div class="k">EPOCH SECONDS</div><div class="v" data-c="'+Math.floor(ms/1000)+'">'+Math.floor(ms/1000)+'</div></div>'+
+    '<div class="epbox"><div class="k">EPOCH MILLIS</div><div class="v" data-c="'+ms+'">'+ms+'</div></div>';
+  var vs=hEpOut.querySelectorAll('.v');
+  for(var i=0;i<vs.length;i++){ vs[i].style.cursor='pointer'; vs[i].title='click to copy'; vs[i].onclick=function(){ copy(this.getAttribute('data-c')); }; }
+}
+function setHumanFromMs(ms){
+  var d=new Date(ms);
+  hDate.value=d.getFullYear()+'-'+pad(d.getMonth()+1,2)+'-'+pad(d.getDate(),2);
+  hTime.value=pad(d.getHours(),2)+':'+pad(d.getMinutes(),2)+':'+pad(d.getSeconds(),2);
+  renderHuman();
+}
+hDate.addEventListener('input',renderHuman);
+hTime.addEventListener('input',renderHuman);
+$('hNow').addEventListener('click',function(){ setHumanFromMs(Date.now()); });
+
+/* ---------- milestones ---------- */
+var miles=$('miles');
+function buildMiles(){
+  var nowS=Math.floor(Date.now()/1000);
+  var rows=[
+    [0,'The Epoch'],
+    [1000000000,'Billennium (1e9)'],
+    [1500000000,'1.5 Billion'],
+    [1234567890,'1234567890'],
+    [2147483647,'Y2K38 · 2³¹−1'],
+    [nowS,'Right now']
+  ];
+  var html='';
+  for(var i=0;i<rows.length;i++){
+    var d=new Date(rows[i][0]*1000);
+    html+='<tr class="mrow" data-e="'+rows[i][0]+'"><td class="mono">'+rows[i][0]+'</td><td class="nm">'+rows[i][1]+
+      '</td><td class="dt">'+humanUTC(d)+'</td></tr>';
+  }
+  miles.innerHTML=html;
+  var rs=miles.querySelectorAll('.mrow');
+  for(var j=0;j<rs.length;j++){
+    rs[j].onclick=function(){
+      var e=this.getAttribute('data-e');
+      epIn.value=e; renderEpoch(e,false);
+      setHumanFromMs(e*1000);
+      flash('loaded '+e);
+    };
+  }
+}
+buildMiles();
+
+/* ---------- persistence ---------- */
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({ep:epIn.value})); }catch(e){} }
+function load(){
+  try{ var s=JSON.parse(localStorage.getItem(LS_KEY)||'null'); if(s && typeof s.ep==='string' && s.ep) return s.ep; }catch(e){}
+  return null;
+}
+
+/* ---------- init ---------- */
+var saved=load();
+epIn.value=saved!==null?saved:'1500000000';
+renderEpoch(epIn.value,true);
+setHumanFromMs(Date.now());
+window.addEventListener('resize',function(){});
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dominoes — Wizzed Arcade</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--acc:#4de8ff;--accd:rgba(77,232,255,.35);--bone:#f4f8ff}
+html,body{height:100%}
+body{
+  background:#0f0f1a;
+  background-image:radial-gradient(ellipse 95% 70% at 50% 118%,#0d2b38 0%,#0b1c26 45%,transparent 75%),
+    radial-gradient(ellipse 80% 45% at 50% -10%,rgba(77,232,255,.08),transparent 60%);
+  color:#cfeefb;font-family:'Courier New',ui-monospace,Menlo,monospace;
+  min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden;
+  user-select:none;-webkit-user-select:none;
+}
+a.back{position:fixed;top:8px;left:10px;z-index:70;color:var(--acc);text-decoration:none;
+  font-size:12px;letter-spacing:1px;opacity:.75;border:1px solid var(--accd);
+  padding:3px 8px;border-radius:6px;background:rgba(15,15,26,.85)}
+a.back:hover{opacity:1;box-shadow:0 0 10px var(--accd)}
+header{text-align:center;padding:6px 90px 0}
+h1{font-size:clamp(15px,2.6vw,22px);letter-spacing:5px;color:var(--acc);
+  text-shadow:0 0 10px rgba(77,232,255,.9),0 0 28px rgba(77,232,255,.4)}
+.sub{font-size:10px;letter-spacing:2px;color:#6f93a3;margin-top:1px}
+#hud{display:flex;justify-content:center;gap:16px;align-items:center;padding:4px 8px;font-size:12px;flex-wrap:wrap}
+.scorebox{border:1px solid var(--accd);border-radius:8px;padding:2px 10px;background:rgba(15,15,26,.6);
+  letter-spacing:1px;font-size:11px;color:#9fd4e8}
+.scorebox b{color:var(--acc);font-size:14px;margin-left:6px;text-shadow:0 0 8px var(--accd)}
+.scorebox.ai b{color:#ff7bd5;text-shadow:0 0 8px rgba(255,123,213,.5)}
+#turnbox{display:flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.12);
+  border-radius:8px;padding:2px 12px;background:rgba(15,15,26,.6);min-width:210px;justify-content:center}
+#turndot{width:9px;height:9px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc)}
+#turndot.ai{background:#ff7bd5;box-shadow:0 0 8px #ff7bd5;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.35}}
+#turntext{font-size:11px;letter-spacing:1px}
+#airow{display:flex;align-items:center;justify-content:center;gap:10px;padding:3px 8px;min-height:44px}
+#airow .lbl{font-size:10px;letter-spacing:2px;color:#ff7bd5;text-shadow:0 0 8px rgba(255,123,213,.4)}
+#aihand{display:flex;gap:4px}
+.aiback{width:20px;height:37px;border-radius:4px;border:1px solid rgba(255,123,213,.6);
+  background:repeating-linear-gradient(45deg,#221129 0 4px,#3a1c46 4px 8px);
+  box-shadow:inset 0 0 0 2px #0f0f1a,0 2px 5px rgba(0,0,0,.6);animation:pop .3s ease both}
+#board{flex:1;min-height:120px;max-height:46vh;overflow-y:auto;overflow-x:hidden;
+  margin:2px auto;width:min(96vw,900px);border:1px solid rgba(77,232,255,.18);border-radius:12px;
+  background:rgba(10,16,26,.55);box-shadow:inset 0 0 30px rgba(0,0,0,.5);padding:10px}
+#chain{position:relative;width:100%;min-height:60px}
+.ctile{position:absolute;display:flex;border-radius:5px;background:linear-gradient(150deg,var(--bone),#cfd8e8);
+  border:1px solid #8fa2b8;box-shadow:0 2px 6px rgba(0,0,0,.55),0 0 6px rgba(77,232,255,.15);
+  transition:left .3s ease,top .3s ease}
+.ctile.h{flex-direction:row}
+.ctile.v{flex-direction:column}
+.ctile .hf{position:relative;flex:1}
+.ctile.h .hf+i{width:1px;background:#7d8ea6;margin:3px 0}
+.ctile.v .hf+i{height:1px;background:#7d8ea6;margin:0 3px}
+.ctile i{display:block}
+.hf b{position:absolute;width:5px;height:5px;border-radius:50%;background:#16202e;transform:translate(-50%,-50%)}
+.ctile.pop{animation:pop .35s ease both}
+@keyframes pop{from{transform:scale(1.5);opacity:0;filter:brightness(2)}to{transform:scale(1);opacity:1}}
+.ctile.endglow{box-shadow:0 0 12px var(--acc),0 0 22px var(--accd);border-color:var(--acc)}
+#ctrl{display:flex;justify-content:center;align-items:center;gap:12px;padding:4px;flex-wrap:wrap}
+#boneinfo{font-size:11px;letter-spacing:1px;color:#9fd4e8;border:1px dashed rgba(77,232,255,.4);
+  border-radius:8px;padding:3px 10px}
+#boneinfo b{color:var(--acc)}
+button{font-family:inherit;background:rgba(77,232,255,.08);color:var(--acc);border:1px solid var(--acc);
+  border-radius:8px;padding:5px 16px;font-size:12px;letter-spacing:2px;cursor:pointer;
+  text-shadow:0 0 6px var(--accd)}
+button:hover:not(:disabled){background:rgba(77,232,255,.2);box-shadow:0 0 12px var(--accd)}
+button:disabled{opacity:.28;cursor:default}
+button.pulse{animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 16px var(--acc)}}
+#endsBadge{font-size:11px;color:#9fd4e8;letter-spacing:1px}
+#endsBadge b{color:var(--acc)}
+#endpick{display:flex;justify-content:center;gap:10px;padding:3px;min-height:34px}
+#endpick.hidden{visibility:hidden}
+#endpick button.cancel{color:#ff8b8b;border-color:#ff8b8b;padding:5px 10px;text-shadow:none}
+#hand{display:flex;justify-content:center;align-items:flex-end;gap:6px;padding:6px 8px 10px;
+  min-height:92px;flex-wrap:wrap}
+.htile{width:38px;height:70px;display:flex;flex-direction:column;border-radius:6px;
+  background:linear-gradient(150deg,var(--bone),#cfd8e8);border:1px solid #8fa2b8;position:relative;
+  box-shadow:0 3px 8px rgba(0,0,0,.6);transition:transform .15s ease,box-shadow .15s ease;cursor:default}
+.htile .hf{position:relative;flex:1}
+.htile .hf+i{height:1px;background:#7d8ea6;margin:0 4px;display:block}
+.htile b{position:absolute;width:6px;height:6px;border-radius:50%;background:#16202e;transform:translate(-50%,-50%)}
+.htile.play{cursor:pointer;transform:translateY(-8px);border-color:var(--acc);
+  box-shadow:0 0 10px var(--accd),0 5px 10px rgba(0,0,0,.6)}
+.htile.play:hover{transform:translateY(-12px);box-shadow:0 0 16px var(--acc)}
+.htile.sel{transform:translateY(-16px) scale(1.06);border-color:#fff;
+  box-shadow:0 0 18px var(--acc),0 0 30px var(--accd)}
+.htile.deal{animation:dealin .4s ease both}
+@keyframes dealin{from{transform:translateY(40px) rotate(8deg);opacity:0}to{transform:none;opacity:1}}
+.htile.no{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+#msg{text-align:center;font-size:11px;letter-spacing:1px;color:#8fc3d8;padding:0 10px 4px;min-height:16px}
+#tallies{text-align:center;font-size:10px;letter-spacing:2px;color:#54788c;padding-bottom:6px}
+#overlay{position:fixed;inset:0;background:rgba(8,8,16,.86);display:flex;align-items:center;
+  justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .3s}
+#overlay.show{opacity:1;pointer-events:auto}
+#ovbox{text-align:center;border:1px solid var(--acc);border-radius:14px;padding:26px 40px;
+  background:#12121f;box-shadow:0 0 40px var(--accd);max-width:90vw}
+#ovbox h2{color:var(--acc);letter-spacing:4px;font-size:22px;text-shadow:0 0 14px var(--acc);margin-bottom:10px}
+#ovbox.lose h2{color:#ff7bd5;text-shadow:0 0 14px #ff7bd5;border-color:#ff7bd5}
+#ovbox .det{font-size:12px;color:#9fd4e8;line-height:1.8;margin-bottom:14px;letter-spacing:1px}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header><h1>DOMINOES</h1><div class="sub">DRAW · DOUBLE-SIX · FIRST TO 100</div></header>
+<div id="hud">
+  <div class="scorebox">YOU<b id="s0">0</b></div>
+  <div id="turnbox"><span id="turndot"></span><span id="turntext">DEALING…</span></div>
+  <div class="scorebox ai">AI<b id="s1">0</b></div>
+</div>
+<div id="airow"><span class="lbl">AI · <span id="aicount">7</span> TILES</span><div id="aihand"></div></div>
+<div id="board"><div id="chain"></div></div>
+<div id="endpick" class="hidden">
+  <button id="pickL">◀ LEFT</button>
+  <button class="cancel" id="pickC">✕</button>
+  <button id="pickR">RIGHT ▶</button>
+</div>
+<div id="ctrl">
+  <div id="boneinfo">BONEYARD <b id="bcount">14</b></div>
+  <button id="drawBtn">DRAW</button>
+  <button id="passBtn">PASS</button>
+  <div id="endsBadge">ENDS <b id="endsVal">—</b></div>
+</div>
+<div id="hand"></div>
+<div id="msg"></div>
+<div id="tallies"></div>
+<div id="overlay"><div id="ovbox"><h2 id="ovtitle"></h2><div class="det" id="ovdet"></div><button id="ovbtn">NEXT ROUND</button></div></div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+/* ---------- audio ---------- */
+let AC=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){AC=null}}
+  if(AC&&AC.state==='suspended')AC.resume();return AC}
+function beep(f,d,type,v){const c=ac();if(!c)return;try{
+  const o=c.createOscillator(),g=c.createGain();o.type=type||'square';o.frequency.value=f;
+  g.gain.setValueAtTime(v||.05,c.currentTime);
+  g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+(d||.08));
+  o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+(d||.08));}catch(e){}}
+document.addEventListener('pointerdown',()=>ac(),{once:true});
+/* ---------- storage ---------- */
+function loadTally(){try{const t=JSON.parse(localStorage.getItem('wizzed-dominoes'));
+  if(t&&typeof t.w==='number')return t}catch(e){}return{w:0,l:0}}
+function saveTally(){try{localStorage.setItem('wizzed-dominoes',JSON.stringify(tally))}catch(e){}}
+let tally=loadTally();
+/* ---------- state ---------- */
+let hands=[[],[]],bone=[],chain=[],turn=0,scores=[0,0],selected=-1,passStreak=0,
+    roundActive=false,dealAnim=false,placedKeys=new Set(),aiTimer=null;
+const PIP=[[],[[1,1]],[[0,0],[2,2]],[[0,0],[1,1],[2,2]],[[0,0],[2,0],[0,2],[2,2]],
+  [[0,0],[2,0],[1,1],[0,2],[2,2]],[[0,0],[2,0],[0,1],[2,1],[0,2],[2,2]]];
+function allTiles(){const t=[];for(let a=0;a<=6;a++)for(let b=a;b<=6;b++)t.push({a,b});return t}
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));
+  const t=arr[i];arr[i]=arr[j];arr[j]=t}return arr}
+function pips(t){return t.a+t.b}
+function ends(){return chain.length?[chain[0].a,chain[chain.length-1].b]:null}
+function fits(t,v){return t.a===v||t.b===v}
+function playableSides(t){const e=ends();if(!e)return['R'];const s=[];
+  if(fits(t,e[0]))s.push('L');if(fits(t,e[1]))s.push('R');return s}
+function hasPlayable(p){return hands[p].some(t=>playableSides(t).length>0)}
+function tileKey(t){return 'd'+Math.min(t.a,t.b)+'-'+Math.max(t.a,t.b)}
+function halfHTML(n,big){const pc=['20%','50%','80%'];
+  return '<span class="hf">'+PIP[n].map(p=>'<b style="left:'+pc[p[0]]+';top:'+pc[p[1]]+'"></b>').join('')+'</span>'}
+/* ---------- round flow ---------- */
+function newRound(){
+  clearTimeout(aiTimer);
+  hands=[[],[]];bone=shuffle(allTiles());chain=[];selected=-1;passStreak=0;
+  placedKeys=new Set();$('chain').innerHTML='';
+  for(let i=0;i<7;i++){hands[0].push(bone.pop());hands[1].push(bone.pop())}
+  roundActive=true;dealAnim=true;turn=-1;
+  updateAll();
+  setMsg('Dealing… highest double sets first');
+  setTimeout(()=>{
+    if(!roundActive)return;
+    const o=findOpener();
+    setMsg((o.p===0?'You set ':'AI sets ')+'['+hands[o.p][o.i].a+'|'+hands[o.p][o.i].b+']');
+    beep(520,.09,'triangle',.06);
+    play(o.p,o.i,'R');
+  },900);
+}
+function findOpener(){
+  let best=null;
+  for(let p=0;p<2;p++)for(let i=0;i<hands[p].length;i++){const t=hands[p][i];
+    const key=(t.a===t.b)?(100+t.a*10):(t.a+t.b+Math.max(t.a,t.b)*0.1);
+    if(!best||key>best.key)best={p,i,key};
+  }
+  return best;
+}
+function play(p,i,side){
+  const e=ends();
+  const t=hands[p].splice(i,1)[0];
+  if(!e){chain.push({a:t.a,b:t.b})}
+  else if(side==='L'){chain.unshift(t.b===e[0]?{a:t.a,b:t.b}:{a:t.b,b:t.a})}
+  else{chain.push(t.a===e[1]?{a:t.a,b:t.b}:{a:t.b,b:t.a})}
+  passStreak=0;selected=-1;
+  beep(p===0?660:440,.07,'square',.05);
+  if(hands[p].length===0){updateAll();roundEnd(p);return}
+  turn=1-p;
+  updateAll();
+  if(turn===1)scheduleAI();else defaultMsg();
+}
+function humanDraw(){
+  if(turn!==0||!roundActive)return;
+  if(hasPlayable(0)||!bone.length)return;
+  hands[0].push(bone.pop());
+  beep(300,.06,'sawtooth',.04);
+  dealAnim=false;updateAll();
+  const last=$('hand').lastElementChild;if(last)last.classList.add('deal');
+  defaultMsg();
+}
+function humanPass(){
+  if(turn!==0||!roundActive)return;
+  if(hasPlayable(0)||bone.length)return;
+  passStreak++;beep(200,.1,'sine',.05);
+  setMsg('You pass…');
+  if(passStreak>=2){blockedEnd();return}
+  turn=1;updateAll();scheduleAI();
+}
+function scheduleAI(){clearTimeout(aiTimer);setMsg('AI is thinking…');
+  aiTimer=setTimeout(aiStep,850)}
+function aiStep(){
+  if(!roundActive||turn!==1)return;
+  const pl=[];
+  hands[1].forEach((t,i)=>{const s=playableSides(t);if(s.length)pl.push({t,i,s})});
+  if(!pl.length){
+    if(bone.length){hands[1].push(bone.pop());setMsg('AI draws from the boneyard…');
+      beep(300,.05,'sawtooth',.03);updateAll();
+      aiTimer=setTimeout(aiStep,420);return}
+    passStreak++;setMsg('AI passes!');
+    if(passStreak>=2){blockedEnd();return}
+    turn=0;updateAll();setTimeout(defaultMsg,900);return;
+  }
+  let best=null,bs=-1e9;
+  for(const o of pl)for(const side of o.s){
+    const v=aiScore(o.t,side);
+    if(v>bs){bs=v;best={i:o.i,side}}
+  }
+  play(1,best.i,best.side);
+}
+function aiScore(t,side){
+  const e=ends();let sc=t.a+t.b;
+  if(t.a===t.b)sc+=2.5;
+  let newEnds;
+  if(side==='L'){const other=(t.a===e[0])?t.b:t.a;newEnds=[other,e[1]]}
+  else{const other=(t.a===e[1])?t.b:t.a;newEnds=[e[0],other]}
+  const rest=hands[1].filter(x=>x!==t);
+  const c0=rest.filter(x=>fits(x,newEnds[0])).length;
+  const c1=rest.filter(x=>fits(x,newEnds[1])).length;
+  sc+=0.7*(c0+c1);
+  if(c0===0&&c1===0)sc-=1.5;
+  return sc+Math.random()*0.3;
+}
+function roundEnd(w){
+  roundActive=false;clearTimeout(aiTimer);
+  const pts=hands[1-w].reduce((s,t)=>s+pips(t),0);
+  scores[w]+=pts;
+  finishRound(w,pts,'DOMINO!');
+}
+function blockedEnd(){
+  roundActive=false;clearTimeout(aiTimer);
+  const p0=hands[0].reduce((s,t)=>s+pips(t),0);
+  const p1=hands[1].reduce((s,t)=>s+pips(t),0);
+  let w=null,pts=0;
+  if(p0<p1){w=0;pts=p1-p0}else if(p1<p0){w=1;pts=p0-p1}
+  if(w!==null)scores[w]+=pts;
+  finishRound(w,pts,'BLOCKED');
+}
+function finishRound(w,pts,label){
+  updateAll();
+  if(w!==null&&scores[w]>=100){
+    const youWin=w===0;
+    if(youWin)tally.w++;else tally.l++;saveTally();
+    beep(youWin?880:180,.4,youWin?'triangle':'sawtooth',.07);
+    showOverlay(youWin?'YOU WIN THE MATCH!':'AI WINS THE MATCH',
+      label+' — '+(w===0?'You':'AI')+' scored +'+pts+'<br>FINAL: YOU '+scores[0]+' — AI '+scores[1]+
+      '<br>MATCHES: W '+tally.w+' · L '+tally.l,
+      'NEW MATCH',()=>{scores=[0,0];newRound()},!youWin);
+    return;
+  }
+  let det;
+  if(w===null)det='Both blocked with equal pips — no points.';
+  else det=(w===0?'You score':'AI scores')+' <b style="color:var(--acc)">+'+pts+'</b> pips.';
+  beep(w===0?740:260,.25,'triangle',.06);
+  showOverlay(label,det+'<br>SCORE: YOU '+scores[0]+' — AI '+scores[1]+' · first to 100',
+    'NEXT ROUND',()=>newRound(),w===1);
+}
+function showOverlay(title,det,btn,cb,lose){
+  $('ovtitle').textContent=title;$('ovdet').innerHTML=det;$('ovbtn').textContent=btn;
+  $('ovbox').className=lose?'lose':'';
+  const box=$('ovbox');box.id='ovbox';
+  $('overlay').classList.add('show');
+  $('ovbtn').onclick=()=>{$('overlay').classList.remove('show');beep(500,.06,'square',.05);cb()};
+}
+/* ---------- human interaction ---------- */
+function clickTile(i,el){
+  if(turn!==0||!roundActive)return;
+  if(selected===i){selected=-1;updateAll();defaultMsg();return}
+  const t=hands[0][i];
+  const s=playableSides(t);
+  if(!s.length){el.classList.remove('no');void el.offsetWidth;el.classList.add('no');
+    beep(150,.08,'sawtooth',.04);
+    setMsg(bone.length?'No match — draw from the boneyard':'No match and boneyard is empty — pass');
+    return}
+  const e=ends();
+  if(s.length===2&&e[0]!==e[1]){selected=i;updateAll();
+    setMsg('Choose an end for ['+t.a+'|'+t.b+']');beep(560,.05,'square',.04);return}
+  play(0,i,s.indexOf('R')>=0?'R':'L');
+}
+$('pickL').onclick=()=>{if(selected>=0)play(0,selected,'L')};
+$('pickR').onclick=()=>{if(selected>=0)play(0,selected,'R')};
+$('pickC').onclick=()=>{selected=-1;updateAll();defaultMsg()};
+$('drawBtn').onclick=humanDraw;
+$('passBtn').onclick=humanPass;
+/* ---------- rendering ---------- */
+function setMsg(s){$('msg').textContent=s}
+function defaultMsg(){
+  if(!roundActive)return;
+  if(turn===0){
+    if(hasPlayable(0))setMsg('Your turn — play a matching tile');
+    else if(bone.length)setMsg('No match — draw from the boneyard');
+    else setMsg('No moves — you must pass');
+  }
+}
+function updateAll(){
+  $('s0').textContent=scores[0];$('s1').textContent=scores[1];
+  $('bcount').textContent=bone.length;
+  $('aicount').textContent=hands[1].length;
+  $('tallies').textContent='MATCHES  W '+tally.w+' · L '+tally.l;
+  const e=ends();
+  $('endsVal').textContent=e?(e[0]+' · '+e[1]):'—';
+  if(turn===0&&roundActive){$('turndot').className='';$('turntext').textContent='YOUR TURN'}
+  else if(turn===1&&roundActive){$('turndot').className='ai';$('turntext').textContent='AI TURN'}
+  else{$('turndot').className='';$('turntext').textContent=roundActive?'SETTING…':'ROUND OVER'}
+  const myGo=turn===0&&roundActive;
+  $('drawBtn').disabled=!(myGo&&!hasPlayable(0)&&bone.length>0);
+  $('passBtn').disabled=!(myGo&&!hasPlayable(0)&&bone.length===0);
+  $('drawBtn').classList.toggle('pulse',!$('drawBtn').disabled);
+  $('passBtn').classList.toggle('pulse',!$('passBtn').disabled);
+  if(selected>=0&&e){
+    $('endpick').classList.remove('hidden');
+    $('pickL').textContent='◀ LEFT ('+e[0]+')';
+    $('pickR').textContent='RIGHT ('+e[1]+') ▶';
+  }else $('endpick').classList.add('hidden');
+  renderAIHand();renderHand();layoutChain();
+}
+function renderAIHand(){
+  const box=$('aihand');box.innerHTML='';
+  const n=Math.min(hands[1].length,14);
+  for(let i=0;i<n;i++){const d=document.createElement('div');d.className='aiback';
+    d.style.animationDelay=(dealAnim?i*60:0)+'ms';box.appendChild(d)}
+}
+function renderHand(){
+  const box=$('hand');box.innerHTML='';
+  hands[0].forEach((t,i)=>{
+    const d=document.createElement('div');
+    d.className='htile';
+    if(dealAnim){d.classList.add('deal');d.style.animationDelay=(i*70)+'ms'}
+    const myGo=turn===0&&roundActive;
+    if(myGo&&playableSides(t).length)d.classList.add('play');
+    if(i===selected)d.classList.add('sel');
+    d.innerHTML=halfHTML(t.a)+'<i></i>'+halfHTML(t.b);
+    d.onclick=()=>clickTile(i,d);
+    box.appendChild(d);
+  });
+  dealAnim=false;
+}
+function layoutChain(){
+  const wrap=$('chain');
+  const W=Math.max(wrap.clientWidth,180);
+  const L=50,S=25,G=3,ROW=58;
+  const info=chain.map(t=>({t,dbl:t.a===t.b}));
+  const widths=info.map(o=>o.dbl?S:L);
+  const total=widths.reduce((a,b)=>a+b,0)+G*Math.max(0,chain.length-1);
+  const pos=[];let x,y=0,dir=1;
+  if(total<=W){
+    x=(W-total)/2;
+    for(let i=0;i<info.length;i++){pos.push({x,y:0,dir:1});x+=widths[i]+G}
+  }else{
+    x=0;dir=1;
+    for(let i=0;i<info.length;i++){
+      const w=widths[i];
+      if(dir===1&&x+w>W){y+=ROW;dir=-1;x=W}
+      else if(dir===-1&&x-w<0){y+=ROW;dir=1;x=0}
+      if(dir===1){pos.push({x,y,dir});x+=w+G}
+      else{pos.push({x:x-w,y,dir});x-=w+G}
+    }
+  }
+  wrap.style.height=(y+ROW)+'px';
+  const keep=new Set();
+  for(let i=0;i<chain.length;i++){
+    const o=info[i],p=pos[i],key=tileKey(o.t);keep.add(key);
+    let el=document.getElementById(key);
+    const isNew=!placedKeys.has(key);
+    if(!el){el=document.createElement('div');el.id=key;wrap.appendChild(el)}
+    el.className='ctile '+(o.dbl?'v':'h')+(isNew?' pop':'');
+    if(isNew)placedKeys.add(key);
+    const w=o.dbl?S:L,h=o.dbl?L:S;
+    el.style.width=w+'px';el.style.height=h+'px';
+    el.style.left=p.x+'px';
+    el.style.top=(p.y+(ROW-h)/2)+'px';
+    let h1=o.t.a,h2=o.t.b;
+    if(!o.dbl&&p.dir===-1){h1=o.t.b;h2=o.t.a}
+    el.innerHTML=halfHTML(h1)+'<i></i>'+halfHTML(h2);
+    if(selected>=0&&(i===0||i===chain.length-1)&&chain.length>0)el.classList.add('endglow');
+  }
+  Array.from(wrap.children).forEach(c=>{if(!keep.has(c.id))c.remove()});
+  const bd=$('board');bd.scrollTop=bd.scrollHeight;
+}
+window.addEventListener('resize',layoutChain);
+newRound();
+</script>
+</body>
+</html>

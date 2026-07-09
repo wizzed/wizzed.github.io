@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON Formatter · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ffd94a; --accent-soft:rgba(255,217,74,.4);
+  --panel:#161623; --line:#2c2c46; --text:#f8f4e6; --dim:#a8a086;
+  --str:#3ddc84; --num:#00e5ff; --bool:#ff6ec7; --nul:#8888aa; --err:#ff5470;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:24px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{
+  display:grid; grid-template-columns:minmax(300px,1fr) minmax(300px,1fr);
+  gap:14px; max-width:1100px; margin:8px auto 0; padding:0 14px; align-items:start;
+}
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:10px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(255,217,74,.07);
+}
+.panel h2{
+  font-size:11px; letter-spacing:3px; color:var(--accent);
+  text-shadow:0 0 8px var(--accent-soft); margin-bottom:8px;
+}
+.toolbar{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+button, select{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:5px 10px;
+}
+select{ padding:4px 6px; font-size:11px; }
+button:hover{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+button.prime{ color:#0f0f1a; background:var(--accent); border-color:var(--accent); font-weight:bold; }
+button.prime:hover{ box-shadow:0 0 14px var(--accent); color:#0f0f1a; }
+button.ok{ color:#0f0f1a !important; background:var(--str) !important; border-color:var(--str) !important; }
+textarea{
+  width:100%; min-height:250px; resize:vertical;
+  background:#0b0b14; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:12px; line-height:1.5; padding:9px;
+  outline:none; white-space:pre; overflow:auto;
+}
+textarea:focus{ border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft) inset, 0 0 8px var(--accent-soft); }
+.status{
+  display:inline-block; font-size:10px; letter-spacing:2px; padding:3px 10px;
+  border:1px solid; margin-top:8px;
+}
+.status.good{ color:var(--str); border-color:var(--str); text-shadow:0 0 8px rgba(61,220,132,.6); box-shadow:0 0 10px rgba(61,220,132,.25); }
+.status.bad{ color:var(--err); border-color:var(--err); text-shadow:0 0 8px rgba(255,84,112,.6); box-shadow:0 0 10px rgba(255,84,112,.25); }
+#errBox{ margin-top:8px; display:none; }
+#errBox.show{ display:block; }
+#errMsg{
+  color:var(--err); font-size:11px; line-height:1.5; cursor:pointer;
+  border:1px solid rgba(255,84,112,.5); background:rgba(255,84,112,.08); padding:6px 8px;
+}
+#errMsg:hover{ box-shadow:0 0 10px rgba(255,84,112,.3); }
+#errCtx{
+  margin-top:4px; background:#0b0b14; border:1px solid var(--line);
+  font-size:11px; line-height:1.5; padding:6px 8px; overflow-x:auto; white-space:pre;
+}
+#errCtx .lno{ color:#565672; user-select:none; }
+#errCtx mark{ background:var(--err); color:#fff; border-radius:2px; padding:0 1px; }
+#errCtx .caret{ color:var(--err); }
+.tabs{ display:flex; gap:6px; margin-bottom:8px; }
+.tabs button.on{ color:#0f0f1a; background:var(--accent); border-color:var(--accent); font-weight:bold; box-shadow:0 0 12px var(--accent); }
+#out{
+  background:#0b0b14; border:1px solid var(--line); padding:9px;
+  font-size:12px; line-height:1.5; white-space:pre; overflow:auto;
+  min-height:250px; max-height:60vh;
+}
+#tree{
+  background:#0b0b14; border:1px solid var(--line); padding:9px;
+  font-size:12px; line-height:1.55; overflow:auto; min-height:250px; max-height:60vh;
+  display:none;
+}
+#tree details{ margin-left:0; }
+#tree details > *:not(summary){ margin-left:18px; }
+#tree summary{ cursor:pointer; list-style:none; }
+#tree summary::before{ content:"▸ "; color:var(--accent); font-size:10px; }
+#tree details[open] > summary::before{ content:"▾ "; }
+#tree .k{ color:var(--accent); }
+#tree .badge{ color:var(--dim); font-size:10px; margin-left:4px; }
+#tree .leaf{ padding-left:13px; }
+#tree .v-str{ color:var(--str); }
+#tree .v-num{ color:var(--num); }
+#tree .v-bool{ color:var(--bool); }
+#tree .v-null{ color:var(--nul); font-style:italic; }
+#tree .more{ color:var(--dim); font-size:10px; padding-left:13px; }
+#tree .none{ color:var(--dim); font-size:11px; }
+@media (max-width:720px){ main{ grid-template-columns:1fr; } }
+footer{ text-align:center; margin-top:12px; font-size:10px; color:var(--dim); letter-spacing:2px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>JSON FORMATTER</h1>
+  <div class="sub">PRETTY · MINIFY · VALIDATE · EXPLORE</div>
+</header>
+<main>
+  <section class="panel">
+    <h2>&#9646; SOURCE</h2>
+    <div class="toolbar">
+      <button id="btnPretty" class="prime" type="button">PRETTY</button>
+      <button id="btnMin" type="button">MINIFY</button>
+      <select id="indent" aria-label="Indent size">
+        <option value="2" selected>2-space</option>
+        <option value="4">4-space</option>
+      </select>
+      <button id="btnSample" type="button">SAMPLE</button>
+      <button id="btnClear" type="button">CLEAR</button>
+    </div>
+    <textarea id="src" spellcheck="false" aria-label="JSON source"></textarea>
+    <div><span class="status good" id="status">VALID JSON</span></div>
+    <div id="errBox">
+      <div id="errMsg" title="Click to jump to the error"></div>
+      <div id="errCtx"></div>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="tabs">
+      <button id="tabOut" class="on" type="button">OUTPUT</button>
+      <button id="tabTree" type="button">TREE</button>
+      <button id="btnCopy" type="button" style="margin-left:auto">COPY OUTPUT</button>
+    </div>
+    <pre id="out"></pre>
+    <div id="tree"></div>
+  </section>
+</main>
+<footer>WIZZED ARCADE // TOOL 05</footer>
+<script>
+"use strict";
+// Recursive-descent JSON scanner: returns {ok:true} or {ok:false,index,message}
+function jsonScan(s){
+  var i = 0, len = s.length;
+  function ws(){
+    while(i < len){
+      var c = s.charCodeAt(i);
+      if(c === 32 || c === 9 || c === 10 || c === 13) i++;
+      else break;
+    }
+  }
+  function fail(msg, at){
+    return {ok:false, index:Math.min(at === undefined ? i : at, Math.max(0,len-1)), message:msg};
+  }
+  function parseString(){
+    var start = i;
+    i++; // opening quote
+    while(i < len){
+      var c = s[i];
+      if(c === '"'){ i++; return null; }
+      if(c === "\\"){
+        i++;
+        if(i >= len) return fail("Unterminated string — input ends inside an escape", start);
+        var e = s[i];
+        if(e === "u"){
+          var hex = s.substr(i+1, 4);
+          if(!/^[0-9a-fA-F]{4}$/.test(hex)) return fail("Invalid \\u escape — needs 4 hex digits", i-1);
+          i += 5;
+        } else if("\"\\/bfnrt".indexOf(e) >= 0){
+          i++;
+        } else {
+          return fail("Invalid escape sequence \\" + e + " in string", i-1);
+        }
+      } else if(c.charCodeAt(0) < 0x20){
+        return fail("Unescaped control character in string — use \\n, \\t, \\r", i);
+      } else {
+        i++;
+      }
+    }
+    return fail("Unterminated string — missing closing quote", start);
+  }
+  var numRe = /-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?/y;
+  function parseNumber(){
+    numRe.lastIndex = i;
+    var m = numRe.exec(s);
+    if(!m || m.index !== i) return fail("Invalid number");
+    i += m[0].length;
+    if(i < len && /[0-9.]/.test(s[i])){
+      if(/^-?0/.test(m[0]) && /[0-9]/.test(s[i])) return fail("Numbers cannot have leading zeros", i-1);
+      return fail("Invalid number format");
+    }
+    return null;
+  }
+  function parseValue(depth){
+    if(depth > 200) return fail("Nesting too deep (over 200 levels)");
+    ws();
+    if(i >= len) return fail("Unexpected end of input — expected a value");
+    var c = s[i];
+    if(c === "{") return parseObject(depth);
+    if(c === "[") return parseArray(depth);
+    if(c === '"') return parseString();
+    if(c === "-" || (c >= "0" && c <= "9")) return parseNumber();
+    if(s.startsWith("true", i)){ i += 4; return null; }
+    if(s.startsWith("false", i)){ i += 5; return null; }
+    if(s.startsWith("null", i)){ i += 4; return null; }
+    if(c === "'") return fail("Strings must use double quotes (\"), not single quotes");
+    if(c === "}" || c === "]") return fail("Unexpected \"" + c + "\" — expected a value");
+    if(/[A-Za-z_]/.test(c)) return fail("Unquoted token — only true, false, null, numbers and \"strings\" are valid");
+    return fail("Unexpected character \"" + c + "\" — expected a JSON value");
+  }
+  function parseObject(depth){
+    var e;
+    i++; ws();
+    if(i < len && s[i] === "}"){ i++; return null; }
+    while(true){
+      ws();
+      if(i >= len) return fail("Unexpected end of input inside object — missing }");
+      if(s[i] === "}") return fail("Trailing comma before } is not allowed");
+      if(s[i] !== '"'){
+        var hint = /[A-Za-z_]/.test(s[i]) ? " (keys must be double-quoted)" : "";
+        return fail("Expected \" to start a property name" + hint);
+      }
+      e = parseString(); if(e) return e;
+      ws();
+      if(i >= len || s[i] !== ":") return fail("Expected \":\" after property name");
+      i++;
+      e = parseValue(depth + 1); if(e) return e;
+      ws();
+      if(i >= len) return fail("Unexpected end of input inside object — missing }");
+      if(s[i] === ","){ i++; continue; }
+      if(s[i] === "}"){ i++; return null; }
+      return fail("Expected \",\" or \"}\" after object value");
+    }
+  }
+  function parseArray(depth){
+    var e;
+    i++; ws();
+    if(i < len && s[i] === "]"){ i++; return null; }
+    while(true){
+      ws();
+      if(i < len && s[i] === "]") return fail("Trailing comma before ] is not allowed");
+      e = parseValue(depth + 1); if(e) return e;
+      ws();
+      if(i >= len) return fail("Unexpected end of input inside array — missing ]");
+      if(s[i] === ","){ i++; continue; }
+      if(s[i] === "]"){ i++; return null; }
+      return fail("Expected \",\" or \"]\" after array element");
+    }
+  }
+  ws();
+  if(i >= len) return fail("Input is empty — paste some JSON", 0);
+  var e = parseValue(0);
+  if(e) return e;
+  ws();
+  if(i < len) return fail("Unexpected content after the end of the JSON value");
+  return {ok:true};
+}
+function lineColOf(s, index){
+  var line = 1, col = 1;
+  for(var k = 0; k < index && k < s.length; k++){
+    if(s[k] === "\n"){ line++; col = 1; } else col++;
+  }
+  return {line:line, col:col};
+}
+// ---- DOM ----
+var LS_KEY = "wizzed-json-formatter";
+var DEMO = '{\n  "arcade": "Wizzed",\n  "version": 2.1,\n  "online": true,\n  "maintenance": null,\n  "topScores": [9850, 9120, 8730],\n  "cabinet": {\n    "cpu": "Z80",\n    "ramKb": 64,\n    "coinSlot": {"accepts": ["token", "quarter"], "jammed": false},\n    "games": ["Asteroids", "Sokoban", "Simon", "Checkers"]\n  },\n  "motto": "insert coin to continue"\n}';
+
+var src = document.getElementById("src");
+var out = document.getElementById("out");
+var tree = document.getElementById("tree");
+var statusEl = document.getElementById("status");
+var errBox = document.getElementById("errBox");
+var errMsg = document.getElementById("errMsg");
+var errCtx = document.getElementById("errCtx");
+var indentSel = document.getElementById("indent");
+var tabOut = document.getElementById("tabOut");
+var tabTree = document.getElementById("tabTree");
+var lastAction = "pretty";
+var lastError = null;
+
+function save(){ try{ localStorage.setItem(LS_KEY, src.value); }catch(e){} }
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function showError(res){
+  lastError = res;
+  statusEl.textContent = "INVALID JSON";
+  statusEl.className = "status bad";
+  var lc = lineColOf(src.value, res.index);
+  errMsg.textContent = "✖ Line " + lc.line + ", Col " + lc.col + ": " + res.message + "  (click to jump)";
+  var lines = src.value.split("\n");
+  var from = Math.max(0, lc.line - 2), to = Math.min(lines.length, lc.line + 1);
+  var html = "";
+  for(var L = from; L < to; L++){
+    var raw = lines[L];
+    if(raw.length > 300) raw = raw.slice(0, 300) + "…";
+    var lno = String(L + 1).padStart(4, " ") + " | ";
+    if(L === lc.line - 1){
+      var cIdx = Math.min(lc.col - 1, Math.max(0, raw.length - 1));
+      var before = raw.slice(0, cIdx), bad = raw.slice(cIdx, cIdx + 1) || " ", after = raw.slice(cIdx + 1);
+      html += '<span class="lno">' + lno + "</span>" + esc(before) + "<mark>" + esc(bad) + "</mark>" + esc(after) + "\n";
+      html += '<span class="lno">     | </span><span class="caret">' + " ".repeat(Math.min(cIdx, 300)) + "^ here</span>\n";
+    } else {
+      html += '<span class="lno">' + lno + "</span>" + esc(raw) + "\n";
+    }
+  }
+  errCtx.innerHTML = html;
+  errBox.classList.add("show");
+}
+function clearError(){
+  lastError = null;
+  statusEl.textContent = "VALID JSON";
+  statusEl.className = "status good";
+  errBox.classList.remove("show");
+}
+errMsg.addEventListener("click", function(){
+  if(!lastError) return;
+  src.focus();
+  try{ src.setSelectionRange(lastError.index, lastError.index + 1); }catch(e){}
+});
+
+var treeNodeBudget = 0;
+function treeValueSpan(v){
+  var sp = document.createElement("span");
+  if(typeof v === "string"){ sp.className = "v-str"; sp.textContent = JSON.stringify(v); }
+  else if(typeof v === "number"){ sp.className = "v-num"; sp.textContent = String(v); }
+  else if(typeof v === "boolean"){ sp.className = "v-bool"; sp.textContent = String(v); }
+  else { sp.className = "v-null"; sp.textContent = "null"; }
+  return sp;
+}
+function buildTree(key, val, depth, parent){
+  if(treeNodeBudget-- <= 0) return false;
+  var isArr = Array.isArray(val);
+  if(val !== null && typeof val === "object"){
+    var det = document.createElement("details");
+    if(depth < 2) det.open = true;
+    var sum = document.createElement("summary");
+    var kEl = document.createElement("span");
+    kEl.className = "k";
+    kEl.textContent = key;
+    sum.appendChild(kEl);
+    var badge = document.createElement("span");
+    badge.className = "badge";
+    var keys = isArr ? null : Object.keys(val);
+    badge.textContent = isArr ? "[" + val.length + (val.length === 1 ? " item]" : " items]")
+                              : "{" + keys.length + (keys.length === 1 ? " key}" : " keys}");
+    sum.appendChild(badge);
+    det.appendChild(sum);
+    var entries = isArr ? val : keys;
+    var cap = Math.min(entries.length, 150);
+    for(var i = 0; i < cap; i++){
+      var childKey = isArr ? "[" + i + "]" : keys[i];
+      var childVal = isArr ? val[i] : val[keys[i]];
+      if(!buildTree(childKey, childVal, depth + 1, det)){
+        var mo = document.createElement("div");
+        mo.className = "more";
+        mo.textContent = "… tree truncated (too many nodes)";
+        det.appendChild(mo);
+        parent.appendChild(det);
+        return false;
+      }
+    }
+    if(entries.length > cap){
+      var more = document.createElement("div");
+      more.className = "more";
+      more.textContent = "… " + (entries.length - cap) + " more not shown";
+      det.appendChild(more);
+    }
+    parent.appendChild(det);
+  } else {
+    var leaf = document.createElement("div");
+    leaf.className = "leaf";
+    var k2 = document.createElement("span");
+    k2.className = "k";
+    k2.textContent = key + ": ";
+    leaf.appendChild(k2);
+    leaf.appendChild(treeValueSpan(val));
+    parent.appendChild(leaf);
+  }
+  return true;
+}
+function renderTree(val){
+  tree.innerHTML = "";
+  treeNodeBudget = 3000;
+  buildTree("root", val, 0, tree);
+}
+function refresh(){
+  var text = src.value;
+  var res = jsonScan(text);
+  if(!res.ok){
+    showError(res);
+    out.textContent = "// fix the JSON to see formatted output";
+    tree.innerHTML = '<div class="none">Tree unavailable — source is not valid JSON.</div>';
+    return;
+  }
+  clearError();
+  var val;
+  try{ val = JSON.parse(text); }
+  catch(e){
+    showError({ok:false, index:0, message:"Parse failed: " + e.message});
+    return;
+  }
+  var n = parseInt(indentSel.value, 10) || 2;
+  out.textContent = lastAction === "minify" ? JSON.stringify(val) : JSON.stringify(val, null, n);
+  renderTree(val);
+}
+function setTab(which){
+  tabOut.classList.toggle("on", which === "out");
+  tabTree.classList.toggle("on", which === "tree");
+  out.style.display = which === "out" ? "block" : "none";
+  tree.style.display = which === "tree" ? "block" : "none";
+}
+tabOut.addEventListener("click", function(){ setTab("out"); });
+tabTree.addEventListener("click", function(){ setTab("tree"); });
+document.getElementById("btnPretty").addEventListener("click", function(){
+  lastAction = "pretty"; refresh(); setTab("out");
+});
+document.getElementById("btnMin").addEventListener("click", function(){
+  lastAction = "minify"; refresh(); setTab("out");
+});
+indentSel.addEventListener("change", refresh);
+document.getElementById("btnSample").addEventListener("click", function(){
+  src.value = DEMO; lastAction = "pretty"; refresh(); save();
+});
+document.getElementById("btnClear").addEventListener("click", function(){
+  src.value = ""; refresh(); save(); src.focus();
+});
+document.getElementById("btnCopy").addEventListener("click", function(){
+  var btn = this;
+  var t = out.textContent;
+  var done = function(){
+    btn.classList.add("ok"); btn.textContent = "COPIED!";
+    setTimeout(function(){ btn.classList.remove("ok"); btn.textContent = "COPY OUTPUT"; }, 900);
+  };
+  var fallback = function(){
+    var ta = document.createElement("textarea");
+    ta.value = t;
+    ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand("copy"); }catch(e){}
+    document.body.removeChild(ta);
+    done();
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(done, fallback);
+  } else { fallback(); }
+});
+var debounce = null;
+src.addEventListener("input", function(){
+  save();
+  clearTimeout(debounce);
+  debounce = setTimeout(refresh, 160);
+});
+(function init(){
+  var v = null;
+  try{ v = localStorage.getItem(LS_KEY); }catch(e){}
+  src.value = (v !== null && v !== "") ? v : DEMO;
+  refresh();
+  setTab("out");
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visualizer Studio — Music Video Maker · Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Courier New', ui-monospace, monospace;
+    background: #0f0f1a; color: #dfe8ff;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .back {
+    position: fixed; top: 8px; right: 10px; z-index: 40;
+    padding: 5px 11px; font-size: 12px; letter-spacing: 1px;
+    color: #dfe8ff; text-decoration: none;
+    background: rgba(10,14,26,.6); border: 1px solid rgba(255,255,255,.25); border-radius: 4px;
+  }
+  .back:hover { border-color: #ff2d78; color: #ff2d78; }
+
+  /* ---------- top bar ---------- */
+  #topbar {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+    padding: 8px 10px; background: #0d101e; border-bottom: 2px solid #23264a;
+  }
+  #topbar h1 {
+    font-size: 14px; letter-spacing: 2px; color: #fff; margin-right: 6px;
+    text-shadow: 0 0 12px rgba(255,45,120,.6);
+  }
+  .btn {
+    font: inherit; font-size: 12px; letter-spacing: 1px;
+    padding: 7px 11px; border-radius: 6px; cursor: pointer;
+    background: #141a36; color: #cfe0ff; border: 1px solid #33395f;
+    transition: all .13s ease; white-space: nowrap;
+  }
+  .btn:hover { border-color: #ff2d78; color: #ff8fb4; }
+  .btn.primary { background: linear-gradient(180deg,#ff5c96,#d61d64); color: #fff; border: none; font-weight: bold; }
+  .btn.primary:hover { filter: brightness(1.1); color: #fff; }
+  .btn.cyan { background: linear-gradient(180deg,#22e2ff,#0e8fd8); color: #041220; border: none; font-weight: bold; }
+  .btn.cyan:hover { filter: brightness(1.1); color: #041220; }
+  select, input[type=color], input[type=number] {
+    font: inherit; font-size: 12px; background: #0b0e1e; color: #dfe8ff;
+    border: 1px solid #33395f; border-radius: 5px; padding: 6px 7px;
+  }
+  input[type=color] { width: 34px; height: 29px; padding: 2px; cursor: pointer; }
+  label.mini { font-size: 11px; color: #8b96c2; display: flex; align-items: center; gap: 5px; }
+  #songname { font-size: 11.5px; color: #8ff0c8; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---------- stage ---------- */
+  #stage {
+    flex: 1; min-height: 0; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    background: #05060d;
+  }
+  #cv { max-width: 100%; max-height: 100%; display: block; box-shadow: 0 0 60px rgba(0,0,0,.8); }
+  #dropzone {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(255,45,120,.12); border: 3px dashed #ff2d78;
+    font-size: 22px; color: #ff8fb4; letter-spacing: 2px;
+    pointer-events: none; z-index: 5;
+  }
+  #exportOverlay {
+    position: absolute; inset: 0; z-index: 20; display: none;
+    align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+    background: rgba(5,6,13,.82); backdrop-filter: blur(3px);
+  }
+  #exportOverlay .big { font-size: 20px; letter-spacing: 3px; color: #ff8fb4; }
+  #exportBarWrap { width: 60%; max-width: 420px; height: 14px; border: 1px solid #ff2d78; border-radius: 999px; overflow: hidden; }
+  #exportBar { height: 100%; width: 0%; background: linear-gradient(90deg,#ff2d78,#ffd166); transition: width .3s linear; }
+  #exportInfo { font-size: 12px; color: #aab6dd; }
+
+  /* ---------- transport + lyric editor ---------- */
+  #transport {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+    padding: 7px 10px; background: #0d101e; border-top: 2px solid #23264a;
+  }
+  #time { font-size: 12px; color: #8b96c2; min-width: 96px; text-align: center; }
+  #lyricEdit {
+    display: flex; align-items: center; gap: 6px; flex: 1; flex-wrap: wrap;
+    min-width: 240px;
+  }
+  #lyricText {
+    flex: 1; min-width: 130px; font: inherit; font-size: 12.5px;
+    background: #0b0e1e; color: #ffe8f1; border: 1px solid #33395f;
+    border-radius: 5px; padding: 7px 9px;
+  }
+  #lyricText:disabled { opacity: .4; }
+  input.tnum { width: 64px; }
+
+  /* ---------- timeline ---------- */
+  #timelineWrap { background: #0a0d1a; border-top: 1px solid #23264a; padding: 6px 10px 10px; user-select: none; }
+  #tlLabel { font-size: 10.5px; color: #66719a; letter-spacing: 2px; margin-bottom: 4px; display: flex; justify-content: space-between; }
+  #timeline {
+    position: relative; height: 74px; border-radius: 6px;
+    background:
+      repeating-linear-gradient(90deg, #1c2140 0 1px, transparent 1px 10%),
+      linear-gradient(180deg, #10142a, #0c0f22);
+    border: 1px solid #23264a; overflow: hidden; cursor: crosshair;
+    touch-action: none;
+  }
+  #tlRuler { position: absolute; top: 0; left: 0; right: 0; height: 16px; border-bottom: 1px solid #23264a; font-size: 9px; color: #66719a; }
+  .tick { position: absolute; top: 1px; }
+  .lyricBlock {
+    position: absolute; top: 22px; height: 44px;
+    background: linear-gradient(180deg, rgba(255,45,120,.32), rgba(255,45,120,.16));
+    border: 1px solid #ff2d78; border-radius: 6px;
+    font-size: 10.5px; color: #ffd7e6; overflow: hidden;
+    padding: 3px 6px; cursor: grab; line-height: 1.25;
+    touch-action: none;
+  }
+  .lyricBlock.sel { border-color: #ffd166; box-shadow: 0 0 12px rgba(255,209,102,.5); background: linear-gradient(180deg, rgba(255,209,102,.3), rgba(255,45,120,.2)); }
+  .lyricBlock .grip { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
+  .lyricBlock .grip.l { left: 0; border-right: 1px solid rgba(255,255,255,.25); }
+  .lyricBlock .grip.r { right: 0; border-left: 1px solid rgba(255,255,255,.25); }
+  #playhead {
+    position: absolute; top: 0; bottom: 0; width: 2px;
+    background: #22e2ff; box-shadow: 0 0 8px #22e2ff;
+    pointer-events: none; z-index: 4;
+  }
+  #toast {
+    position: fixed; top: 46px; left: 50%; transform: translateX(-50%) translateY(-110px);
+    z-index: 60; padding: 10px 18px; border-radius: 8px;
+    background: #041a10; color: #6dffb8; border: 1px solid #1fdf82;
+    font-size: 12.5px; letter-spacing: 1px;
+    transition: transform .3s cubic-bezier(.2,1.4,.4,1);
+    box-shadow: 0 0 20px rgba(30,220,130,.4); max-width: 90vw; text-align: center;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  dialog#pasteDlg {
+    background: #10142a; color: #dfe8ff; border: 1px solid #33395f; border-radius: 10px;
+    padding: 16px; width: min(480px, 92vw);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  #pasteArea { width: 100%; height: 150px; font: inherit; font-size: 12px; background: #0b0e1e; color: #dfe8ff; border: 1px solid #33395f; border-radius: 6px; padding: 8px; }
+  .dlgrow { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .hintline { font-size: 10.5px; color: #66719a; margin-top: 6px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+
+<div id="topbar">
+  <h1>🎬 VISUALIZER STUDIO</h1>
+  <input type="file" id="fileInput" accept="audio/*,video/mp4,video/webm" style="display:none">
+  <button class="btn primary" id="openBtn">📂 LOAD SONG / MP4</button>
+  <button class="btn" id="demoBtn">🎵 DEMO TRACK</button>
+  <span id="songname">no song loaded — visualizer idling</span>
+  <label class="mini">viz
+    <select id="vizSel">
+      <option value="bars">Neon Bars</option>
+      <option value="radial">Radial Pulse</option>
+      <option value="wave">Waveform</option>
+      <option value="particles">Particle Storm</option>
+      <option value="rings">Echo Rings</option>
+      <option value="starburst">Starburst</option>
+      <option value="nebula">Nebula</option>
+    </select>
+  </label>
+  <label class="mini">theme
+    <select id="themeSel">
+      <option value="synthwave">Synthwave</option>
+      <option value="sunset">Sunset</option>
+      <option value="emerald">Emerald</option>
+      <option value="ice">Ice</option>
+      <option value="mono">Mono</option>
+      <option value="rainbow">Rainbow</option>
+    </select>
+  </label>
+  <label class="mini">bg
+    <select id="bgSel">
+      <option value="dark">Dark</option>
+      <option value="gradient">Gradient</option>
+      <option value="video">Video (mp4)</option>
+    </select>
+  </label>
+  <label class="mini">lyric size <input type="number" id="lyrSize" class="tnum" min="3" max="12" step="0.5" value="6"></label>
+  <label class="mini"><input type="color" id="lyrColor" value="#ffffff"> lyric</label>
+</div>
+
+<div id="stage">
+  <canvas id="cv" width="960" height="540"></canvas>
+  <div id="dropzone">DROP YOUR SONG HERE</div>
+  <div id="exportOverlay">
+    <div class="big">⏺ EXPORTING…</div>
+    <div id="exportBarWrap"><div id="exportBar"></div></div>
+    <div id="exportInfo"></div>
+    <button class="btn" id="cancelExport">✕ CANCEL</button>
+  </div>
+</div>
+
+<div id="transport">
+  <button class="btn" id="playBtn">▶</button>
+  <span id="time">0:00 / 0:00</span>
+  <div id="lyricEdit">
+    <button class="btn" id="addLyricBtn" title="add a lyric at the playhead">＋ LYRIC</button>
+    <button class="btn" id="pasteBtn" title="paste many lines at once">📋 PASTE</button>
+    <input id="lyricText" placeholder="select a lyric block to edit its text…" disabled>
+    <label class="mini">start <input type="number" id="lyrStart" class="tnum" step="0.1" disabled></label>
+    <label class="mini">end <input type="number" id="lyrEnd" class="tnum" step="0.1" disabled></label>
+    <button class="btn" id="delLyricBtn" disabled>🗑</button>
+  </div>
+  <label class="mini">export
+    <select id="resSel">
+      <option value="1280x720">720p · 1280×720</option>
+      <option value="1920x1080" selected>1080p · 1920×1080</option>
+      <option value="3840x2160">4K · 3840×2160</option>
+      <option value="1080x1080">Square · 1080×1080</option>
+      <option value="1080x1920">Vertical · 1080×1920</option>
+      <option value="640x360">Preview · 640×360</option>
+    </select>
+  </label>
+  <label class="mini">fps
+    <select id="fpsSel"><option>30</option><option>60</option></select>
+  </label>
+  <button class="btn cyan" id="exportBtn">⏺ EXPORT VIDEO</button>
+</div>
+
+<div id="timelineWrap">
+  <div id="tlLabel"><span>LYRIC TIMELINE — click to seek · ＋ LYRIC to add · drag blocks to move · drag edges to stretch</span><span id="fmtInfo"></span></div>
+  <div id="timeline">
+    <div id="tlRuler"></div>
+    <div id="playhead"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<dialog id="pasteDlg">
+  <b style="letter-spacing:1px">PASTE LYRICS</b>
+  <div class="hintline">One line per lyric. Plain lines are spread evenly across the song from the current playhead. LRC format (<i>[mm:ss.xx] words</i>) keeps its own timing.</div>
+  <textarea id="pasteArea" placeholder="[00:12.50] first line of the song&#10;[00:16.00] second line…&#10;or just plain lines"></textarea>
+  <div class="dlgrow">
+    <button class="btn primary" id="pasteOk">ADD LINES</button>
+    <button class="btn" id="pasteCancel">CANCEL</button>
+    <button class="btn" id="clearLyrics" style="margin-left:auto">CLEAR ALL LYRICS</button>
+  </div>
+</dialog>
+
+<script>
+'use strict';
+(function () {
+  const SAVE_KEY = 'wizzed-visualizer-studio';
+
+  // ================= state =================
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  let media = null;            // <audio> or <video> element
+  let mediaIsVideo = false;
+  let audioCtx = null, analyser = null, srcNode = null, msDest = null;
+  let freq = new Uint8Array(1024), wave = new Uint8Array(2048);
+  let lyrics = [];             // {start, end, text}
+  let selected = -1;
+  let songName = '';
+  let exporting = false, exportCancel = false;
+
+  const THEMES = {
+    synthwave: ['#ff2d78', '#00e5ff', '#9d6bff'],
+    sunset:    ['#ff6b35', '#ffd166', '#ff2d78'],
+    emerald:   ['#00ff9c', '#22e2ff', '#b6ff3c'],
+    ice:       ['#9fd7ff', '#e8f4ff', '#4dc3ff'],
+    mono:      ['#f2f4fa', '#9aa3b8', '#ffffff'],
+    rainbow:   null, // hue-cycles
+  };
+  const cfg = {
+    viz: 'bars', theme: 'synthwave', bg: 'dark',
+    lyrSize: 6, lyrColor: '#ffffff',
+  };
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+    if (s && s.cfg) Object.assign(cfg, s.cfg);
+  } catch (e) {}
+  function persist() {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ cfg, lyricsBySong: lyricStore }));
+    } catch (e) {}
+  }
+  let lyricStore = {};
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+    if (s && s.lyricsBySong) lyricStore = s.lyricsBySong;
+  } catch (e) {}
+
+  // reflect cfg in UI
+  const $ = id => document.getElementById(id);
+  $('vizSel').value = cfg.viz; $('themeSel').value = cfg.theme;
+  $('bgSel').value = cfg.bg; $('lyrSize').value = cfg.lyrSize; $('lyrColor').value = cfg.lyrColor;
+  $('vizSel').addEventListener('input', e => { cfg.viz = e.target.value; persist(); });
+  $('themeSel').addEventListener('input', e => { cfg.theme = e.target.value; persist(); });
+  $('bgSel').addEventListener('input', e => { cfg.bg = e.target.value; persist(); });
+  $('lyrSize').addEventListener('input', e => { cfg.lyrSize = +e.target.value; persist(); });
+  $('lyrColor').addEventListener('input', e => { cfg.lyrColor = e.target.value; persist(); });
+
+  let toastTimer;
+  function toast(msg) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3600);
+  }
+
+  // ================= audio graph =================
+  function ensureCtx() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.82;
+      msDest = audioCtx.createMediaStreamDestination();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function attachMedia(el) {
+    ensureCtx();
+    if (srcNode) { try { srcNode.disconnect(); } catch (e) {} }
+    srcNode = audioCtx.createMediaElementSource(el);
+    srcNode.connect(analyser);
+    analyser.connect(audioCtx.destination);
+    srcNode.connect(msDest);
+  }
+  function loadFile(file) {
+    const url = URL.createObjectURL(file);
+    mediaIsVideo = /^video\//.test(file.type) || /\.(mp4|webm)$/i.test(file.name);
+    setMedia(url, file.name, mediaIsVideo);
+  }
+  function setMedia(url, name, isVideo) {
+    if (media) { media.pause(); media.src = ''; media.remove(); }
+    media = document.createElement(isVideo ? 'video' : 'audio');
+    media.src = url;
+    media.crossOrigin = 'anonymous';
+    media.preload = 'auto';
+    media.playsInline = true;
+    media.style.display = 'none';
+    document.body.appendChild(media);
+    mediaIsVideo = isVideo;
+    songName = name;
+    $('songname').textContent = '♪ ' + name;
+    media.addEventListener('loadedmetadata', () => {
+      buildRuler();
+      // restore lyrics saved for this song
+      if (lyricStore[name]) { lyrics = lyricStore[name].map(l => ({ ...l })); }
+      renderBlocks();
+      updateTimeUI();
+      if (isVideo) { cfg.bg = 'video'; $('bgSel').value = 'video'; }
+    });
+    media.addEventListener('ended', () => { $('playBtn').textContent = '▶'; });
+    attachMedia(media);
+  }
+
+  // ---------- demo track: synthesize a chiptune loop, WAV-encode, load ----------
+  function makeDemo() {
+    ensureCtx();
+    const secs = 18, sr = 44100;
+    const oct = new OfflineAudioContext(2, secs * sr, sr);
+    const master = oct.createGain(); master.gain.value = 0.5; master.connect(oct.destination);
+    const notes = [261.6, 311.1, 392.0, 466.2, 392.0, 311.1]; // Cm arpeggio-ish
+    const bass = [65.4, 65.4, 77.8, 58.3];
+    // kick
+    for (let t = 0; t < secs; t += 0.5) {
+      const o = oct.createOscillator(), g = oct.createGain();
+      o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+      g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      o.connect(g).connect(master); o.start(t); o.stop(t + 0.2);
+    }
+    // hats
+    for (let t = 0.25; t < secs; t += 0.5) {
+      const b = oct.createBuffer(1, 2000, sr), d = b.getChannelData(0);
+      for (let i = 0; i < 2000; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / 2000, 2);
+      const s = oct.createBufferSource(); s.buffer = b;
+      const g = oct.createGain(); g.gain.value = 0.16;
+      const f = oct.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 6000;
+      s.connect(f).connect(g).connect(master); s.start(t);
+    }
+    // bass
+    for (let i = 0; i * 1.0 < secs; i++) {
+      const t = i * 1.0, o = oct.createOscillator(), g = oct.createGain();
+      o.type = 'sawtooth'; o.frequency.value = bass[i % bass.length];
+      g.gain.setValueAtTime(0.22, t); g.gain.setValueAtTime(0.22, t + 0.8); g.gain.linearRampToValueAtTime(0.0, t + 0.98);
+      o.connect(g).connect(master); o.start(t); o.stop(t + 1.0);
+    }
+    // lead arpeggio
+    for (let i = 0; i * 0.25 < secs; i++) {
+      const t = i * 0.25, o = oct.createOscillator(), g = oct.createGain();
+      o.type = 'square';
+      o.frequency.value = notes[i % notes.length] * (i % 12 < 6 ? 1 : 1.5);
+      g.gain.setValueAtTime(0.0, t); g.gain.linearRampToValueAtTime(0.12, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      o.connect(g).connect(master); o.start(t); o.stop(t + 0.24);
+    }
+    oct.startRendering().then(buf => {
+      const wav = bufferToWav(buf);
+      const url = URL.createObjectURL(new Blob([wav], { type: 'audio/wav' }));
+      setMedia(url, 'demo-track.wav', false);
+      // demo lyrics if none saved
+      setTimeout(() => {
+        if (!lyrics.length) {
+          lyrics = [
+            { start: 0.5, end: 3.5, text: 'WELCOME TO VISUALIZER STUDIO' },
+            { start: 4.0, end: 7.5, text: 'load a song · pick a visualizer' },
+            { start: 8.0, end: 11.5, text: 'time your lyrics on the bar below' },
+            { start: 12.0, end: 17.5, text: 'then EXPORT your music video ★' },
+          ];
+          renderBlocks(); saveLyrics();
+        }
+        media.play().then(() => { $('playBtn').textContent = '⏸'; }).catch(() => {});
+      }, 150);
+      toast('🎵 demo track loaded — press EXPORT to try a render!');
+    });
+  }
+  function bufferToWav(buf) {
+    const ch = buf.numberOfChannels, sr = buf.sampleRate, len = buf.length;
+    const bytes = 44 + len * ch * 2;
+    const ab = new ArrayBuffer(bytes), dv = new DataView(ab);
+    const wstr = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+    wstr(0, 'RIFF'); dv.setUint32(4, bytes - 8, true); wstr(8, 'WAVE');
+    wstr(12, 'fmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true);
+    dv.setUint16(22, ch, true); dv.setUint32(24, sr, true);
+    dv.setUint32(28, sr * ch * 2, true); dv.setUint16(32, ch * 2, true); dv.setUint16(34, 16, true);
+    wstr(36, 'data'); dv.setUint32(40, len * ch * 2, true);
+    let off = 44;
+    const chans = [];
+    for (let c = 0; c < ch; c++) chans.push(buf.getChannelData(c));
+    for (let i = 0; i < len; i++)
+      for (let c = 0; c < ch; c++) {
+        let v = Math.max(-1, Math.min(1, chans[c][i]));
+        dv.setInt16(off, v < 0 ? v * 0x8000 : v * 0x7FFF, true);
+        off += 2;
+      }
+    return ab;
+  }
+
+  // ================= file open / drag-drop =================
+  $('openBtn').addEventListener('click', () => { ensureCtx(); $('fileInput').click(); });
+  $('fileInput').addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+  $('demoBtn').addEventListener('click', makeDemo);
+  addEventListener('dragover', e => { e.preventDefault(); $('dropzone').style.display = 'flex'; });
+  addEventListener('dragleave', e => { if (!e.relatedTarget) $('dropzone').style.display = 'none'; });
+  addEventListener('drop', e => {
+    e.preventDefault(); $('dropzone').style.display = 'none';
+    ensureCtx();
+    if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+  });
+
+  // ================= transport =================
+  $('playBtn').addEventListener('click', togglePlay);
+  addEventListener('keydown', e => {
+    if (e.key === ' ' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+      e.preventDefault(); togglePlay();
+    }
+  });
+  function togglePlay() {
+    if (!media) { makeDemo(); return; }
+    ensureCtx();
+    if (media.paused) { media.play(); $('playBtn').textContent = '⏸'; }
+    else { media.pause(); $('playBtn').textContent = '▶'; }
+  }
+  function fmt(t) {
+    if (!isFinite(t)) t = 0;
+    const m = Math.floor(t / 60), s = Math.floor(t % 60);
+    return m + ':' + String(s).padStart(2, '0');
+  }
+  function updateTimeUI() {
+    const cur = media ? media.currentTime : 0, dur = media ? (media.duration || 0) : 0;
+    $('time').textContent = fmt(cur) + ' / ' + fmt(dur);
+    $('playhead').style.left = (dur ? (cur / dur) * 100 : 0) + '%';
+  }
+
+  // ================= lyrics model =================
+  function saveLyrics() {
+    if (songName) {
+      lyricStore[songName] = lyrics.map(l => ({ ...l }));
+      const names = Object.keys(lyricStore);
+      if (names.length > 24) delete lyricStore[names[0]];
+    }
+    persist();
+  }
+  function dur() { return media && isFinite(media.duration) ? media.duration : 60; }
+  function addLyric(start, end, text) {
+    lyrics.push({ start, end, text });
+    lyrics.sort((a, b) => a.start - b.start);
+    renderBlocks(); saveLyrics();
+  }
+  $('addLyricBtn').addEventListener('click', () => {
+    const t = media ? media.currentTime : 0;
+    addLyric(t, Math.min(t + 3, dur()), 'new lyric line');
+    selectBlock(lyrics.findIndex(l => l.start === t));
+    toast('＋ lyric added at ' + fmt(t) + ' — type its words in the box');
+    $('lyricText').focus(); $('lyricText').select();
+  });
+  $('delLyricBtn').addEventListener('click', () => {
+    if (selected < 0) return;
+    lyrics.splice(selected, 1);
+    selectBlock(-1); renderBlocks(); saveLyrics();
+  });
+  $('lyricText').addEventListener('input', () => {
+    if (selected < 0) return;
+    lyrics[selected].text = $('lyricText').value;
+    renderBlocks(false); saveLyrics();
+  });
+  $('lyrStart').addEventListener('input', () => {
+    if (selected < 0) return;
+    lyrics[selected].start = Math.max(0, Math.min(+$('lyrStart').value, lyrics[selected].end - 0.2));
+    renderBlocks(false); saveLyrics();
+  });
+  $('lyrEnd').addEventListener('input', () => {
+    if (selected < 0) return;
+    lyrics[selected].end = Math.min(dur(), Math.max(+$('lyrEnd').value, lyrics[selected].start + 0.2));
+    renderBlocks(false); saveLyrics();
+  });
+
+  // paste dialog
+  const dlg = $('pasteDlg');
+  $('pasteBtn').addEventListener('click', () => dlg.showModal());
+  $('pasteCancel').addEventListener('click', () => dlg.close());
+  $('clearLyrics').addEventListener('click', () => {
+    lyrics = []; selectBlock(-1); renderBlocks(); saveLyrics(); dlg.close();
+    toast('lyrics cleared');
+  });
+  $('pasteOk').addEventListener('click', () => {
+    const raw = $('pasteArea').value.split('\n').map(s => s.trim()).filter(Boolean);
+    if (!raw.length) { dlg.close(); return; }
+    const lrc = [];
+    let anyLrc = false;
+    for (const line of raw) {
+      const m = line.match(/^\[(\d+):(\d+(?:\.\d+)?)\]\s*(.*)$/);
+      if (m) { anyLrc = true; lrc.push({ t: +m[1] * 60 + +m[2], text: m[3] || '…' }); }
+    }
+    if (anyLrc && lrc.length) {
+      lrc.sort((a, b) => a.t - b.t);
+      for (let i = 0; i < lrc.length; i++) {
+        const end = i + 1 < lrc.length ? Math.max(lrc[i].t + 0.4, lrc[i + 1].t - 0.05) : Math.min(lrc[i].t + 4, dur());
+        lyrics.push({ start: lrc[i].t, end, text: lrc[i].text });
+      }
+      toast('🎤 ' + lrc.length + ' LRC lines imported with their timing');
+    } else {
+      const t0 = media ? media.currentTime : 0;
+      const span = Math.max(4, dur() - t0);
+      const per = span / raw.length;
+      raw.forEach((text, i) => {
+        lyrics.push({ start: t0 + i * per, end: t0 + i * per + Math.min(per * 0.9, per - 0.05), text });
+      });
+      toast('🎤 ' + raw.length + ' lines spread across the song — drag the blocks to fine-tune');
+    }
+    lyrics.sort((a, b) => a.start - b.start);
+    renderBlocks(); saveLyrics(); dlg.close();
+  });
+
+  // ================= timeline UI =================
+  const tl = $('timeline');
+  function buildRuler() {
+    const r = $('tlRuler');
+    r.innerHTML = '';
+    const d = dur();
+    const step = d > 240 ? 30 : d > 120 ? 15 : d > 45 ? 10 : 5;
+    for (let t = 0; t <= d; t += step) {
+      const tick = document.createElement('span');
+      tick.className = 'tick';
+      tick.style.left = (t / d) * 100 + '%';
+      tick.textContent = fmt(t);
+      r.appendChild(tick);
+    }
+  }
+  function renderBlocks(rebuildSel = true) {
+    tl.querySelectorAll('.lyricBlock').forEach(b => b.remove());
+    const d = dur();
+    lyrics.forEach((l, i) => {
+      const b = document.createElement('div');
+      b.className = 'lyricBlock' + (i === selected ? ' sel' : '');
+      b.style.left = (l.start / d) * 100 + '%';
+      b.style.width = Math.max(0.5, ((l.end - l.start) / d) * 100) + '%';
+      b.textContent = l.text;
+      b.dataset.i = i;
+      const gl = document.createElement('span'); gl.className = 'grip l';
+      const gr = document.createElement('span'); gr.className = 'grip r';
+      b.appendChild(gl); b.appendChild(gr);
+      tl.appendChild(b);
+    });
+  }
+  function selectBlock(i) {
+    selected = i;
+    const has = i >= 0 && lyrics[i];
+    $('lyricText').disabled = !has; $('lyrStart').disabled = !has;
+    $('lyrEnd').disabled = !has; $('delLyricBtn').disabled = !has;
+    if (has) {
+      $('lyricText').value = lyrics[i].text;
+      $('lyrStart').value = lyrics[i].start.toFixed(1);
+      $('lyrEnd').value = lyrics[i].end.toFixed(1);
+    } else {
+      $('lyricText').value = '';
+    }
+    renderBlocks(false);
+  }
+  // drag / resize / seek
+  let drag = null;
+  tl.addEventListener('pointerdown', e => {
+    const block = e.target.closest('.lyricBlock');
+    const rect = tl.getBoundingClientRect();
+    const frac = (e.clientX - rect.left) / rect.width;
+    if (block) {
+      const i = +block.dataset.i;
+      selectBlock(i);
+      const mode = e.target.classList.contains('grip')
+        ? (e.target.classList.contains('l') ? 'l' : 'r') : 'move';
+      drag = { i, mode, startFrac: frac, orig: { ...lyrics[i] } };
+      tl.setPointerCapture(e.pointerId);
+    } else {
+      // seek
+      if (media) media.currentTime = frac * dur();
+      updateTimeUI();
+    }
+  });
+  tl.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const rect = tl.getBoundingClientRect();
+    const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const dt = (frac - drag.startFrac) * dur();
+    const l = lyrics[drag.i], o = drag.orig, d = dur();
+    if (drag.mode === 'move') {
+      const len = o.end - o.start;
+      l.start = Math.max(0, Math.min(o.start + dt, d - len));
+      l.end = l.start + len;
+    } else if (drag.mode === 'l') {
+      l.start = Math.max(0, Math.min(o.start + dt, l.end - 0.3));
+    } else {
+      l.end = Math.min(d, Math.max(o.end + dt, l.start + 0.3));
+    }
+    $('lyrStart').value = l.start.toFixed(1);
+    $('lyrEnd').value = l.end.toFixed(1);
+    renderBlocks(false);
+  });
+  addEventListener('pointerup', () => {
+    if (drag) { lyrics.sort((a, b) => a.start - b.start); selected = -1; renderBlocks(); saveLyrics(); drag = null; }
+  });
+
+  // ================= visualizer rendering =================
+  function themeColors(t) {
+    if (cfg.theme === 'rainbow') {
+      const h = (t * 30) % 360;
+      return [`hsl(${h},95%,60%)`, `hsl(${(h + 120) % 360},95%,60%)`, `hsl(${(h + 240) % 360},95%,60%)`];
+    }
+    return THEMES[cfg.theme];
+  }
+  function band(a, b) {  // avg energy 0..1 in freq bin range
+    let s = 0;
+    for (let i = a; i < b; i++) s += freq[i];
+    return s / ((b - a) * 255);
+  }
+  let idleT = 0;
+  function sampleAudio(t) {
+    const playing = media && !media.paused && !media.ended;
+    if (playing && analyser) {
+      analyser.getByteFrequencyData(freq);
+      analyser.getByteTimeDomainData(wave);
+    } else {
+      // idle: gentle synthetic motion so the canvas is never dead
+      idleT = t;
+      for (let i = 0; i < freq.length; i++) {
+        const v = 0.32 + 0.28 * Math.sin(t * 1.8 + i * 0.045) + 0.2 * Math.sin(t * 3.1 + i * 0.013) + 0.12 * Math.sin(i * 0.4 - t * 5);
+        freq[i] = Math.max(0, Math.min(1, v * Math.exp(-i / 420))) * 255;
+      }
+      for (let i = 0; i < wave.length; i++) {
+        wave[i] = 128 + Math.sin(i * 0.02 + t * 3) * 36 * Math.sin(t * 0.9) + Math.sin(i * 0.07 - t * 5) * 14;
+      }
+    }
+  }
+
+  const VIZ = {
+    bars(c, W, H, t) {
+      const cols = themeColors(t);
+      const N = 64, bw = W / N;
+      for (let i = 0; i < N; i++) {
+        const v = freq[Math.floor(Math.pow(i / N, 1.4) * 560)] / 255;
+        const h = v * H * 0.62;
+        const g = c.createLinearGradient(0, H - h, 0, H);
+        g.addColorStop(0, cols[1]); g.addColorStop(1, cols[0]);
+        c.fillStyle = g;
+        c.fillRect(i * bw + bw * 0.12, H * 0.78 - h, bw * 0.76, h);
+        // reflection
+        c.globalAlpha = 0.22;
+        c.fillRect(i * bw + bw * 0.12, H * 0.78, bw * 0.76, h * 0.4);
+        c.globalAlpha = 1;
+      }
+    },
+    radial(c, W, H, t) {
+      const cols = themeColors(t);
+      const cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.19;
+      const bass = band(2, 24);
+      c.save(); c.translate(cx, cy); c.rotate(t * 0.15);
+      const N = 96;
+      for (let i = 0; i < N; i++) {
+        const v = freq[Math.floor(Math.pow(i / N, 1.3) * 520)] / 255;
+        const a = (i / N) * Math.PI * 2;
+        const r0 = R * (1 + bass * 0.35), r1 = r0 + v * Math.min(W, H) * 0.26;
+        c.strokeStyle = i % 2 ? cols[0] : cols[1];
+        c.lineWidth = Math.max(2, W / 320);
+        c.globalAlpha = 0.4 + v * 0.6;
+        c.beginPath();
+        c.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
+        c.lineTo(Math.cos(a) * r1, Math.sin(a) * r1);
+        c.stroke();
+      }
+      c.globalAlpha = 1;
+      c.fillStyle = cols[2];
+      c.shadowColor = cols[0]; c.shadowBlur = 40 * (0.5 + bass);
+      c.beginPath(); c.arc(0, 0, R * (0.55 + bass * 0.5), 0, Math.PI * 2); c.fill();
+      c.shadowBlur = 0;
+      c.restore();
+    },
+    wave(c, W, H, t) {
+      const cols = themeColors(t);
+      for (let pass = 0; pass < 2; pass++) {
+        c.strokeStyle = pass ? cols[0] : cols[1];
+        c.lineWidth = pass ? Math.max(2.5, W / 420) : Math.max(5, W / 200);
+        c.globalAlpha = pass ? 1 : 0.35;
+        c.beginPath();
+        for (let i = 0; i < wave.length; i += 4) {
+          const x = (i / wave.length) * W;
+          const y = H / 2 + ((wave[i] - 128) / 128) * H * 0.32;
+          i === 0 ? c.moveTo(x, y) : c.lineTo(x, y);
+        }
+        c.stroke();
+      }
+      c.globalAlpha = 1;
+    },
+    particles(c, W, H, t) {
+      const cols = themeColors(t);
+      const bass = band(2, 24), mid = band(40, 200);
+      const cx = W / 2, cy = H / 2;
+      for (let i = 0; i < 130; i++) {
+        const seed = i * 12.9898;
+        const orbit = (Math.min(W, H) * 0.1) + ((Math.sin(seed) * 0.5 + 0.5) * Math.min(W, H) * 0.4);
+        const speed = 0.2 + (i % 7) * 0.08;
+        const a = t * speed + seed;
+        const wobble = Math.sin(t * 2.2 + i) * 24 * mid;
+        const x = cx + Math.cos(a) * (orbit + wobble + bass * 60);
+        const y = cy + Math.sin(a * 1.13) * (orbit * 0.62 + wobble);
+        const r = (1.5 + (i % 4)) * (W / 960) * (0.7 + bass * 2.2);
+        c.fillStyle = cols[i % cols.length === 2 ? 2 : i % 2];
+        c.globalAlpha = 0.35 + mid * 0.65;
+        c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+      }
+      c.globalAlpha = 1;
+    },
+    rings(c, W, H, t) {
+      const cols = themeColors(t);
+      const cx = W / 2, cy = H / 2;
+      for (let k = 0; k < 6; k++) {
+        const v = band(k * 60 + 2, k * 60 + 60);
+        const r = (Math.min(W, H) * 0.08) * (k + 1) * (1 + v * 0.5);
+        c.strokeStyle = cols[k % 3];
+        c.lineWidth = Math.max(2, W / 300) * (0.5 + v * 2.2);
+        c.globalAlpha = 0.25 + v * 0.75;
+        c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.stroke();
+      }
+      c.globalAlpha = 1;
+    },
+    starburst(c, W, H, t) {
+      const cols = themeColors(t);
+      const cx = W / 2, cy = H / 2;
+      const bass = band(2, 24);
+      c.save(); c.translate(cx, cy); c.rotate(-t * 0.1);
+      const N = 48;
+      for (let i = 0; i < N; i++) {
+        const v = freq[Math.floor(Math.pow(i / N, 1.5) * 500)] / 255;
+        const a = (i / N) * Math.PI * 2;
+        const len = Math.min(W, H) * (0.1 + v * 0.42);
+        const g = c.createLinearGradient(0, 0, Math.cos(a) * len, Math.sin(a) * len);
+        g.addColorStop(0, cols[0]); g.addColorStop(1, 'transparent');
+        c.strokeStyle = g;
+        c.lineWidth = Math.max(3, W / 220) * (0.4 + v);
+        c.beginPath(); c.moveTo(Math.cos(a) * 20, Math.sin(a) * 20);
+        c.lineTo(Math.cos(a) * len, Math.sin(a) * len); c.stroke();
+      }
+      c.fillStyle = '#fff';
+      c.globalAlpha = 0.5 + bass * 0.5;
+      c.beginPath(); c.arc(0, 0, (8 + bass * 26) * (W / 960), 0, Math.PI * 2); c.fill();
+      c.globalAlpha = 1;
+      c.restore();
+    },
+    nebula(c, W, H, t) {
+      const cols = themeColors(t);
+      c.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 6; i++) {
+        const v = band(i * 80 + 2, i * 80 + 80);
+        const x = W / 2 + Math.sin(t * 0.4 + i * 2.1) * W * 0.26;
+        const y = H / 2 + Math.cos(t * 0.33 + i * 1.7) * H * 0.24;
+        const r = Math.min(W, H) * (0.12 + v * 0.3);
+        const g = c.createRadialGradient(x, y, 0, x, y, r);
+        const col = cols[i % 3];
+        g.addColorStop(0, col);
+        g.addColorStop(1, 'transparent');
+        c.globalAlpha = 0.16 + v * 0.3;
+        c.fillStyle = g;
+        c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+      }
+      c.globalAlpha = 1;
+      c.globalCompositeOperation = 'source-over';
+    },
+  };
+
+  function drawFrame(c, W, H, t) {
+    // background
+    if (cfg.bg === 'video' && mediaIsVideo && media && media.readyState >= 2) {
+      const vw = media.videoWidth, vh = media.videoHeight;
+      const s = Math.max(W / vw, H / vh);
+      c.drawImage(media, (W - vw * s) / 2, (H - vh * s) / 2, vw * s, vh * s);
+      c.fillStyle = 'rgba(5,6,14,0.35)';
+      c.fillRect(0, 0, W, H);
+    } else if (cfg.bg === 'gradient') {
+      const cols = themeColors(t);
+      const g = c.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, '#070712');
+      g.addColorStop(1, '#1a0f2e');
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+      const gl = c.createRadialGradient(W / 2, H, 0, W / 2, H, H);
+      gl.addColorStop(0, cols[0] + '');
+      gl.addColorStop(1, 'transparent');
+      c.globalAlpha = 0.14; c.fillStyle = gl; c.fillRect(0, 0, W, H); c.globalAlpha = 1;
+    } else {
+      c.fillStyle = '#05060e'; c.fillRect(0, 0, W, H);
+    }
+    // visualizer
+    (VIZ[cfg.viz] || VIZ.bars)(c, W, H, t);
+    // lyric
+    const cur = media ? media.currentTime : 0;
+    const line = lyrics.find(l => cur >= l.start && cur <= l.end);
+    if (line) {
+      const prog = Math.min(1, (cur - line.start) / 0.35);           // pop-in
+      const off = Math.min(1, Math.max(0, (line.end - cur) / 0.3));  // fade-out
+      const alpha = prog * off;
+      const size = H * (cfg.lyrSize / 100) * (0.9 + prog * 0.1);
+      c.save();
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.font = `bold ${size}px Verdana, 'Segoe UI', sans-serif`;
+      const y = H * 0.8;
+      // word-wrap
+      const words = line.text.split(' ');
+      const maxW = W * 0.86;
+      const rows = [];
+      let curRow = '';
+      for (const w of words) {
+        const test = curRow ? curRow + ' ' + w : w;
+        if (c.measureText(test).width > maxW && curRow) { rows.push(curRow); curRow = w; }
+        else curRow = test;
+      }
+      if (curRow) rows.push(curRow);
+      rows.forEach((row, ri) => {
+        const ry = y - (rows.length - 1 - ri) * size * 1.15;
+        c.globalAlpha = alpha;
+        c.shadowColor = 'rgba(0,0,0,0.9)'; c.shadowBlur = size * 0.18; c.shadowOffsetY = size * 0.05;
+        c.lineWidth = size * 0.1;
+        c.strokeStyle = 'rgba(0,0,0,0.75)';
+        c.strokeText(row, W / 2, ry);
+        c.fillStyle = cfg.lyrColor;
+        c.fillText(row, W / 2, ry);
+        c.shadowBlur = 0; c.shadowOffsetY = 0;
+      });
+      c.restore();
+    }
+  }
+
+  // ================= export =================
+  let recorder = null, exportCanvas = null, exportCtxx = null;
+  function pickMime() {
+    const opts = [
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+      'video/mp4',
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+    ];
+    for (const m of opts) if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+    return '';
+  }
+  const mimeChosen = pickMime();
+  $('fmtInfo').textContent = mimeChosen ? ('records as ' + (mimeChosen.includes('mp4') ? 'MP4' : 'WEBM')) : 'recording unsupported in this browser';
+
+  $('exportBtn').addEventListener('click', startExport);
+  $('cancelExport').addEventListener('click', () => { exportCancel = true; });
+  function startExport() {
+    if (!media) { toast('load a song first (or hit DEMO TRACK)'); return; }
+    if (!mimeChosen) { toast('this browser cannot record video — try Chrome or Edge'); return; }
+    if (exporting) return;
+    ensureCtx();
+    const [W, H] = $('resSel').value.split('x').map(Number);
+    const fps = +$('fpsSel').value;
+    exportCanvas = document.createElement('canvas');
+    exportCanvas.width = W; exportCanvas.height = H;
+    exportCtxx = exportCanvas.getContext('2d');
+    const vidStream = exportCanvas.captureStream(fps);
+    const stream = new MediaStream([
+      ...vidStream.getVideoTracks(),
+      ...msDest.stream.getAudioTracks(),
+    ]);
+    const chunks = [];
+    recorder = new MediaRecorder(stream, {
+      mimeType: mimeChosen,
+      videoBitsPerSecond: W >= 3800 ? 24_000_000 : W >= 1900 ? 12_000_000 : 6_000_000,
+      audioBitsPerSecond: 192_000,
+    });
+    recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    recorder.onstop = () => {
+      exporting = false;
+      $('exportOverlay').style.display = 'none';
+      media.pause(); $('playBtn').textContent = '▶';
+      if (exportCancel) { toast('export cancelled'); exportCancel = false; return; }
+      const ext = mimeChosen.includes('mp4') ? 'mp4' : 'webm';
+      const blob = new Blob(chunks, { type: mimeChosen.split(';')[0] });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `wizzed-visualizer-${W}x${H}.${ext}`;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+      toast(`⏺ exported ${W}×${H} ${ext.toUpperCase()} (${(blob.size / 1e6).toFixed(1)} MB)`);
+    };
+    // roll from the top
+    media.currentTime = 0;
+    media.play().then(() => {
+      exporting = true; exportCancel = false;
+      $('playBtn').textContent = '⏸';
+      $('exportOverlay').style.display = 'flex';
+      $('exportInfo').textContent = `${W}×${H} @ ${fps}fps — plays the song once through`;
+      recorder.start(250);
+    }).catch(() => toast('could not start playback for export'));
+  }
+  function exportTick(t) {
+    if (!exporting) return;
+    drawFrame(exportCtxx, exportCanvas.width, exportCanvas.height, t);
+    const p = media.duration ? (media.currentTime / media.duration) * 100 : 0;
+    $('exportBar').style.width = p + '%';
+    if (media.ended || exportCancel) {
+      try { recorder.stop(); } catch (e) {}
+    }
+  }
+
+  // ================= main loop =================
+  function fitCanvas() {
+    const stage = document.getElementById('stage');
+    const maxW = stage.clientWidth - 16, maxH = stage.clientHeight - 16;
+    const s = Math.min(maxW / 960, maxH / 540, 2);
+    cv.style.width = Math.max(200, 960 * s) + 'px';
+    cv.style.height = Math.max(112, 540 * s) + 'px';
+  }
+  addEventListener('resize', fitCanvas);
+
+  let start = performance.now();
+  function loop(now) {
+    const t = (now - start) / 1000;
+    sampleAudio(t);
+    drawFrame(ctx, cv.width, cv.height, t);
+    exportTick(t);
+    updateTimeUI();
+    requestAnimationFrame(loop);
+  }
+
+  // ================= boot =================
+  buildRuler();
+  renderBlocks();
+  fitCanvas();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

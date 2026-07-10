@@ -1,6 +1,6 @@
 # 🎮 Wizzed Arcade — Game & Tool Catalog
 
-A complete reference to everything in the arcade. **101 games** and **56 tools**, plus **11 preserved classics** in [The Old Arcade](old.html).
+A complete reference to everything in the arcade. **101 games** and **57 tools**, plus **11 preserved classics** in [The Old Arcade](old.html).
 
 Every entry is a single standalone HTML file — no build step, no dependencies (except the 3D games, which load `lib/three.min.js`). Open any file directly in a browser, or browse them all from [`index.html`](index.html). Each game/tool has 5 preview screenshots under `shots/<slug>/1..5.jpg`.
 
@@ -27,9 +27,9 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🛠️ Text & Dev | 8 |
 | 🛠️ Numbers & Calculators | 9 |
 | 🛠️ Design & Color | 9 |
-| 🛠️ Audio & Visual | 9 |
+| 🛠️ Audio & Visual | 10 |
 | 🛠️ Data & Utilities | 10 |
-| **Tools total** | **56** |
+| **Tools total** | **57** |
 | 📺 Old Arcade classics | 11 |
 
 
@@ -241,7 +241,7 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🔳 **QR Maker** `NEW` | QR | [`tools/qr-maker.html`](tools/qr-maker.html) | Type anything, get a scannable code, download the PNG. |
 | 🕶️ **Shadow Designer** `NEW` | CSS | [`tools/css-shadow.html`](tools/css-shadow.html) | Layered box-shadows with live CSS output. |
 
-### Audio & Visual  (9)
+### Audio & Visual  (10)
 
 | Game | Genre | File | Description |
 | --- | --- | --- | --- |
@@ -254,6 +254,7 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🌸 **Spirograph** `NEW` | Toy | [`tools/spirograph.html`](tools/spirograph.html) | Hypnotic math curves, layer after layer. |
 | 🎹 **Synth Piano** | Instrument | [`tools/synth-piano.html`](tools/synth-piano.html) | Two playable octaves, four waveforms, and glowing keys. |
 | 🔊 **Tone Generator** `NEW` | Audio | [`tools/tone-gen.html`](tools/tone-gen.html) | Any frequency, any waveform, sweeps included. |
+| 🎬 **Visualizer Studio** `NEW` | Music Video | [`tools/visualizer-studio.html`](tools/visualizer-studio.html) | Load a song or MP4, pick a visualizer, time the lyrics, export the video. |
 
 ### Data & Utilities  (10)
 
@@ -296,11 +297,12 @@ The original eleven, preserved exactly as they were. Reachable from [`old.html`]
 
 
 - **`index.html`** — the frontpage. A sticky bar at the top toggles between the **Games** and **Tools** views and holds the category filter chips, search box, and a **light/dark theme toggle** (defaults to your system preference, saved in `localStorage`; the Old Arcade shares the same preference). Hover any card to preview its 5 screenshots.
-- **`games/`** — the 101 games. **`tools/`** — the 56 tools. **`games/old/`** — the 11 classics.
+- **`games/`** — the 101 games. **`tools/`** — the 57 tools. **`games/old/`** — the 11 classics.
 - **`old.html`** — landing page for The Old Arcade.
 - **`shots/<slug>/1..5.jpg`** — five gameplay screenshots per entry, captured at 800×500. The frontpage cycles through them on hover.
 - **`lib/three.min.js`** — three.js r160 (UMD), used by the 3D games and the frontpage hero.
 - **Character Forge** (`games/character-forge-3d.html`) exports standard **`.glb`** (glTF 2.0 binary) model files that open in Blender, Windows 3D Viewer, and game engines.
+- **Visualizer Studio** (`tools/visualizer-studio.html`) loads any song or MP4, renders 7 visualizer styles with a lyric timeline, and exports MP4/WEBM video at 720p/1080p/4K/square/vertical via MediaRecorder.
 
 **Shared conventions across every game/tool**
 - Single self-contained HTML file: all CSS and JS inline, no external network resources (3D games load only the local `lib/three.min.js`).

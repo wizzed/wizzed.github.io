@@ -238,7 +238,7 @@
   // ================================================================
   //  Game
   // ================================================================
-  const WORLD = 3000, TAG_R = 46;
+  const WORLD = 3000, TAG_R = 46, TAG_GRAB = 58; // GRAB is wider to absorb network position lag
   // Public MQTT brokers (free, no account). Override with ?broker=wss://your-broker
   // to point the arena at your own — see private.md in the repo root.
   const qsBroker = new URLSearchParams(location.search).get('broker');
@@ -383,10 +383,11 @@
       b.y = Math.max(30, Math.min(WORLD - 30, b.y + b.vy * dt));
       if (!b.it) b.s += dt;                        // bots score too
       // bot tag logic (host authoritative for its bots)
-      if (b.it) {
+      // 1.2s no-tag-back grace after claiming IT stops instant ping-pong
+      if (b.it && Date.now() - b.itS > 1200) {
         for (const q of everyone()) {
           if (q.i === b.i) continue;
-          if (Math.hypot(q.x - b.x, q.y - b.y) < TAG_R) {
+          if (Math.hypot(q.x - b.x, q.y - b.y) < TAG_GRAB) {
             if (q.i === myId) { becomeIt(); b.it = 0; }
             else if (bots.has(q.i)) { const qb = bots.get(q.i); qb.it = 1; qb.itS = Date.now(); b.it = 0; }
             // human peers tag themselves when they see the bot close — handled client-side there
@@ -395,7 +396,18 @@
         }
       }
     }
-    // publish bot states with my publishes cadence (piggyback timer below)
+    // MY bots can BE tagged: if the current IT (me, a remote human, or a bot
+    // hosted elsewhere) touches one of my non-IT bots, that bot claims IT with
+    // a later timestamp — the old IT drops automatically via latest-claim-wins.
+    const itNow = currentIt();
+    if (itNow && !bots.has(itNow.i) && Date.now() - (itNow.itS || 0) > 1200) {
+      for (const b of bots.values()) {
+        if (!b.it && Math.hypot(b.x - itNow.x, b.y - itNow.y) < TAG_GRAB) {
+          b.it = 1; b.itS = Date.now();
+          break;
+        }
+      }
+    }
   }
   setInterval(() => {
     if (!online || !iAmBotHost()) return;
@@ -478,12 +490,17 @@
 
     // ----- tag resolution -----
     const itP = currentIt();
-    if (itP && itP.i !== myId && me.it) dropIt();                     // someone claimed later than me
+    if (itP && itP.i !== myId && me.it) {
+      // a later claim exists — my tag landed (or a race resolved against me)
+      dropIt();
+      me.s += 25;                                                     // tag bonus
+      bigmsg('TAGGED! ' + (itP.n || 'THEY') + ' IS IT — RUN 🏃');
+    }
     if (!itP) { noItT += dt; if (noItT > 2.5) { noItT = 0; if (humanIds()[0] === myId) becomeIt(); } }
     else noItT = 0;
-    if (itP && itP.i !== myId && !me.it) {
+    if (itP && itP.i !== myId && !me.it && Date.now() - (itP.itS || 0) > 1200) {
       const dd = Math.hypot(itP.x - me.x, itP.y - me.y);
-      if (dd < TAG_R) becomeIt();                                     // I got tagged: claim IT
+      if (dd < TAG_GRAB) becomeIt();                                  // I got tagged: claim IT
     }
     // my scoring
     if (!me.it) { scoreAcc += dt; if (scoreAcc >= 1) { me.s += Math.floor(scoreAcc); scoreAcc %= 1; } }

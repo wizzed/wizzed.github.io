@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SKETCH TOGETHER — Shared Neon Canvas · Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0f0f1a; }
+  body { font-family: 'Courier New', ui-monospace, monospace; color: #e8eeff; touch-action: none; }
+  canvas { display: block; }
+  #cv { position: fixed; inset: 0; cursor: crosshair; }
+  .back {
+    position: fixed; top: 10px; left: 12px; z-index: 40;
+    padding: 6px 12px; font-size: 13px; letter-spacing: 1px;
+    color: #e8eeff; text-decoration: none;
+    background: rgba(10,14,26,.6); border: 1px solid rgba(255,255,255,.25); border-radius: 4px;
+  }
+  .back:hover { border-color: #00e5ff; color: #7ff0ff; }
+
+  #status {
+    position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 25; display: flex; gap: 8px; align-items: center;
+    background: rgba(8,12,24,.75); border: 1px solid #133a48; border-radius: 999px;
+    padding: 7px 15px; backdrop-filter: blur(5px); white-space: nowrap;
+  }
+  #status .dot { width: 10px; height: 10px; border-radius: 50%; background: #666; }
+  #status .dot.live { background: #00e5ff; box-shadow: 0 0 10px #00e5ff; animation: pulse 1.6s ease-in-out infinite; }
+  #status .dot.off { background: #ff9d3c; box-shadow: 0 0 10px #ff9d3c; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+  #status b { color: #7ff0ff; font-weight: normal; }
+  #status .ai-b { color: #9d6bff; }
+  #status span { font-size: 12px; letter-spacing: 1px; }
+
+  #namebar {
+    position: fixed; top: 46px; left: 12px; z-index: 30;
+    display: flex; gap: 6px; align-items: center;
+    background: rgba(8,12,24,.8); border: 1px solid #133a48; border-radius: 10px;
+    padding: 6px 9px; backdrop-filter: blur(5px);
+  }
+  #nameInput {
+    width: 108px; font: inherit; font-size: 12.5px;
+    background: #08131a; color: #7ff0ff; border: 1px solid #1d4a58;
+    border-radius: 5px; padding: 4px 7px;
+  }
+  #namebar label { font-size: 10.5px; letter-spacing: 1px; color: #6b93a2; }
+
+  #panel {
+    position: fixed; top: 46px; right: 12px; z-index: 20;
+    width: 176px; background: rgba(8,12,24,.8);
+    border: 1px solid #133a48; border-radius: 10px;
+    padding: 9px 11px; backdrop-filter: blur(5px); font-size: 12px;
+  }
+  #panel h3 { font-size: 10px; letter-spacing: 2px; color: #6b93a2; margin-bottom: 6px; }
+  .prow {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 0; border-bottom: 1px dashed #14283040;
+    white-space: nowrap; overflow: hidden;
+  }
+  .prow:last-child { border-bottom: none; }
+  .prow .sw { width: 9px; height: 9px; border-radius: 2px; flex: 0 0 9px; }
+  .prow .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .prow.me .nm { color: #7ff0ff; }
+  .aitag {
+    font-size: 9px; letter-spacing: 1px; color: #cbb2ff;
+    background: rgba(157,107,255,.18); border: 1px solid #9d6bff;
+    border-radius: 4px; padding: 0 4px;
+  }
+
+  #toolbar {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 30; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    justify-content: center; max-width: 96vw;
+    background: rgba(8,12,24,.86); border: 1px solid #133a48; border-radius: 12px;
+    padding: 8px 12px; backdrop-filter: blur(6px);
+  }
+  .grp { display: flex; gap: 5px; align-items: center; }
+  .grp + .grp { border-left: 1px solid #1b3b46; padding-left: 10px; }
+  .tbtn {
+    font: inherit; font-size: 15px; line-height: 1;
+    width: 34px; height: 30px; cursor: pointer;
+    background: #0b1a22; color: #cfeaf2; border: 1px solid #1d4a58; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tbtn:hover { border-color: #00e5ff; }
+  .tbtn.on { background: #003843; border-color: #00e5ff; box-shadow: 0 0 8px rgba(0,229,255,.5); }
+  .sw2 { width: 20px; height: 20px; border-radius: 4px; cursor: pointer; border: 2px solid transparent; }
+  .sw2.on { border-color: #fff; box-shadow: 0 0 8px currentColor; transform: scale(1.12); }
+  .szd { cursor: pointer; border-radius: 50%; background: #cfeaf2; border: 2px solid #1d4a58; }
+  .szd.on { border-color: #00e5ff; box-shadow: 0 0 8px rgba(0,229,255,.6); }
+  #clearBtn {
+    font: inherit; font-size: 11px; letter-spacing: 1px; cursor: pointer;
+    background: #2a0f1a; color: #ff9db8; border: 1px solid #6b2340; border-radius: 7px;
+    padding: 6px 9px;
+  }
+  #clearBtn:hover { border-color: #ff2d78; }
+
+  #hint {
+    position: fixed; bottom: 74px; left: 50%; transform: translateX(-50%);
+    z-index: 15; font-size: 11px; color: #6b93a2; letter-spacing: 1px;
+    text-shadow: 0 1px 4px rgba(0,0,0,.8); pointer-events: none; text-align: center; max-width: 92vw;
+  }
+  #toast {
+    position: fixed; top: 92px; left: 50%; transform: translateX(-50%);
+    z-index: 26; font-size: 13px; letter-spacing: 1px; color: #7ff0ff;
+    background: rgba(0,40,50,.85); border: 1px solid #00e5ff; border-radius: 8px;
+    padding: 7px 14px; opacity: 0; transition: opacity .3s; pointer-events: none;
+    box-shadow: 0 0 20px rgba(0,229,255,.4);
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<canvas id="cv"></canvas>
+
+<div id="status">
+  <span class="dot" id="connDot"></span>
+  <span id="connTxt">connecting…</span>
+  <span>·</span>
+  <span>ONLINE <b id="onlineN">1</b></span>
+  <span>(<b id="humanN">1</b> human · <b class="ai-b" id="aiN">0</b> AI)</span>
+</div>
+
+<div id="namebar">
+  <label>NAME</label>
+  <input id="nameInput" maxlength="14">
+</div>
+
+<div id="panel">
+  <h3>ARTISTS ONLINE</h3>
+  <div id="plist"></div>
+</div>
+
+<div id="toolbar">
+  <div class="grp" id="tools">
+    <button class="tbtn on" data-tool="pen" title="Pen (P)">✏️</button>
+    <button class="tbtn" data-tool="eraser" title="Eraser (E)">🧽</button>
+    <button class="tbtn" data-tool="pan" title="Pan / move (H or hold Space)">✋</button>
+  </div>
+  <div class="grp" id="sizes"></div>
+  <div class="grp" id="colors"></div>
+  <div class="grp"><button id="clearBtn" title="Clear only your ink">CLEAR MY INK</button></div>
+</div>
+
+<div id="hint">draw: click / drag · you only see ink drawn while you're here · WASD / arrows pan · 🤖 doodler bots keep it lively</div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+(function () {
+  const SAVE_KEY = 'wizzed-mp-draw';
+
+  // ================================================================
+  //  Minimal MQTT 3.1.1 client over WebSocket (public brokers, QoS 0)
+  // ================================================================
+  class TinyMQTT {
+    constructor(urls, clientId) {
+      this.urls = urls; this.urlIdx = 0;
+      this.clientId = clientId;
+      this.ws = null; this.buf = new Uint8Array(0);
+      this.connected = false;
+      this.onmessage = null; this.onstatus = null;
+      this.pingTimer = null; this.dead = false;
+      this.connect();
+    }
+    connect() {
+      if (this.dead) return;
+      const url = this.urls[this.urlIdx % this.urls.length];
+      try { this.ws = new WebSocket(url, 'mqtt'); }
+      catch (e) { this.retry(); return; }
+      this.ws.binaryType = 'arraybuffer';
+      const connectTimeout = setTimeout(() => { try { this.ws.close(); } catch (e) {} }, 6000);
+      this.ws.onopen = () => {
+        const cid = this.enc(this.clientId);
+        const varh = new Uint8Array([0, 4, 77, 81, 84, 84, 4, 0x02, 0, 60]);
+        this.send(0x10, this.cat(varh, cid));
+      };
+      this.ws.onmessage = e => { clearTimeout(connectTimeout); this.feed(new Uint8Array(e.data)); };
+      this.ws.onclose = () => { clearTimeout(connectTimeout); this.onDown(); };
+      this.ws.onerror = () => {};
+    }
+    onDown() {
+      this.connected = false;
+      clearInterval(this.pingTimer);
+      if (this.onstatus) this.onstatus(false);
+      this.retry();
+    }
+    retry() {
+      if (this.dead) return;
+      this.urlIdx++;
+      clearTimeout(this.retryT);
+      this.retryT = setTimeout(() => this.connect(), 2500);
+    }
+    close() { this.dead = true; clearInterval(this.pingTimer); try { this.ws.close(); } catch (e) {} }
+    enc(str) {
+      const b = new TextEncoder().encode(str);
+      const out = new Uint8Array(b.length + 2);
+      out[0] = b.length >> 8; out[1] = b.length & 255; out.set(b, 2);
+      return out;
+    }
+    cat(...arrs) {
+      const len = arrs.reduce((a, b) => a + b.length, 0);
+      const out = new Uint8Array(len);
+      let o = 0;
+      for (const a of arrs) { out.set(a, o); o += a.length; }
+      return out;
+    }
+    remLen(n) {
+      const out = [];
+      do { let d = n % 128; n = Math.floor(n / 128); if (n > 0) d |= 128; out.push(d); } while (n > 0);
+      return new Uint8Array(out);
+    }
+    send(type, body) {
+      if (!this.ws || this.ws.readyState !== 1) return;
+      this.ws.send(this.cat(new Uint8Array([type]), this.remLen(body.length), body));
+    }
+    subscribe(filter) {
+      const pid = new Uint8Array([0, 7]);
+      this.send(0x82, this.cat(pid, this.enc(filter), new Uint8Array([0])));
+    }
+    publish(topic, payloadStr) {
+      if (!this.connected) return;
+      const pl = new TextEncoder().encode(payloadStr);
+      this.send(0x30, this.cat(this.enc(topic), pl));
+    }
+    feed(chunk) {
+      this.buf = this.cat(this.buf, chunk);
+      for (;;) {
+        if (this.buf.length < 2) return;
+        let mul = 1, len = 0, pos = 1, ok = false;
+        for (; pos < Math.min(this.buf.length, 5); pos++) {
+          len += (this.buf[pos] & 127) * mul;
+          mul *= 128;
+          if ((this.buf[pos] & 128) === 0) { ok = true; pos++; break; }
+        }
+        if (!ok) return;
+        const total = pos + len;
+        if (this.buf.length < total) return;
+        this.handle(this.buf[0] >> 4, this.buf.slice(pos, total));
+        this.buf = this.buf.slice(total);
+      }
+    }
+    handle(type, body) {
+      if (type === 2) {
+        if (body[1] === 0) {
+          this.connected = true;
+          this.pingTimer = setInterval(() => this.send(0xC0, new Uint8Array(0)), 25000);
+          if (this.onstatus) this.onstatus(true);
+        } else this.retry();
+      } else if (type === 3) {
+        const tlen = (body[0] << 8) | body[1];
+        const topic = new TextDecoder().decode(body.slice(2, 2 + tlen));
+        const payload = new TextDecoder().decode(body.slice(2 + tlen));
+        if (this.onmessage) this.onmessage(topic, payload);
+      }
+    }
+  }
+
+  // ================================================================
+  //  Sketch Together
+  // ================================================================
+  const WORLD_W = 3000, WORLD_H = 2000;
+  const qsBroker = new URLSearchParams(location.search).get('broker');
+  const BROKERS = qsBroker ? [qsBroker] : [
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://test.mosquitto.org:8081',
+  ];
+  const ROOM = 'wizzed/mp-draw/v1/main';
+  const myId = 'p' + Math.random().toString(36).slice(2, 10);
+
+  const COLORS = ['#ff2d78','#ff7ac0','#ff5f3c','#ffb03a','#ffe64d','#9dff4d','#3affc0','#00e5ff','#3aa0ff','#7c5cff','#c86bff','#ffffff'];
+  const SIZES = [3, 6, 12, 22, 40];
+  const NAMES1 = ['Neon','Turbo','Pixel','Cosmic','Disco','Doodle','Ink','Retro','Glitch','Astro','Funky','Vivid'];
+  const NAMES2 = ['Fox','Comet','Sketch','Ghost','Brush','Wisp','Spark','Nova','Swirl','Byte','Star','Muse'];
+  const rndName = () => NAMES1[Math.random()*NAMES1.length|0] + NAMES2[Math.random()*NAMES2.length|0];
+
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') || {}; } catch (e) {}
+
+  const me = {
+    i: myId,
+    n: (saved.name || rndName()).slice(0, 14),
+    x: WORLD_W / 2, y: WORLD_H / 2,
+    col: COLORS[7], sz: SIZES[1], tool: 'pen', ai: 0,
+  };
+  let colorIdx = 7, sizeIdx = 1, tool = 'pen';
+
+  const peers = new Map();  // id -> {n,x,y,col,sz,tool,ai,dr,seen,rx,ry}
+  const bots = new Map();   // id -> doodler bot (host only)
+  let online = false;
+
+  // ---- offscreen world layers ----
+  function makeLayer() {
+    const c = document.createElement('canvas');
+    c.width = WORLD_W; c.height = WORLD_H;
+    return { c, x: c.getContext('2d') };
+  }
+  const layerOthers = makeLayer();  // peers + bots
+  const layerMine = makeLayer();    // my own ink (clearable)
+
+  function bakeSeg(mine, seg) {
+    const pts = seg.pts;
+    if (!pts || !pts.length) return;
+    const lay = mine ? layerMine.x : layerOthers.x;
+    if (seg.er) {
+      // eraser removes ink on BOTH layers locally
+      for (const layer of [layerMine.x, layerOthers.x]) eraseOn(layer, seg);
+    } else {
+      lay.lineCap = 'round'; lay.lineJoin = 'round';
+      lay.globalCompositeOperation = 'source-over';
+      lay.strokeStyle = seg.col; lay.fillStyle = seg.col; lay.lineWidth = seg.sz;
+      lay.shadowColor = seg.col; lay.shadowBlur = Math.min(14, seg.sz);
+      if (pts.length === 1) {
+        lay.beginPath(); lay.arc(pts[0][0], pts[0][1], seg.sz / 2, 0, Math.PI * 2); lay.fill();
+      } else {
+        lay.beginPath(); lay.moveTo(pts[0][0], pts[0][1]);
+        for (let k = 1; k < pts.length; k++) lay.lineTo(pts[k][0], pts[k][1]);
+        lay.stroke();
+      }
+      lay.shadowBlur = 0;
+    }
+  }
+  function eraseOn(lay, seg) {
+    const pts = seg.pts;
+    lay.save();
+    lay.globalCompositeOperation = 'destination-out';
+    lay.lineCap = 'round'; lay.lineJoin = 'round';
+    lay.lineWidth = seg.sz; lay.strokeStyle = 'rgba(0,0,0,1)'; lay.fillStyle = 'rgba(0,0,0,1)';
+    if (pts.length === 1) {
+      lay.beginPath(); lay.arc(pts[0][0], pts[0][1], seg.sz / 2, 0, Math.PI * 2); lay.fill();
+    } else {
+      lay.beginPath(); lay.moveTo(pts[0][0], pts[0][1]);
+      for (let k = 1; k < pts.length; k++) lay.lineTo(pts[k][0], pts[k][1]);
+      lay.stroke();
+    }
+    lay.restore();
+  }
+
+  // ---- camera ----
+  const cam = { x: WORLD_W / 2, y: WORLD_H / 2 };
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  function resize() { cv.width = innerWidth; cv.height = innerHeight; clampCam(); }
+  function clampCam() {
+    const W = cv.width, H = cv.height;
+    if (WORLD_W > W) cam.x = Math.max(W / 2, Math.min(WORLD_W - W / 2, cam.x)); else cam.x = WORLD_W / 2;
+    if (WORLD_H > H) cam.y = Math.max(H / 2, Math.min(WORLD_H - H / 2, cam.y)); else cam.y = WORLD_H / 2;
+  }
+  addEventListener('resize', resize); resize();
+  function camLeft() { return cam.x - cv.width / 2; }
+  function camTop() { return cam.y - cv.height / 2; }
+  function toWorld(sx, sy) { return { x: sx + camLeft(), y: sy + camTop() }; }
+
+  // ---- UI wiring ----
+  const nameInput = document.getElementById('nameInput');
+  nameInput.value = me.n;
+  nameInput.addEventListener('input', e => { me.n = (e.target.value || 'Artist').slice(0, 14); persist(); });
+  function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ name: me.n })); } catch (e) {} }
+
+  document.querySelectorAll('#tools .tbtn').forEach(b => {
+    b.addEventListener('click', () => setTool(b.dataset.tool));
+  });
+  function setTool(t) {
+    tool = t; me.tool = t;
+    document.querySelectorAll('#tools .tbtn').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
+    cv.style.cursor = t === 'pan' ? 'grab' : (t === 'eraser' ? 'cell' : 'crosshair');
+  }
+  const sizesEl = document.getElementById('sizes');
+  SIZES.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'szd' + (i === sizeIdx ? ' on' : '');
+    const px = 6 + i * 4; d.style.width = px + 'px'; d.style.height = px + 'px';
+    d.title = 'Size ' + s;
+    d.addEventListener('click', () => { sizeIdx = i; me.sz = s; syncSizes(); });
+    sizesEl.appendChild(d);
+  });
+  function syncSizes() { [...sizesEl.children].forEach((c, i) => c.classList.toggle('on', i === sizeIdx)); }
+  const colorsEl = document.getElementById('colors');
+  COLORS.forEach((c, i) => {
+    const d = document.createElement('div');
+    d.className = 'sw2' + (i === colorIdx ? ' on' : '');
+    d.style.background = c; d.style.color = c;
+    d.addEventListener('click', () => { colorIdx = i; me.col = c; syncColors(); if (tool !== 'pen') setTool('pen'); });
+    colorsEl.appendChild(d);
+  });
+  function syncColors() { [...colorsEl.children].forEach((c, i) => c.classList.toggle('on', i === colorIdx)); }
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    layerMine.x.clearRect(0, 0, WORLD_W, WORLD_H);
+    toast('Cleared your ink ✏️');
+    bleep(300, 0.08);
+  });
+
+  let toastT;
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.classList.add('show');
+    clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 1800);
+  }
+
+  // ---- audio ----
+  let actx = null;
+  function ensureAudio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
+  function bleep(freq, dur) {
+    if (!actx) return;
+    try {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'triangle'; o.frequency.value = freq;
+      g.gain.value = 0.05; o.connect(g); g.connect(actx.destination);
+      o.start(); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + (dur || 0.1));
+      o.stop(actx.currentTime + (dur || 0.1));
+    } catch (e) {}
+  }
+
+  // ---- networking ----
+  const mq = new TinyMQTT(BROKERS, 'wz-' + myId);
+  mq.onstatus = up => {
+    online = up;
+    const dot = document.getElementById('connDot'), txt = document.getElementById('connTxt');
+    if (up) { dot.className = 'dot live'; txt.textContent = 'LIVE — shared canvas'; mq.subscribe(ROOM + '/#'); }
+    else { dot.className = 'dot off'; txt.textContent = 'OFFLINE — sketching with bots'; }
+  };
+  mq.onmessage = (topic, payload) => {
+    try {
+      const m = JSON.parse(payload);
+      if (!m || !m.i || m.i === myId) return;
+      if (bots.has(m.i)) return; // my own bot echoes
+      if (m.t === 'p') {
+        const prev = peers.get(m.i);
+        m.seen = performance.now();
+        m.rx = prev ? prev.rx : m.x; m.ry = prev ? prev.ry : m.y;
+        peers.set(m.i, m);
+      } else if (m.t === 'seg') {
+        bakeSeg(false, m);
+        pingActivity(m.pts[m.pts.length - 1]);
+      }
+    } catch (e) {}
+  };
+
+  // publish presence ~5.5Hz
+  setInterval(() => {
+    if (!online) return;
+    mq.publish(ROOM + '/p/' + myId, JSON.stringify({
+      t: 'p', i: me.i, n: me.n, x: Math.round(me.x), y: Math.round(me.y),
+      col: me.col, sz: me.sz, tool: me.tool, ai: 0, dr: drawing ? 1 : 0,
+    }));
+  }, 180);
+  // prune peers
+  setInterval(() => {
+    const now = performance.now();
+    for (const [id, p] of peers) if (now - p.seen > 6000) peers.delete(id);
+  }, 1000);
+
+  // ---- drawing input ----
+  let drawing = false, panning = false, panStart = null;
+  let pendingPts = [], lastFlushed = null, localLast = null;
+
+  function publishSeg(pts, er) {
+    if (!online) return;
+    mq.publish(ROOM + '/seg/' + myId, JSON.stringify({
+      t: 'seg', i: myId, n: me.n, col: me.col, sz: er ? me.sz * 2.4 : me.sz, er: er ? 1 : 0,
+      pts: pts.map(p => [Math.round(p[0]), Math.round(p[1])]), ai: 0,
+    }));
+  }
+  function flushSeg() {
+    if (!pendingPts.length) return;
+    const er = tool === 'eraser';
+    const out = lastFlushed ? [lastFlushed, ...pendingPts] : pendingPts.slice();
+    publishSeg(out, er);
+    lastFlushed = pendingPts[pendingPts.length - 1];
+    pendingPts = [];
+  }
+  setInterval(() => { if (drawing) flushSeg(); }, 200);
+
+  function strokeStart(wx, wy) {
+    drawing = true;
+    pendingPts = [[wx, wy]]; lastFlushed = null; localLast = [wx, wy];
+    // local bake immediately
+    const er = tool === 'eraser';
+    const sz = er ? me.sz * 2.4 : me.sz;
+    bakeSeg(true, { col: me.col, sz, er: er ? 1 : 0, pts: [[wx, wy]] });
+    pingActivity([wx, wy]);
+  }
+  function strokeMove(wx, wy) {
+    const er = tool === 'eraser';
+    const sz = er ? me.sz * 2.4 : me.sz;
+    if (localLast) bakeSeg(true, { col: me.col, sz, er: er ? 1 : 0, pts: [localLast, [wx, wy]] });
+    localLast = [wx, wy];
+    pendingPts.push([wx, wy]);
+    if (pendingPts.length > 40) flushSeg();
+  }
+  function strokeEnd() {
+    if (!drawing) return;
+    flushSeg();
+    drawing = false; lastFlushed = null; localLast = null; pendingPts = [];
+  }
+
+  cv.addEventListener('pointerdown', e => {
+    ensureAudio();
+    // minimap jump (tap inside minimap region)
+    const mr = mmRect();
+    if (e.clientX >= mr.x && e.clientX <= mr.x + mr.w && e.clientY >= mr.y && e.clientY <= mr.y + mr.h) {
+      cam.x = (e.clientX - mr.x) / mr.w * WORLD_W;
+      cam.y = (e.clientY - mr.y) / mr.h * WORLD_H;
+      clampCam();
+      return;
+    }
+    cv.setPointerCapture(e.pointerId);
+    const spaceHeld = keys[' '];
+    if (tool === 'pan' || spaceHeld) {
+      panning = true; panStart = { sx: e.clientX, sy: e.clientY, cx: cam.x, cy: cam.y };
+      cv.style.cursor = 'grabbing';
+    } else {
+      const w = toWorld(e.clientX, e.clientY);
+      strokeStart(w.x, w.y);
+      bleep(500 + Math.random() * 120, 0.05);
+    }
+  });
+  cv.addEventListener('pointermove', e => {
+    const w = toWorld(e.clientX, e.clientY);
+    me.x = w.x; me.y = w.y;
+    if (panning && panStart) {
+      cam.x = panStart.cx - (e.clientX - panStart.sx);
+      cam.y = panStart.cy - (e.clientY - panStart.sy);
+      clampCam();
+    } else if (drawing) {
+      strokeMove(w.x, w.y);
+    }
+  });
+  function endPointer() {
+    if (panning) { panning = false; panStart = null; cv.style.cursor = tool === 'pan' ? 'grab' : (tool === 'eraser' ? 'cell' : 'crosshair'); }
+    strokeEnd();
+  }
+  cv.addEventListener('pointerup', endPointer);
+  cv.addEventListener('pointercancel', endPointer);
+  cv.addEventListener('pointerleave', () => { if (drawing) strokeEnd(); });
+
+  // ---- keyboard ----
+  const keys = {};
+  addEventListener('keydown', e => {
+    if (e.target === nameInput) return;
+    const k = e.key.toLowerCase();
+    keys[e.key] = true;
+    if (k === 'p') setTool('pen');
+    else if (k === 'e') setTool('eraser');
+    else if (k === 'h') setTool('pan');
+    else if (k === ' ') e.preventDefault();
+    ensureAudio();
+  });
+  addEventListener('keyup', e => { keys[e.key] = false; });
+
+  // ---- minimap ----
+  const MM_W = 168, MM_H = Math.round(MM_W * WORLD_H / WORLD_W);
+  let mmT = 0;
+  const activity = []; // {x,y,life}
+  function pingActivity(p) { if (p) activity.push({ x: p[0], y: p[1], life: 1 }); if (activity.length > 120) activity.shift(); }
+
+  // minimap click-to-jump region (handled in the main pointerdown above)
+  function mmRect() { return { x: cv.width - MM_W - 12, y: cv.height - MM_H - 12, w: MM_W, h: MM_H }; }
+
+  // ================================================================
+  //  Doodler bots (host = lexicographically-lowest human id)
+  // ================================================================
+  const BOT_TARGET = 3;
+  function humanIds() {
+    const ids = [myId];
+    for (const [id, p] of peers) if (!p.ai) ids.push(id);
+    return ids.sort();
+  }
+  function iAmHost() { return humanIds()[0] === myId; }
+  const BOTNAMES = ['DoodleBot','SketchGPT','InkDroid','Pixomat','Scribbly','Auto-Art','GlyphBot','Pentode'];
+
+  function botNeeded() {
+    if (!iAmHost()) return 0;
+    return Math.max(0, BOT_TARGET - humanIds().length);
+  }
+  function manageBots() {
+    if (!iAmHost()) { bots.clear(); return; }
+    const need = botNeeded();
+    while (bots.size > need) { const k = bots.keys().next().value; bots.delete(k); }
+    while (bots.size < need) {
+      const bid = 'ai' + Math.random().toString(36).slice(2, 8);
+      const used = new Set([...bots.values()].map(b => b.n));
+      const free = BOTNAMES.filter(n => !used.has('🤖 ' + n));
+      const nm = free.length ? free[Math.random() * free.length | 0] : 'DoodleBot' + bots.size;
+      const b = {
+        i: bid, n: '🤖 ' + nm, ai: 1,
+        x: WORLD_W / 2, y: WORLD_H / 2, col: COLORS[Math.random() * COLORS.length | 0],
+        sz: SIZES[1 + (Math.random() * 2 | 0)], tool: 'pen',
+        queue: [], cool: Math.random() * 1.2, prevPt: null,
+      };
+      newBotShape(b);
+      bots.set(bid, b);
+    }
+  }
+
+  // shape generators -> array of segments {pts:[[x,y]...]} (already world coords)
+  function chunkPolyline(pts, chunk) {
+    const segs = [];
+    for (let i = 0; i < pts.length - 1; i += chunk) {
+      segs.push({ pts: pts.slice(i, Math.min(pts.length, i + chunk + 1)) });
+    }
+    return segs;
+  }
+  function shapeSpiral(cx, cy) {
+    const pts = [], turns = 3.5 + Math.random() * 2, R = 60 + Math.random() * 90;
+    const steps = 90;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps, a = t * turns * Math.PI * 2, r = t * R;
+      pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
+    }
+    return chunkPolyline(pts, 7);
+  }
+  function shapeStar(cx, cy) {
+    const R = 60 + Math.random() * 70, r = R * 0.42, pts = [], N = 5;
+    for (let i = 0; i <= N * 2; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / N, rad = i % 2 ? r : R;
+      pts.push([cx + Math.cos(a) * rad, cy + Math.sin(a) * rad]);
+    }
+    return chunkPolyline(pts, 3);
+  }
+  function shapeHeart(cx, cy) {
+    const s = 4 + Math.random() * 4, pts = [], steps = 70;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps * Math.PI * 2;
+      const x = 16 * Math.pow(Math.sin(t), 3);
+      const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+      pts.push([cx + x * s, cy - y * s]);
+    }
+    return chunkPolyline(pts, 7);
+  }
+  function shapeFlower(cx, cy) {
+    const pts = [], petals = 5 + (Math.random() * 4 | 0), R = 60 + Math.random() * 60, steps = 140;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps * Math.PI * 2, r = R * Math.abs(Math.cos(petals * t));
+      pts.push([cx + Math.cos(t) * r, cy + Math.sin(t) * r]);
+    }
+    return chunkPolyline(pts, 7);
+  }
+  function shapeCreature(cx, cy) {
+    // pixel invader made of dots
+    const grid = [
+      '00100100',
+      '00111100',
+      '01111110',
+      '11011011',
+      '11111111',
+      '01011010',
+      '10100101',
+    ];
+    const step = 14, segs = [];
+    const w = grid[0].length, h = grid.length;
+    for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) {
+      if (grid[r][c] === '1') segs.push({ pts: [[cx + (c - w / 2) * step, cy + (r - h / 2) * step]], dot: true });
+    }
+    return segs;
+  }
+  const SHAPES = [shapeSpiral, shapeStar, shapeHeart, shapeFlower, shapeCreature];
+  function newBotShape(b) {
+    b.col = COLORS[Math.random() * COLORS.length | 0];
+    b.sz = b.queue && b.queue.dot ? SIZES[2] : SIZES[1 + (Math.random() * 2 | 0)];
+    const cx = 200 + Math.random() * (WORLD_W - 400);
+    const cy = 200 + Math.random() * (WORLD_H - 400);
+    const fn = SHAPES[Math.random() * SHAPES.length | 0];
+    b.queue = fn(cx, cy);
+    b.creature = fn === shapeCreature;
+    b.sz = b.creature ? SIZES[2] : b.sz;
+    b.prevPt = null;
+  }
+
+  function simBots(dt) {
+    if (!iAmHost()) return;
+    for (const b of bots.values()) {
+      b.cool -= dt;
+      if (b.cool > 0) continue;
+      b.cool = 0.24 + Math.random() * 0.12;
+      if (!b.queue.length) { b.cool = 1.2 + Math.random() * 2; newBotShape(b); continue; }
+      const seg = b.queue.shift();
+      let pts = seg.pts;
+      // connect chunks for continuous shapes
+      if (!seg.dot && b.prevPt && !b.creature) pts = [b.prevPt, ...pts];
+      const outSeg = { col: b.col, sz: b.sz, er: 0, pts };
+      bakeSeg(false, outSeg);
+      b.prevPt = seg.dot ? null : pts[pts.length - 1];
+      const last = pts[pts.length - 1];
+      b.x = last[0]; b.y = last[1];
+      pingActivity(last);
+      if (online) {
+        mq.publish(ROOM + '/seg/' + b.i, JSON.stringify({
+          t: 'seg', i: b.i, n: b.n, col: b.col, sz: b.sz, er: 0,
+          pts: pts.map(p => [Math.round(p[0]), Math.round(p[1])]), ai: 1,
+        }));
+      }
+    }
+  }
+  setInterval(() => {
+    if (!online || !iAmHost()) return;
+    for (const b of bots.values()) {
+      mq.publish(ROOM + '/p/' + b.i, JSON.stringify({
+        t: 'p', i: b.i, n: b.n, x: Math.round(b.x), y: Math.round(b.y),
+        col: b.col, sz: b.sz, tool: 'pen', ai: 1, dr: 1,
+      }));
+    }
+  }, 400);
+
+  // ================================================================
+  //  Render loop
+  // ================================================================
+  function cursors() {
+    const arr = [];
+    for (const p of peers.values()) arr.push({ x: p.rx ?? p.x, y: p.ry ?? p.y, n: p.n, col: p.col, ai: p.ai, dr: p.dr });
+    for (const b of bots.values()) arr.push({ x: b.x, y: b.y, n: b.n, col: b.col, ai: 1, dr: 1 });
+    return arr;
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    let dt = (now - last) / 1000; last = now;
+    if (dt > 0.06) dt = 0.06;
+
+    // keyboard pan
+    let px = 0, py = 0;
+    if (keys['w'] || keys['W'] || keys['ArrowUp']) py -= 1;
+    if (keys['s'] || keys['S'] || keys['ArrowDown']) py += 1;
+    if (keys['a'] || keys['A'] || keys['ArrowLeft']) px -= 1;
+    if (keys['d'] || keys['D'] || keys['ArrowRight']) px += 1;
+    if (px || py) { cam.x += px * 520 * dt; cam.y += py * 520 * dt; clampCam(); }
+
+    manageBots();
+    simBots(dt);
+
+    for (const p of peers.values()) {
+      p.rx += ((p.x) - (p.rx ?? p.x)) * Math.min(1, dt * 9);
+      p.ry += ((p.y) - (p.ry ?? p.y)) * Math.min(1, dt * 9);
+    }
+    for (const a of activity) a.life -= dt * 0.5;
+    for (let i = activity.length - 1; i >= 0; i--) if (activity[i].life <= 0) activity.splice(i, 1);
+
+    draw(now / 1000);
+    updateHud();
+    requestAnimationFrame(frame);
+  }
+
+  function draw(t) {
+    const W = cv.width, H = cv.height;
+    const cl = camLeft(), ctp = camTop();
+    ctx.fillStyle = '#0a0c18';
+    ctx.fillRect(0, 0, W, H);
+    // grid
+    ctx.strokeStyle = 'rgba(40,80,110,0.14)'; ctx.lineWidth = 1;
+    const G = 100;
+    for (let gx = Math.floor(cl / G) * G; gx < cl + W; gx += G) { ctx.beginPath(); ctx.moveTo(gx - cl, 0); ctx.lineTo(gx - cl, H); ctx.stroke(); }
+    for (let gy = Math.floor(ctp / G) * G; gy < ctp + H; gy += G) { ctx.beginPath(); ctx.moveTo(0, gy - ctp); ctx.lineTo(W, gy - ctp); ctx.stroke(); }
+
+    // world layers (blit visible region)
+    const sx = Math.max(0, cl), sy = Math.max(0, ctp);
+    const sw = Math.min(WORLD_W - sx, W), sh = Math.min(WORLD_H - sy, H);
+    if (sw > 0 && sh > 0) {
+      const dx = sx - cl, dy = sy - ctp;
+      ctx.drawImage(layerOthers.c, sx, sy, sw, sh, dx, dy, sw, sh);
+      ctx.drawImage(layerMine.c, sx, sy, sw, sh, dx, dy, sw, sh);
+    }
+    // world border
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 3;
+    ctx.strokeRect(-cl, -ctp, WORLD_W, WORLD_H);
+
+    // peer / bot cursors
+    for (const c of cursors()) {
+      const x = c.x - cl, y = c.y - ctp;
+      if (x < -40 || x > W + 40 || y < -40 || y > H + 40) continue;
+      ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = c.col || '#fff'; ctx.shadowColor = c.col || '#fff'; ctx.shadowBlur = 10; ctx.fill(); ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 1.2; ctx.stroke();
+      // label
+      const label = (c.dr ? '✎ ' : '') + (c.ai ? '🤖 ' : '') + (c.n || '???');
+      ctx.font = 'bold 11px Courier New'; ctx.textAlign = 'left';
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(8,12,24,0.8)';
+      ctx.fillRect(x + 9, y - 8, tw + 8, 15);
+      ctx.fillStyle = c.ai ? '#cbb2ff' : '#e8eeff';
+      ctx.fillText(label, x + 13, y + 3);
+    }
+
+    // my own cursor ring
+    {
+      const x = me.x - cl, y = me.y - ctp;
+      const r = (tool === 'eraser' ? me.sz * 1.2 : me.sz / 2) + 2;
+      ctx.beginPath(); ctx.arc(x, y, Math.max(4, r), 0, Math.PI * 2);
+      ctx.strokeStyle = tool === 'eraser' ? '#ff9db8' : me.col; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+
+    drawMinimap();
+  }
+
+  function drawMinimap() {
+    const r = mmRect();
+    ctx.save();
+    ctx.fillStyle = 'rgba(6,10,20,0.85)';
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.drawImage(layerOthers.c, 0, 0, WORLD_W, WORLD_H, r.x, r.y, r.w, r.h);
+    ctx.drawImage(layerMine.c, 0, 0, WORLD_W, WORLD_H, r.x, r.y, r.w, r.h);
+    // activity sparks
+    for (const a of activity) {
+      const mx = r.x + a.x / WORLD_W * r.w, my = r.y + a.y / WORLD_H * r.h;
+      ctx.fillStyle = 'rgba(0,229,255,' + (0.5 * a.life) + ')';
+      ctx.fillRect(mx - 1, my - 1, 2, 2);
+    }
+    // viewport rect
+    const vx = r.x + camLeft() / WORLD_W * r.w, vy = r.y + camTop() / WORLD_H * r.h;
+    const vw = cv.width / WORLD_W * r.w, vh = cv.height / WORLD_H * r.h;
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 1.2;
+    ctx.strokeRect(vx, vy, vw, vh);
+    ctx.strokeStyle = '#133a48'; ctx.lineWidth = 1;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = '#6b93a2'; ctx.font = '9px Courier New'; ctx.textAlign = 'left';
+    ctx.fillText('MAP · tap to jump', r.x + 3, r.y - 4);
+    ctx.restore();
+  }
+
+  let hudT = 0;
+  function updateHud() {
+    const now = performance.now();
+    if (now - hudT < 450) return;
+    hudT = now;
+    let humans = 1, ais = 0;
+    for (const p of peers.values()) (p.ai ? ais++ : humans++);
+    ais += bots.size;
+    document.getElementById('onlineN').textContent = (humans + ais).toLocaleString();
+    document.getElementById('humanN').textContent = humans;
+    document.getElementById('aiN').textContent = ais;
+
+    const rows = [{ i: myId, n: me.n, col: me.col, ai: 0, me: true }];
+    for (const p of peers.values()) rows.push({ i: p.i, n: p.n, col: p.col, ai: p.ai });
+    for (const b of bots.values()) rows.push({ i: b.i, n: b.n, col: b.col, ai: 1 });
+    document.getElementById('plist').innerHTML = rows.slice(0, 10).map(p => `
+      <div class="prow${p.me ? ' me' : ''}">
+        <span class="sw" style="background:${(p.col || '#fff').replace(/[^#0-9a-fA-F]/g, '')}"></span>
+        <span class="nm">${esc(p.n || '???')}</span>
+        ${p.ai ? '<span class="aitag">AI</span>' : ''}
+      </div>`).join('');
+  }
+  function esc(s) { return String(s).replace(/[<>&]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m])); }
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

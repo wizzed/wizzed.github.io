@@ -60,6 +60,32 @@
   #ov-sub { margin-top: 12px; font-size: 14px; color: #9fd8ff; text-shadow: 0 0 8px #2288ff; line-height: 1.7; }
   #ov-hint { margin-top: 18px; font-size: 13px; color: #ffe14f; text-shadow: 0 0 10px #ff9a00; animation: pulse 1.2s infinite; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+  #ui-controls { position: fixed; bottom: 12px; right: 12px; z-index: 28; display: flex; gap: 8px; }
+  #ui-controls button {
+    font-family: inherit; font-size: 15px; line-height: 1; cursor: pointer;
+    min-width: 38px; height: 34px; padding: 0 10px; border-radius: 8px;
+    color: #9fd8ff; background: rgba(10,10,28,0.66); border: 1px solid #23234a;
+  }
+  #ui-controls button:hover { color: #4ff3ff; border-color: #4ff3ff; }
+  #ui-controls button:active { transform: scale(.94); }
+  #qualBtn { font-weight: bold; letter-spacing: 1px; font-size: 13px; }
+  #pause-ov {
+    position: fixed; inset: 0; z-index: 30; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(8,8,22,0.62); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  }
+  #pause-ov .pbox {
+    text-align: center; background: rgba(10,10,30,0.8); border: 1px solid #2c2c5e;
+    border-radius: 14px; padding: 24px 40px; box-shadow: 0 0 40px #0033aa55;
+  }
+  #pause-ov h2 { font-size: 32px; letter-spacing: 5px; color: #4ff3ff; text-shadow: 0 0 22px #00c8ff; margin-bottom: 8px; }
+  #pause-ov p { font-size: 12px; color: #9fd8ff; margin-bottom: 16px; }
+  #pause-ov button {
+    font-family: inherit; font-size: 15px; font-weight: bold; letter-spacing: 2px;
+    padding: 10px 26px; border: none; border-radius: 8px; cursor: pointer;
+    background: #29e6a7; color: #0a0a18; box-shadow: 0 0 18px #29e6a788;
+  }
+  @media (max-width: 480px) { #hud { font-size: 12px; padding: 6px 9px; } }
 </style>
 </head>
 <body>
@@ -77,6 +103,17 @@
     <div id="ov-title">TUNNEL RUSH 3D</div>
     <div id="ov-sub">Fly through the neon tube.<br>← → / A D or DRAG to slide around the wall.<br>Slip through the gaps — graze edges for bonus sparks.</div>
     <div id="ov-hint">CLICK or ENTER / SPACE to launch</div>
+  </div>
+</div>
+<div id="ui-controls">
+  <button id="pauseBtn" title="Pause (P)" aria-label="Pause">⏸</button>
+  <button id="qualBtn" title="Graphics quality (HI / LO)">HI</button>
+</div>
+<div id="pause-ov">
+  <div class="pbox">
+    <h2>PAUSED</h2>
+    <p>press P or tap resume to continue</p>
+    <button id="resume-btn">▶ RESUME</button>
   </div>
 </div>
 <script src="../lib/three.min.js"></script>
@@ -135,6 +172,69 @@ addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
+
+// ── Pause + quality (polish) ───────────────────────────────────────────────
+let paused = false;
+const pauseBtn = document.getElementById('pauseBtn');
+const qualBtn = document.getElementById('qualBtn');
+const pauseOv = document.getElementById('pause-ov');
+const Q_KEY = 'wizzed-tunnel-run-3d-q';
+let quality = localStorage.getItem(Q_KEY) === 'LO' ? 'LO' : 'HI';
+function applyQuality() {
+  const lo = quality === 'LO';
+  renderer.setPixelRatio(lo ? Math.min(devicePixelRatio, 2) * 0.5 : Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  qualBtn.textContent = quality;
+  qualBtn.style.opacity = lo ? '0.7' : '1';
+}
+qualBtn.addEventListener('click', () => { quality = quality === 'HI' ? 'LO' : 'HI'; localStorage.setItem(Q_KEY, quality); applyQuality(); });
+applyQuality();
+function setPaused(p) {
+  if (state !== 'play') return;
+  if (paused === p) return;
+  paused = p;
+  pauseOv.style.display = paused ? 'flex' : 'none';
+  pauseBtn.textContent = paused ? '▶' : '⏸';
+  if (audioCtx) { try { paused ? audioCtx.suspend() : audioCtx.resume(); } catch (e) {} }
+}
+pauseBtn.addEventListener('click', () => setPaused(!paused));
+document.getElementById('resume-btn').addEventListener('click', () => setPaused(false));
+
+// ── Speed-streak particles (additive lines that stretch with velocity) ──────
+const NSTREAK = 46;
+const streakGeo = new THREE.BufferGeometry();
+const streakArr = new Float32Array(NSTREAK * 2 * 3);
+streakGeo.setAttribute('position', new THREE.BufferAttribute(streakArr, 3));
+const streakMat = new THREE.LineBasicMaterial({ color: 0xaaeeff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+const streaks = new THREE.LineSegments(streakGeo, streakMat);
+streaks.frustumCulled = false;
+scene.add(streaks);
+const streakData = [];
+for (let i = 0; i < NSTREAK; i++) {
+  streakData.push({ an: Math.random() * Math.PI * 2, rr: R * (0.5 + Math.random() * 0.48), z: -Math.random() * TUBELEN });
+}
+function updateStreaks(dt) {
+  const target = state === 'play' ? Math.max(0, Math.min(0.6, (speed - 15) / 42)) : 0;
+  streakMat.opacity += (target - streakMat.opacity) * Math.min(1, dt * 4);
+  streakMat.color.copy(gridMat.color);
+  if (streakMat.opacity < 0.01) return;
+  const len = 1.5 + Math.min(11, speed * 0.34);
+  let p = 0;
+  for (const s of streakData) {
+    if (s.z > camZ + 8) { s.z -= TUBELEN; s.an = Math.random() * Math.PI * 2; s.rr = R * (0.5 + Math.random() * 0.48); }
+    const cx = pathX(s.z), cy = pathY(s.z);
+    streakArr[p++] = cx + Math.cos(s.an) * s.rr; streakArr[p++] = cy + Math.sin(s.an) * s.rr; streakArr[p++] = s.z;
+    const cx2 = pathX(s.z + len), cy2 = pathY(s.z + len);
+    streakArr[p++] = cx2 + Math.cos(s.an) * s.rr; streakArr[p++] = cy2 + Math.sin(s.an) * s.rr; streakArr[p++] = s.z + len;
+  }
+  streakGeo.attributes.position.needsUpdate = true;
+}
+
+if (window.matchMedia && matchMedia('(pointer: coarse)').matches) {
+  const sub = document.getElementById('ov-sub');
+  if (sub) sub.innerHTML = 'Fly through the neon tube.<br>DRAG left / right to slide around the wall.<br>Slip through the gaps — graze edges for bonus sparks.';
+  const hint = document.getElementById('ov-hint'); if (hint) hint.textContent = 'TAP to launch';
+}
 
 scene.add(new THREE.AmbientLight(0x223355, 1.4));
 const camLight = new THREE.PointLight(0x66aaff, 10, 26, 1.6);
@@ -312,6 +412,7 @@ function showMsg(txt) {
 function startGame() {
   reset();
   state = 'play';
+  paused = false; pauseOv.style.display = 'none'; pauseBtn.textContent = '⏸';
   overlay.classList.add('hidden');
   blip(660, 0.12, 'square', 0.06);
 }
@@ -346,6 +447,7 @@ addEventListener('keydown', e => {
     if (state !== 'play') startGame();
   }
   if (e.code === 'KeyR' && state === 'over') startGame();
+  if (e.code === 'KeyP') setPaused(!paused);
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 
@@ -355,7 +457,7 @@ renderer.domElement.addEventListener('pointerdown', e => {
   dragging = true; lastPX = e.clientX;
 });
 addEventListener('pointermove', e => {
-  if (dragging && state === 'play') {
+  if (dragging && state === 'play' && !paused) {
     theta += (e.clientX - lastPX) * 0.0085;
   }
   lastPX = e.clientX;
@@ -372,6 +474,7 @@ const _v = new THREE.Vector3();
 let lastT = 0;
 function loop(ts) {
   requestAnimationFrame(loop);
+  if (paused) { lastT = ts; renderer.render(scene, camera); return; }
   const t = ts / 1000;
   const dt = Math.min((ts - lastT) / 1000, 0.05);
   lastT = ts;
@@ -479,6 +582,8 @@ function loop(ts) {
     s.m.material.opacity = Math.max(0, s.life * 2);
     if (s.life <= 0) s.m.visible = false;
   }
+
+  updateStreaks(dt);
 
   // camera
   shake = Math.max(0, shake - 3 * dt);

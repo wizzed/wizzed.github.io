@@ -81,6 +81,37 @@
   .go-stat b { color: #ffe8b8; }
   .go-best { color: #8ff0c8; }
   .small { margin-top: 10px; font-size: 12px; letter-spacing: 1px; color: #9fb0d0; }
+
+  #ui-controls { position: fixed; bottom: 12px; right: 12px; z-index: 22; display: flex; gap: 8px; }
+  #ui-controls button {
+    font-family: inherit; font-size: 15px; line-height: 1; cursor: pointer;
+    min-width: 38px; height: 34px; padding: 0 10px; border-radius: 8px;
+    color: #ffd7a0; background: rgba(10,14,26,.55); border: 1px solid rgba(255,255,255,.22);
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  #ui-controls button:hover { border-color: #ffd7a0; }
+  #ui-controls button:active { transform: scale(.94); }
+  #qualBtn { font-weight: bold; letter-spacing: 1px; font-size: 13px; }
+  #pause-ov {
+    position: fixed; inset: 0; z-index: 24; display: flex; align-items: center; justify-content: center;
+    text-align: center; background: rgba(8,12,24,.55); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  }
+  #pause-ov.hidden { display: none; }
+  #pause-ov .pbox {
+    background: rgba(12,16,30,.7); border: 1px solid rgba(255,255,255,.22);
+    border-radius: 14px; padding: 28px 42px; box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  }
+  #pause-ov h2 { font-size: 40px; letter-spacing: 6px; color: #ffe8b8; }
+  #pause-ov p { margin-top: 8px; font-size: 13px; letter-spacing: 1px; color: #c7d4ee; }
+  #pause-ov button {
+    margin-top: 18px; font-family: inherit; font-size: 16px; letter-spacing: 2px; font-weight: bold;
+    color: #10131f; background: linear-gradient(180deg,#ffe1a8,#ffb15c);
+    border: none; border-radius: 8px; padding: 12px 28px; cursor: pointer;
+  }
+  @media (max-width: 480px) {
+    #hud .big { font-size: 24px; }
+    #hud .row { font-size: 13px; }
+  }
 </style>
 </head>
 <body>
@@ -117,6 +148,18 @@
     <div class="go-stat go-best" id="goBest"></div>
     <button class="cta" id="againBtn">▶ FLY AGAIN</button>
     <div class="small">or press R</div>
+  </div>
+</div>
+
+<div id="ui-controls">
+  <button id="pauseBtn" title="Pause (P)" aria-label="Pause">⏸</button>
+  <button id="qualBtn" title="Graphics quality (HI / LO)">HI</button>
+</div>
+<div class="hidden" id="pause-ov">
+  <div class="pbox">
+    <h2>PAUSED</h2>
+    <p>press P or tap resume to continue</p>
+    <button id="resumeBtn">▶ RESUME</button>
   </div>
 </div>
 
@@ -465,6 +508,89 @@
         elSpd = document.getElementById('spd'), elBest = document.getElementById('best');
   document.getElementById('best').textContent = Math.round(state.best);
 
+  // ---------- pause + quality + birds (polish) ----------
+  let paused = false;
+  const pauseBtn = document.getElementById('pauseBtn');
+  const qualBtn = document.getElementById('qualBtn');
+  const pauseOv = document.getElementById('pause-ov');
+
+  const Q_KEY = 'wizzed-skyward-3d-q';
+  let quality = localStorage.getItem(Q_KEY) === 'LO' ? 'LO' : 'HI';
+  function applyQuality() {
+    const lo = quality === 'LO';
+    renderer.setPixelRatio(lo ? Math.min(window.devicePixelRatio || 1, 2) * 0.5 : Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = !lo;
+    scene.traverse(o => { if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { m.needsUpdate = true; }); } });
+    qualBtn.textContent = quality;
+    qualBtn.style.opacity = lo ? '0.7' : '1';
+  }
+  qualBtn.addEventListener('click', () => { quality = quality === 'HI' ? 'LO' : 'HI'; localStorage.setItem(Q_KEY, quality); applyQuality(); });
+
+  function setPaused(p) {
+    if (state.mode !== 'play') return;
+    if (paused === p) return;
+    paused = p;
+    pauseOv.classList.toggle('hidden', !paused);
+    pauseBtn.textContent = paused ? '▶' : '⏸';
+    if (actx) { try { paused ? actx.suspend() : actx.resume(); } catch (e) {} }
+    if (!paused) last = performance.now();
+  }
+  pauseBtn.addEventListener('click', () => setPaused(!paused));
+  document.getElementById('resumeBtn').addEventListener('click', () => setPaused(false));
+
+  // occasional bird flock drifting across the sky (cheap: 7 two-wing groups)
+  const birds = [];
+  const flock = new THREE.Group(); flock.visible = false;
+  (function buildBirds() {
+    const wingGeo = new THREE.BoxGeometry(2.4, 0.06, 0.85);
+    const birdMat = new THREE.MeshStandardMaterial({ color: 0x23252f, roughness: 1, metalness: 0 });
+    for (let i = 0; i < 7; i++) {
+      const b = new THREE.Group();
+      const lw = new THREE.Mesh(wingGeo, birdMat); lw.position.x = -1.2;
+      const rw = new THREE.Mesh(wingGeo, birdMat); rw.position.x = 1.2;
+      b.add(lw, rw);
+      b.userData = { lw, rw, ph: Math.random() * 6.283, ox: (Math.random() - 0.5) * 26, oy: (Math.random() - 0.5) * 9, oz: (Math.random() - 0.5) * 16 };
+      flock.add(b); birds.push(b);
+    }
+    scene.add(flock);
+  })();
+  const _bv = new THREE.Vector3();
+  const flockPos = new THREE.Vector3(), flockDir = new THREE.Vector3();
+  let flockActive = false, flockTimer = 6 + Math.random() * 8, flockT = 0;
+  function updateBirds(dt) {
+    if (!flockActive) {
+      flockTimer -= dt;
+      if (flockTimer <= 0) {
+        flockActive = true; flock.visible = true; flockT = 0;
+        const side = Math.random() < 0.5 ? -1 : 1;
+        _bv.set(fwd.z, 0, -fwd.x).normalize();
+        flockPos.copy(glider.position).addScaledVector(fwd, 110 + Math.random() * 70);
+        flockPos.y = glider.position.y + 22 + Math.random() * 40;
+        flockPos.addScaledVector(_bv, side * 130);
+        flockDir.copy(_bv).multiplyScalar(-side); flockDir.y = -0.04; flockDir.normalize();
+      }
+      return;
+    }
+    flockT += dt;
+    flockPos.addScaledVector(flockDir, 19 * dt);
+    flock.position.copy(flockPos);
+    flock.rotation.y = Math.atan2(flockDir.x, flockDir.z);
+    for (const b of birds) {
+      const u = b.userData;
+      b.position.set(u.ox, u.oy + Math.sin(flockT * 0.8 + u.ph) * 1.6, u.oz);
+      const flap = Math.sin(flockT * 9 + u.ph) * 0.6;
+      u.lw.rotation.z = flap; u.rw.rotation.z = -flap;
+    }
+    _bv.copy(flockPos).sub(glider.position);
+    if (flockT > 15 || _bv.length() > 460) { flockActive = false; flock.visible = false; flockTimer = 8 + Math.random() * 10; }
+  }
+
+  if (window.matchMedia && matchMedia('(pointer: coarse)').matches) {
+    document.getElementById('hint').textContent = 'drag on screen to steer · dive through rings · don\'t hit the ground';
+  }
+  applyQuality();
+
   function computeFwd() {
     const cp = Math.cos(state.pitch), sp = Math.sin(state.pitch);
     fwd.set(Math.sin(state.heading) * cp, sp, Math.cos(state.heading) * cp).normalize();
@@ -490,6 +616,7 @@
     keys[k.toLowerCase()] = true;
     if ((k === 'Enter' || k === ' ') && state.mode === 'title') start();
     else if ((k === 'r' || k === 'R') && state.mode !== 'title') { start(); }
+    else if ((k === 'p' || k === 'P') && state.mode === 'play') setPaused(!paused);
   });
   addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
@@ -499,13 +626,13 @@
     state.steerY = (clientY / innerHeight - 0.5) * 2;
   }
   renderer.domElement.addEventListener('pointermove', e => {
-    if (state.mode === 'play') pointerSteer(e.clientX, e.clientY);
+    if (state.mode === 'play' && !paused) pointerSteer(e.clientX, e.clientY);
   });
   renderer.domElement.addEventListener('pointerdown', e => {
     pointerActive = true;
-    if (state.mode === 'play') pointerSteer(e.clientX, e.clientY);
+    if (state.mode === 'play' && !paused) pointerSteer(e.clientX, e.clientY);
   });
-  addEventListener('pointerup', () => { pointerActive = false; });
+  addEventListener('pointerup', e => { pointerActive = false; if (e && e.pointerType === 'touch') { state.steerX = 0; state.steerY = 0; } });
 
   document.getElementById('startBtn').addEventListener('click', start);
   document.getElementById('againBtn').addEventListener('click', start);
@@ -520,6 +647,7 @@
     document.getElementById('hint').style.display = 'block';
     resetFlight();
     state.mode = 'play';
+    paused = false; pauseOv.classList.add('hidden'); pauseBtn.textContent = '⏸';
     beep(523, 0.1, 'sine', 0.05); setTimeout(() => beep(784, 0.14, 'sine', 0.05), 90);
   }
   function gameOver() {
@@ -544,6 +672,7 @@
   // ---------- loop ----------
   let last = performance.now(), idleT = 0;
   function frame(now) {
+    if (paused) { last = now; renderer.render(scene, camera); requestAnimationFrame(frame); return; }
     let dt = (now - last) / 1000; last = now;
     if (dt > 0.05) dt = 0.05;
 
@@ -639,6 +768,7 @@
     sun.position.set(glider.position.x - 70, glider.position.y + 96, glider.position.z - 46);
 
     updateParticles(dt);
+    updateBirds(dt);
 
     // camera
     if (state.mode === 'play' || state.mode === 'over') {

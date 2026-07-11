@@ -428,8 +428,8 @@
     if (e.dataTransfer.files[0]) setMedia(URL.createObjectURL(e.dataTransfer.files[0]), e.dataTransfer.files[0].name);
   });
 
-  const STYLES = ['Auto', 'Bounce', 'Disco', 'Robot', 'Wave', 'Spin'];
-  const AUTO_CYCLE = ['Bounce', 'Disco', 'Wave', 'Robot', 'Spin'];
+  const STYLES = ['Auto', 'Bounce', 'Disco', 'Robot', 'Wave', 'Spin', 'Moonwalk', 'Hype'];
+  const AUTO_CYCLE = ['Bounce', 'Disco', 'Wave', 'Robot', 'Spin', 'Moonwalk', 'Hype'];
   let styleMode = 'Auto', autoIdx = 0;
   try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (s && STYLES.includes(s.style)) styleMode = s.style; } catch (e) {}
   const styleBtns = {};
@@ -457,6 +457,8 @@
     r.head.rotation.x = -0.06 + pulse * 0.1;
     r.head.rotation.y = Math.sin(t * 0.7) * 0.15;
     r.root.position.y = 0;
+    r.root.position.x = 0;
+    r.root.position.z = 0;
     r.root.rotation.y = r.root.rotation.y || 0;
 
     if (style === 'Bounce') {
@@ -516,6 +518,54 @@
       r.root.position.y = pulse * 0.4;
       r.kneeL.rotation.x = (1 - pulse) * 0.3;
       r.kneeR.rotation.x = (1 - pulse) * 0.3;
+    } else if (style === 'Moonwalk') {
+      // leaned-back torso, head easing forward to counter it
+      r.torso.rotation.x = -0.24;
+      r.head.rotation.x = 0.2;
+      // slow backward-glide drift (oscillates so the dancer stays on the floor)
+      r.root.position.z = Math.sin(t * 0.7) * 1.4;
+      r.root.position.y = 0;
+      // alternating flat-foot slides: one foot slides back while the other pushes on its toes
+      const slideL = bar % 2 === 0;
+      const glide = ph;                              // 0..1 slide progress across the beat
+      if (slideL) {
+        r.legL.rotation.x = -0.12 - glide * 0.4;     // left foot slides back
+        r.kneeL.rotation.x = 0.05;
+        r.legR.rotation.x = 0.22 - glide * 0.12;     // right leg planted forward
+        r.kneeR.rotation.x = 0.55 + glide * 0.35;    // knee bent, heel-up feel
+      } else {
+        r.legR.rotation.x = -0.12 - glide * 0.4;
+        r.kneeR.rotation.x = 0.05;
+        r.legL.rotation.x = 0.22 - glide * 0.12;
+        r.kneeL.rotation.x = 0.55 + glide * 0.35;
+      }
+      // relaxed arm sway
+      r.armL.rotation.z = 0.32 + Math.sin(t * 1.4) * 0.16;
+      r.armR.rotation.z = -0.32 - Math.sin(t * 1.4 + 1) * 0.16;
+      r.elbowL.rotation.x = -0.45;
+      r.elbowR.rotation.x = -0.45;
+    } else if (style === 'Hype') {
+      const jump = Math.sin(ph * Math.PI);           // 0 on the beat, 1 mid-beat
+      r.root.position.y = jump * 1.5;                // jumps that land on the beat
+      // head-bang: snaps down on the beat, lifts mid-air
+      r.head.rotation.x = 0.55 - jump * 0.75;
+      // arms punch overhead at the peak, cross in front on the beat
+      const openAmt = jump;                          // 1 = arms up/open, 0 = crossed
+      r.armL.rotation.z = 0.3 + openAmt * 2.4;
+      r.armR.rotation.z = -0.3 - openAmt * 2.4;
+      r.armL.rotation.x = -0.2;
+      r.armR.rotation.x = -0.2;
+      const crossBend = 1 - openAmt;
+      const top = bar % 2 === 0 ? 1 : -1;            // alternate which forearm crosses on top
+      r.elbowL.rotation.x = -crossBend * 1.6;
+      r.elbowR.rotation.x = -crossBend * 1.6;
+      r.elbowL.rotation.z = crossBend * 0.7 * top;
+      r.elbowR.rotation.z = -crossBend * 0.7 * top;
+      // legs tuck at the top of the jump
+      r.kneeL.rotation.x = jump * 0.8;
+      r.kneeR.rotation.x = jump * 0.8;
+      r.legL.rotation.x = jump * 0.15;
+      r.legR.rotation.x = -jump * 0.15;
     }
   }
   function resetPose() {

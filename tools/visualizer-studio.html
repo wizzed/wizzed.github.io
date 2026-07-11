@@ -157,6 +157,8 @@
       <option value="rings">Echo Rings</option>
       <option value="starburst">Starburst</option>
       <option value="nebula">Nebula</option>
+      <option value="kaleido">Kaleido</option>
+      <option value="tunnel">Tunnel</option>
     </select>
   </label>
   <label class="mini">theme
@@ -178,6 +180,14 @@
   </label>
   <label class="mini">lyric size <input type="number" id="lyrSize" class="tnum" min="3" max="12" step="0.5" value="6"></label>
   <label class="mini"><input type="color" id="lyrColor" value="#ffffff"> lyric</label>
+  <label class="mini">font
+    <select id="lyrFont">
+      <option value="sans">Sans</option>
+      <option value="serif">Serif</option>
+      <option value="mono">Mono</option>
+      <option value="impact">Bold Impact</option>
+    </select>
+  </label>
 </div>
 
 <div id="stage">
@@ -264,9 +274,15 @@
     mono:      ['#f2f4fa', '#9aa3b8', '#ffffff'],
     rainbow:   null, // hue-cycles
   };
+  const FONTS = {
+    sans:   `Verdana, 'Segoe UI', sans-serif`,
+    serif:  `Georgia, 'Times New Roman', serif`,
+    mono:   `'Courier New', ui-monospace, monospace`,
+    impact: `Impact, 'Arial Black', Haettenschweiler, sans-serif`,
+  };
   const cfg = {
     viz: 'bars', theme: 'synthwave', bg: 'dark',
-    lyrSize: 6, lyrColor: '#ffffff',
+    lyrSize: 6, lyrColor: '#ffffff', lyrFont: 'sans',
   };
   try {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
@@ -287,11 +303,13 @@
   const $ = id => document.getElementById(id);
   $('vizSel').value = cfg.viz; $('themeSel').value = cfg.theme;
   $('bgSel').value = cfg.bg; $('lyrSize').value = cfg.lyrSize; $('lyrColor').value = cfg.lyrColor;
+  $('lyrFont').value = cfg.lyrFont;
   $('vizSel').addEventListener('input', e => { cfg.viz = e.target.value; persist(); });
   $('themeSel').addEventListener('input', e => { cfg.theme = e.target.value; persist(); });
   $('bgSel').addEventListener('input', e => { cfg.bg = e.target.value; persist(); });
   $('lyrSize').addEventListener('input', e => { cfg.lyrSize = +e.target.value; persist(); });
   $('lyrColor').addEventListener('input', e => { cfg.lyrColor = e.target.value; persist(); });
+  $('lyrFont').addEventListener('input', e => { cfg.lyrFont = e.target.value; persist(); });
 
   let toastTimer;
   function toast(msg) {
@@ -799,6 +817,69 @@
       c.globalAlpha = 1;
       c.globalCompositeOperation = 'source-over';
     },
+    kaleido(c, W, H, t) {
+      const cols = themeColors(t);
+      const cx = W / 2, cy = H / 2;
+      const bass = band(2, 24);
+      const SEG = 12;                        // mirrored radial wedges
+      const maxR = Math.min(W, H) * 0.5;
+      const N = 24;
+      c.save();
+      c.translate(cx, cy);
+      c.rotate(t * 0.12);
+      c.globalCompositeOperation = 'lighter';
+      for (let s = 0; s < SEG; s++) {
+        c.save();
+        c.rotate((s / SEG) * Math.PI * 2);
+        if (s % 2) c.scale(1, -1);           // mirror alternate wedges for kaleidoscope symmetry
+        for (let i = 0; i < N; i++) {
+          const v = freq[Math.floor(Math.pow(i / N, 1.3) * 480)] / 255;
+          const a = (i / N) * (Math.PI * 2 / SEG);
+          const r0 = maxR * 0.1 * (1 + bass * 0.6);
+          const r1 = r0 + v * maxR * 0.85;
+          c.strokeStyle = [cols[0], cols[1], cols[2]][i % 3];
+          c.lineWidth = Math.max(2, W / 300) * (0.5 + v);
+          c.globalAlpha = 0.22 + v * 0.6;
+          c.beginPath();
+          c.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
+          c.lineTo(Math.cos(a) * r1, Math.sin(a) * r1);
+          c.stroke();
+        }
+        c.restore();
+      }
+      c.globalAlpha = 0.5 + bass * 0.5;      // bright core
+      c.fillStyle = cols[2];
+      c.beginPath(); c.arc(0, 0, (5 + bass * 20) * (W / 960), 0, Math.PI * 2); c.fill();
+      c.globalAlpha = 1;
+      c.globalCompositeOperation = 'source-over';
+      c.restore();
+    },
+    tunnel(c, W, H, t) {
+      const cols = themeColors(t);
+      const cx = W / 2, cy = H / 2;
+      const bass = band(2, 24);
+      const maxR = Math.hypot(W, H) * 0.62;
+      const RINGS = 20;
+      c.save();
+      c.translate(cx, cy);
+      const phase = (t * 0.4) % 1;           // rings recede/travel outward over time
+      for (let k = RINGS; k >= 0; k--) {
+        const f = (k + phase) / RINGS;       // 0 at the mouth .. 1 at the far end
+        const r = Math.pow(f, 2.3) * maxR * (1 + bass * 0.3);
+        if (r < 2) continue;
+        const v = band(2 + k * 6, 12 + k * 6);
+        c.strokeStyle = cols[k % 3];
+        c.lineWidth = Math.max(1.5, (W / 90) * (1 - f) * (0.5 + bass * 1.6));
+        c.globalAlpha = (1 - f) * (0.35 + v * 0.65);
+        c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.stroke();
+      }
+      c.globalAlpha = 0.4 + bass * 0.6;      // pulsing bass core at the tunnel mouth
+      c.fillStyle = cols[0];
+      c.shadowColor = cols[0]; c.shadowBlur = 60 * (0.4 + bass);
+      c.beginPath(); c.arc(0, 0, (5 + bass * 34) * (W / 960), 0, Math.PI * 2); c.fill();
+      c.shadowBlur = 0; c.globalAlpha = 1;
+      c.restore();
+    },
   };
 
   function drawFrame(c, W, H, t) {
@@ -834,7 +915,7 @@
       const size = H * (cfg.lyrSize / 100) * (0.9 + prog * 0.1);
       c.save();
       c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.font = `bold ${size}px Verdana, 'Segoe UI', sans-serif`;
+      c.font = `bold ${size}px ${FONTS[cfg.lyrFont] || FONTS.sans}`;
       const y = H * 0.8;
       // word-wrap
       const words = line.text.split(' ');

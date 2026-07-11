@@ -82,6 +82,37 @@
   .go-stat b { color: #bdeeff; }
   .go-best { color: #8ff0c8; }
   .small { margin-top: 10px; font-size: 12px; letter-spacing: 1px; color: #97accc; }
+
+  #ui-controls { position: fixed; bottom: 12px; right: 12px; z-index: 22; display: flex; gap: 8px; }
+  #ui-controls button {
+    font-family: inherit; font-size: 15px; line-height: 1; cursor: pointer;
+    min-width: 38px; height: 34px; padding: 0 10px; border-radius: 8px;
+    color: #bdeeff; background: rgba(6,14,24,.55); border: 1px solid rgba(255,255,255,.22);
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  #ui-controls button:hover { border-color: #7fe6ff; }
+  #ui-controls button:active { transform: scale(.94); }
+  #qualBtn { font-weight: bold; letter-spacing: 1px; font-size: 13px; }
+  #pause-ov {
+    position: fixed; inset: 0; z-index: 24; display: flex; align-items: center; justify-content: center;
+    text-align: center; background: rgba(4,10,20,.55); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  }
+  #pause-ov.hidden { display: none; }
+  #pause-ov .pbox {
+    background: rgba(8,16,28,.7); border: 1px solid rgba(255,255,255,.22);
+    border-radius: 14px; padding: 28px 42px; box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  }
+  #pause-ov h2 { font-size: 40px; letter-spacing: 6px; color: #bdeeff; }
+  #pause-ov p { margin-top: 8px; font-size: 13px; letter-spacing: 1px; color: #c4d9ee; }
+  #pause-ov button {
+    margin-top: 18px; font-family: inherit; font-size: 16px; letter-spacing: 2px; font-weight: bold;
+    color: #041220; background: linear-gradient(180deg,#a8ecff,#4fb2e8);
+    border: none; border-radius: 8px; padding: 12px 28px; cursor: pointer;
+  }
+  @media (max-width: 480px) {
+    #hud .big { font-size: 24px; }
+    #hud .row { font-size: 13px; }
+  }
 </style>
 </head>
 <body>
@@ -118,6 +149,18 @@
     <div class="go-stat go-best" id="goBest"></div>
     <button class="cta" id="againBtn">▶ SAIL AGAIN</button>
     <div class="small">or press R</div>
+  </div>
+</div>
+
+<div id="ui-controls">
+  <button id="pauseBtn" title="Pause (P)" aria-label="Pause">⏸</button>
+  <button id="qualBtn" title="Graphics quality (HI / LO)">HI</button>
+</div>
+<div class="hidden" id="pause-ov">
+  <div class="pbox">
+    <h2>PAUSED</h2>
+    <p>press P or tap resume to continue</p>
+    <button id="resumeBtn">▶ RESUME</button>
   </div>
 </div>
 
@@ -484,6 +527,78 @@
         elBest = document.getElementById('best');
   elBest.textContent = Math.round(state.best);
 
+  // ---------- pause + quality + lightning (polish) ----------
+  let paused = false;
+  const pauseBtn = document.getElementById('pauseBtn');
+  const qualBtn = document.getElementById('qualBtn');
+  const pauseOv = document.getElementById('pause-ov');
+
+  const Q_KEY = 'wizzed-wavefarer-3d-q';
+  let quality = localStorage.getItem(Q_KEY) === 'LO' ? 'LO' : 'HI';
+  function applyQuality() {
+    const lo = quality === 'LO';
+    renderer.setPixelRatio(lo ? Math.min(window.devicePixelRatio || 1, 2) * 0.5 : Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = !lo;
+    scene.traverse(o => { if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { m.needsUpdate = true; }); } });
+    qualBtn.textContent = quality;
+    qualBtn.style.opacity = lo ? '0.7' : '1';
+  }
+  qualBtn.addEventListener('click', () => { quality = quality === 'HI' ? 'LO' : 'HI'; localStorage.setItem(Q_KEY, quality); applyQuality(); });
+
+  function setPaused(p) {
+    if (state.mode !== 'play') return;
+    if (paused === p) return;
+    paused = p;
+    pauseOv.classList.toggle('hidden', !paused);
+    pauseBtn.textContent = paused ? '▶' : '⏸';
+    if (actx) { try { paused ? actx.suspend() : actx.resume(); } catch (e) {} }
+    if (!paused) last = performance.now();
+  }
+  pauseBtn.addEventListener('click', () => setPaused(!paused));
+  document.getElementById('resumeBtn').addEventListener('click', () => setPaused(false));
+
+  // distant lightning that grows more frequent as the storm builds (cheap: 1 jagged line + light flash)
+  const BOLT_SEG = 9;
+  const boltGeo = new THREE.BufferGeometry();
+  boltGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(BOLT_SEG * 2 * 3), 3));
+  const boltMat = new THREE.LineBasicMaterial({ color: 0xdff2ff, transparent: true, opacity: 0, fog: false, depthWrite: false });
+  const bolt = new THREE.LineSegments(boltGeo, boltMat);
+  bolt.frustumCulled = false; scene.add(bolt);
+  let lightningTimer = 6, flashV = 0;
+  function makeBolt() {
+    const az = Math.random() * Math.PI * 2;
+    const dist = 360 + Math.random() * 180;
+    const bx = boat.position.x + Math.cos(az) * dist;
+    const bz = boat.position.z + Math.sin(az) * dist;
+    const topY = 130 + Math.random() * 70;
+    const arr = boltGeo.attributes.position.array;
+    let px = bx, py = topY, pz = bz, p = 0;
+    for (let i = 0; i < BOLT_SEG; i++) {
+      const ny = topY - (topY / BOLT_SEG) * (i + 1);
+      const nx = bx + (Math.random() - 0.5) * 24;
+      const nz = bz + (Math.random() - 0.5) * 24;
+      arr[p++] = px; arr[p++] = py; arr[p++] = pz;
+      arr[p++] = nx; arr[p++] = ny; arr[p++] = nz;
+      px = nx; py = ny; pz = nz;
+    }
+    boltGeo.attributes.position.needsUpdate = true;
+    boltMat.opacity = 1; flashV = 1;
+  }
+  function updateLightning(dt, storm) {
+    if (boltMat.opacity > 0) boltMat.opacity = Math.max(0, boltMat.opacity - dt * 3.4);
+    if (flashV > 0) flashV = Math.max(0, flashV - dt * 2.6);
+    if (state.mode === 'play' && storm > 1.55) {
+      lightningTimer -= dt * (storm - 1.4);
+      if (lightningTimer <= 0) { makeBolt(); lightningTimer = 3 + Math.random() * 6; }
+    }
+  }
+
+  if (window.matchMedia && matchMedia('(pointer: coarse)').matches) {
+    document.getElementById('hint').textContent = 'drag left / right to steer · sail between the buoys · avoid the rocks';
+  }
+  applyQuality();
+
   function stormLevel() { return 1 + Math.min(1.4, state.dist / 2200); }
   function computeFwd() { fwd.set(Math.sin(state.heading), 0, Math.cos(state.heading)); }
 
@@ -508,14 +623,16 @@
     keys[k.toLowerCase()] = true;
     if ((k === 'Enter' || k === ' ') && state.mode === 'title') start();
     else if ((k === 'r' || k === 'R') && state.mode !== 'title') start();
+    else if ((k === 'p' || k === 'P') && state.mode === 'play') setPaused(!paused);
   });
   addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
   renderer.domElement.addEventListener('pointermove', e => {
-    if (state.mode === 'play') state.steerX = (e.clientX / innerWidth - 0.5) * 2;
+    if (state.mode === 'play' && !paused) state.steerX = (e.clientX / innerWidth - 0.5) * 2;
   });
   renderer.domElement.addEventListener('pointerdown', e => {
-    if (state.mode === 'play') state.steerX = (e.clientX / innerWidth - 0.5) * 2;
+    if (state.mode === 'play' && !paused) state.steerX = (e.clientX / innerWidth - 0.5) * 2;
   });
+  addEventListener('pointerup', e => { if (e && e.pointerType === 'touch') state.steerX = 0; });
   document.getElementById('startBtn').addEventListener('click', start);
   document.getElementById('againBtn').addEventListener('click', start);
   document.getElementById('startOverlay').addEventListener('click', e => {
@@ -529,6 +646,7 @@
     document.getElementById('hint').style.display = 'block';
     resetVoyage();
     state.mode = 'play';
+    paused = false; pauseOv.classList.add('hidden'); pauseBtn.textContent = '⏸';
     beep(392, 0.12, 'sine', 0.05); setTimeout(() => beep(587, 0.16, 'sine', 0.05), 110);
   }
   function gameOver() {
@@ -557,11 +675,13 @@
   const AXIS_Y = new THREE.Vector3(0, 1, 0);
 
   function frame(now) {
+    if (paused) { last = now; renderer.render(scene, camera); requestAnimationFrame(frame); return; }
     let dt = (now - last) / 1000; last = now;
     if (dt > 0.05) dt = 0.05;
     state.waveT += dt;
     const t = state.waveT;
     const storm = state.mode === 'play' ? stormLevel() : 1;
+    updateLightning(dt, storm);
 
     // ---- day/night cycle driven by distance (plus slow idle drift on title) ----
     const cyc = ((state.dist + idleT * 8) % 2600) / 2600;
@@ -571,7 +691,7 @@
     scene.fog.color.copy(cHor);
     sun.color.copy(keyLerp(K_SUNC, cyc));
     sun.intensity = keyLerp(K_SUNI, cyc);
-    hemi.intensity = keyLerp(K_HEMI, cyc);
+    hemi.intensity = keyLerp(K_HEMI, cyc) + flashV * 1.8;
     oceanMat.color.copy(keyLerp(K_WATC, cyc));
     const sunH = keyLerp(K_SUNH, cyc);
     const sunAz = 2.4 + cyc * 1.2;

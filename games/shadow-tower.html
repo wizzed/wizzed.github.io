@@ -181,6 +181,7 @@
 'use strict';
 const SAVEKEY='wizzed-shadow-tower';
 const $=id=>document.getElementById(id);
+const ri=n=>Math.floor(Math.random()*n);
 
 /* ---------- audio ---------- */
 let AC=null;
@@ -219,6 +220,10 @@ const RELICS={
   mirror:{name:'Mirror Shard',icon:'🪞',desc:'double damage on round 1',unlock:'defeat the Mirror Wraith'},
   gauntlet:{name:'Golden Gauntlet',icon:'🥇',desc:'+1 ATK per 50 gold held',unlock:'hold 100 gold'},
   crown:{name:'Crown of Shadows',icon:'👑',desc:'+5 ATK, +3 DEF (on pickup)',unlock:'conquer the tower'},
+  bulwark:{name:'Bulwark Rune',icon:'🧱',desc:'block the first enemy hit each combat',base:true},
+  venom:{name:'Serpent Sigil',icon:'🐍',desc:'+3 damage on every hit',unlock:'reach floor 8'},
+  regen:{name:'Verdant Charm',icon:'🌿',desc:'regenerate 3 HP each combat round',unlock:'reach floor 12'},
+  berserk:{name:'Berserker Totem',icon:'🪓',desc:'+1 damage per round of combat',unlock:'reach floor 18'},
 };
 
 /* ---------- meta save ---------- */
@@ -255,6 +260,9 @@ function unlockCheck(){
     ['skull',META.elites>=1],
     ['phoenix',P&&P.floor>=15],
     ['gauntlet',P&&P.gold>=100],
+    ['venom',P&&P.floor>=8],
+    ['regen',P&&P.floor>=12],
+    ['berserk',P&&P.floor>=18],
   ];
   for(const [k,cond] of tries){
     if(cond&&!META.unlocks.includes(k)){
@@ -377,8 +385,8 @@ function deal(){
   }else{
     dealt=[];
     const pool=['fight','fight','fight','fight','treasure','treasure','rest','rest','mystery'];
-    if(P.floor>=3)pool.push('elite');
-    if(P.floor>=6)pool.push('elite');
+    if(P.floor>=4)pool.push('elite');
+    if(P.floor>=7)pool.push('elite');
     for(let i=0;i<3;i++){
       let c=pool[Math.floor(Math.random()*pool.length)];
       if(i===2&&c===dealt[0]&&c===dealt[1])c=c==='fight'?'rest':'fight';
@@ -426,8 +434,8 @@ const ENEMIES=[['🦇','Shade Bat'],['🕷️','Web Fiend'],['🧟','Husk'],['�
 function makeEnemy(elite){
   const f=P.floor;
   const e=ENEMIES[Math.floor(Math.random()*ENEMIES.length)];
-  let hp=Math.round(14+f*4.2),atk=Math.round(4+f*0.85),def=Math.floor(f*0.22),gold=10+f*2;
-  if(elite){hp=Math.round(hp*1.65);atk+=3;def+=1;gold=Math.round(gold*2.2);}
+  let hp=Math.round(14+f*4.2),atk=Math.round(4+f*0.78),def=Math.floor(f*0.22),gold=10+f*2;
+  if(elite){hp=Math.round(hp*1.55);atk+=2;def+=1;gold=Math.round(gold*2.2);}
   return {icon:e[0],name:(elite?'ELITE ':'')+e[1],hp,maxHp:hp,atk,def,gold,elite,boss:false};
 }
 function makeBoss(){
@@ -451,7 +459,7 @@ function clog(html){
   $('clog').scrollTop=$('clog').scrollHeight;
 }
 function startCombat(e){
-  CB={e,round:0,over:false};
+  CB={e,round:0,over:false,blocked:false};
   $('cards').innerHTML='';
   $('panel').style.display='none';
   $('combat').style.display='flex';
@@ -491,9 +499,13 @@ function combatRound(){
     if(CB.round>1&&e.hp<e.maxHp){const r=Math.min(4,e.maxHp-e.hp);e.hp+=r;clog('<span class="y">🌑 the Tower Lord regenerates +'+r+'</span>');}
     if(!e.awake&&e.hp<=e.maxHp/2){e.awake=true;e.atk+=4;clog('<span class="y">🌑 THE TOWER LORD AWAKENS — ATK '+e.atk+'!</span>');sfxBoss();}
   }
+  // start-of-round relic: Verdant Charm
+  if(has('regen')){const r=heal(3);if(r>0)clog('<span class="g">🌿 Verdant Charm regenerates +'+r+'</span>');}
   // player strikes
   let dmg=Math.max(1,effAtk(e)-e.def);
   if(CB.round===1&&has('mirror')){dmg*=2;clog('<span class="p">🪞 Mirror Shard — first strike doubled!</span>');}
+  if(has('venom'))dmg+=3;
+  if(has('berserk'))dmg+=(CB.round-1);
   e.hp-=dmg;
   hitAnim('fE');sfxHitE();
   clog('<span class="p">▶ round '+CB.round+': you hit '+e.name+' for <b>'+dmg+'</b></span>');
@@ -506,10 +518,16 @@ function combatRound(){
   // enemy strikes
   setTimeout(()=>{
     if(!CB||CB.over)return;
-    const edmg=Math.max(1,e.atk-P.def);
-    P.hp-=edmg;
-    hitAnim('fP');sfxHitP();
-    clog('<span class="e">◀ '+e.name+' hits you for <b>'+edmg+'</b></span>');
+    let edmg=Math.max(1,e.atk-P.def);
+    if(has('bulwark')&&!CB.blocked){
+      CB.blocked=true;edmg=0;
+      hitAnim('fP');
+      clog('<span class="p">🧱 Bulwark Rune shatters the first blow!</span>');
+    }else{
+      P.hp-=edmg;
+      hitAnim('fP');sfxHitP();
+      clog('<span class="e">◀ '+e.name+' hits you for <b>'+edmg+'</b></span>');
+    }
     if(has('thorns')&&e.hp>0){
       e.hp-=2;
       clog('<span class="p">🌵 thorns dig back for 2</span>');
@@ -595,44 +613,89 @@ function doRest(){
      ['🧱 Fortify — +1 DEF',()=>{P.def+=1;toast('+1 DEF');nextFloor();}]
     ]);
 }
-function doMystery(){
-  const roll=Math.floor(Math.random()*5);
-  if(roll===0){
-    showPanel('⛩️','BLOOD SHRINE','A shrine hums with red light. Carved beneath: <i>"strength for suffering."</i>',
-      [['Offer 12 HP → +3 ATK',()=>{P.hp=Math.max(1,P.hp-12);P.atk+=3;toast('+3 ATK');nextFloor();}],
-       ['Walk away',()=>nextFloor()]]);
-  }else if(roll===1){
-    showPanel('🧙','WANDERING MERCHANT','A hooded figure spreads strange wares on a cloth.',
-      [[ '🎁 Relic — 60g',()=>{if(P.gold<60){toast('not enough gold');return;}P.gold-=60;gainRelic();nextFloor();}],
-       ['🧪 Potion (heal 25) — 25g',()=>{if(P.gold<25){toast('not enough gold');return;}P.gold-=25;const h=heal(25);toast('+'+h+' HP');nextFloor();}],
-       ['Leave',()=>nextFloor()]]);
-  }else if(roll===2){
-    showPanel('⛲','DARK FOUNTAIN','Black water, faintly glowing. It smells of rain and old magic.',
-      [['Drink deep',()=>{
-          if(Math.random()<0.75){const h=heal(Math.round(P.maxHp*0.5));toast('the water blesses you: +'+h+' HP');}
-          else{P.hp=Math.max(1,P.hp-8);toast('it was cursed! -8 HP');sfxHitP();}
-          nextFloor();
-        }],
-       ['Don\'t risk it',()=>nextFloor()]]);
-  }else if(roll===3){
-    showPanel('🎲','SHADOW GAMBLER','A grinning shade shakes a cup of bone dice. <i>"Double or nothing, climber?"</i>',
-      [['Bet 30g',()=>{
-          if(P.gold<30){toast('not enough gold');return;}
-          if(Math.random()<0.5){const g=gainGold(60);toast('🎲 you win! +'+g+'g');}
-          else{P.gold-=30;toast('🎲 the dice betray you. -30g');sfxHitP();}
-          nextFloor();
-        }],
-       ['Never gamble with shades',()=>nextFloor()]]);
-  }else{
-    showPanel('🕸️','COLLAPSED PASSAGE','The floor here is riddled with traps and webbing. You can dash through or pick your way around.',
-      [['🏃 Dash (risk 10 HP)',()=>{
-          if(Math.random()<0.5){toast('untouched! and you found 25g');gainGold(25);}
-          else{P.hp=Math.max(1,P.hp-10);toast('a dart clips you: -10 HP');sfxHitP();}
-          nextFloor();
-        }],
-       ['🐌 Go around safely',()=>nextFloor()]]);
-  }
+function mBloodShrine(){
+  showPanel('⛩️','BLOOD SHRINE','A shrine hums with red light. Carved beneath: <i>"strength for suffering."</i>',
+    [['Offer 12 HP → +3 ATK',()=>{P.hp=Math.max(1,P.hp-12);P.atk+=3;toast('+3 ATK');nextFloor();}],
+     ['Walk away',()=>nextFloor()]]);
 }
+function mMerchant(){
+  showPanel('🧙','WANDERING MERCHANT','A hooded figure spreads strange wares on a cloth.',
+    [[ '🎁 Relic — 60g',()=>{if(P.gold<60){toast('not enough gold');return;}P.gold-=60;gainRelic();nextFloor();}],
+     ['🧪 Potion (heal 25) — 25g',()=>{if(P.gold<25){toast('not enough gold');return;}P.gold-=25;const h=heal(25);toast('+'+h+' HP');nextFloor();}],
+     ['Leave',()=>nextFloor()]]);
+}
+function mFountain(){
+  showPanel('⛲','DARK FOUNTAIN','Black water, faintly glowing. It smells of rain and old magic.',
+    [['Drink deep',()=>{
+        if(Math.random()<0.75){const h=heal(Math.round(P.maxHp*0.5));toast('the water blesses you: +'+h+' HP');}
+        else{P.hp=Math.max(1,P.hp-8);toast('it was cursed! -8 HP');sfxHitP();}
+        nextFloor();
+      }],
+     ['Don\'t risk it',()=>nextFloor()]]);
+}
+function mGambler(){
+  showPanel('🎲','SHADOW GAMBLER','A grinning shade shakes a cup of bone dice. <i>"Double or nothing, climber?"</i>',
+    [['Bet 30g',()=>{
+        if(P.gold<30){toast('not enough gold');return;}
+        if(Math.random()<0.5){const g=gainGold(60);toast('🎲 you win! +'+g+'g');}
+        else{P.gold-=30;toast('🎲 the dice betray you. -30g');sfxHitP();}
+        nextFloor();
+      }],
+     ['Never gamble with shades',()=>nextFloor()]]);
+}
+function mPassage(){
+  showPanel('🕸️','COLLAPSED PASSAGE','The floor here is riddled with traps and webbing. You can dash through or pick your way around.',
+    [['🏃 Dash (risk 10 HP)',()=>{
+        if(Math.random()<0.5){toast('untouched! and you found 25g');gainGold(25);}
+        else{P.hp=Math.max(1,P.hp-10);toast('a dart clips you: -10 HP');sfxHitP();}
+        nextFloor();
+      }],
+     ['🐌 Go around safely',()=>nextFloor()]]);
+}
+function mCursedBlade(){
+  showPanel('🗡️','CURSED BLADE','A jagged blade juts from a long-dead climber, humming with hunger. <i>"Wield me,"</i> it hisses.',
+    [['Grasp it → +4 ATK, −8 max HP',()=>{P.atk+=4;P.maxHp=Math.max(10,P.maxHp-8);P.hp=Math.min(P.hp,P.maxHp);toast('+4 ATK · −8 max HP');nextFloor();}],
+     ['Leave it buried',()=>nextFloor()]]);
+}
+function mAlchemist(){
+  showPanel('⚗️','ALCHEMIST\'S VAT','A vat of bubbling green glass. Toss in coin and something might crystallize.',
+    [['Transmute — 30g',()=>{if(P.gold<30){toast('not enough gold');return;}P.gold-=30;
+        if(Math.random()<0.65){gainRelic();}else{toast('⚗️ it dissolves into worthless sludge');sfxHitP();}
+        nextFloor();}],
+     ['Leave',()=>nextFloor()]]);
+}
+function mWatcher(){
+  showPanel('👁️','THE WATCHER','A great lidless eye opens in the wall. <i>"Knowledge for blood,"</i> it intones.',
+    [['Listen → −15 HP, +2 ATK & +1 DEF',()=>{P.hp=Math.max(1,P.hp-15);P.atk+=2;P.def+=1;toast('+2 ATK · +1 DEF');sfxHitP();nextFloor();}],
+     ['Refuse its gaze',()=>nextFloor()]]);
+}
+function mStrongbox(){
+  showPanel('🪤','TRAPPED STRONGBOX','A gilded box bristling with needle-holes. Rich — and obviously trapped.',
+    [['Force it open (risk 12 HP)',()=>{
+        if(Math.random()<0.6){const g=gainGold(45+P.floor*3);toast('🪤 you crack it clean: +'+g+'g');}
+        else{P.hp=Math.max(1,P.hp-12);const g=gainGold(12);toast('needles bite: −12 HP (grabbed '+g+'g)');sfxHitP();}
+        nextFloor();}],
+     ['Leave it be',()=>nextFloor()]]);
+}
+function mBloodPact(){
+  showPanel('🩸','BLOOD PACT','A sigil of dried blood pulses on the floor. <i>"Give of yourself to grow."</i>',
+    [['Swear it → −10 HP, +14 max HP & +2 ATK',()=>{P.hp=Math.max(1,P.hp-10);P.maxHp+=14;P.atk+=2;toast('+14 max HP · +2 ATK');nextFloor();}],
+     ['Decline',()=>nextFloor()]]);
+}
+function mDeck(){
+  showPanel('🎴','MYSTERIOUS DECK','A shade fans out a deck of faded cards. <i>"Draw one, climber. Fate decides."</i>',
+    [['Draw a card',()=>{
+        const r=ri(4);
+        if(r===0){const g=gainGold(35);toast('🎴 Coins! +'+g+'g');}
+        else if(r===1){const h=heal(25);toast('🎴 The Sun — +'+h+' HP');}
+        else if(r===2){P.def+=1;toast('🎴 The Tower — +1 DEF');}
+        else{P.hp=Math.max(1,P.hp-8);toast('🎴 Death — −8 HP');sfxHitP();}
+        nextFloor();}],
+     ['Pocket your hands',()=>nextFloor()]]);
+}
+const MYSTERIES=[mBloodShrine,mMerchant,mFountain,mGambler,mPassage,
+  mCursedBlade,mAlchemist,mWatcher,mStrongbox,mBloodPact,mDeck];
+function doMystery(){MYSTERIES[ri(MYSTERIES.length)]();}
 
 /* ---------- run end ---------- */
 function runOver(){

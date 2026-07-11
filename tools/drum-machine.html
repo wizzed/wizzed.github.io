@@ -100,12 +100,14 @@ input[type=range]{ accent-color:#ff6d00; }
 <a class="back" href="../index.html">&larr; Arcade</a>
 <header>
   <h1>DRUM MACHINE</h1>
-  <div class="sub">8 TRACKS &times; 16 STEPS &middot; PURE SYNTHESIS</div>
+  <div class="sub">11 TRACKS &times; 16 STEPS &middot; PURE SYNTHESIS</div>
 </header>
 <div id="machine">
   <div class="controls">
     <button id="playBtn">&#9654; PLAY</button>
     <div class="ctl">BPM <input type="range" id="bpm" min="60" max="200" value="118"><b id="bpmVal">118</b></div>
+    <button id="tapBtn" title="tap the beat a few times to set the tempo">TAP TEMPO</button>
+    <div class="ctl">SWING <input type="range" id="swing" min="0" max="60" value="0"><b id="swingVal">0%</b></div>
     <div class="ctl">PRESET:
       <button class="preset" data-p="house">HOUSE</button>
       <button class="preset" data-p="hiphop">HIP-HOP</button>
@@ -130,7 +132,10 @@ var TRACKS=[
   {id:'clap',   name:'CLAP',    color:'#ff7edb'},
   {id:'tom',    name:'TOM',     color:'#b465ff'},
   {id:'rim',    name:'RIM',     color:'#00e5ff'},
-  {id:'bell',   name:'COWBELL', color:'#3ddc84'}
+  {id:'bell',   name:'COWBELL', color:'#3ddc84'},
+  {id:'shaker', name:'SHAKER',  color:'#7fffd4'},
+  {id:'kick808',name:'808 KICK',color:'#ff9d3c'},
+  {id:'snap',   name:'SNAP',    color:'#c8ff5a'}
 ];
 var PRESETS={
   house:{bpm:124,rows:[
@@ -141,7 +146,10 @@ var PRESETS={
     '0000100000001000',  /* clap   */
     '0000000000000000',  /* tom    */
     '0000001000000010',  /* rim    */
-    '0000000000000000']},/* bell   */
+    '0000000000000000',  /* bell   */
+    '0000000000000000',  /* shaker */
+    '0000000000000000',  /* 808    */
+    '0000000000000000']},/* snap   */
   hiphop:{bpm:92,rows:[
     '1000000100100000',
     '0000100000001000',
@@ -150,6 +158,9 @@ var PRESETS={
     '0000000000000000',
     '0000000000000000',
     '0000000000100000',
+    '0000000000000000',
+    '0000000000000000',
+    '0000000000000000',
     '0000000000000000']},
   breakbeat:{bpm:150,rows:[
     '1010000000100000',
@@ -159,6 +170,9 @@ var PRESETS={
     '0000000000000000',
     '0000000001000000',
     '0000000000000000',
+    '0000000000000000',
+    '0000000000000000',
+    '0000000000000000',
     '0000000000000000']}
 };
 
@@ -166,11 +180,12 @@ var pattern=TRACKS.map(function(){ return new Array(STEPS).fill(0); });
 var vols=TRACKS.map(function(){ return 0.8; });
 var mutes=TRACKS.map(function(){ return false; });
 var bpm=118;
+var swing=0;   /* 0..0.6 — fraction of a step that every 2nd 16th is delayed */
 
 /* ---------- persistence ---------- */
 function persist(){
   try{
-    localStorage.setItem(LS_KEY,JSON.stringify({pattern:pattern,vols:vols,mutes:mutes,bpm:bpm}));
+    localStorage.setItem(LS_KEY,JSON.stringify({pattern:pattern,vols:vols,mutes:mutes,bpm:bpm,swing:swing}));
   }catch(e){}
 }
 function loadPreset(name,silent){
@@ -188,11 +203,18 @@ function loadStore(){
     var raw=localStorage.getItem(LS_KEY);
     if(!raw) return false;
     var o=JSON.parse(raw);
-    if(!o||!o.pattern||o.pattern.length!==TRACKS.length) return false;
-    pattern=o.pattern.map(function(r){ return r.slice(0,STEPS); });
-    if(o.vols&&o.vols.length===TRACKS.length) vols=o.vols;
-    if(o.mutes&&o.mutes.length===TRACKS.length) mutes=o.mutes;
+    if(!o||!Array.isArray(o.pattern)||!o.pattern.length) return false;
+    /* tolerant load: pad/trim rows to the current track count so older saves still open */
+    pattern=TRACKS.map(function(_,i){
+      var src=Array.isArray(o.pattern[i])?o.pattern[i]:[];
+      var row=src.slice(0,STEPS);
+      while(row.length<STEPS) row.push(0);
+      return row;
+    });
+    if(Array.isArray(o.vols)) vols=TRACKS.map(function(_,i){ return typeof o.vols[i]==='number'?o.vols[i]:0.8; });
+    if(Array.isArray(o.mutes)) mutes=TRACKS.map(function(_,i){ return !!o.mutes[i]; });
     if(o.bpm) bpm=o.bpm;
+    if(typeof o.swing==='number') swing=o.swing;
     return true;
   }catch(e){ return false; }
 }
@@ -294,6 +316,39 @@ var SOUNDS={
       o.start(t); o.stop(t+0.35);
     });
     f.connect(g); g.connect(master);
+  },
+  shaker:function(t,v){
+    var n=noiseSrc(t,0.12);
+    var f=actx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=6200; f.Q.value=0.8;
+    var g=actx.createGain();
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(0.32*v,t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.11);
+    n.connect(f); f.connect(g); g.connect(master);
+  },
+  kick808:function(t,v){
+    var o=actx.createOscillator(); o.type='sine';
+    o.frequency.setValueAtTime(120,t);
+    o.frequency.exponentialRampToValueAtTime(38,t+0.09);
+    var g=actx.createGain();
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(1.2*v,t+0.005);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.8);   /* long boomy 808 tail */
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t+0.85);
+  },
+  snap:function(t,v){
+    var n=noiseSrc(t,0.06);
+    var f=actx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=2400; f.Q.value=3;
+    var g=actx.createGain();
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(0.7*v,t+0.002);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.05);
+    n.connect(f); f.connect(g); g.connect(master);
+    var o=actx.createOscillator(); o.type='triangle'; o.frequency.value=1800;
+    var g2=env(t,0.25*v,0.03);
+    o.connect(g2); g2.connect(master);
+    o.start(t); o.stop(t+0.04);
   }
 };
 function playTrack(i,t,v){
@@ -306,11 +361,14 @@ var drawQueue=[], lastDrawnStep=-1;
 function stepDur(){ return 60/bpm/4; }
 function scheduler(){
   while(nextNoteTime<actx.currentTime+0.12){
+    var sd=stepDur();
+    var swingOff=(currentStep%2===1)?swing*sd:0;   /* delay every 2nd 16th by up to 60% of a step */
+    var playTime=nextNoteTime+swingOff;
     for(var i=0;i<TRACKS.length;i++){
-      if(pattern[i][currentStep]&&!mutes[i]) playTrack(i,nextNoteTime);
+      if(pattern[i][currentStep]&&!mutes[i]) playTrack(i,playTime);
     }
-    drawQueue.push({step:currentStep,time:nextNoteTime});
-    nextNoteTime+=stepDur();
+    drawQueue.push({step:currentStep,time:playTime});
+    nextNoteTime+=sd;
     currentStep=(currentStep+1)%STEPS;
   }
 }
@@ -432,6 +490,33 @@ bpmSlider.addEventListener('input',function(){
   bpm=+this.value; bpmVal.textContent=String(bpm); persist();
 });
 
+/* swing */
+var swingSlider=document.getElementById('swing');
+var swingVal=document.getElementById('swingVal');
+function syncSwing(){ var p=Math.round(swing*100); swingSlider.value=String(p); swingVal.textContent=p+'%'; }
+swingSlider.addEventListener('input',function(){
+  swing=+this.value/100; swingVal.textContent=this.value+'%'; persist();
+});
+
+/* tap tempo */
+var tapBtn=document.getElementById('tapBtn');
+var tapTimes=[];
+tapBtn.addEventListener('click',function(){
+  var now=performance.now();
+  if(tapTimes.length&&now-tapTimes[tapTimes.length-1]>2000) tapTimes=[];
+  tapTimes.push(now);
+  if(tapTimes.length>6) tapTimes.shift();
+  if(tapTimes.length>=2){
+    var diffs=0;
+    for(var k=1;k<tapTimes.length;k++) diffs+=tapTimes[k]-tapTimes[k-1];
+    var b=Math.max(60,Math.min(200,Math.round(60000/(diffs/(tapTimes.length-1)))));
+    bpm=b; syncBpm(); persist();
+    say('tap tempo: '+bpm+' BPM');
+  }else{
+    say('keep tapping to set the tempo…');
+  }
+});
+
 var statusEl=document.getElementById('status');
 var statusTimer=null;
 function say(msg){
@@ -454,7 +539,7 @@ document.getElementById('saveBtn').addEventListener('click',function(){
 /* ---------- init ---------- */
 buildGrid();
 if(!loadStore()) loadPreset('house',true);
-syncGrid(); syncBpm();
+syncGrid(); syncBpm(); syncSwing();
 drawLoop();
 })();
 </script>

@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SNAKE ROYALE — Live Multiplayer Slither Pit · Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0f0f1a; }
+  body { font-family: 'Courier New', ui-monospace, monospace; color: #e8eeff; }
+  canvas { display: block; }
+  .back {
+    position: fixed; top: 10px; left: 12px; z-index: 30;
+    padding: 6px 12px; font-size: 13px; letter-spacing: 1px;
+    color: #e8eeff; text-decoration: none;
+    background: rgba(10,14,26,.6); border: 1px solid rgba(255,255,255,.25); border-radius: 4px;
+  }
+  .back:hover { border-color: #00ff9c; color: #7dffce; }
+
+  #status {
+    position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 25; display: flex; gap: 9px; align-items: center;
+    background: rgba(8,12,24,.75); border: 1px solid #1f4a38; border-radius: 999px;
+    padding: 7px 15px; backdrop-filter: blur(5px); white-space: nowrap;
+  }
+  #status .dot { width: 10px; height: 10px; border-radius: 50%; background: #666; }
+  #status .dot.live { background: #00ff9c; box-shadow: 0 0 10px #00ff9c; animation: pulse 1.6s ease-in-out infinite; }
+  #status .dot.off { background: #ff9d3c; box-shadow: 0 0 10px #ff9d3c; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+  #status b { color: #7dffce; font-weight: normal; }
+  #status .ai-b { color: #9d6bff; }
+  #status span { font-size: 12.5px; letter-spacing: 1px; }
+
+  #panel {
+    position: fixed; top: 52px; right: 12px; z-index: 20;
+    width: 200px; background: rgba(8,12,24,.8);
+    border: 1px solid #1f4a38; border-radius: 10px;
+    padding: 10px 12px; backdrop-filter: blur(5px); font-size: 12px;
+  }
+  #panel h3 { font-size: 11px; letter-spacing: 2px; color: #5fc79c; margin-bottom: 6px; }
+  .prow {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 0; border-bottom: 1px dashed #16321f; white-space: nowrap; overflow: hidden;
+  }
+  .prow:last-child { border-bottom: none; }
+  .prow .pos { color: #5fc79c; width: 16px; flex: 0 0 16px; text-align: right; }
+  .prow .sw { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px; }
+  .prow .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .prow .ln { color: #ffd166; font-size: 11px; }
+  .prow.me .nm { color: #7dffce; }
+  .aitag {
+    font-size: 9px; letter-spacing: 1px; color: #cbb2ff;
+    background: rgba(157,107,255,.18); border: 1px solid #9d6bff;
+    border-radius: 4px; padding: 0 4px;
+  }
+  #mystats {
+    position: fixed; bottom: 14px; left: 14px; z-index: 20;
+    background: rgba(8,12,24,.8); border: 1px solid #1f4a38; border-radius: 10px;
+    padding: 9px 14px; backdrop-filter: blur(5px); font-size: 13px; line-height: 1.55;
+  }
+  #mystats b { color: #ffd166; font-weight: normal; }
+  #hint {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 15; font-size: 11.5px; color: #5fc79c; letter-spacing: 1px;
+    text-shadow: 0 1px 4px rgba(0,0,0,.8); pointer-events: none; text-align: center;
+  }
+  #namebar {
+    position: fixed; top: 52px; left: 12px; z-index: 20;
+    display: flex; gap: 6px; align-items: center;
+    background: rgba(8,12,24,.8); border: 1px solid #1f4a38; border-radius: 10px;
+    padding: 7px 10px; backdrop-filter: blur(5px);
+  }
+  #nameInput {
+    width: 108px; font: inherit; font-size: 12.5px;
+    background: #0b0e1e; color: #7dffce; border: 1px solid #245a44;
+    border-radius: 5px; padding: 4px 7px;
+  }
+  #namebar label { font-size: 10.5px; letter-spacing: 1px; color: #5fc79c; }
+
+  #bigmsg {
+    position: fixed; top: 34%; left: 50%; transform: translate(-50%,-50%);
+    z-index: 26; text-align: center; pointer-events: none;
+    opacity: 0; transition: opacity .2s ease;
+  }
+  #bigmsg.show { opacity: 1; }
+  #bigmsg .t1 { font-size: clamp(28px,7vw,60px); font-weight: bold; letter-spacing: 3px;
+    color: #ff4d6d; text-shadow: 0 0 30px rgba(255,77,109,.8); }
+  #bigmsg .t2 { font-size: 15px; letter-spacing: 2px; color: #ffd166; margin-top: 8px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<canvas id="cv"></canvas>
+
+<div id="status">
+  <span class="dot" id="connDot"></span>
+  <span id="connTxt">connecting…</span>
+  <span>·</span>
+  <span>ONLINE <b id="onlineN">1</b></span>
+  <span>(<b id="humanN">1</b> human · <b class="ai-b" id="aiN">0</b> AI)</span>
+</div>
+
+<div id="namebar">
+  <label>NAME</label>
+  <input id="nameInput" maxlength="14">
+</div>
+
+<div id="panel">
+  <h3>LEADERBOARD</h3>
+  <div id="plist"></div>
+</div>
+
+<div id="mystats">
+  LENGTH <b id="myLen">10</b> · BEST <b id="myBest">10</b><br>
+  <span id="myState" style="color:#7dffce">slither &amp; eat — grow the longest!</span>
+</div>
+
+<div id="bigmsg"><div class="t1" id="bmT1"></div><div class="t2" id="bmT2"></div></div>
+<div id="hint">steer: move mouse / touch · hold click / SPACE to SPRINT (costs length) · eat pellets to grow · avoid other snakes · 🤖 = AI</div>
+
+<script>
+'use strict';
+(function () {
+  const SAVE_KEY = 'wizzed-mp-snake';
+
+  // ================================================================
+  //  Minimal MQTT 3.1.1 client over WebSocket (public brokers, QoS 0)
+  // ================================================================
+  class TinyMQTT {
+    constructor(urls, clientId) {
+      this.urls = urls; this.urlIdx = 0;
+      this.clientId = clientId;
+      this.ws = null; this.buf = new Uint8Array(0);
+      this.connected = false;
+      this.onmessage = null; this.onstatus = null;
+      this.pingTimer = null; this.dead = false;
+      this.connect();
+    }
+    connect() {
+      if (this.dead) return;
+      const url = this.urls[this.urlIdx % this.urls.length];
+      try { this.ws = new WebSocket(url, 'mqtt'); }
+      catch (e) { this.retry(); return; }
+      this.ws.binaryType = 'arraybuffer';
+      const connectTimeout = setTimeout(() => { try { this.ws.close(); } catch (e) {} }, 6000);
+      this.ws.onopen = () => {
+        const cid = this.enc(this.clientId);
+        const varh = new Uint8Array([0, 4, 77, 81, 84, 84, 4, 0x02, 0, 60]);
+        this.send(0x10, this.cat(varh, cid));
+      };
+      this.ws.onmessage = e => { clearTimeout(connectTimeout); this.feed(new Uint8Array(e.data)); };
+      this.ws.onclose = () => { clearTimeout(connectTimeout); this.onDown(); };
+      this.ws.onerror = () => {};
+    }
+    onDown() {
+      this.connected = false;
+      clearInterval(this.pingTimer);
+      if (this.onstatus) this.onstatus(false);
+      this.retry();
+    }
+    retry() {
+      if (this.dead) return;
+      this.urlIdx++;
+      clearTimeout(this.retryT);
+      this.retryT = setTimeout(() => this.connect(), 2500);
+    }
+    close() { this.dead = true; clearInterval(this.pingTimer); try { this.ws.close(); } catch (e) {} }
+    enc(str) {
+      const b = new TextEncoder().encode(str);
+      const out = new Uint8Array(b.length + 2);
+      out[0] = b.length >> 8; out[1] = b.length & 255; out.set(b, 2);
+      return out;
+    }
+    cat(...arrs) {
+      const len = arrs.reduce((a, b) => a + b.length, 0);
+      const out = new Uint8Array(len);
+      let o = 0;
+      for (const a of arrs) { out.set(a, o); o += a.length; }
+      return out;
+    }
+    remLen(n) {
+      const out = [];
+      do { let d = n % 128; n = Math.floor(n / 128); if (n > 0) d |= 128; out.push(d); } while (n > 0);
+      return new Uint8Array(out);
+    }
+    send(type, body) {
+      if (!this.ws || this.ws.readyState !== 1) return;
+      this.ws.send(this.cat(new Uint8Array([type]), this.remLen(body.length), body));
+    }
+    subscribe(filter) {
+      const pid = new Uint8Array([0, 7]);
+      this.send(0x82, this.cat(pid, this.enc(filter), new Uint8Array([0])));
+    }
+    publish(topic, payloadStr) {
+      if (!this.connected) return;
+      const pl = new TextEncoder().encode(payloadStr);
+      this.send(0x30, this.cat(this.enc(topic), pl));
+    }
+    feed(chunk) {
+      this.buf = this.cat(this.buf, chunk);
+      for (;;) {
+        if (this.buf.length < 2) return;
+        let mul = 1, len = 0, pos = 1, ok = false;
+        for (; pos < Math.min(this.buf.length, 5); pos++) {
+          len += (this.buf[pos] & 127) * mul;
+          mul *= 128;
+          if ((this.buf[pos] & 128) === 0) { ok = true; pos++; break; }
+        }
+        if (!ok) return;
+        const total = pos + len;
+        if (this.buf.length < total) return;
+        this.handle(this.buf[0] >> 4, this.buf.slice(pos, total));
+        this.buf = this.buf.slice(total);
+      }
+    }
+    handle(type, body) {
+      if (type === 2) {
+        if (body[1] === 0) {
+          this.connected = true;
+          this.pingTimer = setInterval(() => this.send(0xC0, new Uint8Array(0)), 25000);
+          if (this.onstatus) this.onstatus(true);
+        } else this.retry();
+      } else if (type === 3) {
+        const tlen = (body[0] << 8) | body[1];
+        const topic = new TextDecoder().decode(body.slice(2, 2 + tlen));
+        const payload = new TextDecoder().decode(body.slice(2 + tlen));
+        if (this.onmessage) this.onmessage(topic, payload);
+      }
+    }
+  }
+
+  // ================================================================
+  //  Setup
+  // ================================================================
+  const WORLD = 2400;
+  const qsBroker = new URLSearchParams(location.search).get('broker');
+  const BROKERS = qsBroker ? [qsBroker] : [
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://test.mosquitto.org:8081',
+  ];
+  const ROOM = 'wizzed/mp-snake/v1/main';
+  const myId = 'p' + Math.random().toString(36).slice(2, 10);
+  const NAMES1 = ['Neon', 'Turbo', 'Pixel', 'Cosmic', 'Disco', 'Laser', 'Mega', 'Hyper', 'Retro', 'Glitch', 'Astro', 'Funky', 'Venom', 'Jade'];
+  const NAMES2 = ['Viper', 'Python', 'Cobra', 'Mamba', 'Serpent', 'Wyrm', 'Slink', 'Coil', 'Fang', 'Scale', 'Boa', 'Racer', 'Hiss', 'Adder'];
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') || {}; } catch (e) {}
+  const rndName = () => NAMES1[Math.random() * NAMES1.length | 0] + NAMES2[Math.random() * NAMES2.length | 0];
+
+  function hashCode(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
+  function hueOf(id) { return ((hashCode(id) % 360) + 360) % 360; }
+
+  const START_LEN = 12, SEG_SPACE = 9, HEAD_R = 11;
+
+  function newSnake(id, name, ai) {
+    const x = 300 + Math.random() * (WORLD - 600);
+    const y = 300 + Math.random() * (WORLD - 600);
+    const body = [];
+    for (let i = 0; i < START_LEN; i++) body.push({ x: x - i * SEG_SPACE, y });
+    return {
+      i: id, n: name, c: hueOf(id), ai: ai ? 1 : 0,
+      x, y, a: 0, len: START_LEN, body,
+      dead: false, deadAt: 0, sprint: false, kills: 0,
+    };
+  }
+
+  const me = newSnake(myId, (saved.name || rndName()).slice(0, 14), 0);
+  let best = saved.best || START_LEN;
+  const peers = new Map();
+  const bots = new Map();
+  let online = false;
+
+  document.getElementById('nameInput').value = me.n;
+  document.getElementById('nameInput').addEventListener('input', e => { me.n = (e.target.value || 'Snake').slice(0, 14); persist(); });
+  function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ name: me.n, best })); } catch (e) {} }
+  document.getElementById('myBest').textContent = best;
+
+  // ================================================================
+  //  Deterministic food (seeded by minute) — clients mostly agree
+  // ================================================================
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  const FOOD_N = 220;
+  let food = []; // {x,y,r,hue,eaten}
+  let foodMinute = -1;
+  function rebuildFood(minute) {
+    const rng = mulberry32(minute * 2654435761 + 99991);
+    food = [];
+    for (let i = 0; i < FOOD_N; i++) {
+      food.push({
+        x: 40 + rng() * (WORLD - 80),
+        y: 40 + rng() * (WORLD - 80),
+        r: 5 + rng() * 4,
+        hue: rng() * 360 | 0,
+        eaten: false,
+      });
+    }
+    foodMinute = minute;
+  }
+  rebuildFood(Math.floor(Date.now() / 60000));
+  // burst pellets from deaths (local, transient, not deterministic)
+  const burst = [];
+
+  // ================================================================
+  //  Networking
+  // ================================================================
+  const mq = new TinyMQTT(BROKERS, 'wz-' + myId);
+  mq.onstatus = up => {
+    online = up;
+    const dot = document.getElementById('connDot'), txt = document.getElementById('connTxt');
+    if (up) { dot.className = 'dot live'; txt.textContent = 'LIVE — the pit'; mq.subscribe(ROOM + '/s/#'); }
+    else { dot.className = 'dot off'; txt.textContent = 'OFFLINE — AI pit'; }
+  };
+  mq.onmessage = (topic, payload) => {
+    try {
+      const st = JSON.parse(payload);
+      if (!st || !st.i || st.i === myId) return;
+      if (bots.has(st.i)) return;
+      st.seen = performance.now();
+      // st.b is flat array [x0,y0,x1,y1,...]
+      const pts = [];
+      if (Array.isArray(st.b)) for (let k = 0; k < st.b.length; k += 2) pts.push({ x: st.b[k], y: st.b[k + 1] });
+      const prev = peers.get(st.i);
+      peers.set(st.i, {
+        i: st.i, n: st.n, c: st.c, ai: st.ai ? 1 : 0,
+        x: st.x, y: st.y, a: st.a, len: st.len || pts.length, body: pts,
+        dead: !!st.dead, seen: st.seen,
+        rx: prev ? prev.rx : st.x, ry: prev ? prev.ry : st.y, kills: st.k || 0,
+      });
+    } catch (e) {}
+  };
+  function trimmedBody(snake, maxPts) {
+    // send at most maxPts points, evenly sampled
+    const b = snake.body;
+    if (b.length <= maxPts) { const o = []; for (const p of b) o.push(Math.round(p.x), Math.round(p.y)); return o; }
+    const step = b.length / maxPts, o = [];
+    for (let i = 0; i < maxPts; i++) { const p = b[Math.floor(i * step)]; o.push(Math.round(p.x), Math.round(p.y)); }
+    o.push(Math.round(b[b.length - 1].x), Math.round(b[b.length - 1].y));
+    return o;
+  }
+  setInterval(() => {
+    if (!online) return;
+    mq.publish(ROOM + '/s/' + myId, JSON.stringify({
+      i: me.i, n: me.n, c: me.c, ai: 0,
+      x: Math.round(me.x), y: Math.round(me.y), a: +me.a.toFixed(2),
+      len: me.len, dead: me.dead, k: me.kills, b: trimmedBody(me, 26),
+    }));
+  }, 160);
+  setInterval(() => {
+    const now = performance.now();
+    for (const [id, p] of peers) if (now - p.seen > 6000) peers.delete(id);
+  }, 1000);
+
+  // ================================================================
+  //  Bots (host = lexicographically-lowest human id)
+  // ================================================================
+  const BOT_TARGET = 6;
+  const BOTNAMES = ['HAL-9', 'BeepBoop', 'Circuit', 'Servo', 'Chip', 'Databyte', 'Sparky', 'Gizmo', 'Rusty', 'Volt', 'Coily', 'NanoBot'];
+  function humanIds() { const ids = [myId]; for (const [id, p] of peers) if (!p.ai) ids.push(id); return ids.sort(); }
+  function iAmBotHost() { return humanIds()[0] === myId; }
+  function manageBots() {
+    if (!iAmBotHost()) { if (bots.size) bots.clear(); return; }
+    const need = Math.max(0, BOT_TARGET - humanIds().length);
+    while (bots.size > need) { const k = bots.keys().next().value; bots.delete(k); }
+    while (bots.size < need) {
+      const bid = 'ai' + Math.random().toString(36).slice(2, 8);
+      const used = new Set([...bots.values()].map(b => b.n));
+      const free = BOTNAMES.filter(n => !used.has('🤖 ' + n));
+      const nm = '🤖 ' + (free.length ? free[Math.random() * free.length | 0] : 'Bot' + bots.size);
+      const b = newSnake(bid, nm, 1);
+      b.tA = Math.random() * Math.PI * 2; b.tT = 0; b.skill = 0.7 + Math.random() * 0.3;
+      bots.set(bid, b);
+    }
+  }
+  function stepSnake(sn, dt, targetA) {
+    // rotate toward targetA
+    let da = targetA - sn.a; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+    const maxTurn = 3.6 * dt;
+    sn.a += Math.max(-maxTurn, Math.min(maxTurn, da));
+    let spd = sn.sprint && sn.len > START_LEN ? 355 : 205;
+    sn.x += Math.cos(sn.a) * spd * dt;
+    sn.y += Math.sin(sn.a) * spd * dt;
+    // walls: bounce/clamp
+    if (sn.x < HEAD_R) { sn.x = HEAD_R; }
+    if (sn.x > WORLD - HEAD_R) { sn.x = WORLD - HEAD_R; }
+    if (sn.y < HEAD_R) { sn.y = HEAD_R; }
+    if (sn.y > WORLD - HEAD_R) { sn.y = WORLD - HEAD_R; }
+    // advance body
+    const head = sn.body[0];
+    const d = Math.hypot(sn.x - head.x, sn.y - head.y);
+    if (d >= SEG_SPACE) {
+      sn.body.unshift({ x: sn.x, y: sn.y });
+      const want = Math.max(START_LEN, Math.round(sn.len));
+      while (sn.body.length > want) sn.body.pop();
+    } else {
+      sn.body[0] = { x: sn.x, y: sn.y };
+    }
+    // sprint burns length
+    if (sn.sprint && sn.len > START_LEN) {
+      sn.len -= dt * 4.5;
+      if (sn.len < START_LEN) sn.len = START_LEN;
+      if (Math.random() < dt * 6) burst.push({ x: sn.body[sn.body.length - 1].x, y: sn.body[sn.body.length - 1].y, hue: sn.c, r: 5, vx: (Math.random() - .5) * 30, vy: (Math.random() - .5) * 30, t: 0 });
+    }
+  }
+  function simBots(dt) {
+    if (!iAmBotHost()) return;
+    const alive = allSnakes();
+    for (const b of bots.values()) {
+      if (b.dead) {
+        if (performance.now() - b.deadAt > 3000) respawn(b);
+        continue;
+      }
+      // target: nearest food, avoid walls & other heads
+      let tx = null, ty = null, bd = 1e18;
+      for (const f of food) { if (f.eaten) continue; const d = (f.x - b.x) ** 2 + (f.y - b.y) ** 2; if (d < bd) { bd = d; tx = f.x; ty = f.y; } }
+      let ta = tx != null ? Math.atan2(ty - b.y, tx - b.x) : b.tA;
+      // wall avoidance
+      const margin = 220;
+      if (b.x < margin) ta = 0; else if (b.x > WORLD - margin) ta = Math.PI;
+      if (b.y < margin) ta = Math.PI / 2; else if (b.y > WORLD - margin) ta = -Math.PI / 2;
+      // avoid nearest other snake head
+      for (const o of alive) {
+        if (o.i === b.i || o.dead) continue;
+        const dd = Math.hypot(o.x - b.x, o.y - b.y);
+        if (dd < 120) { ta = Math.atan2(b.y - o.y, b.x - o.x); break; }
+      }
+      b.tT -= dt; if (b.tT <= 0) { b.tA = ta; b.tT = 0.4 + Math.random() * 0.5; }
+      b.sprint = false;
+      stepSnake(b, dt, ta);
+      // eat food
+      for (const f of food) { if (!f.eaten && (f.x - b.x) ** 2 + (f.y - b.y) ** 2 < (HEAD_R + f.r) ** 2) { f.eaten = true; b.len += 2; } }
+      for (let i = burst.length - 1; i >= 0; i--) { const p = burst[i]; if ((p.x - b.x) ** 2 + (p.y - b.y) ** 2 < (HEAD_R + p.r) ** 2) { b.len += 1; burst.splice(i, 1); } }
+      // collide into others' bodies
+      if (headHitsBodies(b, alive)) killSnake(b);
+    }
+  }
+  setInterval(() => {
+    if (!online || !iAmBotHost()) return;
+    for (const b of bots.values()) {
+      mq.publish(ROOM + '/s/' + b.i, JSON.stringify({
+        i: b.i, n: b.n, c: b.c, ai: 1,
+        x: Math.round(b.x), y: Math.round(b.y), a: +b.a.toFixed(2),
+        len: Math.round(b.len), dead: b.dead, k: b.kills, b: trimmedBody(b, 22),
+      }));
+    }
+  }, 200);
+
+  // ================================================================
+  //  Shared logic
+  // ================================================================
+  function allSnakes() { const a = [me]; for (const p of peers.values()) a.push(p); for (const b of bots.values()) a.push(b); return a; }
+  function headHitsBodies(sn, all) {
+    for (const o of all) {
+      if (o.i === sn.i || o.dead || !o.body || o.body.length < 3) continue;
+      // skip the very first couple segments (they're the head, near everyone)
+      for (let k = 2; k < o.body.length; k++) {
+        const s = o.body[k];
+        if ((s.x - sn.x) ** 2 + (s.y - sn.y) ** 2 < (HEAD_R + 6) ** 2) return o;
+      }
+    }
+    return null;
+  }
+  function killSnake(sn) {
+    if (sn.dead) return;
+    sn.dead = true; sn.deadAt = performance.now();
+    // scatter pellets
+    const n = Math.min(40, Math.round(sn.len));
+    for (let k = 0; k < n; k++) {
+      const seg = sn.body[Math.floor(k / n * sn.body.length)] || { x: sn.x, y: sn.y };
+      burst.push({ x: seg.x + (Math.random() - .5) * 20, y: seg.y + (Math.random() - .5) * 20, hue: sn.c, r: 5 + Math.random() * 3, vx: (Math.random() - .5) * 60, vy: (Math.random() - .5) * 60, t: 0 });
+    }
+  }
+  function respawn(sn) {
+    sn.x = 300 + Math.random() * (WORLD - 600);
+    sn.y = 300 + Math.random() * (WORLD - 600);
+    sn.a = Math.random() * Math.PI * 2;
+    sn.len = START_LEN; sn.body = [];
+    for (let i = 0; i < START_LEN; i++) sn.body.push({ x: sn.x - i * SEG_SPACE, y: sn.y });
+    sn.dead = false; sn.sprint = false;
+  }
+
+  // ================================================================
+  //  Audio
+  // ================================================================
+  let actx = null;
+  function initAudio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
+  function beep(freq, dur, type, vol) {
+    if (!actx) return;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || 'square'; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    const t = actx.currentTime;
+    g.gain.setValueAtTime(vol || 0.05, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.1));
+    o.start(t); o.stop(t + (dur || 0.1));
+  }
+
+  // ================================================================
+  //  Input
+  // ================================================================
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  let pointer = { x: 0, y: 0 };
+  let sprintKey = false, sprintPtr = false;
+  addEventListener('pointermove', e => { pointer = { x: e.clientX, y: e.clientY }; });
+  addEventListener('pointerdown', e => { pointer = { x: e.clientX, y: e.clientY }; sprintPtr = true; initAudio(); });
+  addEventListener('pointerup', () => { sprintPtr = false; });
+  addEventListener('pointercancel', () => { sprintPtr = false; });
+  addEventListener('keydown', e => { initAudio(); if (e.key === ' ') { sprintKey = true; e.preventDefault(); } if (e.key.toLowerCase() === 'r' && me.dead) respawn(me); });
+  addEventListener('keyup', e => { if (e.key === ' ') sprintKey = false; });
+
+  // ================================================================
+  //  Render + loop
+  // ================================================================
+  let camX = me.x - innerWidth / 2, camY = me.y - innerHeight / 2;
+  function resize() { cv.width = innerWidth; cv.height = innerHeight; }
+  addEventListener('resize', resize); resize();
+
+  let last = performance.now();
+  let bigTimer;
+  function showBig(t1, t2) {
+    document.getElementById('bmT1').textContent = t1;
+    document.getElementById('bmT2').textContent = t2 || '';
+    const el = document.getElementById('bigmsg'); el.classList.add('show');
+    clearTimeout(bigTimer); bigTimer = setTimeout(() => el.classList.remove('show'), 2600);
+  }
+
+  function frame(now) {
+    let dt = (now - last) / 1000; last = now;
+    if (dt > 0.05) dt = 0.05;
+
+    // food minute rebuild
+    const minute = Math.floor(Date.now() / 60000);
+    if (minute !== foodMinute) rebuildFood(minute);
+
+    manageBots();
+
+    // ----- me -----
+    if (!me.dead) {
+      // steer head toward pointer (world)
+      const wx = pointer.x + camX, wy = pointer.y + camY;
+      let ta = me.a;
+      if (Math.hypot(wx - me.x, wy - me.y) > 4) ta = Math.atan2(wy - me.y, wx - me.x);
+      me.sprint = (sprintKey || sprintPtr) && me.len > START_LEN;
+      stepSnake(me, dt, ta);
+      // eat food
+      for (const f of food) {
+        if (!f.eaten && (f.x - me.x) ** 2 + (f.y - me.y) ** 2 < (HEAD_R + f.r) ** 2) { f.eaten = true; me.len += 2; beep(600 + Math.random() * 120, 0.06, 'square', 0.035); }
+      }
+      for (let i = burst.length - 1; i >= 0; i--) { const p = burst[i]; if ((p.x - me.x) ** 2 + (p.y - me.y) ** 2 < (HEAD_R + p.r) ** 2) { me.len += 1; burst.splice(i, 1); beep(700, 0.05, 'square', 0.03); } }
+      if (me.len > best) { best = Math.round(me.len); persist(); document.getElementById('myBest').textContent = best; }
+      // collide with others
+      const hit = headHitsBodies(me, allSnakes());
+      if (hit) {
+        killSnake(me);
+        showBig('YOU DIED', 'crashed into ' + (hit.n || 'a snake').replace(/[<>&]/g, '') + ' · respawn in 3s');
+        beep(140, 0.4, 'sawtooth', 0.06);
+      }
+    } else {
+      if (now - me.deadAt > 3000) { respawn(me); showBig('RESPAWNED', 'go get long again!'); }
+    }
+
+    simBots(dt);
+
+    // burst physics
+    for (let i = burst.length - 1; i >= 0; i--) {
+      const p = burst[i]; p.t += dt;
+      p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.92; p.vy *= 0.92;
+      if (p.t > 22) burst.splice(i, 1);
+    }
+    if (burst.length > 500) burst.splice(0, burst.length - 500);
+
+    // camera follows me
+    const tcx = me.x - cv.width / 2, tcy = me.y - cv.height / 2;
+    camX += (tcx - camX) * Math.min(1, dt * 6);
+    camY += (tcy - camY) * Math.min(1, dt * 6);
+
+    // peer interp
+    for (const p of peers.values()) { p.rx += (p.x - p.rx) * Math.min(1, dt * 8); p.ry += (p.y - p.ry) * Math.min(1, dt * 8); }
+
+    draw(now / 1000);
+    updateHud();
+    requestAnimationFrame(frame);
+  }
+
+  function draw(t) {
+    const W = cv.width, H = cv.height;
+    ctx.fillStyle = '#0b0e18'; ctx.fillRect(0, 0, W, H);
+    // grid
+    ctx.strokeStyle = 'rgba(40,120,90,0.14)'; ctx.lineWidth = 1;
+    const G = 80;
+    for (let gx = Math.floor(camX / G) * G; gx < camX + W; gx += G) { ctx.beginPath(); ctx.moveTo(gx - camX, 0); ctx.lineTo(gx - camX, H); ctx.stroke(); }
+    for (let gy = Math.floor(camY / G) * G; gy < camY + H; gy += G) { ctx.beginPath(); ctx.moveTo(0, gy - camY); ctx.lineTo(W, gy - camY); ctx.stroke(); }
+    // border
+    ctx.strokeStyle = '#00ff9c'; ctx.lineWidth = 4; ctx.shadowColor = '#00ff9c'; ctx.shadowBlur = 14;
+    ctx.strokeRect(-camX, -camY, WORLD, WORLD); ctx.shadowBlur = 0;
+
+    // food
+    for (const f of food) {
+      if (f.eaten) continue;
+      const x = f.x - camX, y = f.y - camY;
+      if (x < -20 || x > W + 20 || y < -20 || y > H + 20) continue;
+      ctx.fillStyle = `hsl(${f.hue},90%,60%)`;
+      ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 10;
+      ctx.beginPath(); ctx.arc(x, y, f.r + Math.sin(t * 4 + f.x) * 0.8, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+    // burst pellets
+    for (const p of burst) {
+      const x = p.x - camX, y = p.y - camY;
+      if (x < -20 || x > W + 20 || y < -20 || y > H + 20) continue;
+      ctx.fillStyle = `hsl(${p.hue},90%,62%)`;
+      ctx.beginPath(); ctx.arc(x, y, p.r, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // snakes
+    const all = allSnakes();
+    for (const sn of all) {
+      if (sn.dead || !sn.body || !sn.body.length) continue;
+      const isMe = sn.i === myId;
+      const col = `hsl(${sn.c},85%,58%)`;
+      const width = Math.min(26, 12 + sn.len * 0.12);
+      // body as a stroked path
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.strokeStyle = col; ctx.lineWidth = width;
+      ctx.shadowColor = col; ctx.shadowBlur = isMe ? 16 : 8;
+      ctx.beginPath();
+      let started = false;
+      for (let k = sn.body.length - 1; k >= 0; k--) {
+        const s = sn.body[k]; const x = s.x - camX, y = s.y - camY;
+        if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      // inner stripe
+      ctx.strokeStyle = `hsla(${sn.c},95%,78%,0.5)`; ctx.lineWidth = width * 0.4;
+      ctx.stroke();
+      // head
+      const hx = (isMe ? me.x : (sn.rx !== undefined ? sn.rx : sn.x)) - camX;
+      const hy = (isMe ? me.y : (sn.ry !== undefined ? sn.ry : sn.y)) - camY;
+      const hr = width * 0.62;
+      ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = isMe ? 18 : 8;
+      ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+      if (isMe) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(hx, hy, hr + 2, 0, Math.PI * 2); ctx.stroke(); }
+      // eyes
+      const ang = sn.a || 0;
+      for (const sgn of [-1, 1]) {
+        const ex = hx + Math.cos(ang + sgn * 0.5) * hr * 0.55;
+        const ey = hy + Math.sin(ang + sgn * 0.5) * hr * 0.55;
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex, ey, hr * 0.28, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#0a0a12'; ctx.beginPath(); ctx.arc(ex + Math.cos(ang) * 1.5, ey + Math.sin(ang) * 1.5, hr * 0.14, 0, Math.PI * 2); ctx.fill();
+      }
+      // label
+      ctx.font = 'bold 11px Courier New'; ctx.textAlign = 'center';
+      ctx.fillStyle = isMe ? '#7dffce' : 'rgba(232,238,255,0.9)';
+      ctx.shadowColor = 'rgba(0,0,0,.9)'; ctx.shadowBlur = 4;
+      ctx.fillText((sn.ai ? '🤖 ' : '') + (sn.n || '???').replace(/[<>&]/g, '') + ' · ' + Math.round(sn.len), hx, hy - hr - 8);
+      ctx.shadowBlur = 0;
+    }
+
+    // minimap
+    const MM = 120, mx = W - MM - 12, my2 = H - MM - 12;
+    ctx.fillStyle = 'rgba(8,12,24,0.8)'; ctx.fillRect(mx, my2, MM, MM);
+    ctx.strokeStyle = '#1f4a38'; ctx.strokeRect(mx, my2, MM, MM);
+    for (const sn of all) {
+      if (sn.dead) continue;
+      const ex = (sn.i === myId ? me.x : sn.x) / WORLD * MM + mx;
+      const ey = (sn.i === myId ? me.y : sn.y) / WORLD * MM + my2;
+      ctx.fillStyle = sn.i === myId ? '#7dffce' : (sn.ai ? '#9d6bff' : '#e8eeff');
+      ctx.fillRect(ex - 2, ey - 2, sn.i === myId ? 4 : 3, sn.i === myId ? 4 : 3);
+    }
+    // view rect
+    ctx.strokeStyle = 'rgba(0,255,156,.5)';
+    ctx.strokeRect(camX / WORLD * MM + mx, camY / WORLD * MM + my2, W / WORLD * MM, H / WORLD * MM);
+  }
+
+  let hudT = 0;
+  function updateHud() {
+    document.getElementById('myLen').textContent = Math.round(me.len);
+    document.getElementById('myState').innerHTML = me.dead
+      ? '<span style="color:#ff8fa3">dead — respawning… (press R)</span>'
+      : (me.sprint ? '<span style="color:#ffd166">SPRINTING! burning length…</span>' : '<span style="color:#7dffce">slither &amp; eat — grow the longest!</span>');
+    let humans = 1, ais = 0;
+    for (const p of peers.values()) (p.ai ? ais++ : humans++);
+    ais += bots.size;
+    document.getElementById('onlineN').textContent = (humans + ais);
+    document.getElementById('humanN').textContent = humans;
+    document.getElementById('aiN').textContent = ais;
+
+    const now = performance.now();
+    if (now - hudT < 350) return; hudT = now;
+    const rows = allSnakes().filter(s => !s.dead)
+      .map(s => ({ s, len: Math.round(s.len) }))
+      .sort((a, b) => b.len - a.len).slice(0, 9);
+    document.getElementById('plist').innerHTML = rows.map((r, i) => {
+      const s = r.s;
+      return `<div class="prow${s.i === myId ? ' me' : ''}">` +
+        `<span class="pos">${i + 1}</span>` +
+        `<span class="sw" style="background:hsl(${s.c},85%,58%)"></span>` +
+        `<span class="nm">${(s.n || '???').replace(/[<>&]/g, '')}</span>` +
+        (s.ai ? '<span class="aitag">AI</span>' : '') +
+        `<span class="ln">${r.len}</span></div>`;
+    }).join('');
+  }
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

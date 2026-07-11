@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QUIZ ROYALE — Synchronized Live Trivia · Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0f0f1a; }
+  body { font-family: 'Courier New', ui-monospace, monospace; color: #e8eeff;
+    display: flex; flex-direction: column; }
+  .back {
+    position: fixed; top: 10px; left: 12px; z-index: 30;
+    padding: 6px 12px; font-size: 13px; letter-spacing: 1px;
+    color: #e8eeff; text-decoration: none;
+    background: rgba(10,14,26,.6); border: 1px solid rgba(255,255,255,.25); border-radius: 4px;
+  }
+  .back:hover { border-color: #b14bff; color: #d7a6ff; }
+
+  #status {
+    position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 25; display: flex; gap: 9px; align-items: center;
+    background: rgba(8,12,24,.75); border: 1px solid #3a2657; border-radius: 999px;
+    padding: 7px 15px; backdrop-filter: blur(5px); white-space: nowrap; max-width: 94vw; overflow: hidden;
+  }
+  #status .dot { width: 10px; height: 10px; border-radius: 50%; background: #666; flex: 0 0 10px; }
+  #status .dot.live { background: #b14bff; box-shadow: 0 0 10px #b14bff; animation: pulse 1.6s ease-in-out infinite; }
+  #status .dot.off { background: #ff9d3c; box-shadow: 0 0 10px #ff9d3c; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+  #status b { color: #d7a6ff; font-weight: normal; }
+  #status .ai-b { color: #ffb03a; }
+  #status span { font-size: 12px; letter-spacing: 1px; }
+
+  #board {
+    position: fixed; top: 50px; right: 10px; z-index: 20;
+    width: 210px; max-height: 74vh; overflow: hidden;
+    background: rgba(8,12,24,.82); border: 1px solid #3a2657; border-radius: 10px;
+    padding: 9px 11px; backdrop-filter: blur(5px); font-size: 12px;
+  }
+  #board h3 { font-size: 11px; letter-spacing: 2px; color: #b58cd6; margin-bottom: 6px; }
+  .brow {
+    display: flex; align-items: center; gap: 5px;
+    padding: 3px 0; border-bottom: 1px dashed #241a38; white-space: nowrap; overflow: hidden;
+  }
+  .brow:last-child { border-bottom: none; }
+  .brow .pos { color: #b58cd6; width: 16px; flex: 0 0 16px; text-align: right; }
+  .brow .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .brow .fl { font-size: 11px; }
+  .brow .sc { color: #ffd166; }
+  .brow.me .nm { color: #d7a6ff; }
+  .brow.me { background: rgba(177,75,255,.1); border-radius: 4px; }
+  .aitag {
+    font-size: 9px; letter-spacing: 1px; color: #ffcf8f;
+    background: rgba(255,176,58,.16); border: 1px solid #ffb03a;
+    border-radius: 4px; padding: 0 4px;
+  }
+  #namebar {
+    position: fixed; bottom: 10px; left: 12px; z-index: 20;
+    display: flex; gap: 6px; align-items: center;
+    background: rgba(8,12,24,.82); border: 1px solid #3a2657; border-radius: 10px;
+    padding: 7px 10px; backdrop-filter: blur(5px);
+  }
+  #nameInput {
+    width: 100px; font: inherit; font-size: 12.5px;
+    background: #0b0e1e; color: #d7a6ff; border: 1px solid #4a3268;
+    border-radius: 5px; padding: 4px 7px;
+  }
+  #namebar label { font-size: 10.5px; letter-spacing: 1px; color: #b58cd6; }
+  #mystat { font-size: 12px; color: #b58cd6; }
+  #mystat b { color: #ffd166; font-weight: normal; }
+
+  /* main quiz area */
+  #wrap {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 78px 232px 58px 16px; gap: 12px; width: 100%; max-width: 100%;
+  }
+  #rinfo { font-size: 12px; letter-spacing: 2px; color: #b58cd6; text-align: center; }
+  #rinfo b { color: #ffd166; font-weight: normal; }
+  #timebar { width: 100%; max-width: 620px; height: 10px; background: #1a1330; border-radius: 6px; overflow: hidden; }
+  #timefill { height: 100%; width: 100%; background: linear-gradient(90deg,#35d07f,#ffb03a,#ff4d6d); transition: none; }
+  #qcard {
+    width: 100%; max-width: 620px; min-height: 74px;
+    background: rgba(14,18,34,.9); border: 1px solid #3a2657; border-radius: 12px;
+    padding: 14px 18px; text-align: center; font-size: clamp(15px,2.6vw,22px); line-height: 1.35;
+    box-shadow: 0 0 30px rgba(177,75,255,.12);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #cat { font-size: 11px; letter-spacing: 2px; color: #b58cd6; }
+  #ans { width: 100%; max-width: 620px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .abtn {
+    position: relative; border: none; border-radius: 12px; cursor: pointer;
+    padding: 14px 12px 14px 42px; font: inherit; font-size: clamp(13px,2vw,17px);
+    color: #fff; text-align: left; min-height: 58px; letter-spacing: .5px;
+    box-shadow: 0 4px 0 rgba(0,0,0,.35); transition: transform .07s ease, filter .12s ease, opacity .2s ease;
+    display: flex; align-items: center; overflow: hidden;
+  }
+  .abtn:hover { filter: brightness(1.12); }
+  .abtn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,.35); }
+  .abtn .shape { position: absolute; left: 12px; font-size: 20px; }
+  .abtn .cnt { position: absolute; right: 10px; top: 8px; font-size: 12px; background: rgba(0,0,0,.35);
+    padding: 1px 7px; border-radius: 10px; opacity: 0; }
+  .abtn.a0 { background: #d9365a; } .abtn.a1 { background: #2f6fd6; }
+  .abtn.a2 { background: #d98f22; } .abtn.a3 { background: #2aa367; }
+  .abtn.sel { outline: 3px solid #fff; }
+  .abtn.correct { background: #2aa367 !important; box-shadow: 0 0 22px rgba(42,163,103,.8), 0 4px 0 rgba(0,0,0,.35); }
+  .abtn.wrong { opacity: .38; }
+  .abtn.showcnt .cnt { opacity: 1; }
+  #resultLine { font-size: 15px; letter-spacing: 1px; min-height: 22px; text-align: center; }
+  #hint {
+    position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 15; font-size: 11px; color: #b58cd6; letter-spacing: 1px;
+    text-shadow: 0 1px 4px rgba(0,0,0,.8); pointer-events: none; text-align: center; max-width: 70vw;
+  }
+  @media (max-width: 640px) {
+    #wrap { padding: 74px 12px 74px 12px; }
+    #board { top: auto; bottom: 54px; right: 8px; width: 168px; max-height: 40vh; }
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+
+<div id="status">
+  <span class="dot" id="connDot"></span>
+  <span id="connTxt">connecting…</span>
+  <span>·</span>
+  <span>ONLINE <b id="onlineN">1</b></span>
+  <span>(<b id="humanN">1</b> human · <b class="ai-b" id="aiN">0</b> AI)</span>
+</div>
+
+<div id="board"><h3>SCOREBOARD</h3><div id="blist"></div></div>
+
+<div id="wrap">
+  <div id="rinfo">ROUND <b id="roundNo">—</b> · <span id="phaseTxt">…</span> · <span id="cat">…</span></div>
+  <div id="timebar"><div id="timefill"></div></div>
+  <div id="qcard"><span id="qtext">Loading trivia…</span></div>
+  <div id="ans"></div>
+  <div id="resultLine"></div>
+</div>
+
+<div id="namebar">
+  <label>NAME</label>
+  <input id="nameInput" maxlength="14">
+  <span id="mystat">· <b id="scoreTxt">0</b> pts · best <b id="bestTxt">0</b></span>
+</div>
+<div id="hint">tap an answer or press 1–4 · same question worldwide · faster correct = more points · 🔥 = streak · 🤖 = AI</div>
+
+<script>
+'use strict';
+(function () {
+  const SAVE_KEY = 'wizzed-mp-quiz';
+
+  // ================================================================
+  //  Minimal MQTT 3.1.1 client over WebSocket (public brokers, QoS 0)
+  // ================================================================
+  class TinyMQTT {
+    constructor(urls, clientId) {
+      this.urls = urls; this.urlIdx = 0;
+      this.clientId = clientId;
+      this.ws = null; this.buf = new Uint8Array(0);
+      this.connected = false;
+      this.onmessage = null; this.onstatus = null;
+      this.pingTimer = null; this.dead = false;
+      this.connect();
+    }
+    connect() {
+      if (this.dead) return;
+      const url = this.urls[this.urlIdx % this.urls.length];
+      try { this.ws = new WebSocket(url, 'mqtt'); }
+      catch (e) { this.retry(); return; }
+      this.ws.binaryType = 'arraybuffer';
+      const connectTimeout = setTimeout(() => { try { this.ws.close(); } catch (e) {} }, 6000);
+      this.ws.onopen = () => {
+        const cid = this.enc(this.clientId);
+        const varh = new Uint8Array([0, 4, 77, 81, 84, 84, 4, 0x02, 0, 60]);
+        this.send(0x10, this.cat(varh, cid));
+      };
+      this.ws.onmessage = e => { clearTimeout(connectTimeout); this.feed(new Uint8Array(e.data)); };
+      this.ws.onclose = () => { clearTimeout(connectTimeout); this.onDown(); };
+      this.ws.onerror = () => {};
+    }
+    onDown() {
+      this.connected = false;
+      clearInterval(this.pingTimer);
+      if (this.onstatus) this.onstatus(false);
+      this.retry();
+    }
+    retry() {
+      if (this.dead) return;
+      this.urlIdx++;
+      clearTimeout(this.retryT);
+      this.retryT = setTimeout(() => this.connect(), 2500);
+    }
+    close() { this.dead = true; clearInterval(this.pingTimer); try { this.ws.close(); } catch (e) {} }
+    enc(str) {
+      const b = new TextEncoder().encode(str);
+      const out = new Uint8Array(b.length + 2);
+      out[0] = b.length >> 8; out[1] = b.length & 255; out.set(b, 2);
+      return out;
+    }
+    cat(...arrs) {
+      const len = arrs.reduce((a, b) => a + b.length, 0);
+      const out = new Uint8Array(len);
+      let o = 0;
+      for (const a of arrs) { out.set(a, o); o += a.length; }
+      return out;
+    }
+    remLen(n) {
+      const out = [];
+      do { let d = n % 128; n = Math.floor(n / 128); if (n > 0) d |= 128; out.push(d); } while (n > 0);
+      return new Uint8Array(out);
+    }
+    send(type, body) {
+      if (!this.ws || this.ws.readyState !== 1) return;
+      this.ws.send(this.cat(new Uint8Array([type]), this.remLen(body.length), body));
+    }
+    subscribe(filter) {
+      const pid = new Uint8Array([0, 7]);
+      this.send(0x82, this.cat(pid, this.enc(filter), new Uint8Array([0])));
+    }
+    publish(topic, payloadStr) {
+      if (!this.connected) return;
+      const pl = new TextEncoder().encode(payloadStr);
+      this.send(0x30, this.cat(this.enc(topic), pl));
+    }
+    feed(chunk) {
+      this.buf = this.cat(this.buf, chunk);
+      for (;;) {
+        if (this.buf.length < 2) return;
+        let mul = 1, len = 0, pos = 1, ok = false;
+        for (; pos < Math.min(this.buf.length, 5); pos++) {
+          len += (this.buf[pos] & 127) * mul;
+          mul *= 128;
+          if ((this.buf[pos] & 128) === 0) { ok = true; pos++; break; }
+        }
+        if (!ok) return;
+        const total = pos + len;
+        if (this.buf.length < total) return;
+        this.handle(this.buf[0] >> 4, this.buf.slice(pos, total));
+        this.buf = this.buf.slice(total);
+      }
+    }
+    handle(type, body) {
+      if (type === 2) {
+        if (body[1] === 0) {
+          this.connected = true;
+          this.pingTimer = setInterval(() => this.send(0xC0, new Uint8Array(0)), 25000);
+          if (this.onstatus) this.onstatus(true);
+        } else this.retry();
+      } else if (type === 3) {
+        const tlen = (body[0] << 8) | body[1];
+        const topic = new TextDecoder().decode(body.slice(2, 2 + tlen));
+        const payload = new TextDecoder().decode(body.slice(2 + tlen));
+        if (this.onmessage) this.onmessage(topic, payload);
+      }
+    }
+  }
+
+  // ================================================================
+  //  Question bank (250+ original questions). {q, c(cat), a(correct), w(3 wrong)}
+  // ================================================================
+  const RAW = [
+    {q:"What is the capital of Australia?",c:"GEOGRAPHY",a:"Canberra",w:["Sydney","Melbourne","Perth"]},
+    {q:"What is the capital of Canada?",c:"GEOGRAPHY",a:"Ottawa",w:["Toronto","Vancouver","Montreal"]},
+    {q:"Which is the largest ocean on Earth?",c:"GEOGRAPHY",a:"Pacific",w:["Atlantic","Indian","Arctic"]},
+    {q:"The longest river in South America is the?",c:"GEOGRAPHY",a:"Amazon",w:["Paraná","Orinoco","Magdalena"]},
+    {q:"As of the 2020s, which country has the most people?",c:"GEOGRAPHY",a:"India",w:["China","United States","Indonesia"]},
+    {q:"What is the capital of Japan?",c:"GEOGRAPHY",a:"Tokyo",w:["Osaka","Kyoto","Nagoya"]},
+    {q:"Which is the largest hot desert in the world?",c:"GEOGRAPHY",a:"Sahara",w:["Gobi","Kalahari","Arabian"]},
+    {q:"What is Earth's tallest mountain above sea level?",c:"GEOGRAPHY",a:"Mount Everest",w:["K2","Kangchenjunga","Denali"]},
+    {q:"What is the capital of Brazil?",c:"GEOGRAPHY",a:"Brasília",w:["Rio de Janeiro","São Paulo","Salvador"]},
+    {q:"On which continent is the Sahara desert?",c:"GEOGRAPHY",a:"Africa",w:["Asia","Australia","Europe"]},
+    {q:"What is the capital of Egypt?",c:"GEOGRAPHY",a:"Cairo",w:["Alexandria","Giza","Luxor"]},
+    {q:"What is the smallest country by land area?",c:"GEOGRAPHY",a:"Vatican City",w:["Monaco","Nauru","San Marino"]},
+    {q:"What is the capital of Russia?",c:"GEOGRAPHY",a:"Moscow",w:["Saint Petersburg","Kyiv","Minsk"]},
+    {q:"Which sea lies between Europe and Africa?",c:"GEOGRAPHY",a:"Mediterranean",w:["Baltic","Caspian","Black"]},
+    {q:"What is the capital of Spain?",c:"GEOGRAPHY",a:"Madrid",w:["Barcelona","Seville","Valencia"]},
+    {q:"The Great Barrier Reef lies off the coast of which country?",c:"GEOGRAPHY",a:"Australia",w:["Brazil","Mexico","Philippines"]},
+    {q:"What is the capital of Argentina?",c:"GEOGRAPHY",a:"Buenos Aires",w:["Santiago","Lima","Montevideo"]},
+    {q:"Which US state is the largest by area?",c:"GEOGRAPHY",a:"Alaska",w:["Texas","California","Montana"]},
+    {q:"What is the capital of South Korea?",c:"GEOGRAPHY",a:"Seoul",w:["Busan","Incheon","Pyongyang"]},
+    {q:"The Nile River empties into which sea?",c:"GEOGRAPHY",a:"Mediterranean",w:["Red Sea","Arabian Sea","Caspian Sea"]},
+    {q:"What is the chemical symbol for gold?",c:"SCIENCE",a:"Au",w:["Ag","Gd","Go"]},
+    {q:"How many bones are in the adult human body?",c:"SCIENCE",a:"206",w:["201","226","195"]},
+    {q:"Which gas do plants absorb from the air?",c:"SCIENCE",a:"Carbon dioxide",w:["Oxygen","Nitrogen","Hydrogen"]},
+    {q:"The speed of light is approximately?",c:"SCIENCE",a:"300,000 km/s",w:["150,000 km/s","30,000 km/s","3,000 km/s"]},
+    {q:"What is the chemical formula for water?",c:"SCIENCE",a:"H2O",w:["CO2","O2","HO"]},
+    {q:"Which planet is known as the Red Planet?",c:"SCIENCE",a:"Mars",w:["Venus","Jupiter","Mercury"]},
+    {q:"What is often called the powerhouse of the cell?",c:"SCIENCE",a:"Mitochondria",w:["Nucleus","Ribosome","Golgi body"]},
+    {q:"What is the hardest natural substance?",c:"SCIENCE",a:"Diamond",w:["Quartz","Gold","Iron"]},
+    {q:"On the periodic table, 'H' stands for?",c:"SCIENCE",a:"Hydrogen",w:["Helium","Hafnium","Mercury"]},
+    {q:"At what Celsius temperature does water freeze?",c:"SCIENCE",a:"0",w:["32","100","-10"]},
+    {q:"How many planets are in our solar system?",c:"SCIENCE",a:"8",w:["9","7","10"]},
+    {q:"What force pulls objects toward Earth?",c:"SCIENCE",a:"Gravity",w:["Magnetism","Friction","Inertia"]},
+    {q:"What is the largest organ of the human body?",c:"SCIENCE",a:"Skin",w:["Liver","Brain","Lungs"]},
+    {q:"Which blood cells help fight infection?",c:"SCIENCE",a:"White blood cells",w:["Red blood cells","Platelets","Plasma"]},
+    {q:"What is the chemical symbol for sodium?",c:"SCIENCE",a:"Na",w:["So","Sn","S"]},
+    {q:"What is the scientific study of weather called?",c:"SCIENCE",a:"Meteorology",w:["Geology","Astronomy","Ecology"]},
+    {q:"Which is the largest planet in our solar system?",c:"SCIENCE",a:"Jupiter",w:["Saturn","Neptune","Earth"]},
+    {q:"At sea level, water boils at what Celsius temperature?",c:"SCIENCE",a:"100",w:["90","120","80"]},
+    {q:"On the periodic table, 'O' represents?",c:"SCIENCE",a:"Oxygen",w:["Osmium","Gold","Oganesson"]},
+    {q:"What is the unit of electrical resistance?",c:"SCIENCE",a:"Ohm",w:["Volt","Watt","Ampere"]},
+    {q:"What is the nearest star to Earth?",c:"SPACE",a:"The Sun",w:["Proxima Centauri","Sirius","Alpha Centauri"]},
+    {q:"A frog is which type of animal?",c:"NATURE",a:"Amphibian",w:["Reptile","Mammal","Fish"]},
+    {q:"How many hearts does an octopus have?",c:"NATURE",a:"3",w:["1","2","4"]},
+    {q:"Which vitamin does sunlight help your body make?",c:"SCIENCE",a:"Vitamin D",w:["Vitamin C","Vitamin A","Vitamin B12"]},
+    {q:"Which galaxy is Earth located in?",c:"SPACE",a:"Milky Way",w:["Andromeda","Whirlpool","Sombrero"]},
+    {q:"Who was the first person to walk on the Moon?",c:"HISTORY",a:"Neil Armstrong",w:["Buzz Aldrin","Yuri Gagarin","John Glenn"]},
+    {q:"A pattern of stars in the sky is called a?",c:"SPACE",a:"Constellation",w:["Galaxy","Nebula","Comet"]},
+    {q:"Which planet is closest to the Sun?",c:"SPACE",a:"Mercury",w:["Venus","Earth","Mars"]},
+    {q:"Saturn's rings are made mostly of?",c:"SPACE",a:"Ice and rock",w:["Gas","Molten metal","Fire"]},
+    {q:"About how long does Earth take to orbit the Sun?",c:"SPACE",a:"365 days",w:["30 days","24 hours","100 days"]},
+    {q:"Which planet rotates on its side?",c:"SPACE",a:"Uranus",w:["Neptune","Saturn","Mars"]},
+    {q:"What mainly causes ocean tides on Earth?",c:"SPACE",a:"The Moon",w:["The Sun","Wind","Earth's core"]},
+    {q:"A 'shooting star' is actually a?",c:"SPACE",a:"Meteor",w:["Comet","Planet","Satellite"]},
+    {q:"Who was the first President of the United States?",c:"HISTORY",a:"George Washington",w:["Thomas Jefferson","Abraham Lincoln","John Adams"]},
+    {q:"In what year did World War II end?",c:"HISTORY",a:"1945",w:["1939","1918","1950"]},
+    {q:"Which ancient people built the pyramids of Giza?",c:"HISTORY",a:"Egyptians",w:["Romans","Greeks","Aztecs"]},
+    {q:"Who painted the Mona Lisa?",c:"ART",a:"Leonardo da Vinci",w:["Michelangelo","Raphael","Vincent van Gogh"]},
+    {q:"The Great Wall is located in which country?",c:"HISTORY",a:"China",w:["Japan","India","Mongolia"]},
+    {q:"Who developed the theory of relativity?",c:"HISTORY",a:"Albert Einstein",w:["Isaac Newton","Galileo","Nikola Tesla"]},
+    {q:"Which ship sank in 1912 after hitting an iceberg?",c:"HISTORY",a:"Titanic",w:["Lusitania","Britannic","Endeavour"]},
+    {q:"Legend says who understood gravity when an apple fell?",c:"HISTORY",a:"Isaac Newton",w:["Einstein","Darwin","Copernicus"]},
+    {q:"Which wall famously fell in 1989?",c:"HISTORY",a:"Berlin Wall",w:["Great Wall","Hadrian's Wall","Wall Street"]},
+    {q:"Which Egyptian queen was linked to Caesar and Mark Antony?",c:"HISTORY",a:"Cleopatra",w:["Nefertiti","Hatshepsut","Isis"]},
+    {q:"Which country gifted the Statue of Liberty to the USA?",c:"HISTORY",a:"France",w:["England","Spain","Italy"]},
+    {q:"In what year did humans first land on the Moon?",c:"HISTORY",a:"1969",w:["1959","1972","1965"]},
+    {q:"Who wrote the play 'Romeo and Juliet'?",c:"ART",a:"William Shakespeare",w:["Charles Dickens","Mark Twain","Jane Austen"]},
+    {q:"In which country did the Renaissance begin?",c:"HISTORY",a:"Italy",w:["France","England","Spain"]},
+    {q:"How many strings does a standard guitar have?",c:"ART",a:"6",w:["4","5","12"]},
+    {q:"Who composed the piece 'Für Elise'?",c:"ART",a:"Beethoven",w:["Mozart","Bach","Chopin"]},
+    {q:"What are the three primary colors of paint?",c:"ART",a:"Red, blue, yellow",w:["Red, green, blue","Orange, purple, green","Black, white, gray"]},
+    {q:"How many lines are in a limerick?",c:"ART",a:"5",w:["4","3","7"]},
+    {q:"Which instrument has black and white keys?",c:"ART",a:"Piano",w:["Violin","Flute","Drums"]},
+    {q:"How many musical notes are named A through G?",c:"ART",a:"7",w:["8","5","12"]},
+    {q:"Mixing blue and yellow paint makes which color?",c:"ART",a:"Green",w:["Purple","Orange","Brown"]},
+    {q:"Who is the author of the Harry Potter series?",c:"ART",a:"J.K. Rowling",w:["J.R.R. Tolkien","C.S. Lewis","Roald Dahl"]},
+    {q:"Salvador Dalí is associated with which art movement?",c:"ART",a:"Surrealism",w:["Cubism","Impressionism","Pop art"]},
+    {q:"How many keys are on a standard full-size piano?",c:"ART",a:"88",w:["61","76","100"]},
+    {q:"Who painted the Sistine Chapel ceiling?",c:"ART",a:"Michelangelo",w:["Leonardo da Vinci","Donatello","Raphael"]},
+    {q:"What language did the ancient Romans speak?",c:"LANGUAGE",a:"Latin",w:["Greek","Italian","Spanish"]},
+    {q:"In which language is 'hola' a greeting?",c:"LANGUAGE",a:"Spanish",w:["Italian","French","Portuguese"]},
+    {q:"A word that reads the same backward is a?",c:"LANGUAGE",a:"Palindrome",w:["Anagram","Homonym","Synonym"]},
+    {q:"What is 7 × 8?",c:"MATH",a:"56",w:["54","48","63"]},
+    {q:"The angles of a triangle add up to how many degrees?",c:"MATH",a:"180",w:["360","90","270"]},
+    {q:"What is pi rounded to two decimal places?",c:"MATH",a:"3.14",w:["3.41","3.12","2.14"]},
+    {q:"What is 12 squared?",c:"MATH",a:"144",w:["121","124","148"]},
+    {q:"How many sides does a hexagon have?",c:"MATH",a:"6",w:["5","7","8"]},
+    {q:"What is 100 divided by 4?",c:"MATH",a:"25",w:["20","40","15"]},
+    {q:"A three-sided shape is called a?",c:"MATH",a:"Triangle",w:["Square","Pentagon","Rhombus"]},
+    {q:"What is 15% of 200?",c:"MATH",a:"30",w:["15","45","20"]},
+    {q:"How many degrees are in a full circle?",c:"MATH",a:"360",w:["180","90","270"]},
+    {q:"What is the next prime number after 7?",c:"MATH",a:"11",w:["9","10","13"]},
+    {q:"What is 9 × 9?",c:"MATH",a:"81",w:["72","91","99"]},
+    {q:"How many zeros are in one million?",c:"MATH",a:"6",w:["5","7","9"]},
+    {q:"An eight-sided polygon is called an?",c:"MATH",a:"Octagon",w:["Hexagon","Heptagon","Nonagon"]},
+    {q:"What is half of 250?",c:"MATH",a:"125",w:["120","150","130"]},
+    {q:"What is 2 to the power of 5?",c:"MATH",a:"32",w:["16","25","64"]},
+    {q:"What is the fastest land animal?",c:"NATURE",a:"Cheetah",w:["Lion","Horse","Gazelle"]},
+    {q:"What is the largest animal on Earth?",c:"NATURE",a:"Blue whale",w:["Elephant","Giraffe","Whale shark"]},
+    {q:"How many legs does a spider have?",c:"NATURE",a:"8",w:["6","10","4"]},
+    {q:"Bees collect what to make honey?",c:"NATURE",a:"Nectar",w:["Pollen","Water","Tree sap"]},
+    {q:"Which of these birds cannot fly?",c:"NATURE",a:"Ostrich",w:["Eagle","Sparrow","Robin"]},
+    {q:"What is a baby kangaroo called?",c:"NATURE",a:"Joey",w:["Cub","Calf","Kit"]},
+    {q:"Which is the largest species of big cat?",c:"NATURE",a:"Tiger",w:["Lion","Jaguar","Leopard"]},
+    {q:"How many legs does a typical insect have?",c:"NATURE",a:"6",w:["8","4","10"]},
+    {q:"What is the tallest animal in the world?",c:"NATURE",a:"Giraffe",w:["Elephant","Horse","Camel"]},
+    {q:"Which animal is often called 'man's best friend'?",c:"NATURE",a:"Dog",w:["Cat","Horse","Rabbit"]},
+    {q:"A group of lions is called a?",c:"NATURE",a:"Pride",w:["Pack","Herd","Flock"]},
+    {q:"Which sea creature has eight arms?",c:"NATURE",a:"Octopus",w:["Squid","Jellyfish","Starfish"]},
+    {q:"Which is the largest living primate?",c:"NATURE",a:"Gorilla",w:["Chimpanzee","Orangutan","Baboon"]},
+    {q:"How many humps does a dromedary camel have?",c:"NATURE",a:"1",w:["2","3","0"]},
+    {q:"Which bird is the fastest in a dive?",c:"NATURE",a:"Peregrine falcon",w:["Golden eagle","Swift","Hawk"]},
+    {q:"Which animal can regrow lost arms?",c:"NATURE",a:"Starfish",w:["Frog","Snake","Turtle"]},
+    {q:"Caterpillars transform into what?",c:"NATURE",a:"Butterflies",w:["Bees","Spiders","Ants"]},
+    {q:"What is the only mammal that can truly fly?",c:"NATURE",a:"Bat",w:["Flying squirrel","Sugar glider","Owl"]},
+    {q:"Which fruit is traditionally used to make wine?",c:"FOOD",a:"Grapes",w:["Apples","Cherries","Plums"]},
+    {q:"What is the main ingredient in guacamole?",c:"FOOD",a:"Avocado",w:["Tomato","Pea","Cucumber"]},
+    {q:"Which spice is the most expensive by weight?",c:"FOOD",a:"Saffron",w:["Vanilla","Cardamom","Cinnamon"]},
+    {q:"Sushi originally comes from which country?",c:"FOOD",a:"Japan",w:["China","Korea","Thailand"]},
+    {q:"Which nut is used to make marzipan?",c:"FOOD",a:"Almond",w:["Walnut","Peanut","Cashew"]},
+    {q:"What is the main ingredient in bread?",c:"FOOD",a:"Flour",w:["Sugar","Rice","Corn"]},
+    {q:"Espresso is a form of which drink?",c:"FOOD",a:"Coffee",w:["Tea","Cocoa","Juice"]},
+    {q:"Which vegetable is commonly carved for Halloween?",c:"FOOD",a:"Pumpkin",w:["Squash","Melon","Turnip"]},
+    {q:"Tofu is made from which food?",c:"FOOD",a:"Soybeans",w:["Wheat","Rice","Corn"]},
+    {q:"Which herb gives pesto its main flavor?",c:"FOOD",a:"Basil",w:["Mint","Cilantro","Parsley"]},
+    {q:"Cheese is mainly made from?",c:"FOOD",a:"Milk",w:["Cream","Butter","Yogurt"]},
+    {q:"A dried grape is called a?",c:"FOOD",a:"Raisin",w:["Prune","Date","Fig"]},
+    {q:"Which country is famous for inventing pizza?",c:"FOOD",a:"Italy",w:["Greece","United States","France"]},
+    {q:"Traditional risotto is made using which grain?",c:"FOOD",a:"Rice",w:["Wheat","Barley","Oats"]},
+    {q:"How many players from one soccer team are on the field?",c:"SPORTS",a:"11",w:["9","10","12"]},
+    {q:"Which sport uses a shuttlecock?",c:"SPORTS",a:"Badminton",w:["Tennis","Squash","Table tennis"]},
+    {q:"How many points is a touchdown in American football?",c:"SPORTS",a:"6",w:["7","3","5"]},
+    {q:"Which sport is played at Wimbledon?",c:"SPORTS",a:"Tennis",w:["Golf","Cricket","Rugby"]},
+    {q:"How many rings are on the Olympic flag?",c:"SPORTS",a:"5",w:["4","6","3"]},
+    {q:"In basketball, a free throw is worth how many points?",c:"SPORTS",a:"1",w:["2","3","4"]},
+    {q:"Which sport uses a puck?",c:"SPORTS",a:"Ice hockey",w:["Cricket","Polo","Lacrosse"]},
+    {q:"About how many miles is a marathon?",c:"SPORTS",a:"26.2",w:["24","30","20"]},
+    {q:"In golf, one under par on a hole is called a?",c:"SPORTS",a:"Birdie",w:["Eagle","Bogey","Par"]},
+    {q:"The Tour de France is mainly held in which country?",c:"SPORTS",a:"France",w:["Italy","Spain","Belgium"]},
+    {q:"How many players from one team are on a basketball court?",c:"SPORTS",a:"5",w:["6","7","4"]},
+    {q:"In baseball, how many strikes make an out?",c:"SPORTS",a:"3",w:["2","4","1"]},
+    {q:"What color is the 8 ball in pool?",c:"SPORTS",a:"Black",w:["Red","Blue","White"]},
+    {q:"Which sport features a play called a scrum?",c:"SPORTS",a:"Rugby",w:["Soccer","Hockey","Baseball"]},
+    {q:"What does 'www' stand for?",c:"TECH",a:"World Wide Web",w:["World Wireless Web","Web Wide World","Wide World Web"]},
+    {q:"Who co-founded Apple with Steve Jobs?",c:"TECH",a:"Steve Wozniak",w:["Bill Gates","Mark Zuckerberg","Jeff Bezos"]},
+    {q:"What does 'CPU' stand for?",c:"TECH",a:"Central Processing Unit",w:["Computer Personal Unit","Central Program Utility","Core Processor Unifier"]},
+    {q:"Which company makes the Windows operating system?",c:"TECH",a:"Microsoft",w:["Apple","Google","IBM"]},
+    {q:"Which platform historically used a bird as its logo?",c:"TECH",a:"Twitter",w:["Facebook","Instagram","Snapchat"]},
+    {q:"What does 'AI' stand for?",c:"TECH",a:"Artificial Intelligence",w:["Automated Input","Advanced Interface","Automatic Integration"]},
+    {q:"Which company created the Android operating system?",c:"TECH",a:"Google",w:["Apple","Microsoft","Samsung"]},
+    {q:"What does 'RAM' stand for?",c:"TECH",a:"Random Access Memory",w:["Read Access Memory","Rapid Access Module","Random Active Memory"]},
+    {q:"In what year was the first iPhone released?",c:"TECH",a:"2007",w:["2005","2010","2001"]},
+    {q:"What does 'URL' stand for?",c:"TECH",a:"Uniform Resource Locator",w:["Universal Reference Link","Uniform Reference Locator","United Resource List"]},
+    {q:"What does 'PDF' stand for?",c:"TECH",a:"Portable Document Format",w:["Personal Data File","Public Document Format","Portable Data Folder"]},
+    {q:"Binary code uses which two digits?",c:"TECH",a:"0 and 1",w:["1 and 2","0 and 9","A and B"]},
+    {q:"How many letters are in the English alphabet?",c:"LANGUAGE",a:"26",w:["24","25","27"]},
+    {q:"What is the opposite of 'ancient'?",c:"LANGUAGE",a:"Modern",w:["Old","Historic","Aged"]},
+    {q:"Which language has the most native speakers?",c:"LANGUAGE",a:"Mandarin Chinese",w:["English","Spanish","Hindi"]},
+    {q:"'Bonjour' means hello in which language?",c:"LANGUAGE",a:"French",w:["Spanish","German","Italian"]},
+    {q:"Which punctuation mark ends a question?",c:"LANGUAGE",a:"Question mark",w:["Period","Comma","Exclamation point"]},
+    {q:"How many vowels are in the English alphabet (a,e,i,o,u)?",c:"LANGUAGE",a:"5",w:["6","4","7"]},
+    {q:"A word with the same meaning as another is a?",c:"LANGUAGE",a:"Synonym",w:["Antonym","Homonym","Acronym"]},
+    {q:"The greeting 'ciao' comes from which language?",c:"LANGUAGE",a:"Italian",w:["French","Greek","Latin"]},
+    {q:"What is the plural of the animal 'mouse'?",c:"LANGUAGE",a:"Mice",w:["Mouses","Meese","Mouse"]},
+    {q:"The main character of a story is the?",c:"LANGUAGE",a:"Protagonist",w:["Antagonist","Narrator","Author"]},
+    {q:"How many chambers does the human heart have?",c:"BODY",a:"4",w:["2","3","6"]},
+    {q:"Which organ pumps blood around the body?",c:"BODY",a:"Heart",w:["Lungs","Liver","Kidney"]},
+    {q:"How many teeth does a typical adult human have?",c:"BODY",a:"32",w:["28","30","36"]},
+    {q:"Which part of the eye is the opening that lets light in?",c:"BODY",a:"Pupil",w:["Iris","Retina","Cornea"]},
+    {q:"What is the largest bone in the human body?",c:"BODY",a:"Femur",w:["Tibia","Humerus","Skull"]},
+    {q:"Which organ filters blood and produces urine?",c:"BODY",a:"Kidney",w:["Liver","Heart","Stomach"]},
+    {q:"How many lungs does a human have?",c:"BODY",a:"2",w:["1","3","4"]},
+    {q:"What carries oxygen through the blood?",c:"BODY",a:"Red blood cells",w:["White blood cells","Platelets","Plasma"]},
+    {q:"What is the smallest bone in the human body?",c:"BODY",a:"Stapes",w:["Femur","Rib","Wrist bone"]},
+    {q:"Which sense uses the tongue?",c:"BODY",a:"Taste",w:["Smell","Touch","Sight"]},
+    {q:"How many colors are traditionally in a rainbow?",c:"MISC",a:"7",w:["5","6","8"]},
+    {q:"What is the currency of Japan?",c:"GEOGRAPHY",a:"Yen",w:["Won","Yuan","Dollar"]},
+    {q:"What is the currency of the United Kingdom?",c:"GEOGRAPHY",a:"Pound",w:["Euro","Dollar","Franc"]},
+    {q:"Which country is shaped like a boot?",c:"GEOGRAPHY",a:"Italy",w:["Spain","Greece","Portugal"]},
+    {q:"What is the largest country by land area?",c:"GEOGRAPHY",a:"Russia",w:["Canada","China","United States"]},
+    {q:"What currency is used across most of the European Union?",c:"GEOGRAPHY",a:"Euro",w:["Pound","Dollar","Mark"]},
+    {q:"Which US city is nicknamed 'the Big Apple'?",c:"GEOGRAPHY",a:"New York",w:["Chicago","Boston","Los Angeles"]},
+    {q:"As of the 2020s, what is the tallest building in the world?",c:"GEOGRAPHY",a:"Burj Khalifa",w:["Shanghai Tower","Empire State Building","Taipei 101"]},
+    {q:"In which city is the Eiffel Tower?",c:"GEOGRAPHY",a:"Paris",w:["London","Rome","Berlin"]},
+    {q:"Which ocean borders the US East Coast?",c:"GEOGRAPHY",a:"Atlantic",w:["Pacific","Indian","Arctic"]},
+    {q:"Which country's flag features a red maple leaf?",c:"GEOGRAPHY",a:"Canada",w:["United States","Mexico","Brazil"]},
+    {q:"What is the capital of Italy?",c:"GEOGRAPHY",a:"Rome",w:["Milan","Naples","Venice"]},
+    {q:"Mount Fuji is located in which country?",c:"GEOGRAPHY",a:"Japan",w:["China","Nepal","South Korea"]},
+    {q:"What is the capital of Germany?",c:"GEOGRAPHY",a:"Berlin",w:["Munich","Hamburg","Frankfurt"]},
+    {q:"Which gas do humans need to breathe to live?",c:"SCIENCE",a:"Oxygen",w:["Carbon dioxide","Nitrogen","Helium"]},
+    {q:"What is frozen carbon dioxide commonly called?",c:"SCIENCE",a:"Dry ice",w:["Wet ice","Black ice","Steam"]},
+    {q:"Rust forms on iron mainly because of?",c:"SCIENCE",a:"Oxygen and water",w:["Sunlight","Heat alone","Salt alone"]},
+    {q:"What is the center of an atom called?",c:"SCIENCE",a:"Nucleus",w:["Electron","Proton","Shell"]},
+    {q:"How do plants make their own food?",c:"SCIENCE",a:"Photosynthesis",w:["Respiration","Digestion","Fermentation"]},
+    {q:"Which metal is liquid at room temperature?",c:"SCIENCE",a:"Mercury",w:["Iron","Aluminum","Copper"]},
+    {q:"Lightning is an example of what?",c:"SCIENCE",a:"Electricity",w:["Magnetism","Sound","Heat"]},
+    {q:"Molten rock beneath Earth's surface is called?",c:"SCIENCE",a:"Magma",w:["Lava","Ash","Basalt"]},
+    {q:"Which scale is used to measure earthquakes?",c:"SCIENCE",a:"Richter scale",w:["Celsius scale","Beaufort scale","Kelvin scale"]},
+    {q:"Which gas is most abundant in Earth's atmosphere?",c:"SCIENCE",a:"Nitrogen",w:["Oxygen","Carbon dioxide","Hydrogen"]},
+    {q:"Animals that eat only plants are called?",c:"NATURE",a:"Herbivores",w:["Carnivores","Omnivores","Insectivores"]},
+    {q:"Water is made from which two elements?",c:"SCIENCE",a:"Hydrogen and oxygen",w:["Carbon and oxygen","Hydrogen and nitrogen","Oxygen only"]},
+    {q:"What is the scientific study of living things?",c:"SCIENCE",a:"Biology",w:["Chemistry","Physics","Geology"]},
+    {q:"A solid turning directly into gas is called?",c:"SCIENCE",a:"Sublimation",w:["Evaporation","Condensation","Melting"]},
+    {q:"In chess, which piece moves only diagonally?",c:"GAMES",a:"Bishop",w:["Rook","Knight","Pawn"]},
+    {q:"How many squares are on a chessboard?",c:"GAMES",a:"64",w:["100","81","49"]},
+    {q:"How many cards are in a standard deck without jokers?",c:"GAMES",a:"52",w:["54","48","60"]},
+    {q:"What are the four suits in a standard deck of cards?",c:"GAMES",a:"Hearts, diamonds, clubs, spades",w:["Circles, squares, stars, moons","Red, blue, green, yellow","Cups, coins, swords, wands"]},
+    {q:"How many pawns does each player start with in chess?",c:"GAMES",a:"8",w:["6","10","16"]},
+    {q:"What is the total number of dots on a standard six-sided die?",c:"GAMES",a:"21",w:["18","24","20"]},
+    {q:"In poker, which hand beats a straight?",c:"GAMES",a:"Flush",w:["One pair","Two pair","High card"]},
+    {q:"How many players take part in a doubles tennis match?",c:"GAMES",a:"4",w:["2","6","8"]},
+    {q:"Which game uses the terms 'checkmate' and 'stalemate'?",c:"GAMES",a:"Chess",w:["Checkers","Backgammon","Go"]},
+    {q:"Which is the smallest continent?",c:"GEOGRAPHY",a:"Australia",w:["Europe","Antarctica","South America"]},
+    {q:"Which is the coldest continent?",c:"GEOGRAPHY",a:"Antarctica",w:["Asia","Europe","Australia"]},
+    {q:"The Amazon rainforest is mostly located in which country?",c:"GEOGRAPHY",a:"Brazil",w:["Peru","Colombia","Venezuela"]},
+    {q:"Which imaginary line divides Earth into north and south?",c:"GEOGRAPHY",a:"Equator",w:["Prime Meridian","Tropic of Cancer","Horizon"]},
+    {q:"What is the largest island in the world?",c:"GEOGRAPHY",a:"Greenland",w:["Madagascar","Borneo","New Guinea"]},
+    {q:"Which mountain range separates Europe and Asia?",c:"GEOGRAPHY",a:"Ural Mountains",w:["Alps","Andes","Himalayas"]},
+    {q:"Which desert is one of the driest places on Earth?",c:"GEOGRAPHY",a:"Atacama",w:["Sahara","Gobi","Mojave"]},
+    {q:"What is the capital of France?",c:"GEOGRAPHY",a:"Paris",w:["Lyon","Marseille","Nice"]},
+    {q:"Which river runs through London?",c:"GEOGRAPHY",a:"Thames",w:["Seine","Danube","Rhine"]},
+    {q:"What is the capital of China?",c:"GEOGRAPHY",a:"Beijing",w:["Shanghai","Hong Kong","Guangzhou"]},
+    {q:"How many colors are on a standard traffic light?",c:"MISC",a:"3",w:["2","4","5"]},
+    {q:"Which is the tallest type of grass?",c:"NATURE",a:"Bamboo",w:["Wheat","Corn","Reed"]},
+    {q:"A scientist who studies fossils is a?",c:"SCIENCE",a:"Paleontologist",w:["Archaeologist","Geologist","Biologist"]},
+    {q:"A group of wolves is called a?",c:"NATURE",a:"Pack",w:["Pride","Herd","School"]},
+    {q:"What shape is a standard stop sign?",c:"MISC",a:"Octagon",w:["Square","Circle","Triangle"]},
+    {q:"How many minutes are in an hour?",c:"MISC",a:"60",w:["100","30","90"]},
+    {q:"How many days are in a leap year?",c:"MISC",a:"366",w:["365","364","360"]},
+    {q:"What is the first month of the year?",c:"MISC",a:"January",w:["March","December","February"]},
+    {q:"How many continents are there?",c:"GEOGRAPHY",a:"7",w:["5","6","8"]},
+    {q:"What is Jupiter's most famous surface feature?",c:"SPACE",a:"Great Red Spot",w:["Bright rings","Ice caps","Cassini Gap"]},
+    {q:"Small balls of ice that fall in thunderstorms are called?",c:"SCIENCE",a:"Hail",w:["Snow","Fog","Dew"]},
+    {q:"How many hours are in a day?",c:"MISC",a:"24",w:["12","48","36"]},
+    {q:"Which is the coldest season of the year?",c:"MISC",a:"Winter",w:["Summer","Spring","Autumn"]},
+    {q:"About how many weeks are in a year?",c:"MISC",a:"52",w:["48","60","50"]},
+    {q:"At what Fahrenheit temperature does water freeze?",c:"SCIENCE",a:"32",w:["0","100","212"]},
+    {q:"A group of five musicians is called a?",c:"ART",a:"Quintet",w:["Quartet","Trio","Sextet"]},
+    {q:"What is a baby cat called?",c:"NATURE",a:"Kitten",w:["Puppy","Cub","Calf"]},
+    {q:"How many wheels does a standard car have?",c:"MISC",a:"4",w:["3","6","2"]},
+    {q:"Which is the largest land animal?",c:"NATURE",a:"African elephant",w:["Rhinoceros","Hippopotamus","Giraffe"]},
+    {q:"Water falling over the edge of a cliff is a?",c:"NATURE",a:"Waterfall",w:["River","Rapids","Geyser"]},
+    {q:"How many sides does a pentagon have?",c:"MATH",a:"5",w:["6","4","7"]},
+    {q:"What is 6 × 7?",c:"MATH",a:"42",w:["36","48","40"]},
+    {q:"How many seconds are in a minute?",c:"MISC",a:"60",w:["100","30","120"]},
+    {q:"Which planet do we live on?",c:"SPACE",a:"Earth",w:["Mars","Venus","Jupiter"]},
+    {q:"What do you call frozen water?",c:"SCIENCE",a:"Ice",w:["Steam","Vapor","Mist"]},
+    {q:"What is the primary color you get by mixing red and blue paint?",c:"ART",a:"Purple",w:["Green","Orange","Brown"]},
+    {q:"Which shape has no corners?",c:"MATH",a:"Circle",w:["Square","Triangle","Pentagon"]},
+    {q:"What do bees live in?",c:"NATURE",a:"Hive",w:["Nest","Web","Burrow"]},
+    {q:"Which sense do the ears provide?",c:"BODY",a:"Hearing",w:["Sight","Taste","Smell"]},
+    {q:"What is the capital of the United States?",c:"GEOGRAPHY",a:"Washington, D.C.",w:["New York","Los Angeles","Chicago"]},
+    {q:"What is the capital of England?",c:"GEOGRAPHY",a:"London",w:["Manchester","Liverpool","Birmingham"]},
+    {q:"Which metal is attracted to magnets?",c:"SCIENCE",a:"Iron",w:["Gold","Aluminum","Copper"]},
+    {q:"How many colors are in the flag of France?",c:"GEOGRAPHY",a:"3",w:["2","4","5"]},
+    {q:"What do you call molten rock that reaches Earth's surface?",c:"SCIENCE",a:"Lava",w:["Magma","Ash","Coal"]},
+    {q:"Which dinosaur was a fierce meat-eater with tiny arms?",c:"SCIENCE",a:"Tyrannosaurus rex",w:["Triceratops","Stegosaurus","Brachiosaurus"]},
+    {q:"How many players are on the field per team in beach volleyball?",c:"SPORTS",a:"2",w:["4","6","3"]},
+    {q:"What is the largest internal organ in the human body?",c:"BODY",a:"Liver",w:["Heart","Lungs","Stomach"]},
+    {q:"Which season comes after winter?",c:"MISC",a:"Spring",w:["Summer","Autumn","Monsoon"]}
+  ];
+
+  // ================================================================
+  //  Seeded shuffle -> deterministic BANK identical on every client
+  // ================================================================
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function shuffle(arr, rng) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = arr[i]; arr[i] = arr[j]; arr[j] = t; } return arr; }
+
+  const BANK = (function () {
+    const brng = mulberry32(20240711);
+    const order = RAW.map((_, i) => i);
+    shuffle(order, brng);
+    return order.map(idx => {
+      const item = RAW[idx];
+      const opts = [item.a, item.w[0], item.w[1], item.w[2]];
+      const perm = [0, 1, 2, 3];
+      shuffle(perm, mulberry32((idx + 1) * 2654435761));
+      const options = perm.map(p => opts[p]);
+      const correct = perm.indexOf(0);
+      return { q: item.q, c: item.c, options, correct };
+    });
+  })();
+
+  // ================================================================
+  //  Round schedule from wall clock
+  // ================================================================
+  const ROUND = 25, ANSWER = 18, REVEAL = 7;
+  function roundInfo() {
+    const es = Date.now() / 1000;
+    const round = Math.floor(es / ROUND);
+    const into = es - round * ROUND;
+    const answering = into < ANSWER;
+    const qi = ((round % BANK.length) + BANK.length) % BANK.length;
+    return { round, into, answering, qi, timeLeft: answering ? ANSWER - into : ROUND - into };
+  }
+
+  // ================================================================
+  //  Identity
+  // ================================================================
+  const qsBroker = new URLSearchParams(location.search).get('broker');
+  const BROKERS = qsBroker ? [qsBroker] : [
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://test.mosquitto.org:8081',
+  ];
+  const ROOM = 'wizzed/mp-quiz/v1/main';
+  const myId = 'p' + Math.random().toString(36).slice(2, 10);
+  const NAMES1 = ['Neon', 'Turbo', 'Pixel', 'Cosmic', 'Disco', 'Laser', 'Mega', 'Hyper', 'Retro', 'Glitch', 'Astro', 'Funky', 'Brainy', 'Quick'];
+  const NAMES2 = ['Brain', 'Whiz', 'Genius', 'Owl', 'Sage', 'Ace', 'Nerd', 'Spark', 'Quiz', 'Buzzer', 'Scholar', 'Mind', 'Wit', 'Guru'];
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') || {}; } catch (e) {}
+  const rndName = () => NAMES1[Math.random() * NAMES1.length | 0] + NAMES2[Math.random() * NAMES2.length | 0];
+  function hashCode(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
+
+  const me = { i: myId, n: (saved.name || rndName()).slice(0, 14), ai: 0 };
+  let score = 0, streak = 0, answered = 0, correctCount = 0, best = saved.best || 0;
+  const peers = new Map();
+  const bots = new Map();
+  let online = false;
+
+  // per-round local answer state
+  let curRound = -1;
+  let myAns = -1, myAnsT = 0, myLocked = false, myCorrectThisRound = false, revealBeeped = false, missedApplied = false;
+
+  const $ = id => document.getElementById(id);
+  $('nameInput').value = me.n;
+  $('nameInput').addEventListener('input', e => { me.n = (e.target.value || 'Player').slice(0, 14); persist(); });
+  function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ name: me.n, best })); } catch (e) {} }
+  $('bestTxt').textContent = best;
+
+  // ================================================================
+  //  Audio
+  // ================================================================
+  let actx = null;
+  function initAudio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
+  function beep(freq, dur, type, vol) {
+    if (!actx) return;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || 'square'; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    const t = actx.currentTime;
+    g.gain.setValueAtTime(vol || 0.05, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.12));
+    o.start(t); o.stop(t + (dur || 0.12));
+  }
+
+  // ================================================================
+  //  Networking
+  // ================================================================
+  const mq = new TinyMQTT(BROKERS, 'wz-' + myId);
+  mq.onstatus = up => {
+    online = up;
+    const dot = $('connDot'), txt = $('connTxt');
+    if (up) { dot.className = 'dot live'; txt.textContent = 'LIVE — global quiz'; mq.subscribe(ROOM + '/s/#'); }
+    else { dot.className = 'dot off'; txt.textContent = 'OFFLINE — vs AI'; }
+  };
+  mq.onmessage = (topic, payload) => {
+    try {
+      const st = JSON.parse(payload);
+      if (!st || !st.i || st.i === myId) return;
+      if (bots.has(st.i)) return;
+      st.seen = performance.now();
+      peers.set(st.i, st);
+    } catch (e) {}
+  };
+  function publishMe() {
+    if (!online) return;
+    mq.publish(ROOM + '/s/' + myId, JSON.stringify({
+      i: me.i, n: me.n, ai: 0, r: curRound, a: myLocked ? myAns : -1,
+      t: myAnsT, sc: score, st: streak, c: myCorrectThisRound ? 1 : 0,
+    }));
+  }
+  setInterval(publishMe, 1000);
+  setInterval(() => { const now = performance.now(); for (const [id, p] of peers) if (now - p.seen > 6000) peers.delete(id); }, 1000);
+
+  // ================================================================
+  //  Bots (host = lexicographically-lowest human id)
+  // ================================================================
+  const BOT_TARGET = 5;
+  const BOTNAMES = ['HAL-9', 'BeepBoop', 'Circuit', 'Servo', 'Chip', 'Databyte', 'Sparky', 'Gizmo', 'Rusty', 'Volt', 'Cortex', 'Nano'];
+  function humanIds() { const ids = [myId]; for (const [id, p] of peers) if (!p.ai) ids.push(id); return ids.sort(); }
+  function iAmBotHost() { return humanIds()[0] === myId; }
+  function manageBots() {
+    if (!iAmBotHost()) { if (bots.size) bots.clear(); return; }
+    const need = Math.max(0, BOT_TARGET - humanIds().length);
+    while (bots.size > need) { const k = bots.keys().next().value; bots.delete(k); }
+    while (bots.size < need) {
+      const bid = 'ai' + Math.random().toString(36).slice(2, 8);
+      const used = new Set([...bots.values()].map(b => b.n));
+      const free = BOTNAMES.filter(n => !used.has('🤖 ' + n));
+      const nm = '🤖 ' + (free.length ? free[Math.random() * free.length | 0] : 'Bot' + bots.size);
+      bots.set(bid, { i: bid, n: nm, ai: 1, sc: 0, st: 0, r: -1, a: -1, t: 0, c: 0, acc: 0.62 + Math.random() * 0.2, scoredRound: -1 });
+    }
+  }
+  function botsAnswerRound(round, qi) {
+    if (!iAmBotHost()) return;
+    const q = BANK[qi];
+    for (const b of bots.values()) {
+      if (b.scoredRound === round) continue;
+      const rng = Math.random;
+      const correct = rng() < b.acc;
+      b.a = correct ? q.correct : ([0, 1, 2, 3].filter(x => x !== q.correct)[Math.floor(rng() * 3)]);
+      b.t = Math.round(1200 + rng() * (ANSWER * 1000 - 2500));
+      b.c = correct ? 1 : 0;
+      b.sc += pointsFor(correct, b.t);
+      b.st = correct ? b.st + 1 : 0;
+      b.r = round;
+      b.scoredRound = round;
+    }
+  }
+  setInterval(() => {
+    if (!online || !iAmBotHost()) return;
+    for (const b of bots.values()) {
+      mq.publish(ROOM + '/s/' + b.i, JSON.stringify({ i: b.i, n: b.n, ai: 1, r: b.r, a: b.a, t: b.t, sc: b.sc, st: b.st, c: b.c }));
+    }
+  }, 1100);
+
+  function pointsFor(correct, tMs) {
+    if (!correct) return 0;
+    const frac = Math.max(0, Math.min(1, tMs / (ANSWER * 1000)));
+    return Math.round(1000 * (1 - 0.9 * frac)); // 1000 (instant) down to 100
+  }
+
+  // ================================================================
+  //  UI wiring
+  // ================================================================
+  const ansEl = $('ans');
+  const btns = [];
+  const SHAPES = ['▲', '◆', '●', '■'];
+  for (let i = 0; i < 4; i++) {
+    const b = document.createElement('button');
+    b.className = 'abtn a' + i;
+    b.innerHTML = `<span class="shape">${SHAPES[i]}</span><span class="lbl"></span><span class="cnt">0</span>`;
+    b.addEventListener('click', () => choose(i));
+    ansEl.appendChild(b); btns.push(b);
+  }
+  addEventListener('keydown', e => {
+    initAudio();
+    if (e.key >= '1' && e.key <= '4') { choose(parseInt(e.key, 10) - 1); }
+  });
+  addEventListener('pointerdown', initAudio, { once: false });
+
+  function choose(idx) {
+    initAudio();
+    const ri = roundInfo();
+    if (!ri.answering || myLocked || idx < 0 || idx > 3) return;
+    myLocked = true; myAns = idx; myAnsT = Math.round(ri.into * 1000);
+    const q = BANK[ri.qi];
+    myCorrectThisRound = (idx === q.correct);
+    answered++;
+    if (myCorrectThisRound) { const p = pointsFor(true, myAnsT); score += p; correctCount++; streak++; beep(720, 0.1, 'square', 0.05); }
+    else { streak = 0; beep(200, 0.18, 'sawtooth', 0.05); }
+    if (score > best) { best = score; persist(); }
+    for (let i = 0; i < 4; i++) btns[i].classList.toggle('sel', i === idx);
+    publishMe();
+    renderResult(ri);
+  }
+
+  function onNewRound(round, qi) {
+    curRound = round;
+    myAns = -1; myLocked = false; myCorrectThisRound = false; myAnsT = 0; revealBeeped = false; missedApplied = false;
+    const q = BANK[qi];
+    $('qtext').textContent = q.q;
+    $('cat').textContent = q.c;
+    for (let i = 0; i < 4; i++) {
+      btns[i].querySelector('.lbl').textContent = q.options[i];
+      btns[i].className = 'abtn a' + i;
+      btns[i].querySelector('.cnt').textContent = '0';
+    }
+    $('resultLine').textContent = '';
+    botsAnswerRound(round, qi);
+    publishMe();
+    beep(520, 0.09, 'triangle', 0.045);
+  }
+
+  function everyoneStates() {
+    // returns list of {i,n,ai,r,a,sc,st,c, me?}
+    const arr = [{ i: myId, n: me.n, ai: 0, r: curRound, a: myLocked ? myAns : -1, sc: score, st: streak, c: myCorrectThisRound ? 1 : 0, me: true }];
+    for (const p of peers.values()) arr.push(p);
+    for (const b of bots.values()) arr.push(b);
+    return arr;
+  }
+
+  function renderResult(ri) {
+    const q = BANK[ri.qi];
+    if (ri.answering) {
+      if (myLocked) $('resultLine').innerHTML = myCorrectThisRound
+        ? '<span style="color:#35d07f">Locked in — correct? find out at reveal!</span>'
+        : '<span style="color:#ff9d3c">Locked in — waiting for reveal…</span>';
+      else $('resultLine').innerHTML = '<span style="color:#b58cd6">Pick an answer! (1–4)</span>';
+    } else {
+      // reveal
+      for (let i = 0; i < 4; i++) {
+        btns[i].classList.add('showcnt');
+        if (i === q.correct) btns[i].classList.add('correct');
+        else btns[i].classList.add('wrong');
+      }
+      // counts
+      const counts = [0, 0, 0, 0];
+      for (const s of everyoneStates()) if (s.r === ri.round && s.a >= 0 && s.a < 4) counts[s.a]++;
+      for (let i = 0; i < 4; i++) btns[i].querySelector('.cnt').textContent = counts[i];
+      if (myLocked) {
+        $('resultLine').innerHTML = myCorrectThisRound
+          ? `<span style="color:#35d07f">✓ CORRECT!  +${pointsFor(true, myAnsT)} pts  ${streak > 1 ? '🔥×' + streak : ''}</span>`
+          : `<span style="color:#ff4d6d">✗ Wrong — answer was "${q.options[q.correct].replace(/[<>&]/g, '')}"</span>`;
+      } else {
+        $('resultLine').innerHTML = `<span style="color:#b58cd6">No answer — it was "${q.options[q.correct].replace(/[<>&]/g, '')}"</span>`;
+      }
+    }
+  }
+
+  // ================================================================
+  //  Main loop (rAF) — drives timer bar + phase transitions + HUD
+  // ================================================================
+  let boardT = 0;
+  function frame() {
+    const ri = roundInfo();
+    if (ri.round !== curRound) onNewRound(ri.round, ri.qi);
+    manageBots();
+
+    // reveal transition
+    if (!ri.answering) {
+      if (!missedApplied) { missedApplied = true; if (!myLocked) streak = 0; }
+      if (!revealBeeped) { revealBeeped = true; beep(myLocked && myCorrectThisRound ? 900 : 300, 0.25, 'triangle', 0.05); }
+    }
+    renderResult(ri);
+
+    // timer bar
+    const frac = ri.answering ? (ri.timeLeft / ANSWER) : (ri.timeLeft / REVEAL);
+    const fill = $('timefill');
+    fill.style.width = Math.max(0, Math.min(1, frac)) * 100 + '%';
+    fill.style.background = ri.answering
+      ? 'linear-gradient(90deg,#35d07f,#ffb03a,#ff4d6d)'
+      : 'linear-gradient(90deg,#7a4bd0,#b14bff)';
+
+    // round info
+    $('roundNo').textContent = '#' + (ri.round % 100000);
+    $('phaseTxt').innerHTML = ri.answering
+      ? '<b style="color:#35d07f">ANSWER</b> ' + Math.ceil(ri.timeLeft) + 's'
+      : '<b style="color:#b14bff">REVEAL</b> ' + Math.ceil(ri.timeLeft) + 's';
+
+    // my stat
+    $('scoreTxt').textContent = score;
+    $('bestTxt').textContent = best;
+
+    // counts / scoreboard (throttled)
+    const now = performance.now();
+    if (now - boardT > 400) { boardT = now; updateBoard(); }
+
+    requestAnimationFrame(frame);
+  }
+
+  function updateBoard() {
+    let humans = 1, ais = 0;
+    for (const p of peers.values()) (p.ai ? ais++ : humans++);
+    ais += bots.size;
+    $('onlineN').textContent = (humans + ais);
+    $('humanN').textContent = humans;
+    $('aiN').textContent = ais;
+
+    const rows = everyoneStates()
+      .map(s => ({ s, sc: s.sc || 0 }))
+      .sort((a, b) => b.sc - a.sc).slice(0, 10);
+    $('blist').innerHTML = rows.map((r, i) => {
+      const s = r.s;
+      const flames = s.st >= 2 ? '🔥'.repeat(Math.min(3, s.st - 1)) : '';
+      return `<div class="brow${s.me ? ' me' : ''}">` +
+        `<span class="pos">${i + 1}</span>` +
+        `<span class="nm">${(s.n || '???').replace(/[<>&]/g, '')}</span>` +
+        (s.ai ? '<span class="aitag">AI</span>' : '') +
+        `<span class="fl">${flames}</span>` +
+        `<span class="sc">${r.sc}</span></div>`;
+    }).join('');
+  }
+
+  // boot
+  onNewRound(roundInfo().round, roundInfo().qi);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

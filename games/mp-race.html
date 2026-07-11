@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLOB RACERS — Synchronized Multiplayer Racing · Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0f0f1a; }
+  body { font-family: 'Courier New', ui-monospace, monospace; color: #e8eeff; }
+  canvas { display: block; }
+  .back {
+    position: fixed; top: 10px; left: 12px; z-index: 30;
+    padding: 6px 12px; font-size: 13px; letter-spacing: 1px;
+    color: #e8eeff; text-decoration: none;
+    background: rgba(10,14,26,.6); border: 1px solid rgba(255,255,255,.25); border-radius: 4px;
+  }
+  .back:hover { border-color: #29ffe3; color: #7ffff0; }
+
+  #status {
+    position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 25; display: flex; gap: 9px; align-items: center;
+    background: rgba(8,12,24,.75); border: 1px solid #234a4a; border-radius: 999px;
+    padding: 7px 15px; backdrop-filter: blur(5px); white-space: nowrap;
+  }
+  #status .dot { width: 10px; height: 10px; border-radius: 50%; background: #666; }
+  #status .dot.live { background: #29ffe3; box-shadow: 0 0 10px #29ffe3; animation: pulse 1.6s ease-in-out infinite; }
+  #status .dot.off { background: #ff9d3c; box-shadow: 0 0 10px #ff9d3c; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+  #status b { color: #7ffff0; font-weight: normal; }
+  #status .ai-b { color: #9d6bff; }
+  #status span { font-size: 12.5px; letter-spacing: 1px; }
+
+  #racepill {
+    position: fixed; top: 44px; left: 50%; transform: translateX(-50%);
+    z-index: 24; background: rgba(8,12,24,.7); border: 1px solid #234a4a; border-radius: 999px;
+    padding: 5px 16px; font-size: 12.5px; letter-spacing: 1px; white-space: nowrap;
+    backdrop-filter: blur(5px);
+  }
+  #racepill b { color: #ffd166; font-weight: normal; }
+
+  #panel {
+    position: fixed; top: 84px; right: 12px; z-index: 20;
+    width: 208px; background: rgba(8,12,24,.8);
+    border: 1px solid #234a4a; border-radius: 10px;
+    padding: 10px 12px; backdrop-filter: blur(5px); font-size: 12px;
+  }
+  #panel h3 { font-size: 11px; letter-spacing: 2px; color: #6ec9c9; margin-bottom: 6px; }
+  .prow {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 0; border-bottom: 1px dashed #16283a; white-space: nowrap; overflow: hidden;
+  }
+  .prow:last-child { border-bottom: none; }
+  .prow .pos { color: #6ec9c9; width: 18px; flex: 0 0 18px; text-align: right; }
+  .prow .sw { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px; }
+  .prow .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .prow .lp { color: #ffd166; font-size: 11px; }
+  .prow.me .nm { color: #7ffff0; }
+  .aitag {
+    font-size: 9px; letter-spacing: 1px; color: #cbb2ff;
+    background: rgba(157,107,255,.18); border: 1px solid #9d6bff;
+    border-radius: 4px; padding: 0 4px;
+  }
+  #mystats {
+    position: fixed; bottom: 14px; left: 14px; z-index: 20;
+    background: rgba(8,12,24,.8); border: 1px solid #234a4a; border-radius: 10px;
+    padding: 9px 14px; backdrop-filter: blur(5px); font-size: 13px; line-height: 1.55;
+  }
+  #mystats b { color: #ffd166; font-weight: normal; }
+  #spdwrap { width: 150px; height: 8px; background: #10182a; border-radius: 5px; margin-top: 5px; overflow: hidden; }
+  #spdbar { height: 100%; width: 0%; background: linear-gradient(90deg,#29ffe3,#ffd166,#ff6b35); transition: width .08s linear; }
+  #hint {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 15; font-size: 11.5px; color: #6ec9c9; letter-spacing: 1px;
+    text-shadow: 0 1px 4px rgba(0,0,0,.8); pointer-events: none; text-align: center;
+  }
+  #namebar {
+    position: fixed; top: 84px; left: 12px; z-index: 20;
+    display: flex; gap: 6px; align-items: center;
+    background: rgba(8,12,24,.8); border: 1px solid #234a4a; border-radius: 10px;
+    padding: 7px 10px; backdrop-filter: blur(5px);
+  }
+  #nameInput {
+    width: 108px; font: inherit; font-size: 12.5px;
+    background: #0b0e1e; color: #7ffff0; border: 1px solid #295858;
+    border-radius: 5px; padding: 4px 7px;
+  }
+  #namebar label { font-size: 10.5px; letter-spacing: 1px; color: #6ec9c9; }
+
+  #bigmsg {
+    position: fixed; top: 30%; left: 50%; transform: translateX(-50%);
+    z-index: 26; font-size: clamp(26px, 7vw, 62px); font-weight: bold; letter-spacing: 4px;
+    color: #29ffe3; text-shadow: 0 0 30px rgba(41,255,227,.9), 0 2px 6px rgba(0,0,0,.8);
+    opacity: 0; transition: opacity .18s ease; pointer-events: none; text-align: center;
+  }
+  #bigmsg.show { opacity: 1; }
+
+  #lobby {
+    position: fixed; inset: 0; z-index: 23; display: none;
+    align-items: center; justify-content: center; pointer-events: none;
+  }
+  #lobby.show { display: flex; }
+  #lobbyCard {
+    background: rgba(8,12,24,.86); border: 1px solid #295858; border-radius: 16px;
+    padding: 20px 30px; text-align: center; min-width: 300px; max-width: 88vw;
+    box-shadow: 0 0 40px rgba(41,255,227,.15);
+  }
+  #lobbyCard .cd { font-size: clamp(44px,12vw,90px); color: #29ffe3; line-height: 1;
+    text-shadow: 0 0 30px rgba(41,255,227,.8); }
+  #lobbyCard .cdlbl { font-size: 12px; letter-spacing: 3px; color: #6ec9c9; margin-bottom: 4px; }
+  #podHead { font-size: 13px; letter-spacing: 3px; color: #ffd166; margin: 14px 0 6px; }
+  .podrow { display: flex; align-items: center; gap: 8px; padding: 4px 6px; font-size: 14px;
+    border-bottom: 1px dashed #16283a; }
+  .podrow .medal { width: 22px; text-align: center; }
+  .podrow .pn { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .podrow .pt { color: #7ffff0; font-size: 12px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<canvas id="cv"></canvas>
+
+<div id="status">
+  <span class="dot" id="connDot"></span>
+  <span id="connTxt">connecting…</span>
+  <span>·</span>
+  <span>ONLINE <b id="onlineN">1</b></span>
+  <span>(<b id="humanN">1</b> human · <b class="ai-b" id="aiN">0</b> AI)</span>
+</div>
+<div id="racepill">RACE <b id="raceNo">—</b> · <span id="phaseTxt">…</span></div>
+
+<div id="namebar">
+  <label>NAME</label>
+  <input id="nameInput" maxlength="14">
+</div>
+
+<div id="panel">
+  <h3>LIVE GRID</h3>
+  <div id="plist"></div>
+</div>
+
+<div id="mystats">
+  LAP <b id="myLap">0/3</b> · POS <b id="myPos">—</b><br>
+  WINS <b id="myWins">0</b> · BEST FINISH <b id="myBest">—</b>
+  <div id="spdwrap"><div id="spdbar"></div></div>
+</div>
+
+<div id="bigmsg"></div>
+<div id="lobby"><div id="lobbyCard">
+  <div class="cdlbl">NEXT RACE STARTS IN</div>
+  <div class="cd" id="lobbyCd">10</div>
+  <div id="podWrap"></div>
+</div></div>
+<div id="hint">steer: ← → or A/D · gas: ↑/W · brake: ↓/S · or hold mouse/touch to drive · orange pads = BOOST · 🤖 = AI</div>
+
+<script>
+'use strict';
+(function () {
+  const SAVE_KEY = 'wizzed-mp-race';
+
+  // ================================================================
+  //  Minimal MQTT 3.1.1 client over WebSocket (public brokers, QoS 0)
+  // ================================================================
+  class TinyMQTT {
+    constructor(urls, clientId) {
+      this.urls = urls; this.urlIdx = 0;
+      this.clientId = clientId;
+      this.ws = null; this.buf = new Uint8Array(0);
+      this.connected = false;
+      this.onmessage = null; this.onstatus = null;
+      this.pingTimer = null; this.dead = false;
+      this.connect();
+    }
+    connect() {
+      if (this.dead) return;
+      const url = this.urls[this.urlIdx % this.urls.length];
+      try { this.ws = new WebSocket(url, 'mqtt'); }
+      catch (e) { this.retry(); return; }
+      this.ws.binaryType = 'arraybuffer';
+      const connectTimeout = setTimeout(() => { try { this.ws.close(); } catch (e) {} }, 6000);
+      this.ws.onopen = () => {
+        const cid = this.enc(this.clientId);
+        const varh = new Uint8Array([0, 4, 77, 81, 84, 84, 4, 0x02, 0, 60]);
+        this.send(0x10, this.cat(varh, cid));
+      };
+      this.ws.onmessage = e => { clearTimeout(connectTimeout); this.feed(new Uint8Array(e.data)); };
+      this.ws.onclose = () => { clearTimeout(connectTimeout); this.onDown(); };
+      this.ws.onerror = () => {};
+    }
+    onDown() {
+      this.connected = false;
+      clearInterval(this.pingTimer);
+      if (this.onstatus) this.onstatus(false);
+      this.retry();
+    }
+    retry() {
+      if (this.dead) return;
+      this.urlIdx++;
+      clearTimeout(this.retryT);
+      this.retryT = setTimeout(() => this.connect(), 2500);
+    }
+    close() { this.dead = true; clearInterval(this.pingTimer); try { this.ws.close(); } catch (e) {} }
+    enc(str) {
+      const b = new TextEncoder().encode(str);
+      const out = new Uint8Array(b.length + 2);
+      out[0] = b.length >> 8; out[1] = b.length & 255; out.set(b, 2);
+      return out;
+    }
+    cat(...arrs) {
+      const len = arrs.reduce((a, b) => a + b.length, 0);
+      const out = new Uint8Array(len);
+      let o = 0;
+      for (const a of arrs) { out.set(a, o); o += a.length; }
+      return out;
+    }
+    remLen(n) {
+      const out = [];
+      do { let d = n % 128; n = Math.floor(n / 128); if (n > 0) d |= 128; out.push(d); } while (n > 0);
+      return new Uint8Array(out);
+    }
+    send(type, body) {
+      if (!this.ws || this.ws.readyState !== 1) return;
+      this.ws.send(this.cat(new Uint8Array([type]), this.remLen(body.length), body));
+    }
+    subscribe(filter) {
+      const pid = new Uint8Array([0, 7]);
+      this.send(0x82, this.cat(pid, this.enc(filter), new Uint8Array([0])));
+    }
+    publish(topic, payloadStr) {
+      if (!this.connected) return;
+      const pl = new TextEncoder().encode(payloadStr);
+      this.send(0x30, this.cat(this.enc(topic), pl));
+    }
+    feed(chunk) {
+      this.buf = this.cat(this.buf, chunk);
+      for (;;) {
+        if (this.buf.length < 2) return;
+        let mul = 1, len = 0, pos = 1, ok = false;
+        for (; pos < Math.min(this.buf.length, 5); pos++) {
+          len += (this.buf[pos] & 127) * mul;
+          mul *= 128;
+          if ((this.buf[pos] & 128) === 0) { ok = true; pos++; break; }
+        }
+        if (!ok) return;
+        const total = pos + len;
+        if (this.buf.length < total) return;
+        this.handle(this.buf[0] >> 4, this.buf.slice(pos, total));
+        this.buf = this.buf.slice(total);
+      }
+    }
+    handle(type, body) {
+      if (type === 2) {
+        if (body[1] === 0) {
+          this.connected = true;
+          this.pingTimer = setInterval(() => this.send(0xC0, new Uint8Array(0)), 25000);
+          if (this.onstatus) this.onstatus(true);
+        } else this.retry();
+      } else if (type === 3) {
+        const tlen = (body[0] << 8) | body[1];
+        const topic = new TextDecoder().decode(body.slice(2, 2 + tlen));
+        const payload = new TextDecoder().decode(body.slice(2 + tlen));
+        if (this.onmessage) this.onmessage(topic, payload);
+      }
+    }
+  }
+
+  // ================================================================
+  //  Setup / identity
+  // ================================================================
+  const qsBroker = new URLSearchParams(location.search).get('broker');
+  const BROKERS = qsBroker ? [qsBroker] : [
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://test.mosquitto.org:8081',
+  ];
+  const ROOM = 'wizzed/mp-race/v1/main';
+  const myId = 'p' + Math.random().toString(36).slice(2, 10);
+  const NAMES1 = ['Neon', 'Turbo', 'Pixel', 'Cosmic', 'Disco', 'Laser', 'Mega', 'Hyper', 'Retro', 'Glitch', 'Astro', 'Funky', 'Volt', 'Zippy'];
+  const NAMES2 = ['Blob', 'Comet', 'Fox', 'Racer', 'Wisp', 'Spark', 'Nova', 'Dasher', 'Zoomer', 'Byte', 'Star', 'Bolt', 'Drift', 'Streak'];
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') || {}; } catch (e) {}
+  const rndName = () => NAMES1[Math.random() * NAMES1.length | 0] + NAMES2[Math.random() * NAMES2.length | 0];
+
+  function hashCode(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
+  function hueOf(id) { return ((hashCode(id) % 360) + 360) % 360; }
+
+  const me = {
+    i: myId,
+    n: (saved.name || rndName()).slice(0, 14),
+    c: hueOf(myId),
+    x: 0, y: 0, a: 0, spd: 0,
+    cp: 0, ft: 0, ai: 0, prevFrac: 0, boostT: 0,
+  };
+  let wins = saved.wins || 0;
+  let bestPos = saved.bestPos || 0; // lowest position achieved (1 = win)
+  const peers = new Map();
+  const bots = new Map();
+  let online = false;
+
+  document.getElementById('nameInput').value = me.n;
+  document.getElementById('nameInput').addEventListener('input', e => {
+    me.n = (e.target.value || 'Racer').slice(0, 14); persist();
+  });
+  function persist() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ name: me.n, wins, bestPos })); } catch (e) {}
+  }
+  document.getElementById('myWins').textContent = wins;
+  document.getElementById('myBest').textContent = bestPos ? ('P' + bestPos) : '—';
+
+  // ================================================================
+  //  Seeded RNG + track generation (same track for everyone per race)
+  // ================================================================
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  const N = 180;
+  const TRACK_HALF = 92;
+  let track = null; // {pts, out, inn, cum, segLen, L, boosts, sx, sy, sa, bounds}
+
+  function buildTrack(seed) {
+    const rng = mulberry32((seed | 0) * 2654435761 + 12345);
+    const baseRx = 900 + rng() * 140;
+    const baseRy = 560 + rng() * 120;
+    const nH = 2 + (rng() * 3 | 0);
+    const H = [];
+    for (let k = 0; k < nH; k++) H.push({ f: 2 + (rng() * 4 | 0), amp: 40 + rng() * 150, ph: rng() * Math.PI * 2 });
+    const rot = rng() * Math.PI * 2;
+    const pts = [];
+    for (let i = 0; i < N; i++) {
+      const ang = i / N * Math.PI * 2;
+      let wob = 0;
+      for (const h of H) wob += Math.sin(ang * h.f + h.ph) * h.amp;
+      const r = 1;
+      const px = Math.cos(ang) * (baseRx + wob);
+      const py = Math.sin(ang) * (baseRy + wob) * r;
+      pts.push({ x: px * Math.cos(rot) - py * Math.sin(rot), y: px * Math.sin(rot) + py * Math.cos(rot) });
+    }
+    // tangents / normals / edges
+    const out = [], inn = [], tang = [];
+    for (let i = 0; i < N; i++) {
+      const a = pts[(i - 1 + N) % N], b = pts[(i + 1) % N];
+      let tx = b.x - a.x, ty = b.y - a.y; const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+      tang.push(Math.atan2(ty, tx));
+      const nx = -ty, ny = tx;
+      out.push({ x: pts[i].x + nx * TRACK_HALF, y: pts[i].y + ny * TRACK_HALF });
+      inn.push({ x: pts[i].x - nx * TRACK_HALF, y: pts[i].y - ny * TRACK_HALF });
+    }
+    // arc lengths
+    const segLen = [], cum = [];
+    let L = 0;
+    for (let i = 0; i < N; i++) {
+      cum.push(L);
+      const b = pts[(i + 1) % N];
+      const sl = Math.hypot(b.x - pts[i].x, b.y - pts[i].y);
+      segLen.push(sl); L += sl;
+    }
+    // boost pads
+    const nB = 3 + (rng() * 3 | 0);
+    const boosts = [];
+    const used = new Set();
+    for (let k = 0; k < nB; k++) {
+      let idx = 12 + (rng() * (N - 24) | 0);
+      let guard = 0;
+      while (used.has(idx >> 3) && guard++ < 20) idx = 12 + (rng() * (N - 24) | 0);
+      used.add(idx >> 3);
+      boosts.push({ idx, x: pts[idx].x, y: pts[idx].y, a: tang[idx] });
+    }
+    // bounds
+    let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+    for (const p of out.concat(inn)) { minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y); }
+    // start/finish at index 0
+    return {
+      pts, out, inn, tang, cum, segLen, L, boosts,
+      sx: pts[0].x, sy: pts[0].y, sa: tang[0],
+      bounds: { minX, minY, maxX, maxY, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: maxX - minX, h: maxY - minY },
+    };
+  }
+
+  function projFrac(x, y) {
+    let best = 1e18, bi = 0, bt = 0;
+    const pts = track.pts;
+    for (let i = 0; i < N; i++) {
+      const a = pts[i], b = pts[(i + 1) % N];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const len2 = dx * dx + dy * dy || 1;
+      let t = ((x - a.x) * dx + (y - a.y) * dy) / len2; if (t < 0) t = 0; else if (t > 1) t = 1;
+      const px = a.x + dx * t, py = a.y + dy * t;
+      const d = (x - px) * (x - px) + (y - py) * (y - py);
+      if (d < best) { best = d; bi = i; bt = t; }
+    }
+    const s = track.cum[bi] + track.segLen[bi] * bt;
+    return { frac: s / track.L, dist: Math.sqrt(best), seg: bi };
+  }
+
+  // ================================================================
+  //  Race schedule from wall clock
+  // ================================================================
+  const CYCLE = 40000, LOBBY = 10000, RACE = 30000, LAPS = 3;
+  function sched() {
+    const now = Date.now();
+    const raceNum = Math.floor(now / CYCLE);
+    const p = now % CYCLE;
+    const inLobby = p < LOBBY;
+    return {
+      now, raceNum, p, inLobby,
+      lobbyLeft: inLobby ? LOBBY - p : 0,
+      raceElapsed: inLobby ? 0 : p - LOBBY,
+      raceLeft: inLobby ? RACE : CYCLE - p,
+    };
+  }
+
+  let curRace = -1;
+  let lastPodium = null;
+
+  function stageCar(car) {
+    // deterministic grid slot from id hash
+    const h = Math.abs(hashCode(car.i));
+    const lane = (h % 4) - 1.5;
+    const row = (h >> 2) % 5;
+    const idx = (6 + row * 4) % N;
+    const t = track.tang[idx];
+    const nx = -Math.sin(t), ny = Math.cos(t);
+    car.x = track.pts[idx].x + nx * lane * 34;
+    car.y = track.pts[idx].y + ny * lane * 34;
+    car.a = t;
+    car.spd = 0; car.cp = 0; car.ft = 0; car.boostT = 0;
+    car.prevFrac = projFrac(car.x, car.y).frac;
+  }
+
+  function resetRace(raceNum) {
+    track = buildTrack(raceNum);
+    stageCar(me);
+    for (const b of bots.values()) stageCar(b);
+    fitView();
+  }
+
+  function onNewRace(raceNum) {
+    // snapshot standings of the race that just ended (before reset)
+    if (curRace >= 0 && track) {
+      lastPodium = standings();
+      // record my own result
+      const myEntry = lastPodium.find(e => e.i === myId);
+      if (myEntry) {
+        const pos = myEntry.pos;
+        if (pos === 1) { wins++; }
+        if (!bestPos || pos < bestPos) bestPos = pos;
+        persist();
+        document.getElementById('myWins').textContent = wins;
+        document.getElementById('myBest').textContent = bestPos ? ('P' + bestPos) : '—';
+      }
+    }
+    curRace = raceNum;
+    resetRace(raceNum);
+    goBeeped = false; cdBeepAt = -1;
+  }
+
+  function standings() {
+    const arr = everyone().map(c => ({ i: c.i, n: c.n, c: c.c, ai: c.ai ? 1 : 0, cp: c.cp || 0, ft: c.ft || 0 }));
+    arr.sort((a, b) => {
+      const af = a.ft > 0, bf = b.ft > 0;
+      if (af && bf) return a.ft - b.ft;
+      if (af) return -1; if (bf) return 1;
+      return b.cp - a.cp;
+    });
+    arr.forEach((e, i) => e.pos = i + 1);
+    return arr;
+  }
+
+  // ================================================================
+  //  Networking
+  // ================================================================
+  const mq = new TinyMQTT(BROKERS, 'wz-' + myId);
+  mq.onstatus = up => {
+    online = up;
+    const dot = document.getElementById('connDot'), txt = document.getElementById('connTxt');
+    if (up) { dot.className = 'dot live'; txt.textContent = 'LIVE — global track'; mq.subscribe(ROOM + '/s/#'); }
+    else { dot.className = 'dot off'; txt.textContent = 'OFFLINE — racing AI'; }
+  };
+  mq.onmessage = (topic, payload) => {
+    try {
+      const st = JSON.parse(payload);
+      if (!st || !st.i || st.i === myId) return;
+      if (bots.has(st.i)) return;
+      const prev = peers.get(st.i);
+      st.seen = performance.now();
+      st.rx = prev ? prev.rx : st.x;
+      st.ry = prev ? prev.ry : st.y;
+      st.ra = prev ? prev.ra : (st.a || 0);
+      st.spd = st.spd || 0;
+      peers.set(st.i, st);
+    } catch (e) {}
+  };
+  setInterval(() => {
+    if (!online) return;
+    mq.publish(ROOM + '/s/' + myId, JSON.stringify({
+      i: me.i, n: me.n, c: me.c,
+      x: Math.round(me.x), y: Math.round(me.y), a: +me.a.toFixed(2),
+      cp: +me.cp.toFixed(3), ft: me.ft, ai: 0, spd: Math.round(me.spd),
+    }));
+  }, 160);
+  setInterval(() => {
+    const now = performance.now();
+    for (const [id, p] of peers) if (now - p.seen > 6000) peers.delete(id);
+  }, 1000);
+
+  // ================================================================
+  //  Bots (host = lexicographically-lowest human id)
+  // ================================================================
+  const GRID_TARGET = 6;
+  const BOTNAMES = ['HAL-9', 'BeepBoop', 'Circuit', 'Servo', 'Chip', 'Databyte', 'Sparky', 'Gizmo', 'Rusty', 'Volt', 'Turbo9', 'Nitro'];
+  function humanIds() {
+    const ids = [myId];
+    for (const [id, p] of peers) if (!p.ai) ids.push(id);
+    return ids.sort();
+  }
+  function iAmBotHost() { return humanIds()[0] === myId; }
+  function manageBots() {
+    if (!iAmBotHost()) { if (bots.size) bots.clear(); return; }
+    const humans = humanIds().length;
+    const need = Math.max(0, GRID_TARGET - humans);
+    while (bots.size > need) { const k = bots.keys().next().value; bots.delete(k); }
+    while (bots.size < need) {
+      const bid = 'ai' + Math.random().toString(36).slice(2, 8);
+      const used = new Set([...bots.values()].map(b => b.n));
+      const free = BOTNAMES.filter(n => !used.has('🤖 ' + n));
+      const nm = '🤖 ' + (free.length ? free[Math.random() * free.length | 0] : 'Bot' + bots.size);
+      const b = { i: bid, n: nm, c: hueOf(bid), x: 0, y: 0, a: 0, spd: 0, cp: 0, ft: 0, ai: 1, prevFrac: 0, boostT: 0, skill: 0.86 + Math.random() * 0.2, wob: Math.random() * Math.PI * 2 };
+      bots.set(bid, b);
+      stageCar(b);
+    }
+  }
+  function simBots(dt, racing) {
+    if (!iAmBotHost()) return;
+    for (const b of bots.values()) {
+      if (!racing || b.ft > 0) { b.spd += (0 - b.spd) * Math.min(1, dt * 3); }
+      else {
+        const pr = projFrac(b.x, b.y);
+        // lookahead point
+        const laheadSeg = (pr.seg + 7) % N;
+        b.wob += dt * 1.7;
+        const nx = -Math.sin(track.tang[laheadSeg]), ny = Math.cos(track.tang[laheadSeg]);
+        const wobOff = Math.sin(b.wob) * 26 * (1.2 - b.skill);
+        const tx = track.pts[laheadSeg].x + nx * wobOff;
+        const ty = track.pts[laheadSeg].y + ny * wobOff;
+        const desired = Math.atan2(ty - b.y, tx - b.x);
+        let da = desired - b.a; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+        b.a += Math.max(-3.4 * dt, Math.min(3.4 * dt, da));
+        let cmax = 700 * b.skill;
+        if (pr.dist > TRACK_HALF) cmax = 330;
+        if (b.boostT > 0) { cmax += 350; b.boostT -= dt; }
+        b.spd += (cmax - b.spd) * Math.min(1, dt * 2.4);
+        b.x += Math.cos(b.a) * b.spd * dt;
+        b.y += Math.sin(b.a) * b.spd * dt;
+        // boost pads
+        for (const bp of track.boosts) {
+          if ((b.x - bp.x) ** 2 + (b.y - bp.y) ** 2 < 58 * 58) { b.boostT = 1.1; }
+        }
+        advance(b, racing, dt);
+      }
+    }
+  }
+  setInterval(() => {
+    if (!online || !iAmBotHost()) return;
+    for (const b of bots.values()) {
+      mq.publish(ROOM + '/s/' + b.i, JSON.stringify({
+        i: b.i, n: b.n, c: b.c,
+        x: Math.round(b.x), y: Math.round(b.y), a: +b.a.toFixed(2),
+        cp: +b.cp.toFixed(3), ft: b.ft, ai: 1, spd: Math.round(b.spd),
+      }));
+    }
+  }, 200);
+
+  // progress accumulation shared by me + bots
+  function advance(car, racing, dt) {
+    if (!racing || car.ft > 0) return;
+    const pr = projFrac(car.x, car.y);
+    let d = pr.frac - car.prevFrac;
+    if (d < -0.5) d += 1; else if (d > 0.5) d -= 1;
+    car.cp += d;
+    if (car.cp < 0) car.cp = 0;
+    car.prevFrac = pr.frac;
+    if (car.cp >= LAPS && car.ft === 0) {
+      car.ft = sched().raceElapsed || 1;
+    }
+  }
+
+  // ================================================================
+  //  Helpers
+  // ================================================================
+  function everyone() { const a = [me]; for (const p of peers.values()) a.push(p); for (const b of bots.values()) a.push(b); return a; }
+
+  // ================================================================
+  //  Audio
+  // ================================================================
+  let actx = null;
+  function initAudio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
+  function beep(freq, dur, type, vol) {
+    if (!actx) return;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || 'square'; o.frequency.value = freq;
+    o.connect(g); g.connect(actx.destination);
+    const t = actx.currentTime;
+    g.gain.setValueAtTime(vol || 0.05, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.1));
+    o.start(t); o.stop(t + (dur || 0.1));
+  }
+
+  // ================================================================
+  //  Input
+  // ================================================================
+  const keys = {};
+  addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; initAudio(); if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(e.key.toLowerCase())) e.preventDefault(); });
+  addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+  let pointer = null, pointerDown = false;
+  const cv = document.getElementById('cv');
+  addEventListener('pointermove', e => { pointer = { x: e.clientX, y: e.clientY }; });
+  addEventListener('pointerdown', e => { pointer = { x: e.clientX, y: e.clientY }; pointerDown = true; initAudio(); });
+  addEventListener('pointerup', () => { pointerDown = false; });
+  addEventListener('pointercancel', () => { pointerDown = false; });
+
+  // ================================================================
+  //  View / render
+  // ================================================================
+  const ctx = cv.getContext('2d');
+  let view = { scale: 0.3, ox: 0, oy: 0 };
+  function resize() { cv.width = innerWidth; cv.height = innerHeight; fitView(); }
+  function fitView() {
+    if (!track) return;
+    const W = cv.width, H = cv.height;
+    const pad = 70;
+    const sx = (W - pad * 2) / (track.bounds.w || 1);
+    const sy = (H - pad * 2) / (track.bounds.h || 1);
+    view.scale = Math.min(sx, sy);
+    view.ox = W / 2 - track.bounds.cx * view.scale;
+    view.oy = H / 2 - track.bounds.cy * view.scale;
+  }
+  addEventListener('resize', resize);
+  const S = (x) => x * view.scale;
+  const WX = (x) => x * view.scale + view.ox;
+  const WY = (y) => y * view.scale + view.oy;
+
+  let bigT;
+  function bigmsg(t, col) {
+    const el = document.getElementById('bigmsg');
+    el.textContent = t; el.style.color = col || '#29ffe3'; el.classList.add('show');
+    clearTimeout(bigT); bigT = setTimeout(() => el.classList.remove('show'), 1400);
+  }
+
+  // ================================================================
+  //  Main loop
+  // ================================================================
+  let last = performance.now();
+  let goBeeped = false, cdBeepAt = -1;
+  const boostFx = [];
+
+  function frame(now) {
+    let dt = (now - last) / 1000; last = now;
+    if (dt > 0.05) dt = 0.05;
+    const s = sched();
+    if (s.raceNum !== curRace) onNewRace(s.raceNum);
+    const racing = !s.inLobby;
+
+    // countdown beeps
+    if (s.inLobby) {
+      const secs = Math.ceil(s.lobbyLeft / 1000);
+      if (secs <= 3 && secs !== cdBeepAt) { cdBeepAt = secs; beep(520, 0.12, 'square', 0.05); }
+    } else if (!goBeeped) { goBeeped = true; beep(880, 0.22, 'sawtooth', 0.06); bigmsg('GO!', '#29ffe3'); }
+
+    manageBots();
+
+    // ----- control me -----
+    if (racing && me.ft === 0) {
+      let turn = 0, throttle = 0;
+      if (keys['arrowleft'] || keys['a']) turn -= 1;
+      if (keys['arrowright'] || keys['d']) turn += 1;
+      if (keys['arrowup'] || keys['w']) throttle = 1;
+      if (keys['arrowdown'] || keys['s']) throttle = -1;
+      if (turn === 0 && throttle === 0 && pointerDown && pointer) {
+        const wx = (pointer.x - view.ox) / view.scale, wy = (pointer.y - view.oy) / view.scale;
+        const desired = Math.atan2(wy - me.y, wx - me.x);
+        let da = desired - me.a; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+        turn = Math.max(-1, Math.min(1, da * 2));
+        throttle = 1;
+      }
+      const turnRate = 3.1 * (0.45 + 0.55 * Math.min(1, me.spd / 300));
+      me.a += turn * turnRate * dt;
+      const pr = projFrac(me.x, me.y);
+      let cmax = pr.dist > TRACK_HALF ? 320 : 700;
+      if (me.boostT > 0) { cmax += 360; me.boostT -= dt; }
+      let target = throttle > 0 ? cmax : (throttle < 0 ? -170 : 0);
+      const ease = throttle > 0 ? 2.6 : (throttle < 0 ? 4.2 : 1.6);
+      me.spd += (target - me.spd) * Math.min(1, dt * ease);
+      me.x += Math.cos(me.a) * me.spd * dt;
+      me.y += Math.sin(me.a) * me.spd * dt;
+      // boost pads
+      for (const bp of track.boosts) {
+        if ((me.x - bp.x) ** 2 + (me.y - bp.y) ** 2 < 58 * 58 && me.boostT <= 0.2) {
+          me.boostT = 1.15; beep(660, 0.14, 'sawtooth', 0.05);
+          boostFx.push({ x: me.x, y: me.y, t: 0 });
+        }
+      }
+      const wasLap = Math.floor(me.cp);
+      advance(me, racing, dt);
+      if (Math.floor(me.cp) > wasLap && me.cp < LAPS) beep(720, 0.12, 'square', 0.05);
+      if (me.ft > 0 && wasLap < LAPS) { bigmsg('FINISH!', '#ffd166'); beep(980, 0.3, 'triangle', 0.06); }
+    } else {
+      me.spd += (0 - me.spd) * Math.min(1, dt * 4);
+      if (s.inLobby) { /* stay staged */ }
+    }
+
+    simBots(dt, racing);
+
+    // interpolate peers
+    for (const p of peers.values()) {
+      p.rx += (p.x - p.rx) * Math.min(1, dt * 9);
+      p.ry += (p.y - p.ry) * Math.min(1, dt * 9);
+      let da = (p.a || 0) - p.ra; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+      p.ra += da * Math.min(1, dt * 9);
+    }
+
+    draw(now / 1000, s, racing);
+    updateHud(s);
+    requestAnimationFrame(frame);
+  }
+
+  function draw(t, s, racing) {
+    const W = cv.width, H = cv.height;
+    // bg
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#0c1020'); g.addColorStop(1, '#0f0f1a');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    if (!track) return;
+
+    // road surface (ring fill between edges)
+    ctx.beginPath();
+    ctx.moveTo(WX(track.out[0].x), WY(track.out[0].y));
+    for (let i = 1; i < N; i++) ctx.lineTo(WX(track.out[i].x), WY(track.out[i].y));
+    ctx.lineTo(WX(track.out[0].x), WY(track.out[0].y));
+    for (let i = N - 1; i >= 0; i--) ctx.lineTo(WX(track.inn[i].x), WY(track.inn[i].y));
+    ctx.closePath();
+    ctx.fillStyle = '#151a30'; ctx.fill();
+
+    // neon edges
+    ctx.save();
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.shadowColor = '#29ffe3'; ctx.shadowBlur = 12; ctx.strokeStyle = '#29ffe3'; ctx.lineWidth = 3;
+    for (const edge of [track.out, track.inn]) {
+      ctx.beginPath();
+      ctx.moveTo(WX(edge[0].x), WY(edge[0].y));
+      for (let i = 1; i < N; i++) ctx.lineTo(WX(edge[i].x), WY(edge[i].y));
+      ctx.closePath(); ctx.stroke();
+    }
+    ctx.restore();
+
+    // center dashes
+    ctx.save();
+    ctx.setLineDash([S(26), S(26)]);
+    ctx.strokeStyle = 'rgba(120,200,255,0.25)'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(WX(track.pts[0].x), WY(track.pts[0].y));
+    for (let i = 1; i < N; i++) ctx.lineTo(WX(track.pts[i].x), WY(track.pts[i].y));
+    ctx.closePath(); ctx.stroke();
+    ctx.restore();
+
+    // start/finish line
+    (function () {
+      const t0 = track.sa; const nx = -Math.sin(t0), ny = Math.cos(t0);
+      const ax = track.sx + nx * TRACK_HALF, ay = track.sy + ny * TRACK_HALF;
+      const bx = track.sx - nx * TRACK_HALF, by = track.sy - ny * TRACK_HALF;
+      const segs = 8;
+      for (let i = 0; i < segs; i++) {
+        ctx.fillStyle = i % 2 ? '#e8eeff' : '#20263e';
+        const x1 = ax + (bx - ax) * (i / segs), y1 = ay + (by - ay) * (i / segs);
+        const x2 = ax + (bx - ax) * ((i + 1) / segs), y2 = ay + (by - ay) * ((i + 1) / segs);
+        ctx.save();
+        ctx.beginPath();
+        const dx = Math.cos(t0) * S(9), dy = Math.sin(t0) * S(9);
+        ctx.moveTo(WX(x1) - dx, WY(y1) - dy); ctx.lineTo(WX(x2) - dx, WY(y2) - dy);
+        ctx.lineTo(WX(x2) + dx, WY(y2) + dy); ctx.lineTo(WX(x1) + dx, WY(y1) + dy);
+        ctx.closePath(); ctx.fill(); ctx.restore();
+      }
+    })();
+
+    // boost pads
+    for (const bp of track.boosts) {
+      const pulse = 0.6 + 0.4 * Math.sin(t * 6 + bp.idx);
+      ctx.save();
+      ctx.translate(WX(bp.x), WY(bp.y)); ctx.rotate(bp.a);
+      ctx.shadowColor = '#ff9d3c'; ctx.shadowBlur = 16;
+      ctx.fillStyle = `rgba(255,157,60,${0.55 + pulse * 0.35})`;
+      for (let c = 0; c < 3; c++) {
+        const ox = S(-14 + c * 12);
+        ctx.beginPath();
+        ctx.moveTo(ox, S(-18)); ctx.lineTo(ox + S(11), 0); ctx.lineTo(ox, S(18));
+        ctx.lineTo(ox + S(5), 0); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // boost fx
+    for (let i = boostFx.length - 1; i >= 0; i--) {
+      const f = boostFx[i]; f.t += 0.03;
+      if (f.t > 1) { boostFx.splice(i, 1); continue; }
+      ctx.strokeStyle = `rgba(255,157,60,${1 - f.t})`; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(WX(f.x), WY(f.y), S(10 + f.t * 40), 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // cars
+    const list = everyone();
+    // draw non-me first
+    const ordered = list.slice().sort((a, b) => (a.i === myId ? 1 : 0) - (b.i === myId ? 1 : 0));
+    for (const c of ordered) {
+      const isMe = c.i === myId;
+      const x = isMe ? c.x : (c.rx !== undefined ? c.rx : c.x);
+      const y = isMe ? c.y : (c.ry !== undefined ? c.ry : c.y);
+      const a = isMe ? c.a : (c.ra !== undefined ? c.ra : (c.a || 0));
+      const sx = WX(x), sy = WY(y);
+      const R = Math.max(7, S(15));
+      const col = `hsl(${c.c},90%,62%)`;
+      // trail
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.strokeStyle = col; ctx.lineWidth = R * 0.8; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx - Math.cos(a) * R * 1.6, sy - Math.sin(a) * R * 1.6); ctx.stroke();
+      ctx.restore();
+      // body
+      ctx.save();
+      if (isMe) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 8; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; }
+      ctx.shadowColor = col; ctx.shadowBlur = 16;
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.arc(sx, sy, R, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+      if (isMe) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, R + 2, 0, Math.PI * 2); ctx.stroke(); }
+      // direction nub
+      ctx.fillStyle = '#10131f';
+      ctx.beginPath(); ctx.arc(sx + Math.cos(a) * R * 0.5, sy + Math.sin(a) * R * 0.5, R * 0.28, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      // ai / name
+      if (c.ai) { ctx.font = Math.round(R * 0.9) + 'px serif'; ctx.textAlign = 'center'; ctx.fillText('🤖', sx + R + 4, sy - R + 2); }
+      ctx.font = 'bold 11px Courier New'; ctx.textAlign = 'center';
+      ctx.fillStyle = isMe ? '#7ffff0' : 'rgba(232,238,255,0.9)';
+      ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 4;
+      ctx.fillText((c.n || '???').replace(/[<>&]/g, ''), sx, sy - R - 6);
+      ctx.shadowBlur = 0;
+    }
+
+    // lobby countdown handled in HUD (DOM). show subtle overlay text during race top
+  }
+
+  let hudT = 0;
+  function updateHud(s) {
+    document.getElementById('raceNo').textContent = '#' + (s.raceNum % 100000);
+    const secs = s.inLobby ? Math.ceil(s.lobbyLeft / 1000) : Math.ceil(s.raceLeft / 1000);
+    document.getElementById('phaseTxt').innerHTML = s.inLobby
+      ? '<b style="color:#29ffe3">LOBBY</b> · GO IN ' + secs + 's'
+      : '<b style="color:#ffd166">RACING</b> · ' + secs + 's left';
+
+    // lobby overlay
+    const lob = document.getElementById('lobby');
+    if (s.inLobby) {
+      lob.classList.add('show');
+      document.getElementById('lobbyCd').textContent = Math.ceil(s.lobbyLeft / 1000);
+      if (lastPodium) {
+        const medals = ['🥇', '🥈', '🥉'];
+        const rows = lastPodium.slice(0, 5).map((e, i) =>
+          `<div class="podrow"><span class="medal">${medals[i] || (i + 1)}</span>` +
+          `<span class="pn"${e.i === myId ? ' style="color:#7ffff0"' : ''}>${(e.n || '???').replace(/[<>&]/g, '')}${e.ai ? ' <span class="aitag">AI</span>' : ''}</span>` +
+          `<span class="pt">${e.ft > 0 ? (e.ft / 1000).toFixed(1) + 's' : (e.cp).toFixed(2) + ' lap'}</span></div>`).join('');
+        document.getElementById('podWrap').innerHTML = '<div id="podHead">◆ LAST RACE PODIUM ◆</div>' + rows;
+      } else {
+        document.getElementById('podWrap').innerHTML = '<div id="podHead">FIRST RACE — GET READY</div>';
+      }
+    } else lob.classList.remove('show');
+
+    // counts
+    let humans = 1, ais = 0;
+    for (const p of peers.values()) (p.ai ? ais++ : humans++);
+    ais += bots.size;
+    document.getElementById('onlineN').textContent = (humans + ais);
+    document.getElementById('humanN').textContent = humans;
+    document.getElementById('aiN').textContent = ais;
+
+    // my lap/pos
+    const st = standings();
+    const myE = st.find(e => e.i === myId);
+    document.getElementById('myLap').textContent = Math.min(LAPS, Math.floor(me.cp) + (me.ft > 0 ? 0 : (s.inLobby ? 0 : 1))) + '/' + LAPS;
+    if (me.ft > 0) document.getElementById('myLap').textContent = 'DONE';
+    document.getElementById('myPos').textContent = myE ? (myE.pos + '/' + st.length) : '—';
+    document.getElementById('spdbar').style.width = Math.min(100, Math.abs(me.spd) / 1060 * 100) + '%';
+
+    // live grid panel
+    const now = performance.now();
+    if (now - hudT > 350) {
+      hudT = now;
+      const rows = st.slice(0, 9).map(e => {
+        const lapTxt = e.ft > 0 ? (e.ft / 1000).toFixed(1) + 's' : ('L' + Math.min(LAPS, Math.floor(e.cp) + 1));
+        return `<div class="prow${e.i === myId ? ' me' : ''}">` +
+          `<span class="pos">${e.pos}</span>` +
+          `<span class="sw" style="background:hsl(${e.c},90%,62%)"></span>` +
+          `<span class="nm">${(e.n || '???').replace(/[<>&]/g, '')}</span>` +
+          (e.ai ? '<span class="aitag">AI</span>' : '') +
+          `<span class="lp">${lapTxt}</span></div>`;
+      }).join('');
+      document.getElementById('plist').innerHTML = rows;
+    }
+  }
+
+  // boot
+  resize();
+  onNewRace(sched().raceNum);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

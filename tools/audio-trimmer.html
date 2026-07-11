@@ -323,14 +323,21 @@ function render(){
   const gradDim=ctx2d.createLinearGradient(0,0,0,ch);
   gradDim.addColorStop(0,'#1c4a3a'); gradDim.addColorStop(0.5,'#123a2c'); gradDim.addColorStop(1,'#1c4a3a');
   const amp=mid*0.92;
+  // dim pass (outside selection), then bright pass (inside) — batched into single paths
+  ctx2d.strokeStyle=gradDim; ctx2d.beginPath();
   for(let x=0;x<peakW;x++){
-    const inSel = x>=sX && x<=eX;
-    ctx2d.strokeStyle= inSel? grad : gradDim;
-    let mn=peaks[x*2], mx=peaks[x*2+1];
-    let y1=mid - mx*amp, y2=mid - mn*amp;
-    if(y2-y1<1) y2=y1+1;
-    ctx2d.beginPath(); ctx2d.moveTo(x+.5,y1); ctx2d.lineTo(x+.5,y2); ctx2d.stroke();
+    if(x>=sX && x<=eX) continue;
+    let y1=mid-peaks[x*2+1]*amp, y2=mid-peaks[x*2]*amp; if(y2-y1<1) y2=y1+1;
+    ctx2d.moveTo(x+.5,y1); ctx2d.lineTo(x+.5,y2);
   }
+  ctx2d.stroke();
+  ctx2d.strokeStyle=grad; ctx2d.beginPath();
+  for(let x=0;x<peakW;x++){
+    if(x<sX || x>eX) continue;
+    let y1=mid-peaks[x*2+1]*amp, y2=mid-peaks[x*2]*amp; if(y2-y1<1) y2=y1+1;
+    ctx2d.moveTo(x+.5,y1); ctx2d.lineTo(x+.5,y2);
+  }
+  ctx2d.stroke();
 
   // fade indicators inside selection
   if(audioBuffer){
@@ -470,10 +477,8 @@ function nearestHandle(x){
 }
 function applyHandle(which,x){
   const t=xToTime(x);
-  if(which==='S') selStart=Math.min(t, selEnd-0.02<0?selEnd:selEnd);
+  if(which==='S') selStart=Math.min(t, selEnd);
   else selEnd=Math.max(t, selStart);
-  if(which==='S'){ selStart=Math.min(t, selEnd); }
-  if(which==='E'){ selEnd=Math.max(t, selStart); }
   updateReadouts(); render();
 }
 function onDown(ev){
@@ -491,9 +496,6 @@ function onMove(ev){
 function onUp(){ dragging=null; saveSettings(); }
 
 /* ---------- wire up ---------- */
-function toggleBtn(el,get,set){
-  el.addEventListener('click',()=>{ set(!get()); el.classList.toggle('on',get()); saveSettings(); render(); });
-}
 function initButtons(){
   $('fadeInBtn').classList.toggle('on',fadeIn);
   $('fadeOutBtn').classList.toggle('on',fadeOut);
@@ -533,7 +535,10 @@ const drop=$('drop');
 drop.addEventListener('drop',e=>{ e.preventDefault(); drop.classList.remove('dragover'); const f=e.dataTransfer.files[0]; if(f) loadFile(f); });
 
 document.addEventListener('keydown',e=>{
-  if(e.code==='Space' && document.activeElement.tagName!=='INPUT'){ e.preventDefault(); togglePreview(); }
+  if(e.code!=='Space') return;
+  const tn=document.activeElement? document.activeElement.tagName:'';
+  if(tn==='INPUT'||tn==='BUTTON'||tn==='A') return; // let native activation handle it
+  e.preventDefault(); togglePreview();
 });
 window.addEventListener('resize',resizeCanvas);
 

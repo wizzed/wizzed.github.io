@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DJ Pads · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ff2d78; --accent-soft:rgba(255,45,120,.45);
+  --panel:#16121d; --line:#33223a; --text:#ffe9f2; --dim:#a9849a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow:hidden; display:flex; flex-direction:column;
+}
+#bg{ position:fixed; inset:0; z-index:0; width:100%; height:100%; }
+a.back{
+  position:fixed; top:10px; left:12px; z-index:80;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 2px; position:relative; z-index:5; }
+h1{
+  display:inline-block; font-size:clamp(17px,3.2vw,28px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 8px var(--accent), 0 0 28px var(--accent-soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:3px; margin-top:2px; }
+#controls{
+  position:relative; z-index:5; display:flex; gap:16px; justify-content:center; align-items:center;
+  flex-wrap:wrap; padding:8px 12px;
+}
+.knobWrap{ display:flex; flex-direction:column; align-items:center; gap:3px; }
+.knob{
+  width:52px; height:52px; border-radius:50%; position:relative; cursor:ns-resize;
+  background:radial-gradient(circle at 40% 35%, #3a2030, #140b14);
+  border:2px solid var(--accent); box-shadow:0 0 14px var(--accent-soft), inset 0 0 10px rgba(0,0,0,.7);
+  touch-action:none;
+}
+.knob .ind{ position:absolute; left:50%; top:5px; width:3px; height:20px; margin-left:-1.5px; background:var(--accent); box-shadow:0 0 8px var(--accent); transform-origin:50% 21px; }
+.knobWrap .lbl{ font-size:9px; letter-spacing:1px; color:var(--dim); }
+.knobWrap .val{ font-size:10px; color:var(--accent); }
+button{
+  font-family:inherit; font-size:12px; letter-spacing:1px; cursor:pointer;
+  background:#1a1320; color:var(--text); border:2px solid var(--line); padding:9px 12px;
+  text-transform:uppercase;
+}
+button:hover:not(:disabled){ border-color:var(--accent); color:var(--accent); text-shadow:0 0 6px var(--accent); }
+button:active:not(:disabled){ transform:translateY(1px); }
+button:disabled{ opacity:.4; cursor:not-allowed; }
+#recBtn.armed{ border-color:#ff4444; color:#ff4444; box-shadow:0 0 14px #ff4444; animation:blink 1s steps(2) infinite; }
+@keyframes blink{ 50%{ opacity:.45; } }
+#recInfo{ font-size:10px; color:var(--dim); letter-spacing:1px; min-width:80px; }
+#padArea{ position:relative; z-index:5; flex:1; display:flex; align-items:center; justify-content:center; padding:6px 12px 14px; }
+#padGrid{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:10px;
+  width:min(520px, 94vw, 74vh); aspect-ratio:1/1;
+}
+.pad{
+  position:relative; border-radius:8px; border:2px solid; cursor:pointer; overflow:hidden;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+  background:#140c14; user-select:none; -webkit-user-select:none; touch-action:manipulation;
+  transition:transform .04s;
+  animation:idle 3.4s ease-in-out infinite;
+}
+@keyframes idle{ 0%,100%{ filter:brightness(.92); } 50%{ filter:brightness(1.05); } }
+.pad .key{ font-size:13px; font-weight:bold; opacity:.9; }
+.pad .name{ font-size:9px; letter-spacing:.5px; text-align:center; padding:0 2px; opacity:.85; line-height:1.15; }
+.pad.hit{ transform:scale(.94); }
+.pad .ripple{ position:absolute; left:50%; top:50%; width:8px; height:8px; border-radius:50%; transform:translate(-50%,-50%) scale(1); pointer-events:none; opacity:.9; }
+@keyframes rip{ from{ transform:translate(-50%,-50%) scale(1); opacity:.85; } to{ transform:translate(-50%,-50%) scale(24); opacity:0; } }
+@media (max-width:520px){ #padGrid{ width:min(96vw, 70vh); gap:7px; } .pad .name{ font-size:8px; } }
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>DJ PADS</h1>
+  <div class="sub">16-PAD NEON LAUNCHPAD · ALL SYNTHESIZED · KEYS 1234 QWER ASDF ZXCV</div>
+</header>
+<div id="controls">
+  <div class="knobWrap">
+    <div class="knob" id="volKnob"><div class="ind"></div></div>
+    <div class="lbl">VOLUME</div><div class="val" id="volVal">80</div>
+  </div>
+  <div class="knobWrap">
+    <div class="knob" id="filtKnob"><div class="ind"></div></div>
+    <div class="lbl">FILTER</div><div class="val" id="filtVal">OPEN</div>
+  </div>
+  <button id="recBtn">⏺ Record</button>
+  <button id="replayBtn" disabled>▶ Replay</button>
+  <span id="recInfo">no take yet</span>
+</div>
+<div id="padArea"><div id="padGrid"></div></div>
+
+<script>
+(function(){
+"use strict";
+var AC=window.AudioContext||window.webkitAudioContext;
+var LS_KEY='wizzed-dj-pads';
+function loadLS(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'{}'); }catch(e){ return {}; } }
+function saveLS(o){ try{ localStorage.setItem(LS_KEY, JSON.stringify(o)); }catch(e){} }
+var prefs=loadLS();
+
+var A=null, filter=null, master=null, NOISE=null;
+var volV = (prefs.vol!=null)?prefs.vol:0.8;   // 0..1
+var filtV= (prefs.filt!=null)?prefs.filt:1.0; // 0..1 -> 200..16000 Hz
+function filterFreq(v){ return 200*Math.pow(80, v); }
+function audio(){
+  if(!A){
+    A=new AC();
+    filter=A.createBiquadFilter(); filter.type='lowpass'; filter.frequency.value=filterFreq(filtV); filter.Q.value=0.6;
+    master=A.createGain(); master.gain.value=volV;
+    filter.connect(master); master.connect(A.destination);
+    NOISE=A.createBuffer(1, Math.floor(A.sampleRate*2), A.sampleRate);
+    var d=NOISE.getChannelData(0);
+    for(var i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+  }
+  if(A.state==='suspended') A.resume();
+  return A;
+}
+function noiseSrc(){ var s=A.createBufferSource(); s.buffer=NOISE; return s; }
+
+/* ---------- synths (connect to `filter`) ---------- */
+function sKick(t){ var o=A.createOscillator(),g=A.createGain(); o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(45,t+0.11); g.gain.setValueAtTime(0.9,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.32); o.connect(g).connect(filter); o.start(t); o.stop(t+0.34); }
+function sSnare(t){
+  var n=noiseSrc(), hp=A.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=1200;
+  var g=A.createGain(); g.gain.setValueAtTime(0.6,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+  n.connect(hp).connect(g).connect(filter); n.start(t); n.stop(t+0.22);
+  var o=A.createOscillator(),g2=A.createGain(); o.type='triangle'; o.frequency.setValueAtTime(180,t);
+  g2.gain.setValueAtTime(0.4,t); g2.gain.exponentialRampToValueAtTime(0.001,t+0.12); o.connect(g2).connect(filter); o.start(t); o.stop(t+0.14);
+}
+function sClap(t){
+  for(var k=0;k<3;k++){ var tt=t+k*0.02; var n=noiseSrc(), bp=A.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1500; bp.Q.value=1.3;
+    var g=A.createGain(); g.gain.setValueAtTime(0.5,tt); g.gain.exponentialRampToValueAtTime(0.001,tt+0.05); n.connect(bp).connect(g).connect(filter); n.start(tt); n.stop(tt+0.06); }
+  var n2=noiseSrc(), bp2=A.createBiquadFilter(); bp2.type='bandpass'; bp2.frequency.value=1200; var g2=A.createGain(); g2.gain.setValueAtTime(0.3,t+0.05); g2.gain.exponentialRampToValueAtTime(0.001,t+0.2); n2.connect(bp2).connect(g2).connect(filter); n2.start(t+0.05); n2.stop(t+0.22);
+}
+function sHat(t, open){ var n=noiseSrc(), hp=A.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=7000; var g=A.createGain(); var d=open?0.32:0.05; g.gain.setValueAtTime(0.4,t); g.gain.exponentialRampToValueAtTime(0.001,t+d); n.connect(hp).connect(g).connect(filter); n.start(t); n.stop(t+d+0.02); }
+function sTom(t){ var o=A.createOscillator(),g=A.createGain(); o.type='sine'; o.frequency.setValueAtTime(200,t); o.frequency.exponentialRampToValueAtTime(90,t+0.2); g.gain.setValueAtTime(0.7,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.3); o.connect(g).connect(filter); o.start(t); o.stop(t+0.32); }
+function sRim(t){ var o=A.createOscillator(),g=A.createGain(); o.type='square'; o.frequency.setValueAtTime(400,t); g.gain.setValueAtTime(0.4,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.05); var bp=A.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1700; bp.Q.value=2; o.connect(bp).connect(g).connect(filter); o.start(t); o.stop(t+0.06); }
+function sCowbell(t){ var g=A.createGain(); g.gain.setValueAtTime(0.4,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.3); var bp=A.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=720; bp.Q.value=1.5; [560,845].forEach(function(fr){ var o=A.createOscillator(); o.type='square'; o.frequency.value=fr; o.connect(bp); o.start(t); o.stop(t+0.32); }); bp.connect(g).connect(filter); }
+function sSub(t){ var o=A.createOscillator(),g=A.createGain(); o.type='sine'; o.frequency.setValueAtTime(120,t); o.frequency.exponentialRampToValueAtTime(28,t+0.6); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.9,t+0.03); g.gain.exponentialRampToValueAtTime(0.001,t+0.7); o.connect(g).connect(filter); o.start(t); o.stop(t+0.72); }
+function sLaser(t){ var o=A.createOscillator(),g=A.createGain(); o.type='sawtooth'; o.frequency.setValueAtTime(1800,t); o.frequency.exponentialRampToValueAtTime(120,t+0.25); g.gain.setValueAtTime(0.3,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.28); o.connect(g).connect(filter); o.start(t); o.stop(t+0.3); }
+function sRiser(t){
+  var n=noiseSrc(), bp=A.createBiquadFilter(); bp.type='bandpass'; bp.frequency.setValueAtTime(400,t); bp.frequency.exponentialRampToValueAtTime(8000,t+1.0); bp.Q.value=2;
+  var g=A.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.35,t+0.9); g.gain.exponentialRampToValueAtTime(0.001,t+1.15); n.connect(bp).connect(g).connect(filter); n.start(t); n.stop(t+1.2);
+  var o=A.createOscillator(),g2=A.createGain(); o.type='sawtooth'; o.frequency.setValueAtTime(200,t); o.frequency.exponentialRampToValueAtTime(1600,t+1.0); g2.gain.setValueAtTime(0.0001,t); g2.gain.linearRampToValueAtTime(0.12,t+0.9); g2.gain.exponentialRampToValueAtTime(0.001,t+1.1); o.connect(g2).connect(filter); o.start(t); o.stop(t+1.15);
+}
+function sVinyl(t){
+  var o=A.createOscillator(),g=A.createGain(); o.type='sawtooth'; o.frequency.setValueAtTime(240,t); o.frequency.exponentialRampToValueAtTime(18,t+0.5); g.gain.setValueAtTime(0.4,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.55); var lp=A.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1300; o.connect(lp).connect(g).connect(filter); o.start(t); o.stop(t+0.57);
+  var n=noiseSrc(); n.playbackRate.setValueAtTime(1,t); n.playbackRate.exponentialRampToValueAtTime(0.05,t+0.5); var g3=A.createGain(); g3.gain.setValueAtTime(0.12,t); g3.gain.exponentialRampToValueAtTime(0.001,t+0.5); var lp2=A.createBiquadFilter(); lp2.type='lowpass'; lp2.frequency.value=900; n.connect(lp2).connect(g3).connect(filter); n.start(t); n.stop(t+0.52);
+}
+function sAirHorn(t){
+  var g=A.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.28,t+0.03); g.gain.setValueAtTime(0.28,t+0.5); g.gain.exponentialRampToValueAtTime(0.001,t+0.72);
+  var lp=A.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=3200;
+  [370,555,740].forEach(function(fr){ var o=A.createOscillator(); o.type='sawtooth'; o.frequency.value=fr; var lfo=A.createOscillator(), lg=A.createGain(); lfo.frequency.value=6; lg.gain.value=7; lfo.connect(lg).connect(o.frequency); lfo.start(t); lfo.stop(t+0.74); o.connect(g); o.start(t); o.stop(t+0.74); });
+  g.connect(lp).connect(filter);
+}
+function sCrash(t){ var n=noiseSrc(), hp=A.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=5000; var g=A.createGain(); g.gain.setValueAtTime(0.5,t); g.gain.exponentialRampToValueAtTime(0.001,t+1.2); n.connect(hp).connect(g).connect(filter); n.start(t); n.stop(t+1.25); }
+function sStab(t, iv){
+  var root=57; var g=A.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.22,t+0.02); g.gain.exponentialRampToValueAtTime(0.001,t+0.5);
+  var lp=A.createBiquadFilter(); lp.type='lowpass'; lp.frequency.setValueAtTime(3000,t); lp.frequency.exponentialRampToValueAtTime(650,t+0.4); lp.Q.value=1;
+  iv.forEach(function(n){ var f=440*Math.pow(2,(root+n-69)/12); [0,8].forEach(function(det){ var o=A.createOscillator(); o.type='sawtooth'; o.frequency.value=f; o.detune.value=det; o.connect(lp); o.start(t); o.stop(t+0.52); }); });
+  lp.connect(g).connect(filter);
+}
+
+var PADS=[
+  {name:'KICK', fn:sKick},
+  {name:'SNARE', fn:sSnare},
+  {name:'CLAP', fn:sClap},
+  {name:'CLOSED HAT', fn:function(t){ sHat(t,false); }},
+  {name:'OPEN HAT', fn:function(t){ sHat(t,true); }},
+  {name:'TOM', fn:sTom},
+  {name:'RIMSHOT', fn:sRim},
+  {name:'COWBELL', fn:sCowbell},
+  {name:'SUB DROP', fn:sSub},
+  {name:'LASER ZAP', fn:sLaser},
+  {name:'RISER', fn:sRiser},
+  {name:'VINYL STOP', fn:sVinyl},
+  {name:'AIR HORN', fn:sAirHorn},
+  {name:'CRASH', fn:sCrash},
+  {name:'MIN STAB', fn:function(t){ sStab(t,[0,3,7]); }},
+  {name:'MAJ STAB', fn:function(t){ sStab(t,[0,4,7]); }}
+];
+var KEYS=['1','2','3','4','Q','W','E','R','A','S','D','F','Z','X','C','V'];
+var KEYMAP={};
+KEYS.forEach(function(k,i){ KEYMAP[k.toLowerCase()]=i; });
+
+/* ---------- pad UI ---------- */
+var grid=document.getElementById('padGrid');
+var padEls=[];
+PADS.forEach(function(p,i){
+  var hue=Math.round(i/16*330);
+  var el=document.createElement('div'); el.className='pad';
+  el.style.borderColor='hsl('+hue+',90%,60%)';
+  el.style.color='hsl('+hue+',90%,78%)';
+  el.style.boxShadow='0 0 10px hsla('+hue+',90%,55%,.28), inset 0 0 14px rgba(0,0,0,.55)';
+  el.style.animationDelay=(i*0.12)+'s';
+  el.innerHTML='<div class="key">'+KEYS[i]+'</div><div class="name">'+p.name+'</div>';
+  el.dataset.hue=hue;
+  el.addEventListener('pointerdown', function(e){ e.preventDefault(); trigger(i); });
+  grid.appendChild(el); padEls.push(el);
+});
+function flashPad(i){
+  var el=padEls[i]; if(!el) return;
+  var hue=el.dataset.hue;
+  el.classList.add('hit');
+  el.style.boxShadow='0 0 26px hsla('+hue+',95%,60%,.95), inset 0 0 20px hsla('+hue+',95%,60%,.5)';
+  setTimeout(function(){ el.classList.remove('hit'); el.style.boxShadow='0 0 10px hsla('+hue+',90%,55%,.28), inset 0 0 14px rgba(0,0,0,.55)'; }, 130);
+  var rip=document.createElement('div'); rip.className='ripple'; rip.style.background='hsl('+hue+',95%,62%)';
+  rip.style.animation='rip .5s ease-out forwards'; el.appendChild(rip);
+  setTimeout(function(){ if(rip.parentNode) rip.parentNode.removeChild(rip); }, 520);
+}
+
+/* ---------- trigger ---------- */
+var recording=false, recData=[], recStart=0;
+function trigger(i, fromReplay){
+  audio();
+  var t=A.currentTime+0.005;
+  try{ PADS[i].fn(t); }catch(e){}
+  flashPad(i);
+  bumpViz(i);
+  if(recording && !fromReplay){ recData.push({i:i, t:performance.now()-recStart}); updateRecInfo(); }
+}
+document.addEventListener('keydown', function(e){
+  if(/input|textarea/i.test((e.target.tagName||''))) return;
+  var k=(e.key||'').toLowerCase();
+  if(KEYMAP.hasOwnProperty(k) && !e.repeat){ e.preventDefault(); trigger(KEYMAP[k]); }
+});
+
+/* ---------- record / replay ---------- */
+var recBtn=document.getElementById('recBtn'), replayBtn=document.getElementById('replayBtn'), recInfo=document.getElementById('recInfo');
+var replayTimers=[], replaying=false;
+function updateRecInfo(){
+  if(recording) recInfo.textContent='REC · '+recData.length+' hits';
+  else if(recData.length) recInfo.textContent=recData.length+' hits · '+(recDur/1000).toFixed(1)+'s';
+  else recInfo.textContent='no take yet';
+}
+var recDur=0;
+recBtn.addEventListener('click', function(){
+  audio();
+  if(recording){
+    recording=false; recDur=performance.now()-recStart;
+    recBtn.classList.remove('armed'); recBtn.textContent='⏺ Record';
+    replayBtn.disabled=recData.length===0; updateRecInfo();
+  } else {
+    if(replaying) stopReplay();
+    recording=true; recData=[]; recStart=performance.now();
+    recBtn.classList.add('armed'); recBtn.textContent='■ Stop';
+    replayBtn.disabled=true; updateRecInfo();
+  }
+});
+function stopReplay(){ replaying=false; replayTimers.forEach(clearTimeout); replayTimers=[]; replayBtn.textContent='▶ Replay'; }
+replayBtn.addEventListener('click', function(){
+  if(replaying){ stopReplay(); return; }
+  if(!recData.length) return;
+  audio();
+  replaying=true; replayBtn.textContent='■ Stop';
+  recData.forEach(function(ev){
+    replayTimers.push(setTimeout(function(){ trigger(ev.i, true); }, ev.t));
+  });
+  replayTimers.push(setTimeout(function(){ stopReplay(); }, recDur+120));
+});
+
+/* ---------- knobs ---------- */
+function makeKnob(el, valEl, value, fmt, onchange){
+  var val=value, ind=el.querySelector('.ind');
+  function apply(){ ind.style.transform='rotate('+(-135+val*270)+'deg)'; valEl.textContent=fmt(val); onchange(val); }
+  apply();
+  var dragging=false, sy=0, sv=0;
+  el.addEventListener('pointerdown', function(e){ dragging=true; sy=e.clientY; sv=val; try{ el.setPointerCapture(e.pointerId);}catch(_){} e.preventDefault(); });
+  el.addEventListener('pointermove', function(e){ if(!dragging) return; val=Math.max(0,Math.min(1, sv+(sy-e.clientY)/160)); apply(); });
+  window.addEventListener('pointerup', function(){ dragging=false; });
+  el.addEventListener('wheel', function(e){ e.preventDefault(); val=Math.max(0,Math.min(1, val - e.deltaY/1500)); apply(); }, {passive:false});
+  return { get:function(){ return val; } };
+}
+makeKnob(document.getElementById('volKnob'), document.getElementById('volVal'), volV,
+  function(v){ return Math.round(v*100); },
+  function(v){ volV=v; if(master) master.gain.setTargetAtTime(v, A.currentTime, 0.02); prefs.vol=v; saveLS(prefs); });
+makeKnob(document.getElementById('filtKnob'), document.getElementById('filtVal'), filtV,
+  function(v){ return v>=0.98?'OPEN':Math.round(filterFreq(v))+'Hz'; },
+  function(v){ filtV=v; if(filter) filter.frequency.setTargetAtTime(filterFreq(v), A.currentTime, 0.02); prefs.filt=v; saveLS(prefs); });
+
+/* ---------- background visualizer ---------- */
+var bg=document.getElementById('bg'), bx=bg.getContext('2d');
+var DPR=Math.min(2, window.devicePixelRatio||1), BW=0, BH=0;
+function sizeBg(){ BW=window.innerWidth; BH=window.innerHeight; bg.width=BW*DPR; bg.height=BH*DPR; bx.setTransform(DPR,0,0,DPR,0,0); }
+var rings=[], energy=0, bars=new Array(32).fill(0), breathe=0;
+function bumpViz(i){
+  var hue=Math.round(i/16*330);
+  rings.push({x:BW/2, y:BH*0.5, r:20, hue:hue, a:0.6});
+  energy=Math.min(1.4, energy+0.5);
+  var b=(i*2)%bars.length; bars[b]=1; bars[(b+1)%bars.length]=0.7;
+}
+function drawBg(){
+  breathe+=0.02; energy*=0.94;
+  bx.clearRect(0,0,BW,BH);
+  // breathing radial glow (alive on load)
+  var pulse=0.5+0.5*Math.sin(breathe) + energy;
+  var g=bx.createRadialGradient(BW/2,BH*0.5,0, BW/2,BH*0.5, Math.max(BW,BH)*0.6);
+  g.addColorStop(0,'rgba(255,45,120,'+(0.05+0.09*Math.min(1,pulse))+')');
+  g.addColorStop(1,'rgba(15,15,26,0)');
+  bx.fillStyle=g; bx.fillRect(0,0,BW,BH);
+  // rings
+  for(var i=rings.length-1;i>=0;i--){
+    var rr=rings[i]; rr.r+=6+energy*4; rr.a*=0.95;
+    bx.strokeStyle='hsla('+rr.hue+',95%,60%,'+rr.a+')'; bx.lineWidth=3;
+    bx.beginPath(); bx.arc(rr.x, rr.y, rr.r, 0, 2*Math.PI); bx.stroke();
+    if(rr.a<0.03 || rr.r>Math.max(BW,BH)) rings.splice(i,1);
+  }
+  // bottom bars
+  var bw=BW/bars.length;
+  for(var k=0;k<bars.length;k++){
+    bars[k]*=0.9;
+    var h=6 + bars[k]*BH*0.35 + (0.5+0.5*Math.sin(breathe*2+k*0.4))*6;
+    var hue2=Math.round(k/bars.length*330);
+    bx.fillStyle='hsla('+hue2+',90%,58%,'+(0.12+bars[k]*0.5)+')';
+    bx.fillRect(k*bw+1, BH-h, bw-2, h);
+  }
+  requestAnimationFrame(drawBg);
+}
+
+/* ---------- init ---------- */
+window.addEventListener('resize', sizeBg);
+sizeBg();
+requestAnimationFrame(drawBg);
+updateRecInfo();
+})();
+</script>
+</body>
+</html>

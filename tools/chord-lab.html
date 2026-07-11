@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chord Lab · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#b06bff; --accent-soft:rgba(176,107,255,.45);
+  --accent2:#ff6ad5; --panel:#15131f; --line:#2c2842; --text:#f0e9ff; --dim:#8a82a8;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:
+    radial-gradient(circle at 12% 0%, rgba(176,107,255,.10), transparent 42%),
+    radial-gradient(circle at 92% 100%, rgba(255,106,213,.07), transparent 45%),
+    var(--bg);
+  color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:0 0 20px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:80;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:12px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(18px,3.4vw,30px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 8px var(--accent), 0 0 28px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:3px; margin-top:3px; }
+.wrap{ max-width:900px; margin:10px auto 0; padding:0 12px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:12px 14px; margin-bottom:14px;
+  box-shadow:0 0 0 1px #000, 0 0 26px rgba(176,107,255,.08);
+}
+.panel h2{
+  font-size:12px; letter-spacing:3px; color:var(--accent); margin-bottom:10px;
+  text-shadow:0 0 8px var(--accent-soft); text-transform:uppercase;
+}
+#keyCanvas{ width:100%; height:150px; display:block; background:#0a0910; border:1px solid var(--line); }
+.chordName{ text-align:center; font-size:34px; font-weight:bold; color:var(--accent); text-shadow:0 0 14px var(--accent); margin:8px 0 2px; }
+.chordInfo{ text-align:center; font-size:13px; color:var(--dim); letter-spacing:1px; margin-bottom:8px; }
+.chordInfo b{ color:var(--text); }
+.cols{ display:flex; gap:14px; flex-wrap:wrap; }
+.col{ flex:1; min-width:300px; }
+.rowlbl{ font-size:11px; color:var(--dim); letter-spacing:2px; margin:6px 0 5px; }
+.chips{ display:flex; flex-wrap:wrap; gap:5px; }
+button{
+  font-family:inherit; font-size:12px; letter-spacing:1px; cursor:pointer;
+  background:#151222; color:var(--text); border:2px solid var(--line); padding:7px 10px;
+  text-transform:uppercase;
+}
+button:hover:not(:disabled){ border-color:var(--accent); color:var(--accent); text-shadow:0 0 6px var(--accent); }
+button:active:not(:disabled){ transform:translateY(1px); }
+.chip.on,.tbtn.on{ border-color:var(--accent); color:var(--accent); background:rgba(176,107,255,.14); box-shadow:0 0 12px var(--accent-soft); }
+.chip{ width:38px; text-align:center; padding:8px 0; }
+.tbtn{ min-width:52px; }
+.playRow{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+button.play{ border-color:var(--accent2); color:var(--accent2); }
+button.play:hover:not(:disabled){ text-shadow:0 0 6px var(--accent2); }
+.invRow{ display:flex; gap:6px; align-items:center; margin-top:10px; font-size:11px; color:var(--dim); letter-spacing:1px; }
+.invRow button{ padding:6px 10px; }
+.invRow button.on{ border-color:var(--accent); color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+/* progression */
+#slots{ display:grid; grid-template-columns:repeat(8,1fr); gap:6px; margin-bottom:10px; }
+.slot{ aspect-ratio:1/1.15; border:2px solid var(--line); background:#0d0b16; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; font-size:13px; color:var(--text); position:relative; padding:2px; }
+.slot .num{ position:absolute; top:2px; left:4px; font-size:9px; color:var(--dim); }
+.slot.empty{ color:var(--dim); }
+.slot.armed{ border-color:var(--accent2); box-shadow:0 0 14px var(--accent2); }
+.slot.playing{ border-color:var(--accent); background:rgba(176,107,255,.2); box-shadow:0 0 18px var(--accent); }
+.progCtrl{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.progCtrl .bpmv{ color:var(--accent); font-size:16px; width:60px; }
+input[type=range]{ -webkit-appearance:none; appearance:none; height:9px; width:130px; background:#0c0a16; border:1px solid var(--line); outline:none; cursor:pointer; }
+input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; appearance:none; width:18px; height:22px; background:var(--accent); border:2px solid #000; box-shadow:0 0 8px var(--accent); cursor:pointer; }
+input[type=range]::-moz-range-thumb{ width:16px; height:20px; border-radius:0; background:var(--accent); border:2px solid #000; box-shadow:0 0 8px var(--accent); cursor:pointer; }
+.presets{ display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+.presets button{ font-size:11px; }
+.hint{ font-size:11px; color:var(--dim); letter-spacing:1px; margin-top:8px; }
+@media(max-width:640px){ .col{ min-width:100%; } }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>CHORD LAB</h1>
+  <div class="sub">CHORD DICTIONARY · PLAYER · PROGRESSION BUILDER</div>
+</header>
+<div class="wrap">
+  <section class="panel">
+    <canvas id="keyCanvas" width="860" height="150"></canvas>
+    <div class="chordName" id="chordName">C major</div>
+    <div class="chordInfo" id="chordInfo">Notes: — &nbsp;·&nbsp; Formula: —</div>
+    <div class="cols">
+      <div class="col">
+        <div class="rowlbl">ROOT</div>
+        <div class="chips" id="roots"></div>
+      </div>
+      <div class="col">
+        <div class="rowlbl">TYPE</div>
+        <div class="chips" id="types"></div>
+      </div>
+    </div>
+    <div class="playRow">
+      <button class="play" id="blockBtn">▶ Block</button>
+      <button class="play" id="strumBtn">▶ Strum</button>
+      <div class="invRow">
+        <span>INVERSION</span>
+        <button class="invb on" data-inv="0">Root</button>
+        <button class="invb" data-inv="1">1st</button>
+        <button class="invb" data-inv="2">2nd</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>◇ Progression Builder</h2>
+    <div id="slots"></div>
+    <div class="progCtrl">
+      <button class="play" id="loopBtn">▶ Loop</button>
+      <span style="font-size:11px;color:var(--dim);letter-spacing:1px">BPM</span>
+      <input type="range" id="progBpm" min="50" max="180" step="1" value="100">
+      <span class="bpmv" id="bpmv">100</span>
+      <button id="clearSlots">Clear</button>
+    </div>
+    <div class="presets">
+      <span style="font-size:11px;color:var(--dim);letter-spacing:1px;align-self:center">PRESETS:</span>
+      <button data-preset="pop">I–V–vi–IV (C)</button>
+      <button data-preset="jazz">ii–V–I (C)</button>
+      <button data-preset="blues">12-bar Blues (A)</button>
+    </div>
+    <div class="hint" id="progHint">Click a slot to arm it, then pick a root &amp; type to fill it. Or load a preset above.</div>
+  </section>
+</div>
+
+<script>
+(function(){
+"use strict";
+var AC=window.AudioContext||window.webkitAudioContext;
+var ctx=null;
+function audio(){ if(!ctx) ctx=new AC(); if(ctx.state==='suspended') ctx.resume(); return ctx; }
+var LS_KEY='wizzed-chord-lab';
+function loadLS(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'{}'); }catch(e){ return {}; } }
+function saveLS(o){ try{ localStorage.setItem(LS_KEY, JSON.stringify(o)); }catch(e){} }
+var prefs=loadLS();
+
+var NOTES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+var TYPES=[
+  {k:'maj', label:'maj', full:'major', iv:[0,4,7], f:'1-3-5'},
+  {k:'min', label:'min', full:'minor', iv:[0,3,7], f:'1-b3-5'},
+  {k:'7',   label:'7',   full:'dom 7', iv:[0,4,7,10], f:'1-3-5-b7'},
+  {k:'maj7',label:'maj7',full:'major 7', iv:[0,4,7,11], f:'1-3-5-7'},
+  {k:'min7',label:'min7',full:'minor 7', iv:[0,3,7,10], f:'1-b3-5-b7'},
+  {k:'dim', label:'dim', full:'diminished', iv:[0,3,6], f:'1-b3-b5'},
+  {k:'aug', label:'aug', full:'augmented', iv:[0,4,8], f:'1-3-#5'},
+  {k:'sus2',label:'sus2',full:'sus2', iv:[0,2,7], f:'1-2-5'},
+  {k:'sus4',label:'sus4',full:'sus4', iv:[0,5,7], f:'1-4-5'},
+  {k:'add9',label:'add9',full:'add9', iv:[0,4,7,14], f:'1-3-5-9'},
+  {k:'6',   label:'6',   full:'6', iv:[0,4,7,9], f:'1-3-5-6'},
+  {k:'m7b5',label:'m7b5',full:'half-dim', iv:[0,3,6,10], f:'1-b3-b5-b7'}
+];
+function typeByKey(k){ for(var i=0;i<TYPES.length;i++) if(TYPES[i].k===k) return TYPES[i]; return TYPES[0]; }
+
+var curRoot = (prefs.root!=null)?prefs.root:0;   // C
+var curType = prefs.type||'maj';
+var curInv  = prefs.inv||0;
+
+/* voice a chord -> array of midi notes (root in octave 4) */
+function chordNotes(rootIx, typeKey, inv){
+  var t=typeByKey(typeKey);
+  var base=60+rootIx;
+  var notes=t.iv.map(function(iv){ return base+iv; });
+  inv=inv||0;
+  for(var i=0;i<inv;i++){ var n=notes.shift(); notes.push(n+12); }
+  return notes;
+}
+function chordNoteNames(rootIx, typeKey){
+  var t=typeByKey(typeKey);
+  return t.iv.map(function(iv){ return NOTES[(rootIx+iv)%12]; });
+}
+
+/* ---------- keyboard ---------- */
+var kc=document.getElementById('keyCanvas'), kx=kc.getContext('2d');
+var DPR=Math.min(2, window.devicePixelRatio||1);
+var START=60, END=84;
+var whites=[], blacks=[];
+(function buildKeys(){
+  var wi=0;
+  for(var m=START;m<=END;m++){
+    var pc=m%12, isB=[1,3,6,8,10].indexOf(pc)>=0;
+    if(isB) blacks.push({midi:m, b:wi}); else { whites.push({midi:m, i:wi}); wi++; }
+  }
+})();
+var kW=860, kH=150;
+function sizeKeys(){
+  var w=kc.clientWidth||860;
+  kc.width=w*DPR; kc.height=kH*DPR; kx.setTransform(DPR,0,0,DPR,0,0);
+  kW=w;
+}
+var activeNotes=[]; // midis currently highlighted (already wrapped)
+function wrapToBoard(m){ while(m>END) m-=12; while(m<START) m+=12; return m; }
+var glowPhase=0;
+function drawKeys(){
+  kx.clearRect(0,0,kW,kH);
+  var ww=kW/whites.length, bw=ww*0.62, bh=kH*0.6;
+  var actSet={}; activeNotes.forEach(function(m){ actSet[m]=true; });
+  var glow=0.6+0.4*Math.sin(glowPhase);
+  // white keys
+  whites.forEach(function(k){
+    var x=k.i*ww, on=actSet[k.midi];
+    kx.fillStyle= on ? 'rgba(176,107,255,'+(0.55+0.35*glow)+')' : '#e9e4f2';
+    kx.fillRect(x+1,1,ww-2,kH-2);
+    if(on){ kx.shadowColor='#b06bff'; kx.shadowBlur=22*glow; kx.fillRect(x+1,1,ww-2,kH-2); kx.shadowBlur=0; }
+    kx.strokeStyle='#2c2842'; kx.lineWidth=1; kx.strokeRect(x+0.5,0.5,ww-1,kH-1);
+    // label C notes
+    if(k.midi%12===0){ kx.fillStyle= on?'#fff':'#8a82a8'; kx.font='10px "Courier New",monospace'; kx.textAlign='center'; kx.fillText('C'+(Math.floor(k.midi/12)-1), x+ww/2, kH-8); }
+  });
+  // black keys
+  blacks.forEach(function(k){
+    var cx=k.b*ww, x=cx-bw/2, on=actSet[k.midi];
+    kx.fillStyle= on ? 'rgba(255,106,213,'+(0.6+0.35*glow)+')' : '#141018';
+    if(on){ kx.shadowColor='#ff6ad5'; kx.shadowBlur=20*glow; }
+    kx.fillRect(x,0,bw,bh); kx.shadowBlur=0;
+    kx.strokeStyle='#000'; kx.lineWidth=1; kx.strokeRect(x,0,bw,bh);
+  });
+}
+
+/* ---------- audio ---------- */
+function midiFreq(m){ return 440*Math.pow(2,(m-69)/12); }
+function playNote(m, when, dur, gainv){
+  var a=audio();
+  var o1=a.createOscillator(), o2=a.createOscillator(), g=a.createGain();
+  o1.type='triangle'; o2.type='sine';
+  o1.frequency.value=midiFreq(m); o2.frequency.value=midiFreq(m);
+  g.gain.setValueAtTime(0.0001,when);
+  g.gain.exponentialRampToValueAtTime((gainv||0.16),when+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001,when+dur);
+  o1.connect(g); o2.connect(g); g.connect(a.destination);
+  o1.start(when); o2.start(when); o1.stop(when+dur+0.05); o2.stop(when+dur+0.05);
+}
+function playChord(rootIx, typeKey, inv, strum, dur){
+  var a=audio(), t=a.currentTime+0.02, notes=chordNotes(rootIx,typeKey,inv);
+  dur=dur||1.4;
+  notes.forEach(function(m,i){
+    var when= strum ? t+i*0.05 : t;
+    playNote(m, when, dur, 0.15);
+  });
+}
+
+/* ---------- update display ---------- */
+function updateChord(){
+  var t=typeByKey(curType);
+  var names=chordNoteNames(curRoot, curType);
+  document.getElementById('chordName').textContent = NOTES[curRoot]+' '+t.full;
+  document.getElementById('chordInfo').innerHTML = 'Notes: <b>'+names.join(' – ')+'</b> &nbsp;·&nbsp; Formula: <b>'+t.f+'</b>'+(curInv?(' &nbsp;·&nbsp; '+['root','1st','2nd'][curInv]+' inv'):'');
+  var voiced=chordNotes(curRoot, curType, curInv).map(wrapToBoard);
+  activeNotes=voiced;
+  // update chip states
+  Array.prototype.forEach.call(document.querySelectorAll('#roots .chip'), function(c){ c.classList.toggle('on', +c.dataset.r===curRoot); });
+  Array.prototype.forEach.call(document.querySelectorAll('#types .tbtn'), function(c){ c.classList.toggle('on', c.dataset.t===curType); });
+  Array.prototype.forEach.call(document.querySelectorAll('.invb'), function(c){ c.classList.toggle('on', +c.dataset.inv===curInv); });
+  prefs.root=curRoot; prefs.type=curType; prefs.inv=curInv; saveLS(prefs);
+  // if a slot is armed, write to it
+  if(armed>=0){ slotsData[armed]={r:curRoot,t:curType}; renderSlots(); }
+}
+
+/* ---------- build selectors ---------- */
+var rootsEl=document.getElementById('roots');
+NOTES.forEach(function(nm,ix){
+  var b=document.createElement('button'); b.className='chip'; b.dataset.r=ix; b.textContent=nm;
+  b.addEventListener('click', function(){ curRoot=ix; updateChord(); });
+  rootsEl.appendChild(b);
+});
+var typesEl=document.getElementById('types');
+TYPES.forEach(function(t){
+  var b=document.createElement('button'); b.className='tbtn'; b.dataset.t=t.k; b.textContent=t.label;
+  b.addEventListener('click', function(){ curType=t.k; updateChord(); });
+  typesEl.appendChild(b);
+});
+document.getElementById('blockBtn').addEventListener('click', function(){ playChord(curRoot,curType,curInv,false); });
+document.getElementById('strumBtn').addEventListener('click', function(){ playChord(curRoot,curType,curInv,true); });
+Array.prototype.forEach.call(document.querySelectorAll('.invb'), function(b){
+  b.addEventListener('click', function(){ curInv=+b.dataset.inv; updateChord(); });
+});
+
+/* ---------- progression ---------- */
+var slotsData=new Array(8).fill(null);
+var armed=-1;
+var slotsEl=document.getElementById('slots');
+function renderSlots(){
+  slotsEl.innerHTML='';
+  for(var i=0;i<8;i++){
+    (function(i){
+      var s=slotsData[i];
+      var el=document.createElement('div'); el.className='slot'+(s?'':' empty')+(i===armed?' armed':'');
+      el.innerHTML='<span class="num">'+(i+1)+'</span>'+(s? (NOTES[s.r]+'<br>'+typeByKey(s.t).label) : '+');
+      el.dataset.i=i;
+      el.addEventListener('click', function(){
+        if(s){ curRoot=s.r; curType=s.t; }
+        armed=i; updateChord(); renderSlots();
+        document.getElementById('progHint').textContent='Slot '+(i+1)+' armed — pick a root & type (writes live). Click it again or another slot to move.';
+      });
+      slotsEl.appendChild(el);
+    })(i);
+  }
+}
+document.getElementById('clearSlots').addEventListener('click', function(){
+  slotsData=new Array(8).fill(null); armed=-1; renderSlots(); stopLoop();
+});
+var presets={
+  pop:[{r:0,t:'maj'},{r:7,t:'maj'},{r:9,t:'min'},{r:5,t:'maj'},{r:0,t:'maj'},{r:7,t:'maj'},{r:9,t:'min'},{r:5,t:'maj'}],
+  jazz:[{r:2,t:'min7'},{r:7,t:'7'},{r:0,t:'maj7'},{r:0,t:'maj7'},{r:2,t:'min7'},{r:7,t:'7'},{r:0,t:'maj7'},{r:0,t:'maj7'}],
+  blues:[{r:9,t:'7'},{r:2,t:'7'},{r:9,t:'7'},{r:9,t:'7'},{r:2,t:'7'},{r:2,t:'7'},{r:9,t:'7'},{r:4,t:'7'}]
+};
+Array.prototype.forEach.call(document.querySelectorAll('.presets button'), function(b){
+  b.addEventListener('click', function(){
+    var p=presets[b.dataset.preset]; if(!p) return;
+    slotsData=p.map(function(x){ return {r:x.r,t:x.t}; }); armed=-1; renderSlots();
+    document.getElementById('progHint').textContent='Loaded preset — hit ▶ Loop to play.';
+  });
+});
+
+/* ---------- loop playback ---------- */
+var loopTimer=null, loopIdx=0, playing=false;
+var loopBtn=document.getElementById('loopBtn');
+var progBpm=document.getElementById('progBpm'), bpmv=document.getElementById('bpmv');
+progBpm.value=prefs.progBpm||100; bpmv.textContent=progBpm.value;
+progBpm.addEventListener('input', function(){ bpmv.textContent=progBpm.value; prefs.progBpm=+progBpm.value; saveLS(prefs); if(playing){ restartLoop(); } });
+function stepLoop(){
+  // find next filled slot; if none, stop
+  var filled=slotsData.some(function(s){return s;});
+  if(!filled){ stopLoop(); return; }
+  var guard=0;
+  while(!slotsData[loopIdx%8] && guard<8){ loopIdx++; guard++; }
+  var i=loopIdx%8, s=slotsData[i];
+  Array.prototype.forEach.call(slotsEl.children, function(el,ix){ el.classList.toggle('playing', ix===i); });
+  if(s){
+    activeNotes=chordNotes(s.r,s.t,0).map(wrapToBoard);
+    playChord(s.r, s.t, 0, false, 60/(+progBpm.value)*0.9);
+  }
+  loopIdx++;
+}
+function startLoop(){
+  playing=true; loopBtn.textContent='■ Stop'; loopIdx=0;
+  stepLoop();
+  var beatMs=60000/(+progBpm.value);
+  loopTimer=setInterval(stepLoop, beatMs);
+}
+function stopLoop(){
+  playing=false; loopBtn.textContent='▶ Loop';
+  if(loopTimer){ clearInterval(loopTimer); loopTimer=null; }
+  Array.prototype.forEach.call(slotsEl.children, function(el){ el.classList.remove('playing'); });
+}
+function restartLoop(){ if(loopTimer){ clearInterval(loopTimer);} var beatMs=60000/(+progBpm.value); loopTimer=setInterval(stepLoop, beatMs); }
+loopBtn.addEventListener('click', function(){ if(playing) stopLoop(); else startLoop(); });
+
+/* ---------- animation ---------- */
+function frame(){ glowPhase+=0.05; drawKeys(); requestAnimationFrame(frame); }
+
+/* ---------- init ---------- */
+window.addEventListener('resize', sizeKeys);
+sizeKeys();
+// default preset filled on load
+slotsData = presets.pop.map(function(x){ return {r:x.r,t:x.t}; });
+renderSlots();
+updateChord();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

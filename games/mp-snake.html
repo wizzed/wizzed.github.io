@@ -505,7 +505,7 @@
   //  Input
   // ================================================================
   const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-  let pointer = { x: 0, y: 0 };
+  let pointer = { x: innerWidth / 2, y: innerHeight / 2 };
   let sprintKey = false, sprintPtr = false;
   addEventListener('pointermove', e => { pointer = { x: e.clientX, y: e.clientY }; });
   addEventListener('pointerdown', e => { pointer = { x: e.clientX, y: e.clientY }; sprintPtr = true; initAudio(); });

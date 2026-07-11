@@ -189,6 +189,8 @@ function setPaused(p) {
 }
 pauseBtn.addEventListener('click', () => setPaused(!paused));
 document.getElementById('resume-btn').addEventListener('click', () => setPaused(false));
+// auto-pause (freezes sim) when the tab / app is backgrounded
+document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
 
 // ── Splat shockwave (expanding additive ring on death) ─────────────────────
 const splatRing = new THREE.Mesh(

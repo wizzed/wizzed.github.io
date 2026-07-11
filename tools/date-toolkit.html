@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Date Toolkit · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ffb454; --accent-soft:rgba(255,180,84,.45);
+  --panel:#161623; --line:#2c2c46; --text:#fdf1e0; --dim:#9c8b73; --cyan:#2de2e6;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:22px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{
+  max-width:1000px; margin:8px auto 0; padding:0 14px;
+  display:grid; grid-template-columns:1fr 1fr; gap:12px;
+}
+.card{
+  background:var(--panel); border:2px solid var(--line); padding:11px 12px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(255,180,84,.07);
+  display:flex; flex-direction:column;
+}
+.card h2{
+  font-size:11px; letter-spacing:2.5px; color:var(--accent);
+  text-shadow:0 0 8px var(--accent-soft); margin-bottom:9px;
+  display:flex; align-items:center; gap:7px;
+}
+.card h2 .n{
+  font-size:10px; color:#04121a; background:var(--accent); padding:1px 6px;
+  border-radius:2px; letter-spacing:0;
+}
+.controls{ display:flex; flex-wrap:wrap; gap:7px; align-items:center; margin-bottom:10px; }
+label.f{ font-size:10px; color:var(--dim); letter-spacing:1px; display:flex; flex-direction:column; gap:3px; }
+input[type="date"], input[type="number"], select{
+  font-family:inherit; font-size:12px; background:#0b0b14; color:var(--text);
+  border:1px solid var(--line); padding:5px 6px; outline:none;
+}
+input[type="number"]{ width:64px; }
+input:focus, select:focus{ border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+select{ cursor:pointer; }
+.seg{ display:inline-flex; border:1px solid var(--line); }
+.seg button{
+  font-family:inherit; font-size:11px; cursor:pointer; padding:5px 9px;
+  background:#0b0b14; color:var(--dim); border:none; border-right:1px solid var(--line);
+}
+.seg button:last-child{ border-right:none; }
+.seg button.on{ color:#04121a; background:var(--accent); font-weight:bold; }
+.result{
+  background:#0a0f12; border:1px solid var(--line); padding:10px; margin-top:auto;
+  border-left:3px solid var(--accent);
+}
+.big{
+  font-size:clamp(15px,2.4vw,20px); color:#fff; letter-spacing:.5px;
+  text-shadow:0 0 10px var(--accent-soft); word-break:break-word;
+}
+.sub2{ font-size:11px; color:var(--dim); margin-top:4px; letter-spacing:.5px; }
+.metrics{ display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; margin-top:2px; }
+.metric{ display:flex; flex-direction:column; }
+.metric .v{ font-size:16px; color:var(--cyan); text-shadow:0 0 8px rgba(45,226,230,.4); }
+.metric .k{ font-size:9px; color:var(--dim); letter-spacing:1px; text-transform:uppercase; }
+.warnrow{ color:#ff6b9d; font-size:12px; }
+footer{ text-align:center; margin-top:12px; font-size:10px; color:var(--dim); letter-spacing:2px; }
+footer .lock{ color:var(--accent); }
+@media (max-width:760px){ main{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>DATE TOOLKIT</h1>
+  <div class="sub">ADD/SUBTRACT &middot; DIFFERENCE &middot; WEEK NO. &middot; NTH WEEKDAY</div>
+</header>
+<main>
+
+  <section class="card" id="cardA">
+    <h2><span class="n">A</span> DATE &plusmn; DURATION</h2>
+    <div class="controls">
+      <label class="f">START<input type="date" id="a_date"></label>
+      <div class="seg" id="a_dir">
+        <button data-v="1" class="on">+ ADD</button>
+        <button data-v="-1">− SUB</button>
+      </div>
+      <label class="f">AMOUNT<input type="number" id="a_amt" value="30" min="0" step="1"></label>
+      <label class="f">UNIT
+        <select id="a_unit">
+          <option value="days">days</option>
+          <option value="weeks">weeks</option>
+          <option value="months">months</option>
+          <option value="years">years</option>
+        </select>
+      </label>
+    </div>
+    <div class="result">
+      <div class="big" id="a_out">—</div>
+      <div class="sub2" id="a_sub">—</div>
+    </div>
+  </section>
+
+  <section class="card" id="cardB">
+    <h2><span class="n">B</span> DIFFERENCE BETWEEN DATES</h2>
+    <div class="controls">
+      <label class="f">FROM<input type="date" id="b_from"></label>
+      <label class="f">TO<input type="date" id="b_to"></label>
+    </div>
+    <div class="result">
+      <div class="big" id="b_out">—</div>
+      <div class="metrics">
+        <div class="metric"><span class="v" id="b_days">—</span><span class="k">total days</span></div>
+        <div class="metric"><span class="v" id="b_week">—</span><span class="k">weekdays (Mon–Fri)</span></div>
+        <div class="metric"><span class="v" id="b_wk">—</span><span class="k">weeks + days</span></div>
+        <div class="metric"><span class="v" id="b_mo">—</span><span class="k">months + days</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="cardC">
+    <h2><span class="n">C</span> WEEK NUMBER &amp; DAY OF YEAR</h2>
+    <div class="controls">
+      <label class="f">DATE<input type="date" id="c_date"></label>
+    </div>
+    <div class="result">
+      <div class="big" id="c_out">—</div>
+      <div class="metrics">
+        <div class="metric"><span class="v" id="c_week">—</span><span class="k">ISO week</span></div>
+        <div class="metric"><span class="v" id="c_doy">—</span><span class="k">day of year</span></div>
+        <div class="metric"><span class="v" id="c_left">—</span><span class="k">days left in yr</span></div>
+        <div class="metric"><span class="v" id="c_pct">—</span><span class="k">year elapsed</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="cardD">
+    <h2><span class="n">D</span> NTH WEEKDAY OF A MONTH</h2>
+    <div class="controls">
+      <label class="f">WHICH
+        <select id="d_nth">
+          <option value="1">1st</option>
+          <option value="2">2nd</option>
+          <option value="3" selected>3rd</option>
+          <option value="4">4th</option>
+          <option value="5">5th</option>
+          <option value="last">last</option>
+        </select>
+      </label>
+      <label class="f">WEEKDAY
+        <select id="d_wd">
+          <option value="0">Sunday</option>
+          <option value="1">Monday</option>
+          <option value="2">Tuesday</option>
+          <option value="3">Wednesday</option>
+          <option value="4" selected>Thursday</option>
+          <option value="5">Friday</option>
+          <option value="6">Saturday</option>
+        </select>
+      </label>
+      <label class="f">MONTH<select id="d_mon"></select></label>
+      <label class="f">YEAR<input type="number" id="d_year" value="2026" min="1" max="9999" step="1"></label>
+    </div>
+    <div class="result">
+      <div class="big" id="d_out">—</div>
+      <div class="sub2" id="d_sub">—</div>
+    </div>
+  </section>
+
+</main>
+<footer><span class="lock">&#9679;</span> 100% LOCAL &mdash; all calendar math runs in your browser</footer>
+<script>
+"use strict";
+
+/* ---------- date helpers (local, component based) ---------- */
+var DOW = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+var MON = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+function isLeap(y){ return (y%4===0 && y%100!==0) || y%400===0; }
+function daysInMonth(y,m){ return [31, isLeap(y)?29:28,31,30,31,30,31,31,30,31,30,31][m]; }
+function pad(n){ return (n<10?"0":"") + n; }
+function toISO(d){ return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()); }
+function parseISO(s){
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || "");
+  if(!m) return null;
+  var d = new Date(+m[1], +m[2]-1, +m[3]);
+  if(isNaN(d.getTime())) return null;
+  return d;
+}
+function fmtLong(d){
+  return DOW[d.getDay()] + ", " + d.getDate() + " " + MON[d.getMonth()] + " " + d.getFullYear();
+}
+
+function addMonths(d, n){
+  var y = d.getFullYear();
+  var m = d.getMonth() + n;
+  y += Math.floor(m/12);
+  m = ((m % 12) + 12) % 12;
+  var day = Math.min(d.getDate(), daysInMonth(y, m));
+  return new Date(y, m, day);
+}
+function addUnit(d, amt, unit, dir){
+  var n = amt * dir;
+  if(unit === "days")   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  if(unit === "weeks")  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n*7);
+  if(unit === "months") return addMonths(d, n);
+  if(unit === "years")  return addMonths(d, n*12);
+  return d;
+}
+
+var MS = 86400000;
+function dayCount(a, b){ // whole days from a to b (b-a), using UTC of components to avoid DST
+  var ua = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+  var ub = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((ub - ua) / MS);
+}
+/* Business days (Mon–Fri), inclusive of BOTH endpoints — Excel NETWORKDAYS style */
+function businessDays(a, b){
+  var lo = a, hi = b;
+  if(dayCount(a,b) < 0){ lo = b; hi = a; }
+  var total = dayCount(lo, hi) + 1;      // inclusive span length
+  var full = Math.floor(total / 7);      // complete weeks
+  var count = full * 5;
+  var rem = total - full*7;              // leftover days
+  var wd = lo.getDay();                  // starting weekday
+  for(var i=0;i<rem;i++){
+    var dw = (wd + i) % 7;
+    if(dw !== 0 && dw !== 6) count++;
+  }
+  return count;
+}
+function ymdDiff(a, b){ // a <= b, returns {y,m,d} with d >= 0
+  var months = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+  if(addMonths(a, months).getTime() > b.getTime()) months--; // estimate is at most 1 too high
+  var anchor = addMonths(a, months);
+  var d = dayCount(anchor, b);
+  var y = Math.floor(months / 12);
+  var m = months - y * 12;
+  return { y:y, m:m, d:d };
+}
+function isoWeek(d){
+  var t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  var dayNr = (t.getUTCDay() + 6) % 7;         // Mon=0
+  t.setUTCDate(t.getUTCDate() - dayNr + 3);    // nearest Thursday
+  var isoYear = t.getUTCFullYear();
+  var firstThu = new Date(Date.UTC(isoYear, 0, 4));
+  var firstDayNr = (firstThu.getUTCDay() + 6) % 7;
+  firstThu.setUTCDate(firstThu.getUTCDate() - firstDayNr + 3);
+  var week = 1 + Math.round((t - firstThu) / (7*MS));
+  return { week: week, year: isoYear };
+}
+function dayOfYear(d){
+  var y = d.getFullYear(), m = d.getMonth(), n = d.getDate();
+  for(var i=0;i<m;i++) n += daysInMonth(y, i);
+  return n;
+}
+function nthWeekday(year, month, weekday, nth){
+  if(nth === "last"){
+    var dim = daysInMonth(year, month);
+    var last = new Date(year, month, dim);
+    var diff = (last.getDay() - weekday + 7) % 7;
+    return new Date(year, month, dim - diff);
+  }
+  var n = +nth;
+  var first = new Date(year, month, 1);
+  var offset = (weekday - first.getDay() + 7) % 7;
+  var day = 1 + offset + (n-1)*7;
+  if(day > daysInMonth(year, month)) return null;
+  return new Date(year, month, day);
+}
+
+/* ---------- persistence ---------- */
+var LS_KEY = "wizzed-date-toolkit";
+function saveState(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      a_date:el("a_date").value, a_dir:aDir, a_amt:el("a_amt").value, a_unit:el("a_unit").value,
+      b_from:el("b_from").value, b_to:el("b_to").value,
+      c_date:el("c_date").value,
+      d_nth:el("d_nth").value, d_wd:el("d_wd").value, d_mon:el("d_mon").value, d_year:el("d_year").value
+    }));
+  }catch(e){}
+}
+function loadState(){
+  try{ return JSON.parse(localStorage.getItem(LS_KEY) || "null"); }catch(e){ return null; }
+}
+
+/* ---------- dom ---------- */
+function el(id){ return document.getElementById(id); }
+var aDir = 1;
+
+/* month select */
+(function(){
+  var sel = el("d_mon");
+  for(var i=0;i<12;i++){
+    var o = document.createElement("option");
+    o.value = i; o.textContent = MON[i];
+    sel.appendChild(o);
+  }
+})();
+
+/* ---------- card A ---------- */
+function renderA(){
+  var base = parseISO(el("a_date").value);
+  var out = el("a_out"), sub = el("a_sub");
+  if(!base){ out.textContent = "—"; sub.textContent = "enter a valid date"; return; }
+  var amt = Math.max(0, parseInt(el("a_amt").value, 10) || 0);
+  var res = addUnit(base, amt, el("a_unit").value, aDir);
+  out.textContent = fmtLong(res);
+  var delta = dayCount(base, res);
+  var word = aDir > 0 ? "after" : "before";
+  sub.textContent = toISO(res) + "  ·  " + Math.abs(delta) + " day" + (Math.abs(delta)===1?"":"s") + " " + word + " start";
+}
+el("a_dir").addEventListener("click", function(e){
+  var b = e.target.closest("button"); if(!b) return;
+  aDir = +b.dataset.v;
+  var btns = el("a_dir").querySelectorAll("button");
+  for(var i=0;i<btns.length;i++) btns[i].classList.toggle("on", btns[i]===b);
+  renderA(); saveState();
+});
+["a_date","a_amt","a_unit"].forEach(function(id){
+  el(id).addEventListener("input", function(){ renderA(); saveState(); });
+});
+
+/* ---------- card B ---------- */
+function renderB(){
+  var from = parseISO(el("b_from").value), to = parseISO(el("b_to").value);
+  if(!from || !to){ el("b_out").textContent = "—"; return; }
+  var lo = from, hi = to, sign = "";
+  if(dayCount(from, to) < 0){ lo = to; hi = from; sign = "−"; }
+  var total = dayCount(lo, hi);
+  el("b_days").textContent = total.toLocaleString();
+  el("b_week").textContent = businessDays(lo, hi).toLocaleString();
+  var w = Math.floor(total/7), wd = total%7;
+  el("b_wk").textContent = w + "w " + wd + "d";
+  var ymd = ymdDiff(lo, hi);
+  el("b_mo").textContent = (ymd.y*12 + ymd.m) + "mo " + ymd.d + "d";
+  var span = ymd.y>0 ? (ymd.y + "y " + ymd.m + "mo " + ymd.d + "d") : (ymd.m + "mo " + ymd.d + "d");
+  el("b_out").textContent = sign + total.toLocaleString() + " days  (" + span + ")";
+}
+["b_from","b_to"].forEach(function(id){
+  el(id).addEventListener("input", function(){ renderB(); saveState(); });
+});
+
+/* ---------- card C ---------- */
+function renderC(){
+  var d = parseISO(el("c_date").value);
+  if(!d){ el("c_out").textContent = "—"; return; }
+  var iw = isoWeek(d);
+  var doy = dayOfYear(d);
+  var total = isLeap(d.getFullYear()) ? 366 : 365;
+  el("c_out").textContent = fmtLong(d);
+  el("c_week").textContent = "W" + iw.week + (iw.year !== d.getFullYear() ? " ’" + String(iw.year).slice(-2) : "");
+  el("c_doy").textContent = doy + "/" + total;
+  el("c_left").textContent = (total - doy);
+  el("c_pct").textContent = Math.round(doy/total*100) + "%";
+}
+el("c_date").addEventListener("input", function(){ renderC(); saveState(); });
+
+/* ---------- card D ---------- */
+function ord(n){ return {1:"1st",2:"2nd",3:"3rd",4:"4th",5:"5th"}[n] || (n+"th"); }
+function renderD(){
+  var nth = el("d_nth").value;
+  var wd = +el("d_wd").value;
+  var mon = +el("d_mon").value;
+  var year = parseInt(el("d_year").value, 10);
+  var out = el("d_out"), sub = el("d_sub");
+  if(!year || year < 1 || year > 9999){ out.textContent = "—"; sub.textContent = "enter a valid year"; return; }
+  var res = nthWeekday(year, mon, wd, nth);
+  var label = (nth === "last" ? "last " : ord(+nth) + " ") + DOW[wd] + " of " + MON[mon] + " " + year;
+  if(!res){
+    out.innerHTML = '<span class="warnrow">no ' + ord(+nth) + " " + DOW[wd] + " in " + MON[mon] + " " + year + "</span>";
+    sub.textContent = "that month only has four " + DOW[wd] + "s";
+    return;
+  }
+  out.textContent = fmtLong(res);
+  sub.textContent = label + "  ·  " + toISO(res);
+}
+["d_nth","d_wd","d_mon","d_year"].forEach(function(id){
+  el(id).addEventListener("input", function(){ renderD(); saveState(); });
+});
+
+/* ---------- init ---------- */
+(function init(){
+  var today = new Date();
+  var todayISO = toISO(today);
+  var st = loadState();
+
+  if(st){
+    el("a_date").value = st.a_date || todayISO;
+    aDir = (st.a_dir === -1 || st.a_dir === 1) ? st.a_dir : 1;
+    el("a_amt").value = st.a_amt != null ? st.a_amt : "30";
+    el("a_unit").value = st.a_unit || "days";
+    el("b_from").value = st.b_from || todayISO;
+    el("b_to").value = st.b_to || toISO(addUnit(today, 100, "days", 1));
+    el("c_date").value = st.c_date || todayISO;
+    el("d_nth").value = st.d_nth || "3";
+    el("d_wd").value = st.d_wd != null ? st.d_wd : "4";
+    el("d_mon").value = st.d_mon != null ? st.d_mon : "10";
+    el("d_year").value = st.d_year || today.getFullYear();
+  } else {
+    el("a_date").value = todayISO;
+    el("b_from").value = todayISO;
+    el("b_to").value = toISO(addUnit(today, 100, "days", 1));
+    el("c_date").value = todayISO;
+    el("d_mon").value = "10";       // November (0-indexed 10)
+    el("d_year").value = today.getFullYear();
+  }
+  var dirBtns = el("a_dir").querySelectorAll("button");
+  for(var i=0;i<dirBtns.length;i++) dirBtns[i].classList.toggle("on", +dirBtns[i].dataset.v === aDir);
+
+  renderA(); renderB(); renderC(); renderD();
+})();
+</script>
+</body>
+</html>

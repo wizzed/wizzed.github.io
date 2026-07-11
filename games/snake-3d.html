@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake 3D – Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #0f0f1a; overflow: hidden; color: #cfffe6;
+    font-family: 'Courier New', ui-monospace, monospace;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  canvas { display: block; }
+  a.back {
+    position: fixed; top: 12px; left: 12px; z-index: 60;
+    color: #6fc090; text-decoration: none; font-size: 13px;
+    background: rgba(8,22,14,0.7); border: 1px solid #1c4d30;
+    padding: 5px 10px; border-radius: 6px;
+  }
+  a.back:hover { color: #39ff88; border-color: #39ff88; }
+  #hud {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 30; display: flex; gap: 22px; pointer-events: none;
+    font-size: 14px; color: #9fffcf; text-shadow: 0 0 8px #14ff7a; white-space: nowrap;
+  }
+  #hud b { color: #ffe14f; text-shadow: 0 0 10px #ffb000; font-weight: normal; }
+  #score-big {
+    position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
+    z-index: 30; font-size: clamp(30px, 6vw, 48px); pointer-events: none;
+    color: #eaffee; text-shadow: 0 0 22px #14ff7a, 0 0 60px #00aa44; white-space: nowrap;
+  }
+  #score-big small { display:block; font-size: 11px; letter-spacing:3px; color:#5aa87a; text-shadow:0 0 8px #004422; }
+  #levelup {
+    position: fixed; top: 32%; left: 50%; transform: translate(-50%,-50%);
+    z-index: 32; font-size: 26px; color: #4ff3ff; pointer-events: none;
+    text-shadow: 0 0 18px #00c8ff; opacity: 0; transition: opacity .3s; white-space: nowrap; letter-spacing: 2px;
+  }
+  #hint {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 25; font-size: 11px; color: #4a8a6a; pointer-events: none;
+    text-shadow: 0 0 6px #041a10; white-space: nowrap; text-align:center;
+  }
+  .overlay {
+    position: fixed; inset: 0; z-index: 50; display: flex;
+    align-items: center; justify-content: center; pointer-events: none;
+  }
+  .overlay .panel {
+    pointer-events: all; text-align: center; max-width: 460px;
+    background: rgba(8,20,14,0.8); border: 1px solid #1c6d42;
+    border-radius: 14px; padding: 24px 32px;
+    box-shadow: 0 0 40px rgba(20,255,122,0.24);
+  }
+  .overlay h1 { font-size: 30px; letter-spacing: 4px; color: #39ff88; text-shadow: 0 0 18px #14ff7a; margin-bottom: 10px; }
+  .overlay h1.red { color: #ff5577; text-shadow: 0 0 18px #ff2255; }
+  .overlay h1.gold { color: #ffe14f; text-shadow: 0 0 18px #ffb000; }
+  .overlay p { font-size: 13px; color: #a2d8bf; line-height: 1.7; margin-bottom: 14px; }
+  .overlay .big { font-size: 18px; color: #eaffee; text-shadow: 0 0 12px #14ff7a; }
+  .overlay button {
+    font-family: inherit; font-size: 15px; font-weight: bold; letter-spacing: 2px;
+    padding: 11px 30px; border: none; border-radius: 8px; cursor: pointer;
+    background: #29e6a7; color: #061a10; box-shadow: 0 0 18px #29e6a788;
+  }
+  .overlay button:hover { background: #4ff3c0; }
+  kbd { background:#0e2a1a; border:1px solid #1c5a38; border-radius:4px; padding:1px 6px; color:#9fffcf; font-size:12px; }
+  #ui-controls { position: fixed; bottom: 12px; right: 12px; z-index: 45; display: flex; gap: 8px; }
+  #ui-controls button {
+    font-family: inherit; font-size: 15px; line-height: 1; cursor: pointer;
+    min-width: 38px; height: 34px; padding: 0 10px; border-radius: 8px;
+    color: #9fffcf; background: rgba(8,22,14,0.7); border: 1px solid #1c4d30;
+  }
+  #ui-controls button:hover { color: #39ff88; border-color: #39ff88; }
+  #ui-controls button:active { transform: scale(.94); }
+  #touchpad { position: fixed; bottom: 54px; right: 12px; z-index: 45; display: none; gap: 8px; }
+  #touchpad button {
+    font-family: inherit; font-size: 22px; width: 54px; height: 54px; border-radius: 12px; cursor: pointer;
+    color: #9fffcf; background: rgba(8,22,14,0.75); border: 1px solid #1c4d30;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<div id="hud"><span>LEN <b id="len">4</b></span><span>LVL <b id="lvl">1</b></span><span>BEST <b id="best">0</b></span></div>
+<div id="score-big">0<small>GEMS</small></div>
+<div id="levelup"></div>
+<div id="hint">← → / A D turn left &amp; right (relative to view) · eat gems · avoid walls &amp; yourself · R restart</div>
+<div class="overlay" id="start-ov">
+  <div class="panel">
+    <h1>SNAKE 3D</h1>
+    <p>Slither the glowing grid, devour <b style="color:#4ff3ff">gems</b>, grow longer and faster.<br>
+    Steering is <b style="color:#39ff88">relative to the camera</b>: <kbd>←</kbd>/<kbd>A</kbd> banks left, <kbd>→</kbd>/<kbd>D</kbd> banks right — never inverted.<br>
+    Later levels open <b style="color:#ff2aa0">portals</b>. Reach 30 gems to conquer the grid!</p>
+    <button id="start-btn">START SLITHER</button>
+  </div>
+</div>
+<div class="overlay" id="over-ov" style="display:none">
+  <div class="panel">
+    <h1 id="over-title" class="red">CRASHED!</h1>
+    <p class="big" id="over-stats"></p>
+    <p id="over-sub"></p>
+    <button id="restart-btn">SLITHER AGAIN (R)</button>
+  </div>
+</div>
+<div id="ui-controls">
+  <button id="muteBtn" title="Mute">🔊</button>
+</div>
+<div id="touchpad">
+  <button id="tl" aria-label="Turn left">↺</button>
+  <button id="tr" aria-label="Turn right">↻</button>
+</div>
+<script src="../lib/three.min.js"></script>
+<script>
+'use strict';
+// ── Snake 3D ────────────────────────────────────────────────────────────────
+const SLUG = 'wizzed-snake-3d';
+let best = parseInt(localStorage.getItem(SLUG) || '0', 10) || 0;
+document.getElementById('best').textContent = best;
+
+const GRID = 20;
+const CELL = 1.4;
+const WIN_SCORE = 30;
+const half = (GRID - 1) / 2;
+function wx(gx) { return (gx - half) * CELL; }
+function wz(gz) { return (gz - half) * CELL; }
+
+// ── Scene ───────────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f0f1a);
+scene.fog = new THREE.Fog(0x0f0f1a, 34, 90);
+const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.1, 200);
+camera.position.set(0, 30, 30);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ── Lights ──────────────────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0x334455, 1.0));
+scene.add(new THREE.HemisphereLight(0x88ffcc, 0x0a1408, 0.7));
+const key = new THREE.DirectionalLight(0xffffff, 1.1);
+key.position.set(20, 40, 12); scene.add(key);
+const g1 = new THREE.PointLight(0x39ff88, 2.4, 60, 1.6); g1.position.set(-18, 16, -18); scene.add(g1);
+const g2 = new THREE.PointLight(0x22ccff, 2.2, 60, 1.6); g2.position.set(18, 16, 18); scene.add(g2);
+
+// ── Stars ───────────────────────────────────────────────────────────────────
+{
+  const pts = [];
+  for (let i = 0; i < 500; i++) {
+    const a = Math.random() * Math.PI * 2, r = 60 + Math.random() * 90;
+    pts.push(Math.cos(a) * r, -6 + Math.random() * 80, Math.sin(a) * r);
+  }
+  const gg = new THREE.BufferGeometry();
+  gg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  scene.add(new THREE.Points(gg, new THREE.PointsMaterial({ color: 0x88ccaa, size: 0.5 })));
+}
+
+// ── Board ───────────────────────────────────────────────────────────────────
+const boardSize = GRID * CELL;
+{
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(boardSize, boardSize),
+    new THREE.MeshStandardMaterial({ color: 0x0a1a14, emissive: 0x04160c, emissiveIntensity: 0.6, roughness: 0.9, metalness: 0.1 }));
+  floor.rotation.x = -Math.PI / 2; floor.position.y = -0.02; scene.add(floor);
+  // grid lines
+  const seg = [];
+  const e = boardSize / 2;
+  for (let i = 0; i <= GRID; i++) {
+    const p = -e + i * CELL;
+    seg.push(-e, 0.01, p, e, 0.01, p);
+    seg.push(p, 0.01, -e, p, 0.01, e);
+  }
+  const gg = new THREE.BufferGeometry();
+  gg.setAttribute('position', new THREE.Float32BufferAttribute(seg, 3));
+  scene.add(new THREE.LineSegments(gg, new THREE.LineBasicMaterial({ color: 0x1c6d42, transparent: true, opacity: 0.7 })));
+  // border rails
+  const railMat = new THREE.MeshStandardMaterial({ color: 0x39ff88, emissive: 0x14ff7a, emissiveIntensity: 0.8, roughness: 0.4 });
+  const rails = [
+    [0, boardSize + CELL, 0.8, e + CELL * 0.0], [0, boardSize + CELL, 0.8, -e], // placeholders replaced below
+  ];
+  const mkRail = (w, d, x, z) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.9, d), railMat);
+    m.position.set(x, 0.35, z); scene.add(m);
+  };
+  const t = 0.5;
+  mkRail(boardSize + t * 2, t, 0, -e - t / 2);
+  mkRail(boardSize + t * 2, t, 0, e + t / 2);
+  mkRail(t, boardSize + t * 2, -e - t / 2, 0);
+  mkRail(t, boardSize + t * 2, e + t / 2, 0);
+}
+
+// ── Snake meshes (pool) ─────────────────────────────────────────────────────
+const segGeo = new THREE.BoxGeometry(CELL * 0.82, CELL * 0.82, CELL * 0.82);
+// round the box corners visually by chamfer: use a slightly smaller sphere overlay? keep box but scale
+const segPool = [];
+function segMat(head) {
+  return new THREE.MeshStandardMaterial({
+    color: head ? 0xbfffe0 : 0x39ff88,
+    emissive: head ? 0x39ff88 : 0x0e9a4e,
+    emissiveIntensity: head ? 0.9 : 0.55,
+    roughness: 0.35, metalness: 0.3
+  });
+}
+function ensurePool(n) {
+  while (segPool.length < n) {
+    const m = new THREE.Mesh(segGeo, segMat(false));
+    scene.add(m); segPool.push(m);
+  }
+  for (let i = 0; i < segPool.length; i++) segPool[i].visible = i < n;
+}
+// eyes on head
+const eyeMat = new THREE.MeshStandardMaterial({ color: 0x081018, emissive: 0x0a1a10, roughness: 0.4 });
+const eyeGeo = new THREE.SphereGeometry(0.14, 10, 8);
+const eyeL = new THREE.Mesh(eyeGeo, eyeMat), eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+scene.add(eyeL); scene.add(eyeR);
+const pupMat = new THREE.MeshBasicMaterial({ color: 0x00ffaa });
+const pupL = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), pupMat);
+const pupR = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), pupMat);
+scene.add(pupL); scene.add(pupR);
+
+// ── Gem ─────────────────────────────────────────────────────────────────────
+const gem = new THREE.Mesh(new THREE.OctahedronGeometry(CELL * 0.45),
+  new THREE.MeshStandardMaterial({ color: 0x4ff3ff, emissive: 0x22ccff, emissiveIntensity: 1.0, roughness: 0.2, metalness: 0.4 }));
+scene.add(gem);
+const gemLight = new THREE.PointLight(0x22ccff, 2.2, 12, 2); scene.add(gemLight);
+let food = { x: 0, z: 0 };
+
+// ── Portals ─────────────────────────────────────────────────────────────────
+const portalGroup = new THREE.Group(); scene.add(portalGroup);
+let portals = [];   // {a:{x,z}, b:{x,z}, meshA, meshB}
+function mkPortalMesh(col) {
+  const g = new THREE.Group();
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(CELL * 0.5, 0.12, 10, 24),
+    new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 1.0, roughness: 0.3 }));
+  ring.rotation.x = Math.PI / 2; g.add(ring);
+  const l = new THREE.PointLight(col, 1.6, 8, 2); l.position.y = 0.5; g.add(l);
+  return g;
+}
+function clearPortals() {
+  while (portalGroup.children.length) {
+    const c = portalGroup.children.pop();
+    c.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    portalGroup.remove(c);
+  }
+  portals = [];
+}
+function addPortalPair(col) {
+  let a, b, tries = 0;
+  do { a = { x: 1 + (Math.random() * (GRID - 2) | 0), z: 1 + (Math.random() * (GRID - 2) | 0) }; tries++; } while (occupied(a) && tries < 200);
+  tries = 0;
+  do { b = { x: 1 + (Math.random() * (GRID - 2) | 0), z: 1 + (Math.random() * (GRID - 2) | 0) }; tries++; } while ((occupied(b) || (Math.abs(b.x - a.x) + Math.abs(b.z - a.z) < 6)) && tries < 200);
+  const mA = mkPortalMesh(col), mB = mkPortalMesh(col);
+  mA.position.set(wx(a.x), 0.5, wz(a.z)); mB.position.set(wx(b.x), 0.5, wz(b.z));
+  portalGroup.add(mA); portalGroup.add(mB);
+  portals.push({ a, b, meshA: mA, meshB: mB });
+}
+function portalAt(x, z) {
+  for (const p of portals) {
+    if (p.a.x === x && p.a.z === z) return p.b;
+    if (p.b.x === x && p.b.z === z) return p.a;
+  }
+  return null;
+}
+
+// ── Game state ──────────────────────────────────────────────────────────────
+let body = [];       // grid cells, head at 0
+let prevBody = [];
+let dir = { x: 1, z: 0 };
+let pendingDir = { x: 1, z: 0 };
+let grow = 0;
+let score = 0, level = 1;
+let interval = 0.16, timer = 0;
+let state = 'title';   // title | play | over | win
+let demo = true;
+
+function occupied(c) {
+  for (const s of body) if (s.x === c.x && s.z === c.z) return true;
+  for (const p of portals) { if (p.a.x === c.x && p.a.z === c.z) return true; if (p.b.x === c.x && p.b.z === c.z) return true; }
+  return false;
+}
+function spawnFood() {
+  let c, tries = 0;
+  do { c = { x: (Math.random() * GRID | 0), z: (Math.random() * GRID | 0) }; tries++; } while (occupied(c) && tries < 400);
+  food = c;
+}
+
+function resetSnake() {
+  body = [];
+  const sx = 6, sz = 10;
+  for (let i = 0; i < 4; i++) body.push({ x: sx - i, z: sz });
+  prevBody = body.map(s => ({ ...s }));
+  dir = { x: 1, z: 0 }; pendingDir = { x: 1, z: 0 };
+  grow = 0; score = 0; level = 1; interval = 0.16; timer = 0;
+  clearPortals();
+  spawnFood();
+  updateHUD();
+}
+
+function updateHUD() {
+  document.getElementById('len').textContent = body.length;
+  document.getElementById('lvl').textContent = level;
+  document.getElementById('best').textContent = best;
+  document.getElementById('score-big').innerHTML = score + '<small>GEMS</small>';
+}
+
+function levelFor(sc) { return Math.floor(sc / 5) + 1; }
+
+// ── Turning (relative to heading, never inverted) ───────────────────────────
+function turnLeft(d) { return { x: d.z, z: -d.x }; }
+function turnRight(d) { return { x: -d.z, z: d.x }; }
+function applyTurn(which) {
+  if (state !== 'play') return;
+  // base off pendingDir so a queued turn chains correctly, but disallow reversing
+  const base = pendingDir;
+  const nd = which === 'L' ? turnLeft(base) : turnRight(base);
+  // never allow 180 vs current dir
+  if (nd.x === -dir.x && nd.z === -dir.z) return;
+  pendingDir = nd;
+}
+
+// ── Tick ────────────────────────────────────────────────────────────────────
+function tick() {
+  dir = pendingDir;
+  const oldBody = body.map(s => ({ ...s }));
+  let nx = body[0].x + dir.x, nz = body[0].z + dir.z;
+  // portal
+  const pt = portalAt(nx, nz);
+  if (pt) { nx = pt.x; nz = pt.z; }
+  // wall death
+  if (nx < 0 || nx >= GRID || nz < 0 || nz >= GRID) { die(); return; }
+  // self death (allow moving into current tail cell which will vacate, unless growing)
+  for (let i = 0; i < body.length; i++) {
+    if (body[i].x === nx && body[i].z === nz) {
+      const isTail = (i === body.length - 1) && grow === 0;
+      if (!isTail) { die(); return; }
+    }
+  }
+  body.unshift({ x: nx, z: nz });
+  // build prevBody aligned to new indices for smooth render
+  prevBody = [];
+  prevBody.push({ ...oldBody[0] });          // new head starts where old head was
+  for (let i = 0; i < oldBody.length; i++) prevBody.push({ ...oldBody[i] });
+  if (grow > 0) { grow--; }
+  else { body.pop(); prevBody.pop(); }
+
+  // eat
+  if (nx === food.x && nz === food.z) {
+    burst(wx(nx), wz(nz), 0x4ff3ff);
+    if (!demo) {
+      grow += 1; score++;
+      interval = Math.max(0.07, 0.16 - level * 0.011);
+      Audio2.blip(600 + score * 12, 0.12, 'square', 0.12);
+      const nl = levelFor(score);
+      if (nl !== level) { level = nl; onLevelUp(); }
+      if (score >= WIN_SCORE) { win(); return; }
+    }
+    spawnFood();
+    updateHUD();
+  }
+}
+
+function onLevelUp() {
+  interval = Math.max(0.07, 0.16 - level * 0.011);
+  const lu = document.getElementById('levelup');
+  lu.textContent = 'LEVEL ' + level + (level >= 2 ? ' · PORTALS!' : '');
+  lu.style.opacity = '1'; setTimeout(() => lu.style.opacity = '0', 1200);
+  if (level === 2) addPortalPair(0xff2aa0);
+  if (level === 4) addPortalPair(0xffcf3c);
+  Audio2.blip(500, 0.14, 'square', 0.12); setTimeout(() => Audio2.blip(760, 0.16, 'square', 0.12), 130);
+  updateHUD();
+}
+
+function die() {
+  if (state !== 'play') return;
+  state = 'over';
+  Audio2.blip(200, 0.4, 'sawtooth', 0.14);
+  if (score > best) { best = score; localStorage.setItem(SLUG, String(best)); }
+  document.getElementById('over-title').textContent = 'CRASHED!';
+  document.getElementById('over-title').className = 'red';
+  document.getElementById('over-stats').textContent = score + ' GEMS  ·  LENGTH ' + body.length;
+  document.getElementById('over-sub').textContent = score >= best && score > 0 ? '★ New best! ★' : 'Best: ' + best + ' gems';
+  document.getElementById('over-ov').style.display = 'flex';
+  shake = 0.6;
+}
+function win() {
+  state = 'win';
+  if (score > best) { best = score; localStorage.setItem(SLUG, String(best)); }
+  Audio2.blip(660, 0.3, 'square', 0.14); setTimeout(() => Audio2.blip(990, 0.4, 'square', 0.14), 200);
+  document.getElementById('over-title').textContent = '★ GRID CONQUERED ★';
+  document.getElementById('over-title').className = 'gold';
+  document.getElementById('over-stats').textContent = 'You reached ' + score + ' gems!';
+  document.getElementById('over-sub').textContent = 'A true neon serpent. Go for a longer run?';
+  document.getElementById('over-ov').style.display = 'flex';
+}
+
+// ── Particles ───────────────────────────────────────────────────────────────
+const parts = [];
+function burst(x, z, col) {
+  for (let i = 0; i < 12; i++) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshBasicMaterial({ color: col }));
+    m.position.set(x, 0.6, z); scene.add(m);
+    parts.push({ mesh: m, vx: (Math.random() - 0.5) * 8, vy: 2 + Math.random() * 4, vz: (Math.random() - 0.5) * 8, life: 0.6 });
+  }
+}
+
+// ── Audio ───────────────────────────────────────────────────────────────────
+const Audio2 = (() => {
+  let ctx, master; let muted = false; let ready = false;
+  function ensure() { if (ready) return; try { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = 0.5; master.connect(ctx.destination); ready = true; } catch (e) {} }
+  return {
+    resume() { ensure(); if (ctx && ctx.state === 'suspended') ctx.resume(); },
+    blip(freq, dur, type, vol) {
+      if (!ready || muted) return;
+      const o = ctx.createOscillator(); o.type = type || 'square';
+      const g = ctx.createGain(); o.frequency.value = freq; g.gain.value = vol || 0.1;
+      o.connect(g); g.connect(master); o.start();
+      g.gain.setTargetAtTime(0, ctx.currentTime + dur * 0.4, dur * 0.3);
+      o.stop(ctx.currentTime + dur + 0.05);
+    },
+    toggle() { muted = !muted; return muted; }
+  };
+})();
+document.getElementById('muteBtn').addEventListener('click', () => {
+  document.getElementById('muteBtn').textContent = Audio2.toggle() ? '🔇' : '🔊';
+});
+
+// ── Input ───────────────────────────────────────────────────────────────────
+addEventListener('keydown', e => {
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) e.preventDefault();
+  if (e.code === 'ArrowLeft' || e.code === 'KeyA') applyTurn('L');
+  if (e.code === 'ArrowRight' || e.code === 'KeyD') applyTurn('R');
+  if (e.code === 'Enter' || e.code === 'Space') { if (state === 'title' || state === 'over' || state === 'win') startGame(); }
+  if (e.code === 'KeyR') startGame();
+});
+if (window.matchMedia && matchMedia('(pointer: coarse)').matches) document.getElementById('touchpad').style.display = 'flex';
+document.getElementById('tl').addEventListener('click', () => applyTurn('L'));
+document.getElementById('tr').addEventListener('click', () => applyTurn('R'));
+renderer.domElement.addEventListener('pointerdown', e => {
+  if (state === 'title' || state === 'over' || state === 'win') { startGame(); return; }
+  // tap left/right half to turn
+  if (e.clientX < innerWidth / 2) applyTurn('L'); else applyTurn('R');
+});
+
+// ── Start / demo ────────────────────────────────────────────────────────────
+function startGame() {
+  Audio2.resume();
+  document.getElementById('start-ov').style.display = 'none';
+  document.getElementById('over-ov').style.display = 'none';
+  demo = false; state = 'play';
+  resetSnake();
+  camInit = false;
+}
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('restart-btn').addEventListener('click', startGame);
+
+// demo AI (attract mode): steer toward food, avoid immediate death
+function demoThink() {
+  const h = body[0];
+  const options = [pendingDir, turnLeft(pendingDir), turnRight(pendingDir)];
+  let bestOpt = pendingDir, bestScore = -1e9;
+  for (const o of options) {
+    if (o.x === -dir.x && o.z === -dir.z) continue;
+    const nx = h.x + o.x, nz = h.z + o.z;
+    if (nx < 0 || nx >= GRID || nz < 0 || nz >= GRID) continue;
+    let hit = false;
+    for (let i = 0; i < body.length - 1; i++) if (body[i].x === nx && body[i].z === nz) { hit = true; break; }
+    if (hit) continue;
+    const d = -(Math.abs(nx - food.x) + Math.abs(nz - food.z)) + Math.random() * 0.5;
+    if (d > bestScore) { bestScore = d; bestOpt = o; }
+  }
+  pendingDir = bestOpt;
+}
+
+// ── Camera (follow behind head) ─────────────────────────────────────────────
+let camInit = false;
+const camGoal = new THREE.Vector3(), camLookGoal = new THREE.Vector3(), camLook = new THREE.Vector3(0, 0, 0);
+let shake = 0;
+function headWorld(frac) {
+  // interpolated head world pos
+  const a = prevBody[0] || body[0], b = body[0];
+  return { x: wx(a.x + (b.x - a.x) * frac), z: wz(a.z + (b.z - a.z) * frac) };
+}
+function updateCamera(dt, frac) {
+  if (state === 'title') {
+    const t = performance.now() / 1000;
+    camera.position.set(Math.cos(t * 0.2) * 30, 26, Math.sin(t * 0.2) * 30);
+    camLook.lerp(new THREE.Vector3(0, 0, 0), 0.1);
+    camera.lookAt(0, 0, 0);
+    return;
+  }
+  const hp = headWorld(frac);
+  const dist = 11 + body.length * 0.05, height = 9;
+  camGoal.set(hp.x - dir.x * dist, height, hp.z - dir.z * dist);
+  camLookGoal.set(hp.x + dir.x * 3, 0.5, hp.z + dir.z * 3);
+  if (!camInit) { camera.position.copy(camGoal); camLook.copy(camLookGoal); camInit = true; }
+  else {
+    camera.position.lerp(camGoal, Math.min(1, dt * 3.4));
+    camLook.lerp(camLookGoal, Math.min(1, dt * 4));
+  }
+  let cx = camera.position.x, cy = camera.position.y, cz = camera.position.z;
+  if (shake > 0) { cx += (Math.random() - 0.5) * shake * 3; cy += (Math.random() - 0.5) * shake * 3; }
+  camera.position.set(cx, cy, cz);
+  camera.lookAt(camLook);
+  camera.position.set(camera.position.x, cy, camera.position.z);
+}
+
+// ── Render snake ────────────────────────────────────────────────────────────
+function renderSnake(frac, t) {
+  ensurePool(body.length);
+  for (let i = 0; i < body.length; i++) {
+    const a = prevBody[i] || body[i], b = body[i];
+    const x = wx(a.x + (b.x - a.x) * frac);
+    const z = wz(a.z + (b.z - a.z) * frac);
+    const wave = Math.sin(t * 8 - i * 0.55) * 0.13;
+    const m = segPool[i];
+    m.position.set(x, 0.55 + wave, z);
+    const s = i === 0 ? 1.12 : (1 - Math.min(0.35, i * 0.012));
+    m.scale.setScalar(s);
+    const isHead = i === 0;
+    m.material.color.setHex(isHead ? 0xbfffe0 : 0x39ff88);
+    m.material.emissive.setHex(isHead ? 0x39ff88 : 0x0e9a4e);
+    m.rotation.y = Math.atan2(dir.x, dir.z);
+  }
+  // eyes follow head
+  const hd = body[0], hpa = prevBody[0] || hd;
+  const hx = wx(hpa.x + (hd.x - hpa.x) * frac), hz = wz(hpa.z + (hd.z - hpa.z) * frac);
+  const fx = dir.x, fz = dir.z; const rxv = -fz, rzv = fx;
+  const ey = 0.9 + Math.sin(t * 8) * 0.13;
+  eyeL.position.set(hx + fx * 0.4 + rxv * 0.28, ey, hz + fz * 0.4 + rzv * 0.28);
+  eyeR.position.set(hx + fx * 0.4 - rxv * 0.28, ey, hz + fz * 0.4 - rzv * 0.28);
+  pupL.position.set(hx + fx * 0.52 + rxv * 0.28, ey, hz + fz * 0.52 + rzv * 0.28);
+  pupR.position.set(hx + fx * 0.52 - rxv * 0.28, ey, hz + fz * 0.52 - rzv * 0.28);
+}
+
+// ── Loop ────────────────────────────────────────────────────────────────────
+resetSnake();       // attract mode snake alive behind panel
+let lastT = performance.now();
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min((now - lastT) / 1000, 0.05);
+  lastT = now;
+  const t = now / 1000;
+
+  if (state === 'play' || demo) {
+    timer += dt;
+    while (timer >= interval) {
+      timer -= interval;
+      if (demo) demoThink();
+      if (state === 'play' || demo) tick();
+      if (demo && (state === 'over' || state === 'win')) { /* shouldn't happen: demo has no death via walls handled, but reset */ }
+    }
+  }
+  const frac = Math.min(1, timer / interval);
+
+  // demo respawn safety
+  if (demo && body.length < 2) resetSnake();
+
+  renderSnake(frac, t);
+  updateHUD();
+
+  // gem anim
+  gem.position.set(wx(food.x), 0.7 + Math.sin(t * 3) * 0.15, wz(food.z));
+  gem.rotation.y = t * 2; gem.rotation.x = t * 1.3;
+  gemLight.position.copy(gem.position);
+  gemLight.intensity = 2 + Math.sin(t * 5) * 0.8;
+
+  // portals spin
+  for (const p of portals) { p.meshA.rotation.z = t * 1.5; p.meshB.rotation.z = -t * 1.5; }
+
+  // particles
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    p.mesh.position.x += p.vx * dt; p.mesh.position.y += p.vy * dt; p.mesh.position.z += p.vz * dt;
+    p.vy -= 12 * dt; p.life -= dt; p.mesh.scale.setScalar(Math.max(0.05, p.life * 2));
+    if (p.life <= 0) { scene.remove(p.mesh); p.mesh.geometry.dispose(); parts.splice(i, 1); }
+  }
+
+  g1.intensity = 2.2 + Math.sin(t * 1.4) * 0.8;
+  g2.intensity = 2 + Math.cos(t * 1.1) * 0.8;
+  if (shake > 0) shake = Math.max(0, shake - dt * 1.6);
+
+  updateCamera(dt, frac);
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

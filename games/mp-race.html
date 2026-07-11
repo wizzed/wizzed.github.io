@@ -324,11 +324,15 @@
 
   function buildTrack(seed) {
     const rng = mulberry32((seed | 0) * 2654435761 + 12345);
-    const baseRx = 900 + rng() * 140;
-    const baseRy = 560 + rng() * 120;
+    const baseRx = 720 + rng() * 120;
+    const baseRy = 430 + rng() * 95;
     const nH = 2 + (rng() * 3 | 0);
     const H = [];
-    for (let k = 0; k < nH; k++) H.push({ f: 2 + (rng() * 4 | 0), amp: 40 + rng() * 150, ph: rng() * Math.PI * 2 });
+    let ampSum = 0;
+    for (let k = 0; k < nH; k++) { const h = { f: 2 + (rng() * 4 | 0), amp: 34 + rng() * 120, ph: rng() * Math.PI * 2 }; H.push(h); ampSum += h.amp; }
+    // cap total wobble so the loop never self-pinches (guarantees a clean, drivable track)
+    const maxWob = baseRy * 0.42, ascale = ampSum > maxWob ? maxWob / ampSum : 1;
+    for (const h of H) h.amp *= ascale;
     const rot = rng() * Math.PI * 2;
     const pts = [];
     for (let i = 0; i < N; i++) {

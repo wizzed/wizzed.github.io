@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Escape Room — Wizzed Arcade</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  :root{--neon:#2effc0;--accent:#2effc0;}
+  html,body{height:100%;}
+  body{background:#0f0f1a;background-image:radial-gradient(ellipse at 50% -10%,rgba(46,255,192,.10),transparent 60%);
+    color:#d8ffee;font-family:'Courier New',ui-monospace,monospace;display:flex;flex-direction:column;align-items:center;
+    min-height:100%;padding:6px 8px 16px;overflow-x:hidden;user-select:none;-webkit-user-select:none;touch-action:manipulation;}
+  a.back{position:fixed;top:10px;left:12px;z-index:120;color:#7a7a9a;text-decoration:none;font-size:13px;
+    padding:4px 8px;border:1px solid #2a2a4a;border-radius:6px;background:rgba(15,15,26,.8);}
+  a.back:hover{color:var(--neon);border-color:var(--neon);}
+  h1{margin:4px 0 0;font-size:clamp(18px,4.6vmin,26px);letter-spacing:5px;color:var(--accent);
+    text-shadow:0 0 8px var(--accent),0 0 22px rgba(46,255,192,.4);transition:color .3s;}
+  .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;margin:4px 0 6px;}
+  .stat{background:#0e1a16;border:2px solid #1e4a3a;border-radius:8px;padding:2px 9px;text-align:center;min-width:62px;}
+  .stat .lbl{display:block;font-size:8px;letter-spacing:2px;color:#3f8a6f;}
+  .stat .val{display:block;font-size:14px;font-weight:bold;color:#8affe6;}
+  button{font-family:inherit;font-size:12px;letter-spacing:1px;cursor:pointer;background:#0e1a16;color:var(--accent);
+    border:2px solid #1e4a3a;border-radius:8px;padding:6px 10px;}
+  button:hover{border-color:var(--accent);box-shadow:0 0 10px rgba(46,255,192,.35);}
+  #scene{position:relative;width:100%;max-width:560px;aspect-ratio:16/10;border:3px solid var(--accent);border-radius:12px;
+    overflow:hidden;box-shadow:0 0 20px rgba(46,255,192,.25);transition:border-color .3s;background:#05070a;}
+  #scene svg{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  .hot{position:absolute;cursor:pointer;border-radius:6px;z-index:5;}
+  .hot:hover{outline:2px dashed var(--accent);outline-offset:-2px;background:rgba(46,255,192,.06);}
+  .hot .tip{position:absolute;left:50%;top:-4px;transform:translate(-50%,-100%);background:#0a1512;border:1px solid var(--accent);
+    color:var(--accent);font-size:10px;padding:1px 6px;border-radius:5px;white-space:nowrap;opacity:0;pointer-events:none;transition:.1s;}
+  .hot:hover .tip{opacity:1;}
+  #uvBadge{position:absolute;right:8px;top:8px;z-index:8;background:rgba(90,60,160,.85);border:2px solid #b388ff;color:#e6d8ff;
+    font-size:11px;padding:3px 8px;border-radius:6px;display:none;}
+  .msg{min-height:20px;text-align:center;font-size:13px;letter-spacing:.5px;color:#7fd8b8;margin:8px 4px 2px;max-width:560px;line-height:1.5;}
+  #inv{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:6px 0;min-height:44px;max-width:560px;}
+  .item{width:44px;height:44px;border:2px solid #1e4a3a;border-radius:8px;background:#0e1a16;display:flex;align-items:center;justify-content:center;
+    font-size:22px;cursor:pointer;position:relative;}
+  .item:hover{border-color:var(--accent);}
+  .item.sel{border-color:#ffd166;box-shadow:0 0 10px rgba(255,209,102,.5);background:#1a1810;}
+  .item .nm{position:absolute;bottom:-15px;left:50%;transform:translateX(-50%);font-size:8px;color:#3f8a6f;white-space:nowrap;}
+  .ctrls{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:2px;}
+  /* modal */
+  .modal{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(5,7,10,.8);padding:14px;}
+  .modal.hidden{display:none;}
+  .card{background:#0c1512;border:3px solid var(--accent);border-radius:14px;padding:16px;max-width:340px;width:100%;text-align:center;
+    box-shadow:0 0 30px rgba(46,255,192,.3);}
+  .card h3{color:var(--accent);letter-spacing:2px;margin-bottom:8px;font-size:16px;}
+  .card .art{margin:6px auto 10px;width:130px;height:130px;}
+  .card p{color:#bfeeda;font-size:13px;line-height:1.6;margin-bottom:10px;}
+  .card .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
+  /* keypad */
+  .kp{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:180px;margin:8px auto;}
+  .kp button{padding:12px 0;font-size:18px;font-weight:bold;}
+  .kpDisp{font-size:26px;letter-spacing:8px;color:#8affe6;background:#08120e;border:2px solid #1e4a3a;border-radius:8px;
+    padding:6px;margin:4px auto;min-height:40px;text-shadow:0 0 8px rgba(138,255,230,.6);}
+  .lever{display:inline-block;width:38px;height:64px;background:#0e1a16;border:2px solid #2e6a54;border-radius:8px;margin:3px;position:relative;cursor:pointer;vertical-align:middle;}
+  .lever .knob{position:absolute;left:50%;transform:translateX(-50%);width:22px;height:22px;border-radius:50%;background:#37e0d8;box-shadow:0 0 8px #37e0d8;transition:top .12s;}
+  .lever.up .knob{top:4px;} .lever.down .knob{top:38px;background:#ff5ea8;box-shadow:0 0 8px #ff5ea8;}
+  .win{color:#ffd166;}
+  .hint-note{color:#3f8a6f;font-size:11px;text-align:center;margin-top:6px;max-width:560px;line-height:1.5;}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1 id="title">ESCAPE ROOM</h1>
+<div class="top">
+  <div class="stat"><span class="lbl">ROOM</span><span class="val" id="hRoom">1/3</span></div>
+  <div class="stat"><span class="lbl">TIME</span><span class="val" id="hTime">0:00</span></div>
+  <div class="stat"><span class="lbl">BEST</span><span class="val" id="hBest">—</span></div>
+  <button id="btnHint">💡 HINT (3)</button>
+  <button id="btnRestart">↻ RESTART (R)</button>
+</div>
+<div id="scene"><div id="uvBadge">🔦 UV ON</div></div>
+<div class="msg" id="msg">A locked room. Find a way out.</div>
+<div id="inv"></div>
+<div class="hint-note">Click things to examine. Tap an <b style="color:#ffd166">inventory item</b> to select it, then click where to use it. Selected item glows gold.</div>
+
+<div class="modal hidden" id="modal"><div class="card" id="card"></div></div>
+
+<script>
+(function(){
+"use strict";
+const SLUG='wizzed-escape-room';
+const scene=document.getElementById('scene');
+const msgEl=document.getElementById('msg');
+
+let best=null; try{ const v=localStorage.getItem(SLUG); if(v)best=JSON.parse(v).best; }catch(e){}
+document.getElementById('hBest').textContent = best?fmt(best):'—';
+
+// audio
+let AC=null;
+function ac(){ if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;}} if(AC&&AC.state==='suspended')AC.resume(); return AC; }
+function beep(f,d,t,v){ const a=ac(); if(!a)return; const o=a.createOscillator(),g=a.createGain(); o.type=t||'square'; o.frequency.value=f; o.connect(g); g.connect(a.destination); const n=a.currentTime; g.gain.setValueAtTime(0.0001,n); g.gain.exponentialRampToValueAtTime(v||0.1,n+0.008); g.gain.exponentialRampToValueAtTime(0.0001,n+(d||0.08)); o.start(n); o.stop(n+(d||0.08)+0.02); }
+function good(){ beep(660,0.08,'square',0.1); setTimeout(()=>beep(990,0.12,'square',0.1),90); }
+function bad(){ beep(180,0.14,'sawtooth',0.1); }
+function pick(){ beep(760,0.06,'triangle',0.09); }
+
+const ITEMS={
+  brass:{icon:'🗝️',nm:'Brass Key'},
+  uv:{icon:'🔦',nm:'UV Light'},
+  note:{icon:'📜',nm:'Note'},
+  gold:{icon:'🔑',nm:'Gold Key'},
+  driver:{icon:'🪛',nm:'Screwdriver'},
+  card:{icon:'💳',nm:'Keycard'},
+  slip:{icon:'🧾',nm:'Slip'},
+};
+
+let G;
+function reset(){
+  G={ room:0, inv:[], sel:null, uv:false, won:false,
+      flags:{}, bookSeq:[], levers:[true,false,true,false],
+      start:performance.now(), timerRun:true, hints:[0,0,0] };
+  document.getElementById('btnHint').textContent='💡 HINT (3)';
+  setMsg('You wake in a dim study. The door is locked. Look around.');
+  renderRoom(); renderInv();
+  applyAccent();
+}
+const ACCENTS=['#2effc0','#ffb454','#ff5ea8'];
+function applyAccent(){
+  const a=ACCENTS[G.room];
+  document.documentElement.style.setProperty('--accent',a);
+  document.getElementById('title').textContent = ['ESCAPE · THE STUDY','ESCAPE · THE LIBRARY','ESCAPE · THE VAULT'][G.room];
+}
+
+function setMsg(t){ msgEl.innerHTML=t; }
+function have(id){ return G.inv.includes(id); }
+function addItem(id){ if(!have(id)){ G.inv.push(id); renderInv(); pick(); } }
+function removeItem(id){ G.inv=G.inv.filter(x=>x!==id); if(G.sel===id)G.sel=null; renderInv(); }
+
+function renderInv(){
+  const el=document.getElementById('inv'); el.innerHTML='';
+  G.inv.forEach(id=>{
+    const it=ITEMS[id]; const d=document.createElement('div'); d.className='item'+(G.sel===id?' sel':'');
+    d.innerHTML=it.icon+'<span class="nm">'+it.nm+'</span>';
+    d.addEventListener('click',()=>{ ac(); G.sel=(G.sel===id?null:id); renderInv();
+      setMsg(G.sel?('Selected <b style="color:#ffd166">'+it.nm+'</b> — click where to use it, or examine it.'):'Deselected.'); });
+    el.appendChild(d);
+  });
+  document.getElementById('uvBadge').style.display=G.uv?'block':'none';
+}
+
+// ---------- scenes ----------
+function svgFrame(inner,accent){
+  return '<svg viewBox="0 0 320 200" preserveAspectRatio="none">'+inner+'</svg>';
+}
+function roomSVG(){
+  const uv=G.uv;
+  if(G.room===0){
+    return svgFrame(`
+      <defs><linearGradient id="wall1" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${uv?'#0a0a1e':'#17202b'}"/><stop offset="1" stop-color="${uv?'#050510':'#0e161e'}"/></linearGradient></defs>
+      <rect width="320" height="150" fill="url(#wall1)"/>
+      <rect y="150" width="320" height="50" fill="${uv?'#0a0812':'#241a12'}"/>
+      <rect y="150" width="320" height="4" fill="#3a2a1c"/>
+      <!-- wainscot lines -->
+      <g stroke="${uv?'#141430':'#20303c'}" stroke-width="1">
+        <line x1="60" y1="20" x2="60" y2="150"/><line x1="160" y1="20" x2="160" y2="150"/><line x1="260" y1="20" x2="260" y2="150"/></g>
+      <!-- door -->
+      <rect x="14" y="46" width="52" height="104" rx="3" fill="${G.flags.doorOpen?'#0a1a2a':'#2a2018'}" stroke="#4a3826" stroke-width="2"/>
+      ${G.flags.doorOpen?'<rect x="20" y="52" width="40" height="92" fill="#071018"/><text x="40" y="104" font-size="10" fill="#8affe6" text-anchor="middle">EXIT →</text>':'<circle cx="58" cy="100" r="3" fill="#c9a24a"/>'}
+      <!-- painting/clock -->
+      <rect x="120" y="34" width="46" height="34" rx="2" fill="#0e1620" stroke="#3a5a44" stroke-width="2"/>
+      <circle cx="143" cy="51" r="12" fill="#0a141c" stroke="#5a7a64" stroke-width="1.5"/>
+      <line x1="143" y1="51" x2="143" y2="44" stroke="#8affe6" stroke-width="1.5"/><line x1="143" y1="51" x2="149" y2="53" stroke="#8affe6" stroke-width="1.5"/>
+      <!-- wall safe -->
+      <rect x="210" y="40" width="60" height="56" rx="3" fill="#141c26" stroke="#3a5a70" stroke-width="2"/>
+      <rect x="218" y="48" width="44" height="40" rx="2" fill="${G.flags.safeOpen?'#08120e':'#0c141c'}" stroke="#2a4a5e"/>
+      ${G.flags.safeOpen?'<text x="240" y="72" font-size="9" fill="#ffd166" text-anchor="middle">EMPTY</text>':'<circle cx="240" cy="68" r="9" fill="#0a1016" stroke="#4a6a7e"/><circle cx="240" cy="68" r="3" fill="#7fd8ff"/>'}
+      <!-- uv hidden code near safe -->
+      ${uv?'<text x="240" y="112" font-size="15" fill="#c9a6ff" text-anchor="middle" style="filter:drop-shadow(0 0 4px #a678ff)">4729</text>':''}
+      <!-- desk -->
+      <rect x="150" y="120" width="120" height="40" rx="3" fill="#3a2a1c"/>
+      <rect x="150" y="120" width="120" height="8" fill="#4a3624"/>
+      <rect x="164" y="132" width="40" height="22" rx="2" fill="${G.flags.drawerOpen?'#20140a':'#2a1c10'}" stroke="#5a4028"/>
+      <circle cx="184" cy="143" r="2.5" fill="#c9a24a"/>
+      ${G.flags.drawerOpen?'<rect x="168" y="136" width="32" height="4" fill="#0a0a0a"/>':''}
+      <!-- rug -->
+      <ellipse cx="90" cy="178" rx="46" ry="12" fill="${G.flags.brassFound?'#3a1420':'#5a1e2e'}" stroke="#7a2a3e" stroke-width="1.5"/>
+      <ellipse cx="90" cy="178" rx="30" ry="7" fill="none" stroke="#7a2a3e"/>
+      ${G.flags.brassFound?'':'<text x="90" y="181" font-size="7" fill="#a04a5e" text-anchor="middle">rug</text>'}
+      <!-- shelf decor -->
+      <rect x="284" y="70" width="30" height="80" fill="#2a1e14"/>
+      <g fill="#4a5a3a"><rect x="288" y="76" width="5" height="18"/><rect x="295" y="74" width="5" height="20"/><rect x="302" y="78" width="5" height="16"/></g>
+    `);
+  }
+  if(G.room===1){
+    return svgFrame(`
+      <defs><linearGradient id="wall2" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${uv?'#0a0a1e':'#1e1a12'}"/><stop offset="1" stop-color="${uv?'#050510':'#120f0a'}"/></linearGradient></defs>
+      <rect width="320" height="150" fill="url(#wall2)"/>
+      <rect y="150" width="320" height="50" fill="${uv?'#0a0812':'#1a140c'}"/>
+      <!-- big bookshelf -->
+      <rect x="96" y="20" width="150" height="140" fill="#241812" stroke="#3a2818" stroke-width="3"/>
+      <line x1="96" y1="60" x2="246" y2="60" stroke="#3a2818" stroke-width="3"/>
+      <line x1="96" y1="100" x2="246" y2="100" stroke="#3a2818" stroke-width="3"/>
+      <!-- top shelf decor books -->
+      <g>${[0,1,2,3,4,5].map((i)=>'<rect x="'+(104+i*22)+'" y="28" width="16" height="28" fill="'+['#6a3a3a','#3a5a4a','#5a4a2a','#3a4a6a','#5a3a5a','#4a5a3a'][i]+'"/>').join('')}</g>
+      <!-- middle: 4 numbered interactive books -->
+      <g font-family="monospace" font-size="12" fill="#ffe0a6" text-anchor="middle">
+      ${[1,2,3,4].map((n,i)=>{const x=112+i*32;const pushed=G.flags['book'+n];return '<rect x="'+x+'" y="'+(pushed?70:66)+'" width="24" height="'+(pushed?26:30)+'" rx="1" fill="'+['#8a4a4a','#4a7a5a','#7a6a3a','#4a5a8a'][i]+'" stroke="#00000055"/><text x="'+(x+12)+'" y="'+(pushed?88:86)+'">'+n+'</text>';}).join('')}
+      </g>
+      <!-- compartment -->
+      <rect x="150" y="108" width="42" height="24" rx="2" fill="${G.flags.compOpen?'#08120e':'#1a1008'}" stroke="#4a3418" stroke-width="2"/>
+      ${G.flags.compOpen && !G.flags.driverTaken?'<text x="171" y="124" font-size="10" fill="#ffd166" text-anchor="middle">🪛</text>':''}
+      ${G.flags.compOpen && G.flags.driverTaken?'<text x="171" y="124" font-size="8" fill="#3f8a6f" text-anchor="middle">empty</text>':''}
+      <!-- painting with UV clue -->
+      <rect x="16" y="46" width="60" height="46" rx="2" fill="#0e1218" stroke="#5a4a2a" stroke-width="3"/>
+      <rect x="22" y="52" width="48" height="34" fill="${uv?'#0a0a20':'#1a2430'}"/>
+      ${uv?'<text x="46" y="74" font-size="15" fill="#c9a6ff" text-anchor="middle" style="filter:drop-shadow(0 0 4px #a678ff)">3142</text>':'<path d="M26 80 L38 62 L48 74 L58 58 L66 80 Z" fill="#25506a"/><circle cx="60" cy="60" r="4" fill="#3a6a4a"/>'}
+      <!-- vent -->
+      <rect x="262" y="60" width="46" height="40" rx="2" fill="${G.flags.ventOpen?'#06100c':'#1a1a20'}" stroke="#4a4a5a" stroke-width="2"/>
+      ${G.flags.ventOpen?(G.flags.cardTaken?'<text x="285" y="84" font-size="8" fill="#3f8a6f" text-anchor="middle">empty</text>':'<text x="285" y="86" font-size="12" text-anchor="middle">💳</text>'):'<g stroke="#5a5a6a" stroke-width="1.5">'+[0,1,2,3,4].map(i=>'<line x1="266" y1="'+(66+i*7)+'" x2="304" y2="'+(66+i*7)+'"/>').join('')+'</g><circle cx="267" cy="63" r="1.5" fill="#888"/><circle cx="303" cy="63" r="1.5" fill="#888"/>'}
+      <!-- door -->
+      <rect x="262" y="110" width="50" height="50" rx="3" fill="${G.flags.doorOpen?'#0a1a2a':'#241a12'}" stroke="#4a3826" stroke-width="2"/>
+      <rect x="270" y="118" width="34" height="20" rx="2" fill="#12202a" stroke="#3a5a44"/>
+      <circle cx="304" cy="150" r="2.5" fill="#c9a24a"/>
+      ${G.flags.doorOpen?'<text x="287" y="132" font-size="8" fill="#8affe6" text-anchor="middle">OPEN</text>':'<text x="287" y="131" font-size="7" fill="#7fd8ff" text-anchor="middle">▭ swipe</text>'}
+    `);
+  }
+  // room 3 vault
+  return svgFrame(`
+    <defs><linearGradient id="wall3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${uv?'#0a0a1e':'#101820'}"/><stop offset="1" stop-color="${uv?'#050510':'#070c12'}"/></linearGradient></defs>
+    <rect width="320" height="200" fill="url(#wall3)"/>
+    <g stroke="#16202a" stroke-width="1">${[40,80,120,160,200,240,280].map(x=>'<line x1="'+x+'" y1="0" x2="'+x+'" y2="200"/>').join('')}</g>
+    <!-- power switch -->
+    <rect x="18" y="40" width="30" height="46" rx="3" fill="#141c26" stroke="#3a5a70" stroke-width="2"/>
+    <rect x="26" y="${G.flags.power?48:64}" width="14" height="14" rx="2" fill="${G.flags.power?'#6bff9e':'#5a2a2a'}"/>
+    <text x="33" y="98" font-size="7" fill="#3f8a6f" text-anchor="middle">PWR</text>
+    <!-- monitor -->
+    <rect x="66" y="30" width="96" height="60" rx="3" fill="#050a0c" stroke="#2e6a54" stroke-width="2"/>
+    ${G.flags.power?'<text x="114" y="52" font-size="9" fill="#6bff9e" text-anchor="middle">SET LEVERS:</text><text x="114" y="72" font-size="18" fill="#8affe6" text-anchor="middle" style="letter-spacing:3px">▲▼▲▲</text>':'<text x="114" y="64" font-size="9" fill="#2a3a3a" text-anchor="middle">— NO SIGNAL —</text>'}
+    <!-- levers panel -->
+    <rect x="66" y="100" width="96" height="54" rx="3" fill="#0c141a" stroke="#2e4a5a" stroke-width="2"/>
+    ${[0,1,2,3].map(i=>{const x=76+i*22;const up=G.levers[i];return '<rect x="'+x+'" y="108" width="14" height="38" rx="3" fill="#0e1a16" stroke="#2e6a54"/><circle cx="'+(x+7)+'" cy="'+(up?116:138)+'" r="6" fill="'+(up?'#37e0d8':'#ff5ea8')+'"/>';}).join('')}
+    ${G.flags.leversDone?'<text x="114" y="168" font-size="9" fill="#6bff9e" text-anchor="middle">CODE ▸ 58__</text>':''}
+    <!-- vault door with keypad + UV clue -->
+    <rect x="196" y="34" width="108" height="140" rx="4" fill="${G.flags.won?'#06140e':'#0e1620'}" stroke="#3a5a70" stroke-width="3"/>
+    <circle cx="250" cy="104" r="30" fill="#0a1016" stroke="#2a4a5e" stroke-width="2"/>
+    <circle cx="250" cy="104" r="10" fill="#12202a" stroke="#4a6a7e"/>
+    ${G.flags.won?'<text x="250" y="108" font-size="12" fill="#6bff9e" text-anchor="middle">OPEN</text>':''}
+    ${uv?'<text x="250" y="158" font-size="15" fill="#c9a6ff" text-anchor="middle" style="filter:drop-shadow(0 0 4px #a678ff)">__16</text>':'<rect x="228" y="150" width="44" height="16" rx="2" fill="#0a1016" stroke="#2a4a5e"/><text x="250" y="162" font-size="8" fill="#4a6a7e" text-anchor="middle">keypad</text>'}
+    <!-- drawer clue -->
+    <rect x="18" y="120" width="40" height="40" rx="2" fill="#1a2028" stroke="#3a5a70" stroke-width="2"/>
+    <circle cx="38" cy="140" r="2.5" fill="#7fd8ff"/>
+  `);
+}
+
+// hotspot definitions per room: {x,y,w,h in 320x200, id, name}
+function hotspots(){
+  if(G.room===0) return [
+    {id:'door',x:14,y:46,w:52,h:104,nm:'Door'},
+    {id:'rug',x:44,y:166,w:92,h:26,nm:'Rug'},
+    {id:'drawer',x:158,y:128,w:52,h:30,nm:'Drawer'},
+    {id:'safe',x:210,y:40,w:60,h:56,nm:'Wall Safe'},
+    {id:'clock',x:120,y:34,w:46,h:34,nm:'Clock'},
+    {id:'wall',x:210,y:100,w:60,h:20,nm:'Wall'},
+  ];
+  if(G.room===1) return [
+    {id:'painting',x:16,y:46,w:60,h:46,nm:'Painting'},
+    {id:'books',x:108,y:62,w:128,h:36,nm:'Books'},
+    {id:'comp',x:150,y:108,w:42,h:24,nm:'Compartment'},
+    {id:'vent',x:262,y:60,w:46,h:40,nm:'Vent'},
+    {id:'door',x:262,y:110,w:50,h:50,nm:'Door'},
+  ];
+  return [
+    {id:'power',x:18,y:40,w:30,h:46,nm:'Power Switch'},
+    {id:'monitor',x:66,y:30,w:96,h:60,nm:'Monitor'},
+    {id:'levers',x:66,y:100,w:96,h:54,nm:'Levers'},
+    {id:'keypad',x:196,y:34,w:108,h:140,nm:'Vault Keypad'},
+    {id:'drawer3',x:18,y:120,w:40,h:40,nm:'Drawer'},
+  ];
+}
+
+function renderRoom(){
+  // keep uvBadge element
+  const badge=document.getElementById('uvBadge');
+  scene.innerHTML=roomSVG();
+  scene.appendChild(badge);
+  badge.style.display=G.uv?'block':'none';
+  document.getElementById('hRoom').textContent=(G.room+1)+'/3';
+  for(const h of hotspots()){
+    const d=document.createElement('div'); d.className='hot';
+    d.style.left=(h.x/320*100)+'%'; d.style.top=(h.y/200*100)+'%';
+    d.style.width=(h.w/320*100)+'%'; d.style.height=(h.h/200*100)+'%';
+    d.innerHTML='<span class="tip">'+h.nm+'</span>';
+    d.addEventListener('click',(e)=>{ e.stopPropagation(); ac(); interact(h.id); });
+    scene.appendChild(d);
+  }
+  applyAccent();
+}
+
+// UV toggle control appended to inventory area? Provide a button when UV in inventory.
+function toggleUV(){ if(!have('uv'))return; G.uv=!G.uv; renderRoom(); renderInv(); beep(G.uv?520:300,0.08,'sine',0.07); setMsg(G.uv?'UV light ON — hidden marks may glow. Look at walls and paintings.':'UV light off.'); }
+
+// ---------- interactions ----------
+function interact(id){
+  const f=G.flags, sel=G.sel;
+  // ROOM 0
+  if(G.room===0){
+    if(id==='rug'){
+      if(!f.brassFound){ f.brassFound=true; renderRoom(); popup('Under the Rug','key','A small <b>brass key</b> was hidden beneath the rug.',[{label:'Take it',fn:()=>{addItem('brass');closeModal();setMsg('Got the brass key. What does it open?');}}]); }
+      else setMsg('Just a dusty rug now.');
+      return;
+    }
+    if(id==='drawer'){
+      if(f.drawerOpen){ setMsg('The drawer is empty.'); return; }
+      if(sel==='brass'){ f.drawerOpen=true; removeItem('brass'); renderRoom(); popup('The Drawer Opens','drawer','Inside: a folded <b>note</b> and a <b>UV light</b>.',[{label:'Take both',fn:()=>{addItem('note');addItem('uv');closeModal();setMsg('You pocket the note and a UV light. A UV button is now in your kit.');}}]); }
+      else setMsg('The drawer is locked. It needs a small key.');
+      return;
+    }
+    if(id==='safe'){
+      if(f.safeOpen){ setMsg('The safe is open and empty.'); return; }
+      keypad('Wall Safe','4729',4,()=>{ f.safeOpen=true; renderRoom(); popup('Safe Unlocked','key','Inside the safe is a heavy <b>gold key</b>.',[{label:'Take the gold key',fn:()=>{addItem('gold');closeModal();setMsg('A gold key! The door, perhaps?');}}]); });
+      return;
+    }
+    if(id==='clock'){ popup('Antique Clock','clock','It stopped long ago. Engraved on the rim: "What is hidden is seen only in another light."',[{label:'Close',fn:closeModal}]); return; }
+    if(id==='wall'){ if(G.uv) setMsg('Under UV, four digits glow beside the safe: <b>4729</b>.'); else setMsg('A blank wall. Something feels off about it.'); return; }
+    if(id==='door'){
+      if(f.doorOpen){ nextRoom(); return; }
+      if(sel==='gold'){ f.doorOpen=true; removeItem('gold'); renderRoom(); good(); setMsg('The gold key turns! The door swings open. <b>Click the doorway to continue.</b>'); }
+      else setMsg('The door is locked with a heavy latch. It needs a key.');
+      return;
+    }
+  }
+  // ROOM 1
+  if(G.room===1){
+    if(id==='painting'){ if(G.uv) setMsg('Under UV the canvas reveals a sequence: <b>3 1 4 2</b>.'); else popup('Oil Painting','paint','An abstract landscape. The paint shimmers oddly — as if it hides more than it shows.',[{label:'Close',fn:closeModal}]); return; }
+    if(id==='books'){
+      if(f.compOpen){ setMsg('The books already did their job.'); return; }
+      // determine which book clicked by x — approximate via popup letting choose? We'll cycle: clicking books area asks which. Simpler: 4 buttons.
+      bookPuzzle();
+      return;
+    }
+    if(id==='comp'){
+      if(!f.compOpen){ setMsg('A closed compartment behind the books.'); return; }
+      if(!f.driverTaken){ f.driverTaken=true; renderRoom(); popup('Hidden Compartment','driver','A <b>screwdriver</b> and a <b>slip</b> of paper: "The vault ends where the air escapes... 16".',[{label:'Take both',fn:()=>{addItem('driver');addItem('slip');closeModal();setMsg('Screwdriver and a cryptic slip acquired.');}}]); }
+      else setMsg('Empty compartment.');
+      return;
+    }
+    if(id==='vent'){
+      if(f.ventOpen){ if(!f.cardTaken){ f.cardTaken=true; renderRoom(); popup('Inside the Vent','card','A <b>keycard</b> rests in the ductwork.',[{label:'Take keycard',fn:()=>{addItem('card');closeModal();setMsg('Keycard obtained. The door has a card slot.');}}]); } else setMsg('The vent is empty.'); return; }
+      if(sel==='driver'){ f.ventOpen=true; renderRoom(); good(); setMsg('You unscrew the vent cover. Something metallic glints inside.'); }
+      else setMsg('The vent is screwed shut. You need a tool.');
+      return;
+    }
+    if(id==='door'){
+      if(f.doorOpen){ nextRoom(); return; }
+      if(sel==='card'){ f.doorOpen=true; removeItem('card'); renderRoom(); good(); setMsg('The card reader blinks green. Door open — <b>click it to continue.</b>'); }
+      else setMsg('A keycard reader guards this door.');
+      return;
+    }
+  }
+  // ROOM 2
+  if(G.room===2){
+    if(id==='power'){ f.power=!f.power; renderRoom(); beep(f.power?600:240,0.1,'square',0.08); setMsg(f.power?'Power on. The monitor flickers to life.':'Power off.'); return; }
+    if(id==='monitor'){ if(!f.power) setMsg('The monitor is dark. No power.'); else setMsg('The monitor demands a lever pattern: <b>▲ ▼ ▲ ▲</b> (up, down, up, up).'); return; }
+    if(id==='levers'){ leverPuzzle(); return; }
+    if(id==='drawer3'){ popup('Steel Drawer','clock','Empty but for a scrawled note: "Half the code sleeps in the levers. The other half wakes under UV."',[{label:'Close',fn:closeModal}]); return; }
+    if(id==='keypad'){
+      if(f.won)return;
+      let hintTxt = 'Enter the 4-digit vault code.';
+      if(!f.leversDone) hintTxt='The first digits are hidden until the levers are set.';
+      keypad('Vault Door','5816',4,()=>{ winGame(); }, hintTxt);
+      return;
+    }
+  }
+}
+
+// book order puzzle (room1): correct order 3,1,4,2
+function bookPuzzle(){
+  const card=document.getElementById('card');
+  card.innerHTML='<h3>THE BOOKS</h3>'+pixel('books')+
+    '<p>Push the books in the correct order. Your sequence resets if wrong.<br><span style="color:#3f8a6f">Sequence: '+(G.bookSeq.join('-')||'—')+'</span></p>'+
+    '<div class="row" id="bookRow"></div>'+
+    '<div class="row" style="margin-top:8px"><button id="bkClose">Close</button></div>';
+  const row=document.getElementById('bookRow');
+  [1,2,3,4].forEach(n=>{ const b=document.createElement('button'); b.textContent='Book '+n; b.style.minWidth='64px';
+    b.addEventListener('click',()=>{ ac(); pushBook(n); }); row.appendChild(b); });
+  document.getElementById('bkClose').addEventListener('click',closeModal);
+  document.getElementById('modal').classList.remove('hidden');
+}
+function pushBook(n){
+  const target=[3,1,4,2];
+  G.bookSeq.push(n);
+  const i=G.bookSeq.length-1;
+  if(G.bookSeq[i]!==target[i]){ G.bookSeq=[]; bad(); setMsg('The books clunk and reset. Wrong order.'); bookPuzzle(); return; }
+  beep(500+i*80,0.06,'triangle',0.08);
+  if(G.bookSeq.length===4){
+    G.flags.compOpen=true; [1,2,3,4].forEach(k=>G.flags['book'+k]=true); G.bookSeq=[];
+    closeModal(); renderRoom(); good(); setMsg('A panel slides open behind the books!');
+    return;
+  }
+  bookPuzzle();
+}
+
+// lever puzzle (room2): target up,down,up,up = [true,false,true,true]
+function leverPuzzle(){
+  if(!G.flags.power){ setMsg('The lever panel is dead. Find power first.'); return; }
+  const card=document.getElementById('card');
+  card.innerHTML='<h3>LEVER PANEL</h3><p>Match the monitor: <b>▲ ▼ ▲ ▲</b></p><div id="leverRow" style="margin:10px 0"></div>'+
+    '<div class="row"><button id="lvClose">Close</button></div>';
+  const row=document.getElementById('leverRow');
+  G.levers.forEach((up,i)=>{ const l=document.createElement('div'); l.className='lever '+(up?'up':'down'); l.innerHTML='<div class="knob"></div>';
+    l.addEventListener('click',()=>{ ac(); G.levers[i]=!G.levers[i]; beep(G.levers[i]?600:300,0.05,'square',0.07); checkLevers(); leverPuzzle(); }); row.appendChild(l); });
+  document.getElementById('lvClose').addEventListener('click',closeModal);
+  document.getElementById('modal').classList.remove('hidden');
+}
+function checkLevers(){
+  const target=[true,false,true,true];
+  if(G.levers.every((v,i)=>v===target[i])){
+    if(!G.flags.leversDone){ G.flags.leversDone=true; renderRoom(); good(); setMsg('The monitor flashes: <b>CODE ▸ 58__</b>. Two digits to go.'); }
+  }
+}
+
+// ---------- popups ----------
+function pixel(kind){
+  const arts={
+    key:'<svg class="art" viewBox="0 0 64 64"><circle cx="20" cy="24" r="12" fill="none" stroke="#ffd166" stroke-width="5"/><rect x="18" y="30" width="6" height="26" fill="#ffd166"/><rect x="24" y="46" width="10" height="5" fill="#ffd166"/><rect x="24" y="52" width="7" height="5" fill="#ffd166"/></svg>',
+    drawer:'<svg class="art" viewBox="0 0 64 64"><rect x="8" y="16" width="48" height="34" rx="3" fill="#2a1c10" stroke="#5a4028" stroke-width="3"/><rect x="16" y="24" width="20" height="14" fill="#0a0a0a"/><rect x="40" y="26" width="10" height="12" fill="#c9a24a"/></svg>',
+    clock:'<svg class="art" viewBox="0 0 64 64"><circle cx="32" cy="32" r="24" fill="#0a141c" stroke="#5a7a64" stroke-width="3"/><line x1="32" y1="32" x2="32" y2="16" stroke="#8affe6" stroke-width="3"/><line x1="32" y1="32" x2="44" y2="38" stroke="#8affe6" stroke-width="3"/></svg>',
+    paint:'<svg class="art" viewBox="0 0 64 64"><rect x="6" y="8" width="52" height="42" fill="#0e1218" stroke="#5a4a2a" stroke-width="4"/><path d="M10 46 L26 22 L36 36 L48 18 L54 46 Z" fill="#25506a"/><circle cx="48" cy="20" r="5" fill="#3a6a4a"/></svg>',
+    driver:'<svg class="art" viewBox="0 0 64 64"><rect x="30" y="8" width="6" height="30" fill="#cfd8dc"/><rect x="27" y="36" width="12" height="18" rx="3" fill="#ff6b6b"/><rect x="31" y="4" width="4" height="6" fill="#8affe6"/></svg>',
+    card:'<svg class="art" viewBox="0 0 64 64"><rect x="8" y="18" width="48" height="30" rx="3" fill="#12303a" stroke="#4dd2ff" stroke-width="2"/><rect x="8" y="24" width="48" height="6" fill="#0a1a20"/><rect x="40" y="36" width="10" height="7" fill="#ffd166"/></svg>',
+    books:'<svg class="art" viewBox="0 0 64 64"><g>'+[0,1,2,3].map(i=>'<rect x="'+(8+i*13)+'" y="14" width="10" height="36" fill="'+['#8a4a4a','#4a7a5a','#7a6a3a','#4a5a8a'][i]+'"/><text x="'+(13+i*13)+'" y="44" font-size="9" fill="#fff" text-anchor="middle" font-family="monospace">'+(i+1)+'</text>').join('')+'</g></svg>',
+  };
+  return arts[kind]||'';
+}
+function popup(title,art,text,actions){
+  const card=document.getElementById('card');
+  let h='<h3>'+title+'</h3>'+pixel(art)+'<p>'+text+'</p><div class="row">';
+  card.innerHTML=h;
+  const row=document.createElement('div'); row.className='row';
+  card.appendChild(row);
+  (actions||[{label:'Close',fn:closeModal}]).forEach(a=>{ const b=document.createElement('button'); b.textContent=a.label; b.addEventListener('click',()=>{ac();a.fn();}); row.appendChild(b); });
+  document.getElementById('modal').classList.remove('hidden');
+}
+function closeModal(){ document.getElementById('modal').classList.add('hidden'); }
+
+function keypad(title,code,len,onOk,hintTxt){
+  let entry='';
+  const card=document.getElementById('card');
+  function render(){
+    card.innerHTML='<h3>'+title+'</h3>'+
+      '<div class="kpDisp">'+(entry.padEnd(len,'·'))+'</div>'+
+      (hintTxt?'<p style="color:#3f8a6f;font-size:12px">'+hintTxt+'</p>':'')+
+      '<div class="kp" id="kpGrid"></div>'+
+      '<div class="row"><button id="kpClose">Cancel</button></div>';
+    const grid=document.getElementById('kpGrid');
+    ['1','2','3','4','5','6','7','8','9','⌫','0','OK'].forEach(k=>{
+      const b=document.createElement('button'); b.textContent=k;
+      b.addEventListener('click',()=>{ ac();
+        if(k==='⌫'){ entry=entry.slice(0,-1); beep(300,0.03,'sine',0.05); render(); }
+        else if(k==='OK'){ submit(); }
+        else { if(entry.length<len){ entry+=k; beep(500,0.03,'square',0.06);} render(); if(entry.length===len) submit(); }
+      });
+      grid.appendChild(b);
+    });
+    document.getElementById('kpClose').addEventListener('click',closeModal);
+  }
+  function submit(){
+    if(entry===code){ closeModal(); good(); onOk(); }
+    else { bad(); entry=''; const disp=card.querySelector('.kpDisp'); if(disp){ disp.textContent='WRONG'; disp.style.color='#ff5ea8'; } setTimeout(render,600); }
+  }
+  render();
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+// ---------- flow ----------
+function nextRoom(){
+  if(G.room<2){ G.room++; G.uv=false; G.sel=null;
+    const intro=['','','You step into a shadowy library, walls lined with books.','A steel vault chamber hums around you. One door left.'][G.room+1];
+    renderRoom(); renderInv();
+    setMsg(['','A shadowy library. Books everywhere — and secrets between them.','The final vault. Power it up and crack the code to escape.'][G.room]);
+    good();
+  }
+}
+function winGame(){
+  G.flags.won=true; G.won=true; G.timerRun=false;
+  renderRoom();
+  const t=(performance.now()-G.start)/1000;
+  let rec={best:best};
+  if(best===null||t<best){ best=t; rec.best=t; try{localStorage.setItem(SLUG,JSON.stringify({best:best}));}catch(e){} }
+  document.getElementById('hBest').textContent=fmt(best);
+  const card=document.getElementById('card');
+  card.innerHTML='<h3 class="win">YOU ESCAPED!</h3>'+
+    '<svg class="art" viewBox="0 0 64 64"><rect x="14" y="10" width="36" height="48" rx="3" fill="#0a1a2a" stroke="#6bff9e" stroke-width="3"/><rect x="20" y="16" width="24" height="36" fill="#071018"/><text x="32" y="40" font-size="16" fill="#6bff9e" text-anchor="middle">→</text></svg>'+
+    '<p>You cracked all three rooms.<br>Time: <b class="win">'+fmt(t)+'</b><br>Best: <b>'+fmt(best)+'</b></p>'+
+    '<div class="row"><button id="againBtn">↻ Play Again</button></div>';
+  document.getElementById('againBtn').addEventListener('click',()=>{ ac(); closeModal(); reset(); });
+  document.getElementById('modal').classList.remove('hidden');
+  good(); setTimeout(()=>beep(1320,0.2,'square',0.12),260);
+}
+
+const HINTS=[
+  ['Something is hidden under the rug on the floor.',
+   'The brass key opens the desk drawer. Inside is a UV light — turn it on and study the wall by the safe.',
+   'UV reveals 4729. Enter it in the wall safe, take the gold key, and unlock the door.'],
+  ['The 4 books open a compartment — but only in the right order.',
+   'Your UV light still works. Shine it on the painting to read the order.',
+   'UV on the painting shows 3-1-4-2. Push books in that order, take the screwdriver, unscrew the vent for a keycard, then swipe the door.'],
+  ['No power means no clues. Find the power switch on the left wall.',
+   'Set the levers to match the monitor (▲▼▲▲) for the first digits. Your UV light reveals the last digits on the vault door.',
+   'Levers ▲▼▲▲ give 58, UV on the vault shows 16. Enter 5816 on the vault keypad to escape.']];
+function useHint(){
+  const r=G.room; const n=G.hints[r];
+  if(n>=3){ setMsg('No more hints for this room — you\'ve got this.'); return; }
+  setMsg('<b style="color:#ffd166">Hint '+(n+1)+':</b> '+HINTS[r][n]);
+  G.hints[r]++;
+  const left=3-G.hints[r];
+  document.getElementById('btnHint').textContent='💡 HINT ('+left+')';
+  beep(760,0.08,'triangle',0.08);
+}
+
+// timer + UV control
+function fmt(s){ s=Math.floor(s); const m=Math.floor(s/60); return m+':'+String(s%60).padStart(2,'0'); }
+function tick(){
+  if(G && G.timerRun && !G.won){ document.getElementById('hTime').textContent=fmt((performance.now()-G.start)/1000); }
+  requestAnimationFrame(tick);
+}
+
+// a floating UV button appears in inventory row via keyboard 'L' or a dedicated control:
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='r'||e.key==='R'){ ac(); reset(); }
+  else if(e.key==='h'||e.key==='H'){ ac(); useHint(); }
+  else if((e.key==='u'||e.key==='U'||e.key==='l'||e.key==='L')){ ac(); toggleUV(); }
+  else if(e.key==='Escape'){ closeModal(); }
+});
+document.getElementById('btnHint').addEventListener('click',()=>{ ac(); useHint(); });
+document.getElementById('btnRestart').addEventListener('click',()=>{ ac(); reset(); });
+document.getElementById('uvBadge').addEventListener('click',()=>{ ac(); toggleUV(); });
+// clicking scene background: if door open messages etc. Also a UV toggle button rendered when have uv:
+scene.addEventListener('click',()=>{ /* background click: deselect */ if(G && G.sel){ G.sel=null; renderInv(); } });
+
+// add a persistent UV toggle button in top bar dynamically when available
+const uvBtn=document.createElement('button'); uvBtn.textContent='🔦 UV (L)'; uvBtn.style.display='none';
+document.querySelector('.top').appendChild(uvBtn);
+uvBtn.addEventListener('click',()=>{ ac(); toggleUV(); });
+const _renderInv=renderInv;
+renderInv=function(){ _renderInv(); uvBtn.style.display=have('uv')?'inline-block':'none'; uvBtn.classList.toggle('on',G.uv); uvBtn.style.borderColor=G.uv?'#b388ff':''; uvBtn.style.color=G.uv?'#d8b8ff':''; };
+
+reset(); tick();
+})();
+</script>
+</html>

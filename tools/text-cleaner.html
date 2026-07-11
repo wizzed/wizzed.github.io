@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Text Cleaner · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#2de2e6; --accent-soft:rgba(45,226,230,.45);
+  --panel:#161623; --line:#2c2c46; --text:#e9fbfc; --dim:#7f97a8; --warn:#ff6b9d;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:20px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:10px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:1080px; margin:8px auto 0; padding:0 14px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:10px 12px;
+  box-shadow:0 0 0 1px #000, 0 0 20px rgba(45,226,230,.08);
+  margin-bottom:12px;
+}
+.chipgroups{ display:flex; flex-direction:column; gap:9px; }
+.grp{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.grp .glabel{
+  font-size:10px; letter-spacing:2px; color:var(--dim); min-width:66px;
+  text-transform:uppercase;
+}
+.chip{
+  font-family:inherit; font-size:11px; letter-spacing:.5px; cursor:pointer;
+  background:#101020; color:var(--dim); border:1px solid var(--line); padding:5px 10px;
+  transition:color .12s, border-color .12s, box-shadow .12s;
+}
+.chip:hover{ color:var(--accent); border-color:var(--accent); }
+.chip.on{
+  color:#04121a; background:var(--accent); border-color:var(--accent);
+  box-shadow:0 0 10px var(--accent-soft); font-weight:bold;
+}
+.chip.sub{ font-size:10px; opacity:.6; }
+.chip.sub.on{ opacity:1; }
+.chip.sub.disabled{ pointer-events:none; opacity:.28; }
+.io{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.io .col{ display:flex; flex-direction:column; }
+.io h2{
+  font-size:11px; letter-spacing:3px; color:var(--accent);
+  text-shadow:0 0 8px var(--accent-soft); margin-bottom:7px;
+  display:flex; justify-content:space-between; align-items:baseline;
+}
+.io h2 .actions{ display:flex; gap:6px; }
+.io h2 button{
+  font-family:inherit; font-size:9px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:3px 8px;
+}
+.io h2 button:hover{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+.io h2 button.ok{ color:#04121a; background:var(--accent); border-color:var(--accent); }
+textarea{
+  width:100%; min-height:200px; resize:vertical;
+  background:#0b0b14; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:13px; line-height:1.55; padding:9px;
+  outline:none; white-space:pre; overflow:auto;
+}
+textarea:focus{ border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft) inset; }
+textarea[readonly]{ background:#0a0f12; color:#d6fbfc; }
+.counts{
+  display:flex; gap:12px; font-size:10px; color:var(--dim); letter-spacing:1px;
+  margin-top:6px; flex-wrap:wrap;
+}
+.counts b{ color:var(--accent); font-weight:normal; }
+.counts .delta{ color:var(--warn); }
+footer{ text-align:center; margin-top:8px; font-size:10px; color:var(--dim); letter-spacing:2px; }
+footer .lock{ color:var(--accent); }
+@media (max-width:720px){
+  .io{ grid-template-columns:1fr; }
+  .grp .glabel{ min-width:100%; margin-bottom:-2px; }
+}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>TEXT CLEANER</h1>
+  <div class="sub">LIVE FILTERS &middot; TRIM &middot; DEDUPE &middot; SORT &middot; CASE</div>
+</header>
+<main>
+  <section class="panel">
+    <div class="chipgroups">
+      <div class="grp" id="grpFilters"><span class="glabel">Filters</span></div>
+      <div class="grp" id="grpSort"><span class="glabel">Order</span></div>
+      <div class="grp" id="grpCase"><span class="glabel">Case</span></div>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="io">
+      <div class="col">
+        <h2>
+          <span>&#9646; INPUT (MESSY)</span>
+          <span class="actions">
+            <button id="btnSample" type="button">DEMO</button>
+            <button id="btnClear" type="button">CLEAR</button>
+          </span>
+        </h2>
+        <textarea id="inp" spellcheck="false" aria-label="Input text"></textarea>
+        <div class="counts" id="cntIn"></div>
+      </div>
+      <div class="col">
+        <h2>
+          <span>&#9646; OUTPUT (CLEAN)</span>
+          <span class="actions">
+            <button id="btnCopy" type="button">COPY</button>
+            <button id="btnUse" type="button">&larr; USE</button>
+          </span>
+        </h2>
+        <textarea id="out" spellcheck="false" readonly aria-label="Cleaned output"></textarea>
+        <div class="counts" id="cntOut"></div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer><span class="lock">&#9679;</span> 100% LOCAL &mdash; text never leaves your browser</footer>
+<script>
+"use strict";
+
+/* ---------- pure text transforms ---------- */
+function straighten(s){
+  return s
+    .replace(/[‘’‚‛′]/g, "'")
+    .replace(/[“”„‟″]/g, '"')
+    .replace(/[«»]/g, '"')
+    .replace(/…/g, "...");
+}
+function stripHtml(s){
+  var out = s
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, "");
+  out = out
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/gi, "'")
+    .replace(/&hellip;/gi, "...")
+    .replace(/&mdash;/gi, "-");
+  return out;
+}
+var EMOJI_RE = /(?:[\u{1F1E6}-\u{1F1FF}]|\p{Extended_Pictographic})[\u{FE00}-\u{FE0F}\u{1F3FB}-\u{1F3FF}\u{200D}]*/gu;
+function stripEmoji(s){
+  return s.replace(EMOJI_RE, "");
+}
+function removeLineNumber(l){
+  return l.replace(/^\s*\d{1,4}[.):\]][ \t]*/, "").replace(/^\s*\d{1,4}\t+/, "");
+}
+function sentenceCase(l){
+  var s = l.toLowerCase();
+  return s.replace(/(^\s*\p{L})|([.!?]["')\]]?\s+\p{L})/gu, function(m){ return m.toUpperCase(); });
+}
+function dedupeLines(lines, ci){
+  var seen = Object.create(null);
+  var out = [];
+  for(var i=0;i<lines.length;i++){
+    var key = ci ? lines[i].toLowerCase() : lines[i];
+    if(!(key in seen)){ seen[key] = 1; out.push(lines[i]); }
+  }
+  return out;
+}
+function shuffle(arr){
+  for(var i=arr.length-1;i>0;i--){
+    var j = Math.floor(Math.random()*(i+1));
+    var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+  }
+  return arr;
+}
+function clean(text, o){
+  var t = text;
+  if(o.straighten) t = straighten(t);
+  if(o.stripHtml)  t = stripHtml(t);
+  if(o.stripEmoji) t = stripEmoji(t);
+  var lines = t.split(/\r\n|\r|\n/);
+  if(o.removeNums) lines = lines.map(removeLineNumber);
+  if(o.trim)       lines = lines.map(function(l){ return l.replace(/^[ \t]+|[ \t]+$/g, ""); });
+  if(o.collapse)   lines = lines.map(function(l){ return l.replace(/[ \t]+/g, " "); });
+  if(o.caseMode === "lower")    lines = lines.map(function(l){ return l.toLowerCase(); });
+  else if(o.caseMode === "upper") lines = lines.map(function(l){ return l.toUpperCase(); });
+  else if(o.caseMode === "sentence") lines = lines.map(sentenceCase);
+  if(o.removeEmpty) lines = lines.filter(function(l){ return l.trim() !== ""; });
+  if(o.dedupe)     lines = dedupeLines(lines, o.dedupeCI);
+  if(o.sort === "az")       lines = lines.slice().sort(function(a,b){ return a.localeCompare(b); });
+  else if(o.sort === "za")  lines = lines.slice().sort(function(a,b){ return b.localeCompare(a); });
+  else if(o.sort === "len") lines = lines.slice().sort(function(a,b){ return a.length - b.length || a.localeCompare(b); });
+  else if(o.sort === "shuffle") lines = shuffle(lines.slice());
+  return lines.join("\n");
+}
+function stats(s){
+  var chars = s.length;
+  var lines = s === "" ? 0 : s.split(/\r\n|\r|\n/).length;
+  var m = s.match(/\S+/g);
+  var words = m ? m.length : 0;
+  return { chars: chars, lines: lines, words: words };
+}
+
+/* ---------- config ---------- */
+var FILTERS = [
+  ["trim",       "Trim lines"],
+  ["collapse",   "Collapse spaces"],
+  ["removeEmpty","Remove blank lines"],
+  ["removeNums", "Strip list numbers"],
+  ["dedupe",     "Dedupe lines"],
+  ["dedupeCI",   "· ignore case", "sub"],
+  ["straighten", "Straighten quotes"],
+  ["stripEmoji", "Strip emoji"],
+  ["stripHtml",  "Strip HTML"]
+];
+var SORTS = [
+  ["none",    "Original"],
+  ["az",      "Sort A→Z"],
+  ["za",      "Sort Z→A"],
+  ["len",     "By length"],
+  ["shuffle", "Shuffle"]
+];
+var CASES = [
+  ["none",     "Keep case"],
+  ["lower",    "lower"],
+  ["upper",    "UPPER"],
+  ["sentence", "Sentence"]
+];
+
+var DEMO =
+'1.  The   Wizzed   Arcade  👾   is   OPEN!\n' +
+'2. <b>High</b> scores    reset   at   midnight… 🌙\n' +
+'\n' +
+'3. the wizzed arcade is open!\n' +
+'4.   “Insert coin”   to   play   😎  \n' +
+'\n' +
+'5. Loading level three   \n' +
+'5. Loading level three\n' +
+'6. GAME &amp; watch — ready?';
+
+/* ---------- state ---------- */
+var LS_KEY = "wizzed-text-cleaner";
+var state = {
+  trim:true, collapse:true, removeEmpty:true, removeNums:true,
+  dedupe:true, dedupeCI:false, straighten:true, stripEmoji:true, stripHtml:true,
+  sort:"none", caseMode:"none", text:DEMO
+};
+function load(){
+  try{
+    var raw = localStorage.getItem(LS_KEY);
+    if(raw){
+      var o = JSON.parse(raw);
+      for(var k in state){ if(o.hasOwnProperty(k)) state[k] = o[k]; }
+    }
+  }catch(e){}
+}
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+}
+
+/* ---------- dom build ---------- */
+var inp = document.getElementById("inp");
+var out = document.getElementById("out");
+var cntIn = document.getElementById("cntIn");
+var cntOut = document.getElementById("cntOut");
+var filterChips = {};
+
+function buildFilters(){
+  var g = document.getElementById("grpFilters");
+  FILTERS.forEach(function(f){
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip" + (f[2] === "sub" ? " sub" : "");
+    b.textContent = f[1];
+    b.addEventListener("click", function(){
+      if(b.classList.contains("disabled")) return;
+      state[f[0]] = !state[f[0]];
+      render();
+    });
+    filterChips[f[0]] = b;
+    g.appendChild(b);
+  });
+}
+function buildExclusive(groupId, opts, key){
+  var g = document.getElementById(groupId);
+  opts.forEach(function(o){
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.textContent = o[1];
+    b.dataset.val = o[0];
+    b.addEventListener("click", function(){
+      state[key] = o[0];
+      render();
+    });
+    g.appendChild(b);
+  });
+}
+buildFilters();
+buildExclusive("grpSort", SORTS, "sort");
+buildExclusive("grpCase", CASES, "caseMode");
+
+function syncChips(){
+  FILTERS.forEach(function(f){
+    var b = filterChips[f[0]];
+    b.classList.toggle("on", !!state[f[0]]);
+  });
+  filterChips.dedupeCI.classList.toggle("disabled", !state.dedupe);
+  var groups = [["grpSort","sort"],["grpCase","caseMode"]];
+  groups.forEach(function(pair){
+    var g = document.getElementById(pair[0]);
+    var btns = g.querySelectorAll(".chip");
+    for(var i=0;i<btns.length;i++){
+      btns[i].classList.toggle("on", btns[i].dataset.val === state[pair[1]]);
+    }
+  });
+}
+
+function fmtCounts(el, s, other, label){
+  var a = stats(s);
+  var deltaLines = "";
+  if(other){
+    var b = stats(other);
+    var d = a.lines - b.lines;
+    if(d !== 0) deltaLines = ' <span class="delta">(' + (d>0?"+":"") + d + ')</span>';
+  }
+  el.innerHTML =
+    "lines <b>" + a.lines + "</b>" + deltaLines + " &nbsp; " +
+    "words <b>" + a.words + "</b> &nbsp; " +
+    "chars <b>" + a.chars + "</b>";
+}
+
+/* ---------- render ---------- */
+function render(){
+  syncChips();
+  var result = clean(state.text, {
+    trim:state.trim, collapse:state.collapse, removeEmpty:state.removeEmpty,
+    removeNums:state.removeNums, dedupe:state.dedupe, dedupeCI:state.dedupeCI,
+    straighten:state.straighten, stripEmoji:state.stripEmoji, stripHtml:state.stripHtml,
+    sort:state.sort, caseMode:state.caseMode
+  });
+  out.value = result;
+  fmtCounts(cntIn, state.text, null, "in");
+  fmtCounts(cntOut, result, state.text, "out");
+  save();
+}
+
+/* ---------- events ---------- */
+inp.addEventListener("input", function(){ state.text = inp.value; render(); });
+document.getElementById("btnSample").addEventListener("click", function(){
+  state.text = DEMO; inp.value = DEMO; render(); inp.focus();
+});
+document.getElementById("btnClear").addEventListener("click", function(){
+  state.text = ""; inp.value = ""; render(); inp.focus();
+});
+document.getElementById("btnUse").addEventListener("click", function(){
+  state.text = out.value; inp.value = out.value; render();
+});
+function copyResult(btn){
+  var t = out.value;
+  var done = function(){
+    btn.classList.add("ok"); btn.textContent = "COPIED";
+    setTimeout(function(){ btn.classList.remove("ok"); btn.textContent = "COPY"; }, 900);
+  };
+  var fallback = function(){
+    out.removeAttribute("readonly"); out.select();
+    try{ document.execCommand("copy"); }catch(e){}
+    out.setAttribute("readonly",""); done();
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(done, fallback);
+  } else { fallback(); }
+}
+document.getElementById("btnCopy").addEventListener("click", function(){ copyResult(this); });
+
+/* ---------- init ---------- */
+load();
+inp.value = state.text;
+render();
+</script>
+</body>
+</html>

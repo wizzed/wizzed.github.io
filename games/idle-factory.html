@@ -156,16 +156,12 @@ function freshState(){
 function machineCost(i){return TIERS[i].baseCost*Math.pow(TIERS[i].costMul, S.tiers[i].count);}
 function upgCost(i){return TIERS[i].upgBase*Math.pow(6, S.tiers[i].lvl-1);}
 function globalMult(){return 1 + S.blueprints*0.10;}
-function tierRate(i){ // max units/sec this tier can output
+function tierRate(i){ // units/sec this tier outputs (independent line)
   const t=S.tiers[i]; if(t.count<=0)return 0;
   return t.count*TIERS[i].baseOut*Math.pow(2,t.lvl-1)*(t.mgr?3:1)*globalMult();
 }
-function bottleneck(){ // steady product/sec = min of active tier rates (0 if any missing)
-  let m=Infinity;
-  for(let i=0;i<4;i++){ if(S.tiers[i].count<=0)return 0; m=Math.min(m,tierRate(i)); }
-  return m===Infinity?0:m;
-}
-function incomePerSec(){return bottleneck()*PRICE*(1); }
+function tierRevenue(i){ return tierRate(i)*VALUE[i]; } // credits/sec from this line
+function incomePerSec(){ let s=0; for(let i=0;i<4;i++) s+=tierRevenue(i); return s; }
 
 /* ---------- persistence ---------- */
 function save(){ try{ S.last=Date.now(); localStorage.setItem(SAVE, JSON.stringify(S)); }catch(e){} }
@@ -193,23 +189,15 @@ function applyOffline(){
   return {earned, dt};
 }
 
-/* ---------- flow simulation ---------- */
+/* ---------- production tick ---------- */
+// Each line runs independently and adds revenue; resource counters are lifetime
+// output totals that drive the conveyor visuals and give big satisfying numbers.
 function step(dt){
-  // manual/auto flow through the chain
-  const gm=globalMult();
-  // miners produce raw ore
-  const mine=tierRate(0)*dt; S.ore+=mine;
-  // smelt: ore -> metal
-  let cap=tierRate(1)*dt; let mv=Math.min(cap,S.ore); S.ore-=mv; S.metal+=mv;
-  // assemble: metal -> parts
-  cap=tierRate(2)*dt; let av=Math.min(cap,S.metal); S.metal-=av; S.parts+=av;
-  // ship: parts -> money
-  cap=tierRate(3)*dt; let sv=Math.min(cap,S.parts); S.parts-=sv;
-  const earn=sv*PRICE;
+  S.ore   += tierRate(0)*dt;
+  S.metal += tierRate(1)*dt;
+  S.parts += tierRate(2)*dt;
+  const earn=incomePerSec()*dt;
   S.money+=earn; S.totalEarned+=earn; S.runEarned+=earn;
-  // clamp buffers so numbers don't run away visually
-  const bcap=1e12;
-  if(S.ore>bcap)S.ore=bcap; if(S.metal>bcap)S.metal=bcap; if(S.parts>bcap)S.parts=bcap;
 }
 
 /* ---------- actions ---------- */
@@ -229,10 +217,10 @@ function buyManager(i){
   if(S.money>=c){ S.money-=c; S.tiers[i].mgr=true; beep(520,0.12,'triangle',0.06,880); toast('Manager hired for '+TIERS[i].name+'! +200% output'); renderCards(); }
   else beep(160,0.08,'sawtooth',0.04);
 }
-function pendingBP(){ return Math.floor(Math.sqrt(S.runEarned/1e6)); }
+function pendingBP(){ return Math.floor(Math.sqrt(S.runEarned/1e5)); }
 function doPrestige(){
   const bp=pendingBP();
-  if(bp<1){ toast('Earn at least $1M this run to rebuild ('+money(S.runEarned)+' so far)'); beep(160,0.1,'sawtooth',0.04); return; }
+  if(bp<1){ toast('Earn at least $100K this run to rebuild ('+money(S.runEarned)+' so far)'); beep(160,0.1,'sawtooth',0.04); return; }
   S.blueprints+=bp;
   // reset run
   S.money=0;S.ore=0;S.metal=0;S.parts=0;S.runEarned=0;
@@ -243,7 +231,8 @@ function doPrestige(){
   renderCards();
 }
 function starterChain(){ for(let i=0;i<4;i++){ if(S.tiers[i].count<1)S.tiers[i].count=1; } S.money=Math.max(S.money,25); }
-function manualMine(){ const amt=1*globalMult()*(1+S.blueprints*0.2); S.ore+=amt; flashes[0]=1; beep(700,0.04,'square',0.035,900); }
+function clickVal(){ return Math.max(1, (incomePerSec()*0.4)) * globalMult() + 1*globalMult(); }
+function manualMine(){ const amt=clickVal(); S.ore+=amt; S.money+=amt; S.totalEarned+=amt; S.runEarned+=amt; flashes[0]=1; beep(700,0.04,'square',0.035,900); }
 
 /* ---------- flash + popups on canvas ---------- */
 const flashes=[0,0,0,0]; function flash(i){flashes[i]=1;}
@@ -304,7 +293,7 @@ function renderTop(){
   document.getElementById('partsV').textContent=fmt(S.parts);
   document.getElementById('bpV').textContent=fmt(S.blueprints);
   document.getElementById('bpPct').textContent=(S.blueprints*10);
-  document.getElementById('clickAmt').textContent=fmt(1*globalMult()*(1+S.blueprints*0.2));
+  document.getElementById('clickAmt').textContent='$'+fmt(clickVal());
 }
 
 /* ---------- canvas belts ---------- */

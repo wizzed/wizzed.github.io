@@ -91,7 +91,7 @@ addEventListener('mousedown',pressAction);
 addEventListener('mouseup',()=>{jumpHeld=false;});
 addEventListener('touchstart',e=>{
   const t=e.touches[0];
-  if(t.clientY>innerHeight*0.66&&state==='play'){audio();touchDuck=true;}
+  if(t.clientY>innerHeight*0.66&&state==='play'&&!paused){audio();touchDuck=true;}
   else pressAction();
 },{passive:true});
 addEventListener('touchend',()=>{touchDuck=false;jumpHeld=false;});

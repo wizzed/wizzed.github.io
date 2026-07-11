@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTTP Status Codes · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ff2d78; --soft:rgba(255,45,120,.4);
+  --panel:#170b12; --line:#5c1c38; --text:#ffd9e6; --dim:#c78aa2;
+  --c1:#00e5ff; --c2:#00ff9c; --c3:#ffd166; --c4:#ff9f45; --c5:#ff5470;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:10px 12px 40px;
+}
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:linear-gradient(rgba(255,45,120,.03) 1px,transparent 1px),
+             linear-gradient(90deg,rgba(255,45,120,.03) 1px,transparent 1px);
+  background-size:30px 30px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:4px 8px 2px; position:relative; z-index:1; }
+h1{ display:inline-block; font-size:clamp(18px,3vw,26px); letter-spacing:4px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--soft); }
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:1040px; margin:8px auto 0; position:relative; z-index:1; display:flex; flex-direction:column; gap:12px; }
+.controls{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.seg{ display:inline-flex; border:2px solid var(--line); background:#1c0d15; }
+.seg button{ font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer; color:var(--dim); background:transparent; border:none; padding:8px 14px; text-transform:uppercase; }
+.seg button.on{ color:#1a0710; background:var(--accent); box-shadow:0 0 12px var(--soft); }
+.search{ flex:1 1 260px; position:relative; }
+.search input{
+  width:100%; font-family:inherit; font-size:15px; color:var(--accent); background:#1c0d15;
+  border:2px solid var(--line); padding:9px 12px 9px 30px; outline:none; letter-spacing:1px; text-shadow:0 0 6px var(--soft);
+}
+.search input:focus{ border-color:var(--accent); box-shadow:0 0 12px var(--soft); }
+.search::before{ content:'⌕'; position:absolute; left:9px; top:50%; transform:translateY(-50%); color:var(--dim); font-size:16px; }
+.count{ font-size:11px; color:var(--dim); letter-spacing:1px; white-space:nowrap; }
+.classbar{ display:flex; gap:6px; flex-wrap:wrap; }
+.cpill{ font-size:10px; letter-spacing:.5px; padding:4px 9px; border:1px solid var(--line); cursor:pointer; color:var(--dim); }
+.cpill:hover{ color:var(--text); }
+.classsec{ margin-top:4px; }
+.classhead{ font-size:12px; letter-spacing:3px; text-transform:uppercase; padding:6px 2px; border-bottom:2px solid; margin-bottom:10px; }
+.cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; }
+.card{
+  border:1px solid var(--line); background:var(--panel); padding:10px 12px; position:relative;
+  border-left-width:4px; display:flex; flex-direction:column; gap:4px;
+}
+.card .top{ display:flex; align-items:baseline; gap:8px; }
+.card .code{ font-size:26px; font-weight:bold; letter-spacing:1px; }
+.card .name{ font-size:14px; color:var(--text); }
+.card .one{ font-size:12px; color:var(--dim); }
+.card .friendly{ font-size:11.5px; color:var(--text); line-height:1.5; opacity:.92; }
+.card .spec{ font-size:9px; letter-spacing:1px; color:var(--dim); text-transform:uppercase; margin-top:2px; }
+.card .copy{
+  position:absolute; top:8px; right:8px; font-family:inherit; font-size:9px; letter-spacing:1px; cursor:pointer;
+  color:var(--dim); background:#1c0d15; border:1px solid var(--line); padding:3px 6px; text-transform:uppercase;
+}
+.card .copy:hover{ color:var(--accent); border-color:var(--accent); }
+.card.teapot{ background:linear-gradient(135deg,#170b12,#231018); }
+.card .teabig{ position:absolute; right:10px; bottom:6px; font-size:34px; opacity:.85; }
+.headtab{ display:none; }
+.htable{ width:100%; border-collapse:collapse; font-size:12.5px; }
+.htable th{ text-align:left; padding:7px 9px; border-bottom:2px solid var(--line); color:var(--accent); font-size:10px; letter-spacing:2px; text-transform:uppercase; }
+.htable td{ padding:7px 9px; border-bottom:1px solid var(--line); vertical-align:top; }
+.htable td.hn{ color:var(--accent); white-space:nowrap; font-weight:bold; }
+.htable td.hd{ color:var(--dim); font-size:9px; text-transform:uppercase; letter-spacing:1px; white-space:nowrap; }
+.htable tr:hover td{ background:rgba(255,45,120,.05); }
+.empty{ text-align:center; color:var(--dim); padding:30px; font-size:13px; letter-spacing:1px; }
+.priv{ text-align:center; font-size:10px; color:var(--dim); letter-spacing:1px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>HTTP STATUS CODES</h1>
+  <div class="sub">100 → 511 · GROUPED · FILTERABLE · WITH THE TEAPOT 🫖</div>
+</header>
+<main>
+  <div class="controls">
+    <div class="seg" id="tabs">
+      <button data-t="codes" class="on">Status codes</button>
+      <button data-t="headers">Common headers</button>
+    </div>
+    <div class="search"><input id="q" type="text" spellcheck="false" placeholder="filter by number or text… try 404, teapot, redirect"></div>
+    <div class="count" id="count"></div>
+  </div>
+  <div class="classbar" id="classbar"></div>
+  <div id="codesTab"></div>
+  <div id="headersTab" class="headtab"></div>
+  <div class="priv">100% local reference — no lookups leave your browser.</div>
+</main>
+
+<script>
+"use strict";
+var $=function(id){return document.getElementById(id);};
+
+var CLASSES={
+  '1':{name:'1xx Informational', color:'var(--c1)'},
+  '2':{name:'2xx Success', color:'var(--c2)'},
+  '3':{name:'3xx Redirection', color:'var(--c3)'},
+  '4':{name:'4xx Client Error', color:'var(--c4)'},
+  '5':{name:'5xx Server Error', color:'var(--c5)'}
+};
+
+// [code, name, one-liner, friendly, spec]
+var CODES=[
+ [100,'Continue','Keep going, send the body.','The server got your request headers and is happy for you to send the request body — used with Expect: 100-continue.','RFC 9110'],
+ [101,'Switching Protocols','OK, switching to the protocol you asked for.','You asked to upgrade (e.g. to WebSocket) and the server agreed to change protocols on this connection.','RFC 9110'],
+ [102,'Processing','Still working on it (WebDAV).','A WebDAV holdover telling the client the server is chewing on a long request so it doesn\'t time out. Largely deprecated.','RFC 2518'],
+ [103,'Early Hints','Here are some hints while I finish.','Sends Link headers early so the browser can start preloading resources before the real response is ready.','RFC 8297'],
+
+ [200,'OK','Everything worked.','The classic success. The request succeeded and the response body has what you asked for.','RFC 9110'],
+ [201,'Created','New thing made.','The request succeeded and created a new resource — usually with a Location header pointing to it.','RFC 9110'],
+ [202,'Accepted','Got it, will process later.','The request was accepted but not finished — processing happens asynchronously, so success isn\'t guaranteed yet.','RFC 9110'],
+ [203,'Non-Authoritative Information','Success, but a middlebox changed the headers.','Like 200, but a proxy modified the origin server\'s response metadata along the way.','RFC 9110'],
+ [204,'No Content','Success, nothing to send back.','It worked and there is deliberately no body — common after a successful save or DELETE.','RFC 9110'],
+ [205,'Reset Content','Success — now clear the form.','Tells the client to reset the document view, e.g. clear a form for the next entry.','RFC 9110'],
+ [206,'Partial Content','Here is the chunk you asked for.','A successful Range request — used for resumable downloads and video seeking.','RFC 9110'],
+ [207,'Multi-Status','Multiple results inside (WebDAV).','The XML body carries several independent status codes for a multi-part WebDAV operation.','RFC 4918'],
+ [208,'Already Reported','Already listed this one (WebDAV).','Avoids repeating members of a WebDAV binding that were already enumerated in a previous 207.','RFC 5842'],
+ [226,'IM Used','Success via delta encoding.','The response is the result of applying instance-manipulations (delta encoding) to the resource.','RFC 3229'],
+
+ [300,'Multiple Choices','Pick one of several options.','The resource has several representations; the client or user should choose which one to follow.','RFC 9110'],
+ [301,'Moved Permanently','It lives at a new URL now — forever.','The resource moved permanently; update your bookmarks and links to the Location URL.','RFC 9110'],
+ [302,'Found','It is temporarily somewhere else.','A temporary redirect. Historically clients wrongly switched the method to GET, which is why 307/303 exist.','RFC 9110'],
+ [303,'See Other','Go GET this other URL.','After a POST, tells the client to GET the result from a different URL — the classic POST-redirect-GET.','RFC 9110'],
+ [304,'Not Modified','Nothing changed, use your cache.','Your cached copy is still fresh (matched ETag/If-Modified-Since), so no body is sent.','RFC 9110'],
+ [305,'Use Proxy','Reach me through a proxy (deprecated).','Deprecated for security reasons; browsers ignore it.','RFC 9110'],
+ [306,'(Unused)','Reserved, no longer used.','Was once "Switch Proxy"; the code is reserved and unused today.','RFC 9110'],
+ [307,'Temporary Redirect','Temporary move — keep the method.','Like 302 but guarantees the method and body are preserved when following the redirect.','RFC 9110'],
+ [308,'Permanent Redirect','Permanent move — keep the method.','Like 301 but the method and body must not change when the client follows it.','RFC 7538'],
+
+ [400,'Bad Request','You sent something malformed.','The server can\'t or won\'t process the request due to a client error — bad syntax, framing, or invalid data.','RFC 9110'],
+ [401,'Unauthorized','You need to authenticate.','Really "unauthenticated" — you must log in. The response includes a WWW-Authenticate challenge.','RFC 9110'],
+ [402,'Payment Required','Reserved for paying up.','Mostly unused historically, but increasingly seen on APIs that gate features behind billing or quotas.','RFC 9110'],
+ [403,'Forbidden','You are known, but not allowed.','The server understood you and refuses anyway — authentication won\'t help, you simply lack permission.','RFC 9110'],
+ [404,'Not Found','That resource does not exist here.','The famous one. The server has no representation for the target — or is hiding that it does.','RFC 9110'],
+ [405,'Method Not Allowed','Wrong verb for this resource.','The URL exists but not for this method; the Allow header lists what is permitted.','RFC 9110'],
+ [406,'Not Acceptable','Can\'t match your Accept preferences.','No representation matches the content types/languages your Accept headers requested.','RFC 9110'],
+ [407,'Proxy Authentication Required','The proxy wants you to log in.','Like 401 but the challenge comes from a proxy via Proxy-Authenticate.','RFC 9110'],
+ [408,'Request Timeout','You were too slow to send it.','The server got tired of waiting for the request and closed the idle connection.','RFC 9110'],
+ [409,'Conflict','That clashes with the current state.','The request conflicts with the resource\'s state — e.g. an edit collision or duplicate create.','RFC 9110'],
+ [410,'Gone','It was here, now it is permanently gone.','Like 404 but intentional and permanent — the resource was deliberately removed.','RFC 9110'],
+ [411,'Length Required','Tell me the Content-Length.','The server refuses the request until you include a Content-Length header.','RFC 9110'],
+ [412,'Precondition Failed','A precondition you set was false.','One of your If-* conditional headers evaluated to false, so the server declined.','RFC 9110'],
+ [413,'Content Too Large','Your payload is too big.','The request body exceeds what the server is willing to process (formerly "Payload Too Large").','RFC 9110'],
+ [414,'URI Too Long','That URL is absurdly long.','The request target is longer than the server will interpret — often from stuffing data into a GET query.','RFC 9110'],
+ [415,'Unsupported Media Type','I don\'t speak that Content-Type.','The body\'s media type isn\'t supported by the target resource.','RFC 9110'],
+ [416,'Range Not Satisfiable','That byte range doesn\'t exist.','Your Range request asks for bytes outside the size of the resource.','RFC 9110'],
+ [417,'Expectation Failed','Can\'t meet your Expect header.','The server can\'t satisfy the requirement in the Expect request header.','RFC 9110'],
+ [418,'I\'m a teapot','Short and stout — cannot brew coffee.','From the April Fools\' Hyper Text Coffee Pot Control Protocol: a teapot asked to brew coffee refuses. Beloved as an Easter egg.','RFC 2324'],
+ [421,'Misdirected Request','Wrong server for this authority.','The request went to a server that can\'t produce a response for the requested scheme/authority (HTTP/2 connection reuse).','RFC 9110'],
+ [422,'Unprocessable Content','Well-formed but semantically wrong.','The syntax is fine but the content has semantic errors the server can\'t process (popular in JSON APIs).','RFC 9110'],
+ [423,'Locked','This resource is locked (WebDAV).','The target resource is locked and can\'t be modified right now.','RFC 4918'],
+ [424,'Failed Dependency','A step this depended on failed.','The request failed because a previous request it depended on failed (WebDAV).','RFC 4918'],
+ [425,'Too Early','Won\'t risk replaying this yet.','The server won\'t process a request that might be replayed (TLS 1.3 early data).','RFC 8470'],
+ [426,'Upgrade Required','Please upgrade your protocol.','The server refuses the current protocol and names a better one in the Upgrade header.','RFC 9110'],
+ [428,'Precondition Required','Add a conditional header first.','The server wants requests to be conditional (e.g. If-Match) to avoid the lost-update problem.','RFC 6585'],
+ [429,'Too Many Requests','Slow down — rate limited.','You sent too many requests in a window; check the Retry-After header before trying again.','RFC 6585'],
+ [431,'Request Header Fields Too Large','Your headers are too big.','The header section (or one field) is too large for the server to process.','RFC 6585'],
+ [451,'Unavailable For Legal Reasons','Blocked for legal reasons.','Access is denied due to a legal demand — the number nods to Ray Bradbury\'s Fahrenheit 451.','RFC 7725'],
+
+ [500,'Internal Server Error','Something broke on our side.','The catch-all server failure — an unexpected condition with no more specific code.','RFC 9110'],
+ [501,'Not Implemented','I don\'t support that method.','The server doesn\'t recognize or support the functionality needed to fulfill the request.','RFC 9110'],
+ [502,'Bad Gateway','A server upstream misbehaved.','Acting as a gateway/proxy, the server got an invalid response from the upstream server.','RFC 9110'],
+ [503,'Service Unavailable','Down for maintenance or overloaded.','The server is temporarily unable to handle the request; Retry-After may say when to come back.','RFC 9110'],
+ [504,'Gateway Timeout','Upstream didn\'t answer in time.','As a gateway, the server didn\'t get a timely response from the upstream server.','RFC 9110'],
+ [505,'HTTP Version Not Supported','I won\'t speak that HTTP version.','The server doesn\'t support the major HTTP version used in the request.','RFC 9110'],
+ [506,'Variant Also Negotiates','Content negotiation is misconfigured.','A negotiation configuration error caused a circular reference between variants.','RFC 2295'],
+ [507,'Insufficient Storage','Out of storage (WebDAV).','The server can\'t store the representation needed to complete the request.','RFC 4918'],
+ [508,'Loop Detected','Infinite loop while processing (WebDAV).','The server detected an infinite loop while handling the request.','RFC 5842'],
+ [510,'Not Extended','Missing a required extension.','Further extensions to the request are required for the server to fulfill it.','RFC 2774'],
+ [511,'Network Authentication Required','Log in to the network first.','A captive portal telling you to authenticate (e.g. accept the WiFi terms) before you get network access.','RFC 6585']
+];
+
+var HEADERS=[
+ ['Accept','Request','Media types the client can handle, e.g. application/json.'],
+ ['Accept-Encoding','Request','Compression algorithms the client accepts, e.g. gzip, br.'],
+ ['Accept-Language','Request','Preferred human languages for the response.'],
+ ['Authorization','Request','Credentials for authentication, e.g. Bearer <token>.'],
+ ['Cache-Control','Both','Caching directives such as no-cache, max-age, private.'],
+ ['Content-Type','Both','The media type of the body, e.g. text/html; charset=utf-8.'],
+ ['Content-Length','Both','Size of the body in bytes.'],
+ ['Content-Encoding','Response','Compression applied to the body, e.g. gzip.'],
+ ['Cookie','Request','Stored cookies the client sends back to the server.'],
+ ['Set-Cookie','Response','Tells the browser to store a cookie.'],
+ ['ETag','Response','Opaque version identifier used for cache validation.'],
+ ['If-None-Match','Request','Conditional request using an ETag; yields 304 if unchanged.'],
+ ['If-Modified-Since','Request','Conditional request by date; yields 304 if not newer.'],
+ ['Last-Modified','Response','When the resource was last changed.'],
+ ['Location','Response','Target URL for redirects (3xx) or the new resource (201).'],
+ ['Host','Request','The domain (and port) being requested — required in HTTP/1.1.'],
+ ['Origin','Request','The origin making a cross-site request; central to CORS.'],
+ ['Referer','Request','The page URL that linked to the request (yes, misspelled in the spec).'],
+ ['User-Agent','Request','Identifies the client software making the request.'],
+ ['Range','Request','Requests a byte range, enabling resumable downloads → 206.'],
+ ['Retry-After','Response','How long to wait before retrying, paired with 429/503.'],
+ ['WWW-Authenticate','Response','The authentication challenge that accompanies a 401.'],
+ ['Access-Control-Allow-Origin','Response','Which origins may read the response (CORS).'],
+ ['Strict-Transport-Security','Response','Forces HTTPS for future visits (HSTS).'],
+ ['Vary','Response','Which request headers affect caching of this response.'],
+ ['Connection','Both','Controls whether the connection stays open (keep-alive).'],
+ ['Transfer-Encoding','Both','Body transfer form, e.g. chunked.'],
+ ['Date','Both','The date and time the message was generated.']
+];
+
+var state={ tab:'codes', q:'' };
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function classColor(code){ return CLASSES[String(code)[0]].color; }
+
+function matchCode(c, q){
+  if(!q) return true;
+  q=q.toLowerCase();
+  return String(c[0]).indexOf(q)>=0 || c[1].toLowerCase().indexOf(q)>=0 || c[2].toLowerCase().indexOf(q)>=0 || c[3].toLowerCase().indexOf(q)>=0;
+}
+function renderCodes(){
+  var q=state.q.trim();
+  var groups={'1':[],'2':[],'3':[],'4':[],'5':[]};
+  var total=0;
+  CODES.forEach(function(c){ if(matchCode(c,q)){ groups[String(c[0])[0]].push(c); total++; } });
+  $('count').textContent=total+' / '+CODES.length+' codes';
+  var html='';
+  ['1','2','3','4','5'].forEach(function(k){
+    var arr=groups[k]; if(arr.length===0) return;
+    var col=CLASSES[k].color;
+    html+='<div class="classsec"><div class="classhead" style="color:'+col+';border-color:'+col+'">'+esc(CLASSES[k].name)+'</div><div class="cards">';
+    arr.forEach(function(c){
+      var col2=classColor(c[0]);
+      var tea = c[0]===418;
+      html+='<div class="card'+(tea?' teapot':'')+'" style="border-left-color:'+col2+'">'+
+        '<button class="copy" data-copy="'+esc(c[0]+' '+c[1])+'">⧉ copy</button>'+
+        '<div class="top"><span class="code" style="color:'+col2+';text-shadow:0 0 12px '+col2+'">'+c[0]+'</span><span class="name">'+esc(c[1])+(tea?' 🫖':'')+'</span></div>'+
+        '<div class="one">'+esc(c[2])+'</div>'+
+        '<div class="friendly">'+esc(c[3])+'</div>'+
+        '<div class="spec">'+esc(c[4])+'</div>'+
+        (tea?'<span class="teabig">🫖</span>':'')+
+      '</div>';
+    });
+    html+='</div></div>';
+  });
+  if(total===0) html='<div class="empty">No status codes match "'+esc(q)+'".</div>';
+  $('codesTab').innerHTML=html;
+  wireCopy();
+}
+function renderHeaders(){
+  var q=state.q.trim().toLowerCase();
+  var rows=HEADERS.filter(function(h){ return !q || h[0].toLowerCase().indexOf(q)>=0 || h[2].toLowerCase().indexOf(q)>=0 || h[1].toLowerCase().indexOf(q)>=0; });
+  $('count').textContent=rows.length+' / '+HEADERS.length+' headers';
+  if(rows.length===0){ $('headersTab').innerHTML='<div class="empty">No headers match "'+esc(state.q)+'".</div>'; return; }
+  var html='<table class="htable"><thead><tr><th>Header</th><th>Direction</th><th>What it does</th></tr></thead><tbody>';
+  rows.forEach(function(h){
+    html+='<tr><td class="hn">'+esc(h[0])+'</td><td class="hd">'+esc(h[1])+'</td><td>'+esc(h[2])+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  $('headersTab').innerHTML=html;
+}
+function render(){
+  if(state.tab==='codes'){ $('codesTab').style.display=''; $('headersTab').style.display='none'; $('classbar').style.display='flex'; renderCodes(); }
+  else { $('codesTab').style.display='none'; $('headersTab').style.display=''; $('classbar').style.display='none'; renderHeaders(); }
+  try{ localStorage.setItem('wizzed-http-status', JSON.stringify({tab:state.tab, q:state.q})); }catch(e){}
+}
+function wireCopy(){
+  $('codesTab').querySelectorAll('.copy').forEach(function(b){
+    b.addEventListener('click', function(){
+      var t=b.getAttribute('data-copy');
+      if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).catch(function(){});
+      var o=b.textContent; b.textContent='✓ copied'; setTimeout(function(){ b.textContent=o; }, 900);
+    });
+  });
+}
+function renderClassbar(){
+  $('classbar').innerHTML=['1','2','3','4','5'].map(function(k){
+    var col=CLASSES[k].color;
+    return '<span class="cpill" data-k="'+k+'" style="border-color:'+col+';color:'+col+'">'+esc(CLASSES[k].name)+'</span>';
+  }).join('')+'<span class="cpill" data-k="" style="border-color:var(--dim)">Show all</span>';
+  $('classbar').querySelectorAll('.cpill').forEach(function(p){
+    p.addEventListener('click', function(){
+      var k=p.getAttribute('data-k');
+      state.q=''; $('q').value='';
+      render();
+      if(k) filterToClass(k);
+    });
+  });
+}
+function filterToClass(k){
+  // hide sections not matching class k
+  var secs=$('codesTab').querySelectorAll('.classsec');
+  var shown=0, total=0;
+  CODES.forEach(function(c){ if(String(c[0])[0]===k) total++; });
+  secs.forEach(function(sec){
+    var head=sec.querySelector('.classhead').textContent;
+    var match=head.indexOf(k+'xx')===0;
+    sec.style.display=match?'':'none';
+    if(match) shown=total;
+  });
+  $('count').textContent=shown+' / '+CODES.length+' codes';
+  $('q').value='';
+}
+
+/* ---------- wire ---------- */
+$('tabs').querySelectorAll('button').forEach(function(b){
+  b.addEventListener('click', function(){
+    state.tab=b.getAttribute('data-t');
+    $('tabs').querySelectorAll('button').forEach(function(x){ x.classList.toggle('on', x===b); });
+    render();
+  });
+});
+$('q').addEventListener('input', function(){ state.q=$('q').value; render(); });
+
+/* ---------- init ---------- */
+(function init(){
+  try{ var raw=localStorage.getItem('wizzed-http-status'); if(raw){ var s=JSON.parse(raw); if(s){ state.tab=s.tab==='headers'?'headers':'codes'; state.q=typeof s.q==='string'?s.q:''; } } }catch(e){}
+  $('q').value=state.q;
+  $('tabs').querySelectorAll('button').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-t')===state.tab); });
+  renderClassbar();
+  render();
+})();
+</script>
+</body>
+</html>

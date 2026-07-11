@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deal Compare · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#19e3ff; --soft:rgba(25,227,255,.4);
+  --panel:#0c1820; --line:#1d4657; --text:#e3fbff; --dim:#7ab8ca;
+  --win:#ffd23f; --winsoft:rgba(255,210,63,.4);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:8px 12px 48px;
+}
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:linear-gradient(rgba(25,227,255,.035) 1px,transparent 1px),
+             linear-gradient(90deg,rgba(25,227,255,.035) 1px,transparent 1px);
+  background-size:28px 28px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:6px 8px 2px; position:relative; z-index:1; }
+h1{
+  display:inline-block; font-size:clamp(17px,3vw,24px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--soft);
+}
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:900px; margin:8px auto 0; position:relative; z-index:1; display:flex; flex-direction:column; gap:12px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line);
+  box-shadow:0 0 22px rgba(25,227,255,.10), inset 0 1px 0 rgba(255,255,255,.04);
+  padding:12px 14px;
+}
+h2.sec{ font-size:10px; letter-spacing:3px; color:var(--dim); margin-bottom:10px; }
+h2.sec b{ color:var(--accent); font-weight:normal; text-shadow:0 0 6px var(--soft); }
+.row{
+  display:grid; grid-template-columns:1.4fr .8fr .7fr .8fr .9fr .7fr 26px;
+  gap:8px; align-items:end; padding:9px 10px; margin-bottom:8px;
+  border:2px solid var(--line); background:#0a141a; position:relative;
+  transition:border-color .2s, box-shadow .2s;
+}
+.row.winner{ border-color:var(--win); box-shadow:0 0 20px var(--winsoft); background:rgba(255,210,63,.05); }
+.row .cell{ display:flex; flex-direction:column; gap:3px; min-width:0; }
+.row label{ font-size:8px; letter-spacing:1px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.row input, .row select{
+  width:100%; font-family:inherit; font-size:13px; font-weight:bold;
+  color:var(--accent); background:#050b0f; border:2px solid var(--line);
+  padding:6px 7px; outline:none; box-shadow:inset 0 2px 8px rgba(0,0,0,.6); min-width:0;
+}
+.row input.name{ color:var(--text); text-align:left; font-weight:normal; }
+.row input.num{ text-align:right; text-shadow:0 0 6px var(--soft); }
+.row input.num.bad{ color:#ff6b6b; text-shadow:none; }
+.row select{ color:var(--text); font-size:12px; cursor:pointer; }
+.row input:focus, .row select:focus{ border-color:var(--accent); box-shadow:inset 0 2px 8px rgba(0,0,0,.6), 0 0 10px var(--soft); }
+.cvcell.hidden{ visibility:hidden; }
+.del{
+  align-self:end; width:26px; height:32px; border:2px solid var(--line); background:#050b0f;
+  color:var(--dim); font-family:inherit; font-size:15px; cursor:pointer; line-height:1;
+}
+.del:hover{ color:#ff6b6b; border-color:#ff6b6b; }
+.result{
+  grid-column:1/-1; display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 14px;
+  margin-top:9px; padding-top:8px; border-top:1px dashed var(--line);
+}
+.result .price{ font-size:20px; font-weight:bold; color:var(--accent); text-shadow:0 0 8px var(--soft); }
+.row.winner .result .price{ color:var(--win); text-shadow:0 0 10px var(--winsoft); }
+.result .unit{ font-size:11px; color:var(--dim); letter-spacing:1px; }
+.result .badge{ font-size:10px; letter-spacing:1px; color:var(--dim); }
+.result .eff{ font-size:10px; color:var(--dim); }
+.result .eff s{ color:#ff8fa0; }
+.crown{ position:absolute; top:-13px; left:-8px; font-size:22px; filter:drop-shadow(0 0 6px var(--winsoft)); display:none; }
+.row.winner .crown{ display:block; }
+.winTag{ font-size:11px; letter-spacing:1px; color:var(--win); font-weight:bold; text-shadow:0 0 8px var(--winsoft); }
+.controls{ display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; }
+.controls button{
+  font-family:inherit; font-size:11px; letter-spacing:1px; color:var(--accent);
+  background:#0a141a; border:2px solid var(--line); padding:8px 14px; cursor:pointer;
+}
+.controls button:hover:not(:disabled){ border-color:var(--accent); box-shadow:0 0 10px var(--soft); }
+.controls button:disabled{ opacity:.35; cursor:not-allowed; }
+#summary{ font-size:13px; line-height:1.55; letter-spacing:.3px; }
+#summary b{ color:var(--win); text-shadow:0 0 8px var(--winsoft); }
+#summary .none{ color:var(--dim); }
+#warn{ font-size:11px; color:#ffb347; letter-spacing:.5px; margin-top:8px; display:none; }
+.note{ font-size:10px; color:var(--dim); letter-spacing:1px; text-align:center; margin-top:2px; opacity:.8; }
+@media(max-width:640px){
+  .row{ grid-template-columns:1fr 1fr; }
+  .row .cell.wide{ grid-column:1/-1; }
+  .del{ position:absolute; top:6px; right:6px; height:26px; }
+}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>DEAL COMPARE</h1>
+  <div class="sub">UNIT-PRICE SHOWDOWN · COUPONS · FIND THE REAL BARGAIN</div>
+</header>
+<main>
+  <section class="panel">
+    <h2 class="sec">PRODUCTS — <b>PRICE ÷ NORMALIZED QUANTITY</b></h2>
+    <div id="rows"></div>
+    <div class="controls">
+      <button id="addBtn">+ ADD PRODUCT</button>
+      <button id="clearBtn">RESET DEMO</button>
+    </div>
+    <div id="warn"></div>
+    <div class="note">All math runs 100% in your browser — nothing is uploaded.</div>
+  </section>
+  <section class="panel">
+    <h2 class="sec">VERDICT</h2>
+    <div id="summary"></div>
+  </section>
+</main>
+<script>
+(function(){
+'use strict';
+var LS_KEY='wizzed-unit-price';
+var $=function(id){ return document.getElementById(id); };
+
+var UNITS={
+  g:{cat:'mass',base:1,disp:100,dl:'/100g'},
+  kg:{cat:'mass',base:1000,disp:100,dl:'/100g'},
+  oz:{cat:'mass',base:28.349523125,disp:100,dl:'/100g'},
+  lb:{cat:'mass',base:453.59237,disp:100,dl:'/100g'},
+  ml:{cat:'volume',base:1,disp:100,dl:'/100ml'},
+  L:{cat:'volume',base:1000,disp:100,dl:'/100ml'},
+  count:{cat:'count',base:1,disp:1,dl:'/item'}
+};
+var UNIT_ORDER=['g','kg','oz','lb','ml','L','count'];
+var UNIT_LABEL={g:'g',kg:'kg',oz:'oz',lb:'lb',ml:'ml',L:'L',count:'count'};
+
+var DEMO=[
+  {name:'Corn Flakes Family',price:'5.49',qty:'500',unit:'g',cType:'none',cVal:''},
+  {name:'Corn Flakes Jumbo',price:'8.99',qty:'1000',unit:'g',cType:'pct',cVal:'10'},
+  {name:'Corn Flakes Mini',price:'2.99',qty:'250',unit:'g',cType:'none',cVal:''}
+];
+var state=[];
+
+try{
+  var raw=localStorage.getItem(LS_KEY);
+  if(raw){ var s=JSON.parse(raw); if(Array.isArray(s)&&s.length>=1){ state=s.slice(0,5).map(clean); } }
+}catch(e){}
+if(!state.length) state=DEMO.map(clean);
+function clean(r){
+  return {
+    name:typeof r.name==='string'?r.name:'',
+    price:typeof r.price==='string'?r.price:'',
+    qty:typeof r.qty==='string'?r.qty:'',
+    unit:UNITS[r.unit]?r.unit:'g',
+    cType:(r.cType==='flat'||r.cType==='pct')?r.cType:'none',
+    cVal:typeof r.cVal==='string'?r.cVal:''
+  };
+}
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
+
+function money(x){
+  if(!isFinite(x)) return '—';
+  var s=x.toFixed(2).split('.');
+  s[0]=s[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  return '$'+s[0]+'.'+s[1];
+}
+function unitPrice(x){
+  if(!isFinite(x)) return '—';
+  var d = x<0.1 ? x.toFixed(4) : x<10 ? x.toFixed(3) : x.toFixed(2);
+  return '$'+d;
+}
+
+function eff(price,cType,cVal){
+  if(cType==='flat') return Math.max(0,price-(isFinite(cVal)?cVal:0));
+  if(cType==='pct') return price*(1-(isFinite(cVal)?Math.min(cVal,100):0)/100);
+  return price;
+}
+
+function renderRows(){
+  var wrap=$('rows'); wrap.innerHTML='';
+  state.forEach(function(r,i){
+    var div=document.createElement('div');
+    div.className='row'; div.setAttribute('data-i',i);
+    var opts=UNIT_ORDER.map(function(u){ return '<option value="'+u+'"'+(u===r.unit?' selected':'')+'>'+UNIT_LABEL[u]+'</option>'; }).join('');
+    var cvHidden=r.cType==='none'?' hidden':'';
+    div.innerHTML=
+      '<span class="crown">👑</span>'+
+      '<div class="cell wide"><label>PRODUCT</label><input class="name" data-f="name" type="text" value="'+esc(r.name)+'" placeholder="Product" autocomplete="off"></div>'+
+      '<div class="cell"><label>PRICE $</label><input class="num" data-f="price" type="text" inputmode="decimal" value="'+esc(r.price)+'" autocomplete="off"></div>'+
+      '<div class="cell"><label>QTY</label><input class="num" data-f="qty" type="text" inputmode="decimal" value="'+esc(r.qty)+'" autocomplete="off"></div>'+
+      '<div class="cell"><label>UNIT</label><select data-f="unit">'+opts+'</select></div>'+
+      '<div class="cell"><label>COUPON</label><select data-f="cType">'+
+        '<option value="none"'+(r.cType==='none'?' selected':'')+'>none</option>'+
+        '<option value="flat"'+(r.cType==='flat'?' selected':'')+'>$ off</option>'+
+        '<option value="pct"'+(r.cType==='pct'?' selected':'')+'>% off</option></select></div>'+
+      '<div class="cell cvcell'+cvHidden+'"><label>AMOUNT</label><input class="num" data-f="cVal" type="text" inputmode="decimal" value="'+esc(r.cVal)+'" autocomplete="off"></div>'+
+      '<button class="del" title="remove"'+(state.length<=2?' style="visibility:hidden"':'')+'>×</button>'+
+      '<div class="result"></div>';
+    wrap.appendChild(div);
+  });
+  $('addBtn').disabled=state.length>=5;
+  compute();
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function parseNum(v){
+  var c=String(v).trim().replace(/[,$\s%]/g,'');
+  if(c===''||c==='.') return NaN;
+  var n=Number(c); return isFinite(n)?n:NaN;
+}
+
+function compute(){
+  var rowsEl=$('rows').children;
+  var calc=state.map(function(r){
+    var price=parseNum(r.price), qty=parseNum(r.qty);
+    var cVal=r.cType==='none'?0:parseNum(r.cVal);
+    var u=UNITS[r.unit];
+    var valid=isFinite(price)&&price>=0&&isFinite(qty)&&qty>0&&(r.cType==='none'||isFinite(cVal));
+    var e=valid?eff(price,r.cType,r.cType==='none'?0:cVal):NaN;
+    var per=valid?(e/(qty*u.base)):NaN;         // price per base unit
+    var disp=valid?per*u.disp:NaN;              // price per display unit
+    return {valid:valid,price:price,e:e,per:per,disp:disp,cat:u.cat,dl:u.dl,discounted:(r.cType!=='none'&&valid&&e<price)};
+  });
+
+  var valids=calc.map(function(c,i){ return c.valid?{i:i,per:c.per}:null; }).filter(Boolean);
+  var sorted=valids.slice().sort(function(a,b){ return a.per-b.per; });
+  var winIdx = sorted.length? sorted[0].i : -1;
+  var secondPer = sorted.length>1 ? sorted[1].per : null;
+
+  for(var i=0;i<state.length;i++){
+    var el=rowsEl[i], c=calc[i];
+    var resEl=el.querySelector('.result');
+    var isWin=(i===winIdx && sorted.length>0);
+    el.classList.toggle('winner', isWin);
+    if(!c.valid){
+      resEl.innerHTML='<span class="unit">enter price &amp; quantity…</span>';
+      continue;
+    }
+    var effStr = c.discounted ? '<span class="eff">after coupon <s>'+money(c.price)+'</s> → '+money(c.e)+'</span>' : '';
+    var winTag='';
+    if(isWin){
+      if(secondPer!=null){
+        var pct=(secondPer-c.per)/secondPer*100;
+        winTag='<span class="winTag">★ BEST DEAL · '+pct.toFixed(0)+'% cheaper than next best</span>';
+      } else {
+        winTag='<span class="winTag">★ BEST DEAL</span>';
+      }
+    }
+    resEl.innerHTML='<span class="price">'+unitPrice(c.disp)+'</span><span class="unit">'+c.dl+'</span>'+effStr+winTag;
+  }
+
+  // mixed-category warning
+  var cats={}; calc.forEach(function(c){ if(c.valid) cats[c.cat]=1; });
+  var warn=$('warn');
+  if(Object.keys(cats).length>1){
+    warn.style.display='block';
+    warn.textContent='⚠ You are comparing different unit types (weight / volume / count). Unit prices are only truly comparable within the same type.';
+  } else warn.style.display='none';
+
+  renderSummary(calc,winIdx,secondPer,sorted);
+}
+
+function renderSummary(calc,winIdx,secondPer,sorted){
+  var el=$('summary');
+  if(winIdx<0){ el.innerHTML='<span class="none">Fill in at least one product with a valid price and quantity to see the verdict.</span>'; return; }
+  var c=calc[winIdx];
+  var name=state[winIdx].name.trim()||('Product '+(winIdx+1));
+  var html='👑 <b>'+esc(name)+'</b> is the best value at <b>'+unitPrice(c.disp)+c.dl+'</b>';
+  if(secondPer!=null){
+    var pct=(secondPer-c.per)/secondPer*100;
+    var worstPer=sorted[sorted.length-1].per;
+    var vsWorst=(worstPer-c.per)/worstPer*100;
+    html+=' — <b>'+pct.toFixed(0)+'%</b> cheaper per unit than the next best';
+    if(sorted.length>2) html+=', and <b>'+vsWorst.toFixed(0)+'%</b> cheaper than the priciest option';
+    html+='.';
+  } else {
+    html+='. Add another product to compare.';
+  }
+  el.innerHTML=html;
+}
+
+/* events (delegated; input handlers update result nodes only, no rebuild) */
+$('rows').addEventListener('input',function(e){
+  var t=e.target; var f=t.getAttribute('data-f'); if(!f) return;
+  var row=t.closest('.row'); var i=+row.getAttribute('data-i');
+  state[i][f]=t.value;
+  if(f==='price'||f==='qty'||f==='cVal'){
+    var n=parseNum(t.value);
+    t.classList.toggle('bad', t.value.trim()!=='' && (!isFinite(n)|| (f!=='cVal'&&n<0)));
+  }
+  compute(); save();
+});
+$('rows').addEventListener('change',function(e){
+  var t=e.target; var f=t.getAttribute('data-f'); if(!f) return;
+  var row=t.closest('.row'); var i=+row.getAttribute('data-i');
+  state[i][f]=t.value;
+  if(f==='cType'){
+    var cv=row.querySelector('.cvcell');
+    cv.classList.toggle('hidden', t.value==='none');
+  }
+  compute(); save();
+});
+$('rows').addEventListener('click',function(e){
+  if(!e.target.classList.contains('del')) return;
+  var row=e.target.closest('.row'); var i=+row.getAttribute('data-i');
+  if(state.length<=2) return;
+  state.splice(i,1); renderRows(); save();
+});
+$('addBtn').addEventListener('click',function(){
+  if(state.length>=5) return;
+  state.push({name:'',price:'',qty:'',unit:'g',cType:'none',cVal:''});
+  renderRows(); save();
+});
+$('clearBtn').addEventListener('click',function(){
+  state=DEMO.map(clean); renderRows(); save();
+});
+
+renderRows();
+})();
+</script>
+</body>
+</html>

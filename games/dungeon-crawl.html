@@ -71,7 +71,11 @@ const ART=[
  {n:'Ring of Vigor',s:'mhp',v:12},
  {n:'Gauntlets of Might',s:'atk',v:3},
  {n:'Aegis Charm',s:'def',v:3},
- {n:'Chalice of Life',s:'pots',v:2}
+ {n:'Chalice of Life',s:'pots',v:2},
+ {n:'Titan Heart',s:'mhp',v:22},
+ {n:'Berserker Rune',s:'atk',v:5},
+ {n:'Bulwark Sigil',s:'def',v:5},
+ {n:'Vampiric Fang',s:'life',v:2}
 ];
 const MDEF=[
  {n:'Rat',c:'#b8a090',c2:'#ff5555',hp:5,atk:2,def:0,xp:2,f:1,pat:[
@@ -93,7 +97,11 @@ const MDEF=[
  {n:'Ghoul',c:'#8fae7a',c2:'#c0392b',hp:22,atk:9,def:2,xp:13,f:6,pat:[
   '..1111..','.122221.','.111111.','11111111','1.1111.1','.111111.','.11..11.','.1....1.']},
  {n:'Golem',c:'#8a8f9a',c2:'#22d3ee',hp:40,atk:11,def:5,xp:22,f:8,pat:[
-  '11111111','1.1111.1','11111111','11122111','11122111','11111111','11.11.11','11.11.11']}
+  '11111111','1.1111.1','11111111','11122111','11122111','11111111','11.11.11','11.11.11']},
+ {n:'Spider',c:'#9b7cc9',c2:'#ffe066',hp:11,atk:6,def:1,xp:7,f:3,pat:[
+  '1.1..1.1','.1.11.1.','..1221..','.112211.','.111111.','..1..1..','.1....1.','1......1']},
+ {n:'Lich',c:'#cfe8ff',c2:'#b13aff',hp:34,atk:12,def:3,xp:23,f:9,pat:[
+  '..1221..','..1111..','.111111.','.122221.','..1111..','.111111.','.1.11.1.','..1..1..']}
 ];
 const HERO_PAT=['..1111..','..1221..','..1111..','.111111.','1.1111.1','..1111..','..1..1..','..1..1..'];
 
@@ -108,7 +116,7 @@ const shrineBtnP={x:121,y:270,w:150,h:38};
 const shrineBtnL={x:291,y:270,w:150,h:38};
 
 function defaultPlayer(){
-  return {x:2,y:2,hp:30,mhp:30,atk:3,def:0,lvl:1,xp:0,gold:0,kills:0,pots:1,wep:0,arm:0,arts:0};
+  return {x:2,y:2,hp:30,mhp:30,atk:3,def:0,lvl:1,xp:0,gold:0,kills:0,pots:1,wep:0,arm:0,arts:0,life:0};
 }
 function score(){return depth*100+player.gold+player.kills*10;}
 function msg(t,c){logMsgs.push({t,c:c||'#a7f3c9'});if(logMsgs.length>40)logMsgs.shift();}
@@ -138,6 +146,7 @@ function loadRun(r){
   player=r.player;
   shrine=r.shrine||null;
   if(player.arts===undefined)player.arts=0;
+  if(player.life===undefined)player.life=0;
 }
 
 /* ---------- map gen ---------- */
@@ -179,7 +188,7 @@ function genFloor(){
   stairs={x:far.cx,y:far.cy};
   monsters=[];items=[];shrine=null;
   const pool=monPool();
-  const nm=Math.min(6+depth,18);
+  const nm=Math.min(6+depth,15);
   for(let k=0;k<nm*3&&monsters.length<nm;k++){
     const r=rooms[1+ri(rooms.length-1)];
     const x=r.x+ri(r.w),y=r.y+ri(r.h);
@@ -256,6 +265,7 @@ function attackMon(m){
   m.hp-=dmg;
   addFloat(m.x,m.y,'-'+dmg,'#ffe066');
   beep(300,0.06,'square',0.05,-120);
+  if(player.life){const h=Math.min(player.life,player.mhp-player.hp);if(h>0){player.hp+=h;addFloat(player.x,player.y,'+'+h,'#4ade80');}}
   const md=MDEF[m.ti];
   if(m.hp<=0){
     monsters.splice(monsters.indexOf(m),1);
@@ -303,6 +313,7 @@ function pickup(){
     else if(a.s==='atk')player.atk+=a.v;
     else if(a.s==='def')player.def+=a.v;
     else if(a.s==='pots')player.pots+=a.v;
+    else if(a.s==='life')player.life=(player.life||0)+a.v;
     player.arts=(player.arts||0)+1;
     addFloat(player.x,player.y,'ARTIFACT','#c77dff');
     msg('ARTIFACT! The '+a.n+' empowers you.','#c77dff');
@@ -584,6 +595,7 @@ function renderPanel(){
   ctx.fillStyle=player.pots>0?'#4ade80':'#555566';ctx.textAlign='center';
   ctx.fillText('[Q] DRINK POTION',potBtn.x+potBtn.w/2,potBtn.y+17);
   ctx.textAlign='left';
+  if(player.life>0){ctx.fillStyle='#4ade80';ctx.fillText('♥ Lifesteal +'+player.life+' HP / hit',x,358);}
   ctx.fillStyle='#5e8a6c';ctx.fillText('BEST '+best.score+' (floor '+best.depth+')',x,368);
   ctx.fillStyle='#4d6b57';ctx.fillText('SCORE '+score(),x+130,368);
   // log

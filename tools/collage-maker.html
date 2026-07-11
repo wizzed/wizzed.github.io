@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Collage Maker · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ff6b35; --accent-soft:rgba(255,107,53,.4);
+  --panel:#1a1512; --panel2:#140f0c; --line:#43302c; --text:#ffe8dd; --dim:#c08d78;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{ background:var(--bg); color:var(--text); font-family:'Courier New', ui-monospace, monospace; overflow:hidden; }
+a.back{ position:fixed; top:10px; left:12px; z-index:200; color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px; border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9); }
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+.app{ display:flex; height:100vh; width:100vw; }
+.stage{ flex:1; position:relative; display:flex; align-items:center; justify-content:center; min-width:0; background:radial-gradient(circle at 50% 42%,#1d1712,#0f0f1a 75%); overflow:hidden; }
+#preview{ display:block; box-shadow:0 0 0 1px #000,0 0 32px rgba(255,107,53,.22); cursor:grab; touch-action:none; }
+#preview.grabbing{ cursor:grabbing; }
+.stage.dragover::after{ content:'DROP PHOTO'; position:absolute; inset:14px; z-index:5; border:3px dashed var(--accent); color:var(--accent); font-size:26px; letter-spacing:6px; display:flex; align-items:center; justify-content:center; background:rgba(255,107,53,.06); }
+.title{ position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:6; font-size:14px; letter-spacing:5px; color:var(--accent); pointer-events:none; text-shadow:0 0 8px var(--accent),0 0 24px var(--accent-soft); }
+.badge{ position:absolute; bottom:10px; left:50%; transform:translateX(-50%); z-index:6; font-size:10px; letter-spacing:1px; color:var(--dim); pointer-events:none; background:rgba(15,15,26,.8); padding:3px 10px; border:1px solid var(--line); white-space:nowrap; }
+.panel{ width:294px; flex:none; height:100vh; overflow-y:auto; background:var(--panel); border-left:2px solid var(--line); padding:12px 12px 30px; display:flex; flex-direction:column; gap:12px; }
+.panel::-webkit-scrollbar{ width:8px; } .panel::-webkit-scrollbar-thumb{ background:var(--line); }
+.grp{ border:1px solid var(--line); background:var(--panel2); padding:9px 10px; }
+.grp h2{ font-size:10px; letter-spacing:2px; color:var(--accent); margin-bottom:8px; text-transform:uppercase; border-bottom:1px solid var(--line); padding-bottom:4px; }
+.row{ display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+.row:last-child{ margin-bottom:0; }
+.lbl{ font-size:10px; letter-spacing:1px; color:var(--dim); width:64px; flex:none; }
+.val{ font-size:10px; color:var(--accent); width:34px; text-align:right; flex:none; }
+button{ font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer; background:#140f0c; color:var(--text); border:2px solid var(--line); padding:6px 6px; text-transform:uppercase; }
+button:hover{ border-color:var(--accent); text-shadow:0 0 6px var(--accent); }
+button:active{ transform:translateY(1px); }
+button.on{ color:#100; background:var(--accent); border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft); text-shadow:none; font-weight:bold; }
+button.prime{ color:#100; background:var(--accent); border-color:var(--accent); font-weight:bold; box-shadow:0 0 14px var(--accent-soft); text-shadow:none; }
+.layouts{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+.layouts button{ font-size:9px; padding:8px 2px; }
+input[type=text]{ font-family:inherit; font-size:12px; background:#0d0a08; color:var(--text); border:1px solid var(--line); padding:6px; width:100%; outline:none; }
+input[type=text]:focus{ border-color:var(--accent); }
+input[type=range]{ flex:1; -webkit-appearance:none; appearance:none; height:8px; min-width:40px; background:#0d0a08; border:1px solid var(--line); outline:none; cursor:pointer; }
+input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:15px; height:19px; background:var(--accent); border:2px solid #000; box-shadow:0 0 8px var(--accent); cursor:pointer; }
+input[type=range]::-moz-range-thumb{ width:13px; height:17px; border-radius:0; background:var(--accent); border:2px solid #000; cursor:pointer; }
+input[type=color]{ width:32px; height:26px; padding:0; border:2px solid var(--line); background:#140f0c; cursor:pointer; flex:none; }
+.chk{ display:flex; align-items:center; gap:6px; font-size:10px; color:var(--dim); cursor:pointer; user-select:none; }
+.chk input{ accent-color:var(--accent); width:15px; height:15px; }
+.note{ font-size:9px; color:var(--dim); line-height:1.4; letter-spacing:.5px; margin-top:2px; }
+.seg{ display:flex; } .seg button{ flex:1; border-right:none; } .seg button:last-child{ border-right:2px solid var(--line); } .seg button.on{ border-color:var(--accent); }
+@media (max-width:760px){ .app{ flex-direction:column; } .stage{ height:44vh; flex:none; } .panel{ width:100%; height:56vh; border-left:none; border-top:2px solid var(--line); } }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="title">COLLAGE MAKER</div>
+    <canvas id="preview"></canvas>
+    <div class="badge" id="badge">Click a slot to load a photo · drag inside to reposition · 100% local</div>
+  </div>
+  <div class="panel">
+    <div class="grp">
+      <h2>Layout</h2>
+      <div class="layouts">
+        <button data-lay="2x1">2 × 1</button>
+        <button data-lay="1x2">1 × 2</button>
+        <button data-lay="2x2" class="on">2 × 2</button>
+        <button data-lay="3x3">3 × 3</button>
+        <button data-lay="big2">1 + 2</button>
+        <button data-lay="free">Freeform</button>
+      </div>
+      <div class="note">Click any slot to load / replace a photo. Drag inside a slot to pan. Drop a file onto a slot too.</div>
+    </div>
+
+    <div class="grp">
+      <h2>Style</h2>
+      <div class="row"><span class="lbl">Gap</span><input type="range" id="gapR" min="0" max="60" value="14"><span class="val" id="gapV">14</span></div>
+      <div class="row"><span class="lbl">Radius</span><input type="range" id="radR" min="0" max="60" value="18"><span class="val" id="radV">18</span></div>
+      <div class="row"><span class="lbl">Background</span><input type="color" id="bgC" value="#141018"></div>
+      <div class="row"><span class="lbl">Border</span><input type="range" id="bordR" min="0" max="20" value="0"><span class="val" id="bordV">0</span><input type="color" id="bordC" value="#ff6b35"></div>
+    </div>
+
+    <div class="grp">
+      <h2>Caption</h2>
+      <div class="row"><label class="chk"><input type="checkbox" id="capOn"> Show caption bar</label></div>
+      <div class="row"><input type="text" id="capText" placeholder="Caption text…" value="WIZZED ARCADE ✦ COLLAGE"></div>
+      <div class="row"><span class="lbl">Text</span><input type="color" id="capColor" value="#ffe8dd"><span class="lbl" style="width:auto;">Bar</span><input type="color" id="capBg" value="#0d0a08"></div>
+    </div>
+
+    <div class="grp">
+      <h2>Export</h2>
+      <div class="row">
+        <span class="lbl">Size</span>
+        <div class="seg" style="flex:1;">
+          <button id="s1080" class="on">1080px</button>
+          <button id="s2048">2048px</button>
+        </div>
+      </div>
+      <div class="row" style="gap:6px;">
+        <button id="shuffleBtn" style="flex:1;">🎲 Demo Art</button>
+        <button id="clearSlot" style="flex:1;">✕ Clear Sel</button>
+      </div>
+      <button class="prime" id="exportBtn" style="width:100%;">⬇ Download Collage PNG</button>
+      <div class="note">Files never leave your browser — everything renders locally.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var SLUG='wizzed-collage-maker';
+  var stage=document.getElementById('stage');
+  var preview=document.getElementById('preview');
+  var pctx=preview.getContext('2d');
+  var badge=document.getElementById('badge');
+
+  var LAYOUTS={
+    '2x1':[[0,0,.5,1],[.5,0,.5,1]],
+    '1x2':[[0,0,1,.5],[0,.5,1,.5]],
+    '2x2':[[0,0,.5,.5],[.5,0,.5,.5],[0,.5,.5,.5],[.5,.5,.5,.5]],
+    '3x3':(function(){var a=[];for(var r=0;r<3;r++)for(var c=0;c<3;c++)a.push([c/3,r/3,1/3,1/3]);return a;})(),
+    'big2':[[0,0,.64,1],[.64,0,.36,.5],[.64,.5,.36,.5]],
+    'free':[[0.02,0.04,0.5,0.56],[0.46,0.02,0.5,0.4],[0.56,0.44,0.42,0.52],[0.06,0.62,0.44,0.34]]
+  };
+
+  var st={
+    layout:'2x2', gap:14, radius:18, bg:'#141018', border:0, borderColor:'#ff6b35',
+    capOn:false, capText:'WIZZED ARCADE ✦ COLLAGE', capColor:'#ffe8dd', capBg:'#0d0a08',
+    exportSize:1080
+  };
+  var slots=[]; // {src:canvas, panX, panY, isDemo, seed}
+  var selSlot=-1;
+
+  // ---------- demo art ----------
+  var PALS=[['#ff6b35','#ffd166'],['#00e5ff','#3a1c71'],['#ff4fd8','#7a1f60'],['#00ff9c','#0b6b7a'],['#9d6bff','#2a1a4d'],['#ffd166','#ff3b6b'],['#43e97b','#38f9d7'],['#fa709a','#fee140'],['#4facfe','#00f2fe']];
+  function makeDemo(seed){
+    var c=document.createElement('canvas'); c.width=520; c.height=520; var x=c.getContext('2d');
+    var p=PALS[seed%PALS.length];
+    var g=x.createLinearGradient(0,0,520,520); g.addColorStop(0,p[0]); g.addColorStop(1,p[1]);
+    x.fillStyle=g; x.fillRect(0,0,520,520);
+    function rnd(i){ var n=Math.sin((seed*13.3+i*7.7))*43758.5; return n-Math.floor(n); }
+    x.globalAlpha=0.5;
+    for(var i=0;i<7;i++){ x.fillStyle=i%2?'rgba(255,255,255,.35)':'rgba(0,0,0,.25)'; var r=40+rnd(i)*140; x.beginPath(); x.arc(rnd(i)*520,rnd(i+3)*520,r,0,7); x.fill(); }
+    x.globalAlpha=0.9; x.strokeStyle='rgba(255,255,255,.5)'; x.lineWidth=6;
+    for(var k=0;k<5;k++){ x.beginPath(); x.moveTo(rnd(k+9)*520,0); x.lineTo(rnd(k+2)*520,520); x.stroke(); }
+    x.globalAlpha=1; x.fillStyle='rgba(255,255,255,.85)'; x.font='bold 120px Courier New'; x.textAlign='center'; x.textBaseline='middle';
+    x.fillText((seed+1), 260,260);
+    return c;
+  }
+
+  function ensureSlots(){
+    var n=LAYOUTS[st.layout].length;
+    while(slots.length<n){ var seed=slots.length; slots.push({src:makeDemo(seed),panX:0,panY:0,isDemo:true,seed:seed}); }
+    if(slots.length>n) slots.length=n;
+    if(selSlot>=n) selSlot=-1;
+  }
+
+  // ---------- render ----------
+  function roundRect(ctx,x,y,w,h,r){
+    r=Math.min(r,w/2,h/2); if(r<0)r=0;
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  }
+  function slotRects(size){
+    var lay=LAYOUTS[st.layout];
+    var capH=st.capOn?size*0.11:0;
+    var areaH=size-capH;
+    var gap=st.gap/1080*size;
+    return lay.map(function(f){
+      var x=f[0]*size, y=f[1]*areaH, w=f[2]*size, h=f[3]*areaH;
+      return {x:x+gap/2,y:y+gap/2,w:Math.max(1,w-gap),h:Math.max(1,h-gap)};
+    });
+  }
+  function render(ctx,size,showSel){
+    ctx.canvas.width=size; ctx.canvas.height=size;
+    ctx.fillStyle=st.bg; ctx.fillRect(0,0,size,size);
+    var rad=st.radius/1080*size;
+    var rects=slotRects(size);
+    for(var i=0;i<rects.length;i++){
+      var R=rects[i], sl=slots[i]; if(!sl) continue;
+      ctx.save();
+      roundRect(ctx,R.x,R.y,R.w,R.h,rad); ctx.clip();
+      var img=sl.src, iw=img.width, ih=img.height;
+      var sc=Math.max(R.w/iw,R.h/ih);
+      var dw=iw*sc, dh=ih*sc;
+      var overX=dw-R.w, overY=dh-R.h;
+      var dx=R.x-overX/2+sl.panX*overX/2;
+      var dy=R.y-overY/2+sl.panY*overY/2;
+      ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+      ctx.drawImage(img,dx,dy,dw,dh);
+      ctx.restore();
+      if(st.border>0){ ctx.save(); ctx.strokeStyle=st.borderColor; ctx.lineWidth=st.border/1080*size; roundRect(ctx,R.x,R.y,R.w,R.h,rad); ctx.stroke(); ctx.restore(); }
+      if(showSel&&i===selSlot){ ctx.save(); ctx.strokeStyle='#ff6b35'; ctx.lineWidth=Math.max(2,size*0.006); ctx.setLineDash([10,7]); roundRect(ctx,R.x+2,R.y+2,R.w-4,R.h-4,rad); ctx.stroke(); ctx.restore(); }
+    }
+    if(st.capOn){
+      var capH=size*0.11, cy=size-capH;
+      ctx.fillStyle=st.capBg; ctx.fillRect(0,cy,size,capH);
+      ctx.fillStyle=st.capColor; ctx.textAlign='center'; ctx.textBaseline='middle';
+      var fs=capH*0.42; ctx.font='bold '+fs+'px "Courier New", monospace';
+      // shrink to fit
+      var txt=st.capText||''; while(ctx.measureText(txt).width>size*0.92&&fs>8){ fs-=2; ctx.font='bold '+fs+'px "Courier New", monospace'; }
+      ctx.fillText(txt, size/2, cy+capH/2);
+    }
+  }
+
+  var scale=1;
+  function draw(){
+    var pad=24;
+    var s=Math.min(stage.clientWidth-pad*2, stage.clientHeight-pad*2);
+    if(s<40) s=40; s=Math.min(s,760);
+    render(pctx,s,true);
+    scale=s;
+  }
+
+  // ---------- interaction ----------
+  var down=null;
+  function ptr(e){ var r=preview.getBoundingClientRect(); var cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left; var cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return {x:cx,y:cy}; }
+  function slotAt(p){ var rects=slotRects(scale); for(var i=rects.length-1;i>=0;i--){ var R=rects[i]; if(p.x>=R.x&&p.x<=R.x+R.w&&p.y>=R.y&&p.y<=R.y+R.h) return i; } return -1; }
+  function onDown(e){ var p=ptr(e); var i=slotAt(p); if(i<0) return; e.preventDefault(); down={i:i,sx:p.x,sy:p.y,moved:false,panX:slots[i].panX,panY:slots[i].panY}; selSlot=i; preview.classList.add('grabbing'); draw(); }
+  function onMove(e){ if(!down) return; var p=ptr(e); var dx=p.x-down.sx, dy=p.y-down.sy; if(Math.abs(dx)>4||Math.abs(dy)>4) down.moved=true; if(down.moved){ e.preventDefault(); var R=slotRects(scale)[down.i], sl=slots[down.i]; var img=sl.src; var sc=Math.max(R.w/img.width,R.h/img.height); var overX=img.width*sc-R.w, overY=img.height*sc-R.h; if(overX>0) sl.panX=Math.max(-1,Math.min(1,down.panX+ (dx/(overX/2)) )); if(overY>0) sl.panY=Math.max(-1,Math.min(1,down.panY+ (dy/(overY/2)) )); draw(); } }
+  function onUp(){ if(!down){ return; } preview.classList.remove('grabbing'); if(!down.moved){ openFile(down.i); } else { save(); } down=null; }
+  preview.addEventListener('mousedown',onDown); window.addEventListener('mousemove',onMove); window.addEventListener('mouseup',onUp);
+  preview.addEventListener('touchstart',onDown,{passive:false}); window.addEventListener('touchmove',onMove,{passive:false}); window.addEventListener('touchend',onUp);
+
+  // ---------- file load ----------
+  var fileInput=document.createElement('input'); fileInput.type='file'; fileInput.accept='image/*'; fileInput.hidden=true; document.body.appendChild(fileInput);
+  var pendingSlot=-1;
+  function openFile(i){ pendingSlot=i; fileInput.click(); }
+  fileInput.addEventListener('change',function(e){ var f=e.target.files[0]; e.target.value=''; if(!f||pendingSlot<0) return; loadInto(pendingSlot,f); });
+  function loadInto(i,file){ if(!/^image\//.test(file.type)) return; var reader=new FileReader(); reader.onload=function(){ var img=new Image(); img.onload=function(){ var c=document.createElement('canvas'); c.width=img.naturalWidth; c.height=img.naturalHeight; c.getContext('2d').drawImage(img,0,0); slots[i]={src:c,panX:0,panY:0,isDemo:false}; draw(); save(); badge.textContent='Loaded photo into slot '+(i+1); }; img.src=reader.result; }; reader.readAsDataURL(file); }
+
+  // drag-drop onto slot
+  ['dragenter','dragover'].forEach(function(ev){ stage.addEventListener(ev,function(e){ e.preventDefault(); stage.classList.add('dragover'); }); });
+  ['dragleave','drop'].forEach(function(ev){ stage.addEventListener(ev,function(e){ e.preventDefault(); if(ev==='drop'||e.target===stage) stage.classList.remove('dragover'); }); });
+  stage.addEventListener('drop',function(e){ e.preventDefault(); stage.classList.remove('dragover'); var f=e.dataTransfer.files[0]; if(!f) return; var r=preview.getBoundingClientRect(); var p={x:e.clientX-r.left,y:e.clientY-r.top}; var i=slotAt(p); if(i<0) i=0; loadInto(i,f); });
+
+  // ---------- controls ----------
+  document.querySelectorAll('[data-lay]').forEach(function(b){ b.addEventListener('click',function(){ st.layout=b.getAttribute('data-lay'); document.querySelectorAll('[data-lay]').forEach(function(x){ x.classList.toggle('on',x===b); }); ensureSlots(); draw(); save(); badge.textContent='Layout: '+b.textContent.trim(); }); });
+  function bindRange(id,key,vid){ var el=document.getElementById(id); el.addEventListener('input',function(){ st[key]=parseInt(this.value,10); if(vid) document.getElementById(vid).textContent=this.value; draw(); save(); }); }
+  bindRange('gapR','gap','gapV'); bindRange('radR','radius','radV'); bindRange('bordR','border','bordV');
+  document.getElementById('bgC').addEventListener('input',function(){ st.bg=this.value; draw(); save(); });
+  document.getElementById('bordC').addEventListener('input',function(){ st.borderColor=this.value; draw(); save(); });
+  document.getElementById('capOn').addEventListener('change',function(){ st.capOn=this.checked; draw(); save(); });
+  document.getElementById('capText').addEventListener('input',function(){ st.capText=this.value; draw(); save(); });
+  document.getElementById('capColor').addEventListener('input',function(){ st.capColor=this.value; draw(); save(); });
+  document.getElementById('capBg').addEventListener('input',function(){ st.capBg=this.value; draw(); save(); });
+  document.getElementById('shuffleBtn').addEventListener('click',function(){ for(var i=0;i<slots.length;i++){ var seed=Math.floor(Math.random()*90)+i; slots[i]={src:makeDemo(seed),panX:0,panY:0,isDemo:true,seed:seed}; } draw(); badge.textContent='Generated fresh demo art'; });
+  document.getElementById('clearSlot').addEventListener('click',function(){ if(selSlot>=0){ var seed=Math.floor(Math.random()*90); slots[selSlot]={src:makeDemo(seed),panX:0,panY:0,isDemo:true,seed:seed}; draw(); save(); } });
+  function setSize(s){ st.exportSize=s; document.getElementById('s1080').classList.toggle('on',s===1080); document.getElementById('s2048').classList.toggle('on',s===2048); save(); }
+  document.getElementById('s1080').addEventListener('click',function(){ setSize(1080); });
+  document.getElementById('s2048').addEventListener('click',function(){ setSize(2048); });
+
+  document.getElementById('exportBtn').addEventListener('click',function(){
+    var c=document.createElement('canvas'); var x=c.getContext('2d');
+    render(x,st.exportSize,false);
+    c.toBlob(function(blob){ if(!blob) return; var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='collage-'+st.exportSize+'.png'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(url); },1500); badge.textContent='Collage downloaded ('+st.exportSize+'×'+st.exportSize+')'; },'image/png');
+  });
+
+  window.addEventListener('resize',draw);
+
+  // ---------- persistence (settings only; images not persisted) ----------
+  function save(){ try{ localStorage.setItem(SLUG,JSON.stringify({layout:st.layout,gap:st.gap,radius:st.radius,bg:st.bg,border:st.border,borderColor:st.borderColor,capOn:st.capOn,capText:st.capText,capColor:st.capColor,capBg:st.capBg,exportSize:st.exportSize})); }catch(e){} }
+  function load(){ try{ var s=JSON.parse(localStorage.getItem(SLUG)||'{}'); for(var k in st){ if(s[k]!==undefined) st[k]=s[k]; } }catch(e){} }
+
+  // ---------- init ----------
+  load();
+  document.getElementById('gapR').value=st.gap; document.getElementById('gapV').textContent=st.gap;
+  document.getElementById('radR').value=st.radius; document.getElementById('radV').textContent=st.radius;
+  document.getElementById('bordR').value=st.border; document.getElementById('bordV').textContent=st.border;
+  document.getElementById('bgC').value=st.bg; document.getElementById('bordC').value=st.borderColor;
+  document.getElementById('capOn').checked=st.capOn; document.getElementById('capText').value=st.capText;
+  document.getElementById('capColor').value=st.capColor; document.getElementById('capBg').value=st.capBg;
+  document.querySelectorAll('[data-lay]').forEach(function(x){ x.classList.toggle('on',x.getAttribute('data-lay')===st.layout); });
+  setSize(st.exportSize);
+  ensureSlots();
+  draw();
+})();
+</script>
+</body>
+</html>

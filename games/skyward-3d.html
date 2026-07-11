@@ -538,6 +538,8 @@
   }
   pauseBtn.addEventListener('click', () => setPaused(!paused));
   document.getElementById('resumeBtn').addEventListener('click', () => setPaused(false));
+  // auto-pause (freezes sim + mutes audio) when the tab / app is backgrounded
+  document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
 
   // occasional bird flock drifting across the sky (cheap: 7 two-wing groups)
   const birds = [];

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chart Maker · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#a774ff; --accent-soft:rgba(167,116,255,.42);
+  --panel:#151222; --line:#2a2340; --text:#ece6ff; --dim:#a99bd0;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:
+    radial-gradient(900px 500px at 82% -10%, rgba(167,116,255,.12), transparent 60%),
+    radial-gradient(700px 500px at -5% 110%, rgba(0,229,255,.08), transparent 60%),
+    var(--bg);
+  color:var(--text); font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:0 0 30px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:80;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:12px 8px 6px; }
+h1{
+  display:inline-block; font-size:clamp(18px,3.4vw,30px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:3px; }
+main{ max-width:1120px; margin:6px auto 0; padding:0 12px; display:grid; grid-template-columns:300px 1fr; gap:12px; align-items:start; }
+@media(max-width:730px){ main{ grid-template-columns:1fr; } }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:12px 14px;
+  box-shadow:0 0 0 1px #000, 0 0 22px rgba(167,116,255,.06);
+}
+.panel h2{ font-size:12px; letter-spacing:3px; color:var(--dim); margin-bottom:10px; text-transform:uppercase; display:flex; justify-content:space-between; align-items:center; }
+.col{ display:flex; flex-direction:column; gap:12px; }
+textarea, input[type=text]{
+  width:100%; font-family:inherit; font-size:13px; background:#0c0a16; color:var(--text);
+  border:2px solid var(--line); padding:8px; resize:vertical;
+}
+textarea{ min-height:118px; line-height:1.5; }
+textarea:focus, input[type=text]:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+.lbl{ font-size:10px; letter-spacing:2px; color:var(--dim); margin-bottom:5px; display:block; }
+.tblwrap{ max-height:210px; overflow:auto; border:1px solid var(--line); }
+table{ width:100%; border-collapse:collapse; font-size:12px; }
+th{ position:sticky; top:0; background:#161226; color:var(--dim); font-size:9px; letter-spacing:2px; padding:5px 6px; text-align:left; z-index:1; }
+td{ padding:2px 4px; border-top:1px solid var(--line); }
+td input{ width:100%; font-family:inherit; font-size:12px; background:transparent; color:var(--text); border:1px solid transparent; padding:4px 5px; }
+td input:focus{ outline:none; border-color:var(--accent); background:#0c0a16; }
+td.valcol input{ color:var(--accent); }
+td.del{ width:26px; text-align:center; }
+td.del button{ padding:2px 6px; font-size:12px; }
+.sw{ width:11px; height:11px; display:inline-block; border-radius:2px; vertical-align:middle; }
+button{
+  font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer;
+  background:#120e1e; color:var(--text); border:2px solid var(--line); padding:8px 11px;
+  text-transform:uppercase; display:inline-flex; align-items:center; gap:6px;
+}
+button:hover{ border-color:var(--accent); text-shadow:0 0 6px var(--accent); }
+button:active{ transform:translateY(1px); }
+button.primary{ color:#180a2a; background:var(--accent); border-color:var(--accent); box-shadow:0 0 14px var(--accent-soft); text-shadow:none; font-weight:bold; }
+button.on{ color:#180a2a; background:var(--accent); border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); text-shadow:none; }
+.seg{ display:flex; gap:6px; flex-wrap:wrap; }
+.seg button{ flex:1 1 auto; justify-content:center; }
+.field{ display:flex; flex-direction:column; }
+.grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.optsrow{ display:flex; gap:8px; flex-wrap:wrap; }
+.chartbox{ position:relative; width:100%; }
+#chart{ width:100%; height:auto; display:block; border:2px solid var(--line); background:#12121c; }
+.foot{ display:flex; gap:9px; flex-wrap:wrap; margin-top:12px; align-items:center; }
+.note{ font-size:11px; line-height:1.6; color:var(--dim); border-left:3px solid var(--accent); padding:7px 10px; background:rgba(167,116,255,.05); }
+.note b{ color:var(--text); }
+.err{ font-size:11px; color:#ff8a5c; letter-spacing:1px; min-height:15px; }
+.mini{ font-size:10px; color:var(--dim); letter-spacing:1px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>CHART MAKER</h1>
+  <div class="sub">BAR · LINE · PIE · DONUT — HAND-DRAWN ON CANVAS · 100% LOCAL</div>
+</header>
+<main>
+  <div class="col">
+    <div class="panel">
+      <h2>Data <span class="mini" id="rowCount"></span></h2>
+      <label class="lbl">PASTE ROWS AS <b style="color:var(--accent)">label,value</b> (# = comment)</label>
+      <textarea id="ta" spellcheck="false"></textarea>
+      <div class="optsrow" style="margin-top:8px">
+        <button id="tblAdd">+ ROW</button>
+        <button id="loadDemo">↺ DEMO DATA</button>
+        <button id="clearBtn">✕ CLEAR</button>
+      </div>
+      <div class="err" id="err"></div>
+    </div>
+    <div class="panel">
+      <h2>Inline Table</h2>
+      <div class="tblwrap">
+        <table><thead><tr><th style="width:20px"></th><th>LABEL</th><th style="width:82px">VALUE</th><th style="width:26px"></th></tr></thead>
+        <tbody id="tbody"></tbody></table>
+      </div>
+      <div class="mini" style="margin-top:7px">Edit cells to update the chart live — the table and the paste box stay in sync.</div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <h2>Chart</h2>
+      <div class="chartbox"><canvas id="chart" width="820" height="500"></canvas></div>
+      <div class="foot">
+        <button id="dlBtn" class="primary">⬇ DOWNLOAD PNG (2×)</button>
+        <span class="mini" id="pngInfo"></span>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Style</h2>
+      <div class="col" style="gap:11px">
+        <div class="field"><span class="lbl">CHART TYPE</span>
+          <div class="seg" id="typeSeg">
+            <button data-t="bar" class="on">▬ BAR</button>
+            <button data-t="line">╱ LINE</button>
+            <button data-t="pie">◕ PIE</button>
+            <button data-t="donut">◯ DONUT</button>
+          </div>
+        </div>
+        <div class="field"><span class="lbl">TITLE</span><input type="text" id="title" maxlength="60"></div>
+        <div class="grid2">
+          <div class="field"><span class="lbl">X-AXIS LABEL</span><input type="text" id="xlabel" maxlength="30"></div>
+          <div class="field"><span class="lbl">Y-AXIS LABEL</span><input type="text" id="ylabel" maxlength="30"></div>
+        </div>
+        <div class="field"><span class="lbl">CHART BACKGROUND</span>
+          <div class="seg" id="bgSeg">
+            <button data-b="dark" class="on">🌙 DARK</button>
+            <button data-b="light">☀ LIGHT</button>
+          </div>
+        </div>
+        <div class="optsrow">
+          <button id="valToggle" class="on">🏷 VALUE LABELS</button>
+          <button id="legToggle" class="on">▤ LEGEND</button>
+          <button id="gridToggle" class="on">▦ GRID</button>
+        </div>
+        <div class="note"><b>Nothing leaves your browser.</b> Every chart is drawn on a canvas right here and exported locally — your data is never uploaded.</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+"use strict";
+const SLUG='wizzed-chart-maker';
+const $=id=>document.getElementById(id);
+
+const DEMO=`# Wizzed Arcade — plays this week
+Arcade,820
+RPG,540
+Puzzle,610
+Board,330
+Card,410
+Racing,270`;
+
+const THEMES={
+  dark:{ surface:'#12121c', ink:'#ece6ff', sub:'#a99bd0', grid:'#262636', axis:'#3a3a52',
+    palette:['#22c9e6','#ff5bb0','#4fd968','#4f86ff','#ff9a3c','#9b7bff','#f0d02e','#ff4d6a'], glow:true },
+  light:{ surface:'#f4f4ee', ink:'#1a1a24', sub:'#5a5a66', grid:'#dcdcd2', axis:'#b6b6aa',
+    palette:['#0e93b0','#c22e86','#2f8f3c','#2f5bd0','#c85a12','#6a4bd6','#8a6a00','#c9203f'], glow:false }
+};
+
+const state={ type:'bar', title:'Games Played This Week', xlabel:'Category', ylabel:'Plays',
+  bg:'dark', values:true, legend:true, grid:true };
+let data=[];
+
+/* ---------- persistence ---------- */
+function save(){ try{ localStorage.setItem(SLUG, JSON.stringify({state, text:$('ta').value})); }catch(e){} }
+function load(){
+  try{
+    const s=JSON.parse(localStorage.getItem(SLUG)||'null');
+    if(s && s.state){ Object.assign(state, s.state); return s.text||DEMO; }
+  }catch(e){}
+  return DEMO;
+}
+
+/* ---------- parsing ---------- */
+function parse(text){
+  const out=[]; const lines=text.split(/\r?\n/);
+  for(let line of lines){
+    const raw=line.trim();
+    if(!raw || raw[0]==='#') continue;
+    const idx=raw.lastIndexOf(',')>=0 ? raw.lastIndexOf(',') : raw.search(/[\t;]|\s{2,}/);
+    let label, valStr;
+    if(idx>0){ label=raw.slice(0,idx).trim(); valStr=raw.slice(idx+1).trim(); }
+    else{ const m=raw.match(/^(.*?)[\s\t]+([-\d.,eE]+)$/); if(m){ label=m[1].trim(); valStr=m[2].trim(); } else continue; }
+    const v=parseFloat(String(valStr).replace(/[, ]/g,''));
+    if(!isFinite(v)) continue;
+    out.push({label:label||'(blank)', value:v});
+  }
+  return out;
+}
+
+/* ---------- number formatting ---------- */
+function fmtNum(v){
+  const a=Math.abs(v);
+  if(a>=1e9) return (v/1e9).toFixed(a>=1e10?0:1)+'B';
+  if(a>=1e6) return (v/1e6).toFixed(a>=1e7?0:1)+'M';
+  if(a>=1e4) return (v/1e3).toFixed(a>=1e5?0:1)+'k';
+  if(Number.isInteger(v)) return String(v);
+  return (Math.round(v*100)/100).toString();
+}
+function niceNum(range, round){
+  const exp=Math.floor(Math.log10(range||1)); const f=(range||1)/Math.pow(10,exp); let nf;
+  if(round){ nf = f<1.5?1 : f<3?2 : f<7?5 : 10; }
+  else{ nf = f<=1?1 : f<=2?2 : f<=5?5 : 10; }
+  return nf*Math.pow(10,exp);
+}
+function axisTicks(lo,hi){
+  if(lo===hi){ hi=lo+1; }
+  const range=niceNum(hi-lo,false), step=niceNum(range/5,true);
+  const nlo=Math.floor(lo/step)*step, nhi=Math.ceil(hi/step)*step;
+  const ticks=[]; for(let v=nlo; v<=nhi+step*0.5; v+=step) ticks.push(Math.round(v/step)*step);
+  return {lo:nlo, hi:nhi, ticks};
+}
+
+/* ---------- drawing ---------- */
+const cv=$('chart');
+function currentLogical(){ const w=cv.clientWidth||820; return {W:Math.round(w), H:Math.round(w*500/820)}; }
+
+function render(){
+  const {W,H}=currentLogical();
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  drawAll(ctx,W,H);
+  $('pngInfo').textContent = 'export size '+(W*2)+'×'+(H*2)+' px';
+}
+function drawAll(ctx,W,H){
+  const th=THEMES[state.bg];
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle=th.surface; ctx.fillRect(0,0,W,H);
+  ctx.textBaseline='alphabetic';
+  // title
+  let top=14;
+  if(state.title){ ctx.fillStyle=th.ink; ctx.font='bold '+Math.round(W*0.026)+'px Courier New'; ctx.textAlign='center';
+    ctx.fillText(clip(ctx,state.title,W-30), W/2, top+Math.round(W*0.024)); top+=Math.round(W*0.024)+16; }
+  if(!data.length){ ctx.fillStyle=th.sub; ctx.font='14px Courier New'; ctx.textAlign='center';
+    ctx.fillText('No valid rows — add label,value pairs on the left.', W/2, H/2); return; }
+  // legend area (bottom)
+  let legendH=0;
+  const showLegend = state.legend && (state.type==='pie'||state.type==='donut'||state.type==='bar' ? true : false);
+  if(showLegend) legendH=measureLegend(ctx,W);
+  const bottom=H-14-legendH;
+  if(state.type==='pie'||state.type==='donut') drawPie(ctx,W,H,top,bottom,th);
+  else drawXY(ctx,W,H,top,bottom,th);
+  if(showLegend) drawLegend(ctx,W,H,legendH,th);
+}
+function clip(ctx,txt,maxW){ if(ctx.measureText(txt).width<=maxW) return txt; let t=txt; while(t.length>1 && ctx.measureText(t+'…').width>maxW) t=t.slice(0,-1); return t+'…'; }
+
+function measureLegend(ctx,W){
+  ctx.font='11px Courier New'; const items=data.length; let x=0, rows=1; const maxW=W-24;
+  for(let i=0;i<items;i++){ const w=18+ctx.measureText(data[i].label).width+16; if(x+w>maxW){ rows++; x=0; } x+=w; }
+  return rows*18+8;
+}
+function drawLegend(ctx,W,H,legendH,th){
+  ctx.font='11px Courier New'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  const maxW=W-24; let x=12, y=H-legendH+10;
+  for(let i=0;i<data.length;i++){
+    const col=th.palette[i%th.palette.length];
+    const label=data[i].label; const w=18+ctx.measureText(label).width+16;
+    if(x-12+w>maxW){ x=12; y+=18; }
+    ctx.fillStyle=col; roundRect(ctx,x,y-5,11,11,2); ctx.fill();
+    ctx.fillStyle=th.sub; ctx.fillText(label, x+16, y+1);
+    x+=w;
+  }
+}
+
+function drawXY(ctx,W,H,top,bottom,th){
+  const n=data.length;
+  const padL=Math.max(48,Math.round(W*0.075)), padR=18;
+  const padB=state.xlabel?46:30;
+  const plotL=padL, plotR=W-padR, plotT=top+6, plotB=bottom-padB;
+  const plotW=plotR-plotL, plotH=plotB-plotT;
+  let dMax=-Infinity,dMin=Infinity; for(const d of data){ if(d.value>dMax)dMax=d.value; if(d.value<dMin)dMin=d.value; }
+  const lo=Math.min(0,dMin), hi=Math.max(0,dMax);
+  const {lo:aLo,hi:aHi,ticks}=axisTicks(lo,hi);
+  const y=v=>plotB-(v-aLo)/(aHi-aLo)*plotH;
+  // grid + y ticks
+  ctx.textAlign='right'; ctx.textBaseline='middle'; ctx.font=Math.round(W*0.016)+'px Courier New';
+  for(const t of ticks){
+    const yy=y(t);
+    if(state.grid){ ctx.strokeStyle=th.grid; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(plotL,yy+.5); ctx.lineTo(plotR,yy+.5); ctx.stroke(); }
+    ctx.fillStyle=th.sub; ctx.fillText(fmtNum(t), plotL-8, yy);
+  }
+  // axes
+  ctx.strokeStyle=th.axis; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(plotL+.5,plotT); ctx.lineTo(plotL+.5,plotB); ctx.lineTo(plotR,plotB+.5); ctx.stroke();
+  const zeroY=y(0);
+  if(aLo<0){ ctx.strokeStyle=th.axis; ctx.beginPath(); ctx.moveTo(plotL,zeroY+.5); ctx.lineTo(plotR,zeroY+.5); ctx.stroke(); }
+  // x labels + marks
+  const slot=plotW/n;
+  ctx.textAlign='center';
+  if(state.type==='bar'){
+    const bw=Math.min(slot*0.68, 70);
+    for(let i=0;i<n;i++){
+      const cx=plotL+slot*(i+0.5); const col=th.palette[i%th.palette.length];
+      const v=data[i].value; const yv=y(v);
+      const barT=Math.min(yv,zeroY), barH=Math.abs(yv-zeroY);
+      if(th.glow){ ctx.save(); ctx.shadowColor=col; ctx.shadowBlur=14; }
+      ctx.fillStyle=col; roundRect(ctx, cx-bw/2, barT, bw, Math.max(1,barH), Math.min(5,bw/3), v<0);
+      ctx.fill(); if(th.glow) ctx.restore();
+      if(state.values){ ctx.fillStyle=th.ink; ctx.font='bold '+Math.round(W*0.016)+'px Courier New'; ctx.textBaseline='bottom';
+        const ly=v>=0? barT-4 : barT+barH+13; ctx.fillText(fmtNum(v), cx, ly<top+10?top+10:ly); ctx.textBaseline='alphabetic'; }
+      drawXTick(ctx,cx,plotB,slot,data[i].label,th,W);
+    }
+  } else { // line
+    const col=th.palette[0];
+    const pts=data.map((d,i)=>({x:plotL+slot*(i+0.5), y:y(d.value), v:d.value}));
+    // fill under
+    const gg=ctx.createLinearGradient(0,plotT,0,plotB);
+    gg.addColorStop(0, hexA(col,th.glow?0.32:0.20)); gg.addColorStop(1, hexA(col,0));
+    ctx.fillStyle=gg; ctx.beginPath(); ctx.moveTo(pts[0].x,zeroY);
+    for(const p of pts) ctx.lineTo(p.x,p.y); ctx.lineTo(pts[n-1].x,zeroY); ctx.closePath(); ctx.fill();
+    // line
+    if(th.glow){ ctx.save(); ctx.shadowColor=col; ctx.shadowBlur=12; }
+    ctx.strokeStyle=col; ctx.lineWidth=2.4; ctx.lineJoin='round'; ctx.beginPath();
+    pts.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke();
+    if(th.glow) ctx.restore();
+    // markers + values + x labels
+    for(let i=0;i<n;i++){ const p=pts[i];
+      ctx.fillStyle=th.surface; ctx.beginPath(); ctx.arc(p.x,p.y,4.5,0,7); ctx.fill();
+      ctx.strokeStyle=col; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(p.x,p.y,4.5,0,7); ctx.stroke();
+      if(state.values){ ctx.fillStyle=th.ink; ctx.font='bold '+Math.round(W*0.016)+'px Courier New'; ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(fmtNum(p.v), p.x, p.y-8); ctx.textBaseline='alphabetic'; }
+      drawXTick(ctx,p.x,plotB,slot,data[i].label,th,W);
+    }
+  }
+  // axis labels
+  ctx.fillStyle=th.sub; ctx.font=Math.round(W*0.017)+'px Courier New';
+  if(state.xlabel){ ctx.textAlign='center'; ctx.fillText(state.xlabel, (plotL+plotR)/2, plotB+40); }
+  if(state.ylabel){ ctx.save(); ctx.translate(14, (plotT+plotB)/2); ctx.rotate(-Math.PI/2); ctx.textAlign='center'; ctx.fillText(state.ylabel,0,0); ctx.restore(); }
+}
+function drawXTick(ctx,cx,plotB,slot,label,th,W){
+  ctx.fillStyle=th.sub; ctx.font=Math.round(W*0.015)+'px Courier New'; ctx.textAlign='center'; ctx.textBaseline='top';
+  let t=label; const maxW=slot*0.98;
+  if(ctx.measureText(t).width>maxW){ while(t.length>1 && ctx.measureText(t+'…').width>maxW) t=t.slice(0,-1); t+='…'; }
+  ctx.fillText(t, cx, plotB+6); ctx.textBaseline='alphabetic';
+}
+
+function drawPie(ctx,W,H,top,bottom,th){
+  const cx=W/2, cy=(top+bottom)/2, R=Math.min(W,bottom-top)*0.40;
+  const inner = state.type==='donut'? R*0.56 : 0;
+  let total=0; for(const d of data) total+=Math.abs(d.value);
+  if(total<=0){ ctx.fillStyle=th.sub; ctx.textAlign='center'; ctx.fillText('All values are zero.',cx,cy); return; }
+  let a=-Math.PI/2;
+  for(let i=0;i<data.length;i++){
+    const frac=Math.abs(data[i].value)/total; const a2=a+frac*Math.PI*2;
+    const col=th.palette[i%th.palette.length];
+    if(th.glow){ ctx.save(); ctx.shadowColor=col; ctx.shadowBlur=16; }
+    ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,R,a,a2); ctx.closePath(); ctx.fill();
+    if(th.glow) ctx.restore();
+    // gap ring
+    ctx.strokeStyle=th.surface; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+Math.cos(a)*R, cy+Math.sin(a)*R); ctx.stroke();
+    // percent label
+    if(state.values && frac>0.045){
+      const mid=(a+a2)/2, lr=inner? (inner+R)/2 : R*0.62;
+      ctx.fillStyle= state.bg==='light'?'#fff':'#0c0a16';
+      ctx.font='bold '+Math.round(W*0.017)+'px Courier New'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      const pct=Math.round(frac*100)+'%';
+      // outline for readability
+      ctx.save(); ctx.lineWidth=3; ctx.strokeStyle=hexA(col,0.9); ctx.strokeText(pct, cx+Math.cos(mid)*lr, cy+Math.sin(mid)*lr);
+      ctx.fillStyle='#fff'; ctx.fillText(pct, cx+Math.cos(mid)*lr, cy+Math.sin(mid)*lr); ctx.restore();
+    }
+    a=a2;
+  }
+  if(inner){ ctx.fillStyle=th.surface; ctx.beginPath(); ctx.arc(cx,cy,inner,0,7); ctx.fill();
+    ctx.fillStyle=th.ink; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font='bold '+Math.round(W*0.03)+'px Courier New'; ctx.fillText(fmtNum(total), cx, cy-4);
+    ctx.fillStyle=th.sub; ctx.font=Math.round(W*0.015)+'px Courier New'; ctx.fillText('TOTAL', cx, cy+Math.round(W*0.022)); }
+  ctx.textBaseline='alphabetic';
+}
+
+function roundRect(ctx,x,y,w,h,r,flip){
+  r=Math.min(r,w/2,Math.abs(h)/2||r);
+  ctx.beginPath();
+  if(!flip){ ctx.moveTo(x,y+h); ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r); ctx.lineTo(x+w,y+h); }
+  else{ ctx.moveTo(x,y); ctx.lineTo(x,y+h-r); ctx.arcTo(x,y+h,x+r,y+h,r); ctx.lineTo(x+w-r,y+h); ctx.arcTo(x+w,y+h,x+w,y+h-r,r); ctx.lineTo(x+w,y); }
+  ctx.closePath();
+}
+function hexA(hex,a){ const h=hex.replace('#',''); const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16); return 'rgba('+r+','+g+','+b+','+a+')'; }
+
+/* ---------- table ---------- */
+function rebuildTable(){
+  const tb=$('tbody'); tb.innerHTML='';
+  const th=THEMES[state.bg];
+  data.forEach((d,i)=>{
+    const tr=document.createElement('tr');
+    const col=th.palette[i%th.palette.length];
+    tr.innerHTML='<td><span class="sw" style="background:'+col+'"></span></td>'+
+      '<td><input type="text" data-i="'+i+'" data-k="label" value="'+esc(d.label)+'"></td>'+
+      '<td class="valcol"><input type="text" data-i="'+i+'" data-k="value" value="'+esc(String(d.value))+'"></td>'+
+      '<td class="del"><button data-del="'+i+'" title="Remove row">✕</button></td>';
+    tb.appendChild(tr);
+  });
+  $('rowCount').textContent=data.length+' row'+(data.length===1?'':'s');
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function dataToText(){
+  const head=$('ta').value.split(/\r?\n/).filter(l=>l.trim()[0]==='#');
+  const body=data.map(d=>d.label+','+d.value);
+  return (head.length?head.join('\n')+'\n':'')+body.join('\n');
+}
+
+/* ---------- flow ---------- */
+function fromTextarea(){
+  data=parse($('ta').value);
+  $('err').textContent = data.length? '' : 'No valid label,value rows found.';
+  rebuildTable(); render(); save();
+}
+function fromTable(){
+  const inputs=$('tbody').querySelectorAll('input');
+  const map={};
+  inputs.forEach(inp=>{ const i=+inp.dataset.i; map[i]=map[i]||{}; map[i][inp.dataset.k]=inp.value; });
+  const arr=[];
+  Object.keys(map).sort((a,b)=>a-b).forEach(k=>{ const r=map[k]; const v=parseFloat(String(r.value).replace(/[, ]/g,'')); arr.push({label:(r.label||'').trim()||'(blank)', value:isFinite(v)?v:0}); });
+  data=arr;
+  $('ta').value=dataToText();
+  $('rowCount').textContent=data.length+' row'+(data.length===1?'':'s');
+  render(); save();
+}
+
+/* ---------- controls ---------- */
+function syncControls(){
+  document.querySelectorAll('#typeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.t===state.type));
+  document.querySelectorAll('#bgSeg button').forEach(b=>b.classList.toggle('on',b.dataset.b===state.bg));
+  $('valToggle').classList.toggle('on',state.values);
+  $('legToggle').classList.toggle('on',state.legend);
+  $('gridToggle').classList.toggle('on',state.grid);
+  $('title').value=state.title; $('xlabel').value=state.xlabel; $('ylabel').value=state.ylabel;
+  $('chart').style.background=THEMES[state.bg].surface;
+}
+$('typeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; state.type=b.dataset.t; syncControls(); render(); save(); });
+$('bgSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; state.bg=b.dataset.b; syncControls(); rebuildTable(); render(); save(); });
+$('valToggle').addEventListener('click',()=>{ state.values=!state.values; syncControls(); render(); save(); });
+$('legToggle').addEventListener('click',()=>{ state.legend=!state.legend; syncControls(); render(); save(); });
+$('gridToggle').addEventListener('click',()=>{ state.grid=!state.grid; syncControls(); render(); save(); });
+$('title').addEventListener('input',e=>{ state.title=e.target.value; render(); save(); });
+$('xlabel').addEventListener('input',e=>{ state.xlabel=e.target.value; render(); save(); });
+$('ylabel').addEventListener('input',e=>{ state.ylabel=e.target.value; render(); save(); });
+
+let taTimer=0;
+$('ta').addEventListener('input',()=>{ clearTimeout(taTimer); taTimer=setTimeout(fromTextarea,180); });
+$('tbody').addEventListener('input',e=>{ if(e.target.tagName==='INPUT') fromTable(); });
+$('tbody').addEventListener('click',e=>{ const b=e.target.closest('button[data-del]'); if(!b)return; const i=+b.dataset.del; data.splice(i,1); $('ta').value=dataToText(); rebuildTable(); render(); save(); });
+$('tblAdd').addEventListener('click',()=>{ data.push({label:'New',value:0}); $('ta').value=dataToText(); rebuildTable(); render(); save(); });
+$('loadDemo').addEventListener('click',()=>{ $('ta').value=DEMO; state.title='Games Played This Week'; state.xlabel='Category'; state.ylabel='Plays'; syncControls(); fromTextarea(); });
+$('clearBtn').addEventListener('click',()=>{ $('ta').value='# label,value\n'; data=[]; rebuildTable(); render(); $('err').textContent='Add label,value rows to draw a chart.'; save(); });
+
+$('dlBtn').addEventListener('click',()=>{
+  const {W,H}=currentLogical();
+  const tc=document.createElement('canvas'); tc.width=W*2; tc.height=H*2;
+  const tctx=tc.getContext('2d'); tctx.setTransform(2,0,0,2,0,0);
+  drawAll(tctx,W,H);
+  try{ const a=document.createElement('a'); a.href=tc.toDataURL('image/png'); a.download='chart-'+state.type+'.png'; document.body.appendChild(a); a.click(); a.remove(); }
+  catch(e){ $('err').textContent='PNG export failed on this browser.'; }
+});
+
+window.addEventListener('resize',render);
+
+/* ---------- boot ---------- */
+const startText=load();
+$('ta').value=startText;
+syncControls();
+fromTextarea();
+</script>
+</body>
+</html>

@@ -224,6 +224,10 @@ const RELICS={
   venom:{name:'Serpent Sigil',icon:'🐍',desc:'+3 damage on every hit',unlock:'reach floor 8'},
   regen:{name:'Verdant Charm',icon:'🌿',desc:'regenerate 3 HP each combat round',unlock:'reach floor 12'},
   berserk:{name:'Berserker Totem',icon:'🪓',desc:'+1 damage per round of combat',unlock:'reach floor 18'},
+  ward:{name:'Warding Totem',icon:'🧿',desc:'enemy hits deal 2 less damage',base:true},
+  tithe:{name:'Tithe Coffer',icon:'🏺',desc:'gain 8 gold after every combat',base:true},
+  execu:{name:'Executioner Seal',icon:'🪦',desc:'+6 damage to foes below half HP',unlock:'reach floor 10'},
+  pierce:{name:'Piercing Spike',icon:'📌',desc:'your hits ignore enemy DEF',unlock:'reach floor 16'},
 };
 
 /* ---------- meta save ---------- */
@@ -263,6 +267,8 @@ function unlockCheck(){
     ['venom',P&&P.floor>=8],
     ['regen',P&&P.floor>=12],
     ['berserk',P&&P.floor>=18],
+    ['execu',P&&P.floor>=10],
+    ['pierce',P&&P.floor>=16],
   ];
   for(const [k,cond] of tries){
     if(cond&&!META.unlocks.includes(k)){
@@ -385,7 +391,7 @@ function deal(){
   }else{
     dealt=[];
     const pool=['fight','fight','fight','fight','treasure','treasure','rest','rest','mystery'];
-    if(P.floor>=4)pool.push('elite');
+    if(P.floor>=5)pool.push('elite');
     if(P.floor>=7)pool.push('elite');
     for(let i=0;i<3;i++){
       let c=pool[Math.floor(Math.random()*pool.length)];
@@ -502,10 +508,11 @@ function combatRound(){
   // start-of-round relic: Verdant Charm
   if(has('regen')){const r=heal(3);if(r>0)clog('<span class="g">🌿 Verdant Charm regenerates +'+r+'</span>');}
   // player strikes
-  let dmg=Math.max(1,effAtk(e)-e.def);
+  let dmg=Math.max(1,effAtk(e)-(has('pierce')?0:e.def));
   if(CB.round===1&&has('mirror')){dmg*=2;clog('<span class="p">🪞 Mirror Shard — first strike doubled!</span>');}
   if(has('venom'))dmg+=3;
   if(has('berserk'))dmg+=(CB.round-1);
+  if(has('execu')&&e.hp<e.maxHp/2)dmg+=6;
   e.hp-=dmg;
   hitAnim('fE');sfxHitE();
   clog('<span class="p">▶ round '+CB.round+': you hit '+e.name+' for <b>'+dmg+'</b></span>');
@@ -518,7 +525,7 @@ function combatRound(){
   // enemy strikes
   setTimeout(()=>{
     if(!CB||CB.over)return;
-    let edmg=Math.max(1,e.atk-P.def);
+    let edmg=Math.max(1,e.atk-P.def-(has('ward')?2:0));
     if(has('bulwark')&&!CB.blocked){
       CB.blocked=true;edmg=0;
       hitAnim('fP');
@@ -568,6 +575,7 @@ function combatWin(){
   }else if(Math.random()<0.15){
     gainRelic();
   }
+  if(has('tithe')){const tg=gainGold(8);clog('<span class="y">🏺 Tithe Coffer yields +'+tg+'g</span>');}
   if(has('gate')){
     const h=heal(8);
     if(h>0)clog('<span class="g">🚪 Gate Shard mends you +'+h+'</span>');
@@ -693,8 +701,42 @@ function mDeck(){
         nextFloor();}],
      ['Pocket your hands',()=>nextFloor()]]);
 }
+function mForge(){
+  showPanel('⚒️','THE BLACK FORGE','A dead smith\'s forge, the coals still faintly glowing. You could temper your weapon at it.',
+    [['🔨 Temper — 40g → +3 ATK',()=>{if(P.gold<40){toast('not enough gold');return;}P.gold-=40;P.atk+=3;toast('+3 ATK');nextFloor();}],
+     ['Leave it cold',()=>nextFloor()]]);
+}
+function mMoltenVein(){
+  showPanel('🌋','MOLTEN VEIN','A seam of glowing ore splits the wall — lucrative, and very hot to pry loose.',
+    [['⛏️ Mine it (risk 14 HP)',()=>{
+        if(Math.random()<0.55){const g=gainGold(55);toast('🌋 rich vein! +'+g+'g');}
+        else{P.hp=Math.max(1,P.hp-14);toast('🌋 a gout of fire! −14 HP');sfxHitP();}
+        nextFloor();}],
+     ['Leave the ore',()=>nextFloor()]]);
+}
+function mGuardian(){
+  showPanel('🗿','SLEEPING GUARDIAN','A stone sentinel slumbers before a prize. Wake it for a champion\'s bounty, or slip quietly past.',
+    [['⚔️ Wake it (elite fight)',()=>startCombat(makeEnemy(true))],
+     ['🤫 Slip past',()=>nextFloor()]]);
+}
+function mMoonwell(){
+  showPanel('🌙','THE MOONWELL','Pale water glows in a cracked basin — a rare kindness in this place.',
+    [['🛁 Bathe — heal '+Math.round(P.maxHp*0.3)+' HP',()=>{const h=heal(Math.round(P.maxHp*0.3));toast('+'+h+' HP');nextFloor();}],
+     ['🧘 Meditate — +5 max HP',()=>{P.maxHp+=5;P.hp+=5;toast('+5 max HP');nextFloor();}]]);
+}
+function mTollGate(){
+  showPanel('🚧','THE TOLL GATE','A gaunt shade bars the stair, palm outstretched. <i>"Coin, or blood."</i>',
+    [['💰 Pay 25g',()=>{if(P.gold<25){toast('not enough gold — you must fight!');return;}P.gold-=25;toast('the shade lets you pass');nextFloor();}],
+     ['⚔️ Refuse (fight)',()=>startCombat(makeEnemy(false))]]);
+}
+function mSiren(){
+  showPanel('🧜','SIREN\'S BARGAIN','A voice sings from a flooded stair. <i>"Give of your life, and I shall gift you power."</i>',
+    [['🎁 Trade 12 max HP → a relic',()=>{P.maxHp=Math.max(10,P.maxHp-12);P.hp=Math.min(P.hp,P.maxHp);gainRelic();nextFloor();}],
+     ['Cover your ears',()=>nextFloor()]]);
+}
 const MYSTERIES=[mBloodShrine,mMerchant,mFountain,mGambler,mPassage,
-  mCursedBlade,mAlchemist,mWatcher,mStrongbox,mBloodPact,mDeck];
+  mCursedBlade,mAlchemist,mWatcher,mStrongbox,mBloodPact,mDeck,
+  mForge,mMoltenVein,mGuardian,mMoonwell,mTollGate,mSiren];
 function doMystery(){MYSTERIES[ri(MYSTERIES.length)]();}
 
 /* ---------- run end ---------- */

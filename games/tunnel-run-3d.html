@@ -199,6 +199,8 @@ function setPaused(p) {
 }
 pauseBtn.addEventListener('click', () => setPaused(!paused));
 document.getElementById('resume-btn').addEventListener('click', () => setPaused(false));
+// auto-pause (freezes sim + mutes audio) when the tab / app is backgrounded
+document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
 
 // ── Speed-streak particles (additive lines that stretch with velocity) ──────
 const NSTREAK = 46;

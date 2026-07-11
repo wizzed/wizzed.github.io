@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voice Recorder · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ffae3b; --accent-soft:rgba(255,174,59,.42);
+  --panel:#1a140e; --line:#3a2a1633; --text:#ffeede; --dim:#c7a479;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:
+    radial-gradient(900px 500px at 80% -10%, rgba(255,174,59,.10), transparent 60%),
+    radial-gradient(700px 500px at -5% 110%, rgba(255,45,120,.08), transparent 60%),
+    var(--bg);
+  color:var(--text); font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:0 0 30px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:80;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid #4a3a20; padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:12px 8px 6px; }
+h1{
+  display:inline-block; font-size:clamp(18px,3.4vw,30px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:3px; }
+main{ max-width:940px; margin:6px auto 0; padding:0 12px; display:flex; flex-direction:column; gap:12px; }
+.panel{
+  background:var(--panel); border:2px solid #33261544; padding:12px 14px;
+  box-shadow:0 0 0 1px #000, 0 0 22px rgba(255,174,59,.06);
+}
+.panel h2{ font-size:12px; letter-spacing:3px; color:var(--dim); margin-bottom:10px; text-transform:uppercase; }
+.wavewrap{ position:relative; width:100%; height:190px; background:#0a0805; border:2px solid #33261544; overflow:hidden; }
+#wave{ position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:crosshair; }
+.overlay{ position:absolute; top:8px; left:10px; z-index:4; display:flex; align-items:center; gap:8px; }
+.recdot{ width:12px; height:12px; border-radius:50%; background:#5a4020; }
+.recdot.on{ background:#ff3b5c; box-shadow:0 0 10px #ff3b5c; animation:blink 1s steps(2,end) infinite; }
+@keyframes blink{ 50%{opacity:.25;} }
+.ovtxt{ font-size:11px; letter-spacing:2px; color:var(--dim); background:rgba(10,8,5,.7); padding:2px 8px; border:1px solid #4a3a20; }
+.meterwrap{ position:absolute; top:8px; right:10px; z-index:4; width:120px; height:12px; background:#0a0805; border:1px solid #4a3a20; }
+#meter{ height:100%; width:0%; background:linear-gradient(90deg,#00ff9c,#ffae3b 70%,#ff3b5c); transition:width .05s linear; }
+.hint{ font-size:10px; color:var(--dim); letter-spacing:1px; margin-top:6px; }
+.bigrow{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:12px; }
+.timer{ font-size:38px; letter-spacing:3px; color:var(--accent); text-shadow:0 0 16px var(--accent-soft); min-width:150px; }
+.controls{ display:flex; gap:9px; flex-wrap:wrap; }
+button{
+  font-family:inherit; font-size:12px; letter-spacing:1px; cursor:pointer;
+  background:#150f08; color:var(--text); border:2px solid #4a3a20; padding:9px 13px;
+  text-transform:uppercase; display:inline-flex; align-items:center; gap:7px;
+}
+button:hover{ border-color:var(--accent); text-shadow:0 0 6px var(--accent); }
+button:active{ transform:translateY(1px); }
+button:disabled{ opacity:.35; cursor:not-allowed; }
+button.primary{ color:#2a1600; background:var(--accent); border-color:var(--accent); box-shadow:0 0 14px var(--accent-soft); text-shadow:none; font-weight:bold; }
+button.rec{ color:#fff; background:#c72a44; border-color:#ff3b5c; box-shadow:0 0 14px rgba(255,59,92,.4); text-shadow:none; font-weight:bold; }
+button.big{ font-size:14px; padding:11px 16px; }
+.readouts{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+.ro{ flex:1 1 110px; background:#0a0805; border:1px solid #33261544; padding:8px 10px; text-align:center; }
+.ro .k{ font-size:10px; letter-spacing:2px; color:var(--dim); }
+.ro .v{ font-size:20px; color:var(--accent); text-shadow:0 0 10px var(--accent-soft); margin-top:2px; }
+.playrow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px; }
+.dlrow{ display:flex; gap:9px; flex-wrap:wrap; margin-top:12px; }
+.status{ font-size:11px; letter-spacing:1px; color:var(--dim); margin-top:10px; min-height:16px; }
+.status.err{ color:#ff8a5c; }
+.note{ font-size:11px; line-height:1.6; color:var(--dim); border-left:3px solid var(--accent); padding:8px 10px; background:rgba(255,174,59,.05); margin-top:10px; }
+.note b{ color:var(--text); }
+.rec-list{ display:flex; flex-direction:column; gap:8px; }
+.rec-item{ display:flex; align-items:center; gap:10px; background:#0d0a06; border:1px solid #33261544; padding:8px 10px; }
+.rec-item .idx{ color:var(--accent); font-size:16px; width:26px; text-align:center; }
+.rec-item .m{ flex:1; min-width:0; }
+.rec-item .m .n{ font-size:12px; }
+.rec-item .m .d{ font-size:10px; color:var(--dim); letter-spacing:1px; margin-top:3px; }
+.rec-item button{ font-size:11px; padding:6px 9px; }
+.gempty{ font-size:11px; color:var(--dim); letter-spacing:1px; padding:12px; border:1px dashed #4a3a20; text-align:center; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>VOICE RECORDER</h1>
+  <div class="sub">ONE-TAP MIC · LIVE WAVEFORM · TRIM · EXPORT WAV — 100% LOCAL</div>
+</header>
+<main>
+  <div class="panel">
+    <h2>Waveform</h2>
+    <div class="wavewrap">
+      <canvas id="wave"></canvas>
+      <div class="overlay"><span class="recdot" id="recDot"></span><span class="ovtxt" id="ovTxt">DEMO WAVEFORM</span></div>
+      <div class="meterwrap"><div id="meter"></div></div>
+    </div>
+    <div class="hint" id="waveHint">After recording, drag the amber handles to trim · click the waveform to move the nearest handle</div>
+    <div class="bigrow">
+      <div class="timer" id="timer">00:00.0</div>
+      <div class="controls">
+        <button id="recBtn" class="rec big">● RECORD</button>
+        <button id="stopBtn" class="big" disabled>■ STOP</button>
+        <button id="playBtn" class="big" disabled>▶ PLAY</button>
+      </div>
+    </div>
+    <div class="readouts">
+      <div class="ro"><div class="k">TRIM START</div><div class="v" id="roStart">0:00.00</div></div>
+      <div class="ro"><div class="k">TRIM END</div><div class="v" id="roEnd">0:03.00</div></div>
+      <div class="ro"><div class="k">SELECTION</div><div class="v" id="roLen">0:03.00</div></div>
+    </div>
+    <div class="dlrow">
+      <button id="wavBtn" class="primary big" disabled>⬇ TRIMMED WAV</button>
+      <button id="webmBtn" class="big" disabled>⬇ ORIGINAL WEBM</button>
+    </div>
+    <div class="status" id="status">Loaded a demo waveform so you can try trimming. Press RECORD to capture your own voice.</div>
+    <div class="note"><b>Private by design.</b> Audio is captured, decoded and encoded to WAV entirely inside this page. Nothing is ever uploaded or stored on a server.</div>
+  </div>
+
+  <div class="panel">
+    <h2>This Session's Recordings</h2>
+    <div class="rec-list" id="recList">
+      <div class="gempty" id="recEmpty">No recordings yet — each take you capture will appear here with its own player and downloads.</div>
+    </div>
+  </div>
+</main>
+
+<script>
+"use strict";
+const SLUG='wizzed-audio-recorder';
+const $=id=>document.getElementById(id);
+
+/* ---------- WAV encoder (16-bit PCM) ---------- */
+function audioBufferToWav(buffer){
+  const numCh=buffer.numberOfChannels, sr=buffer.sampleRate, frames=buffer.length;
+  const blockAlign=numCh*2, dataSize=frames*blockAlign, byteRate=sr*blockAlign;
+  const ab=new ArrayBuffer(44+dataSize), view=new DataView(ab); let off=0;
+  const wStr=s=>{ for(let i=0;i<s.length;i++) view.setUint8(off++,s.charCodeAt(i)); };
+  const wU32=v=>{ view.setUint32(off,v,true); off+=4; };
+  const wU16=v=>{ view.setUint16(off,v,true); off+=2; };
+  wStr('RIFF'); wU32(36+dataSize); wStr('WAVE'); wStr('fmt '); wU32(16); wU16(1); wU16(numCh); wU32(sr); wU32(byteRate); wU16(blockAlign); wU16(16);
+  wStr('data'); wU32(dataSize);
+  const chans=[]; for(let c=0;c<numCh;c++) chans.push(buffer.getChannelData(c));
+  for(let i=0;i<frames;i++){ for(let c=0;c<numCh;c++){ let s=Math.max(-1,Math.min(1,chans[c][i])); s=s<0?s*0x8000:s*0x7FFF; view.setInt16(off,s|0,true); off+=2; } }
+  return new Blob([ab],{type:'audio/wav'});
+}
+// slice an AudioBuffer between start/end seconds into a new WAV blob
+function sliceToWav(buffer,startS,endS){
+  const sr=buffer.sampleRate;
+  if(!isFinite(startS)) startS=0; if(!isFinite(endS)) endS=buffer.length/sr;
+  let a=Math.max(0,Math.min(buffer.length,Math.floor(startS*sr)));
+  let b=Math.max(0,Math.min(buffer.length,Math.floor(endS*sr)));
+  if(b<a){ const t=a; a=b; b=t; }
+  const len=Math.max(1,b-a);
+  const out={ numberOfChannels:buffer.numberOfChannels, sampleRate:sr, length:len,
+    getChannelData(c){ return buffer.getChannelData(c).subarray(a,a+len); } };
+  return audioBufferToWav(out);
+}
+function saveBlob(blob,name){ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500); }
+function stamp(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds()); }
+function fmt(t){ if(!isFinite(t)||t<0)t=0; const m=Math.floor(t/60), s=t-m*60; return m+':'+(s<10?'0':'')+s.toFixed(2); }
+function fmtTimer(t){ if(!isFinite(t)||t<0)t=0; const m=Math.floor(t/60), s=Math.floor(t%60), d=Math.floor((t*10)%10); return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')+'.'+d; }
+
+/* ---------- state ---------- */
+let audioCtx=null, mediaStream=null, recorder=null, chunks=[];
+let analyser=null, srcNode=null;
+let recording=false, recStart=0, rafRec=0;
+let audioBuffer=null, peaks=null, peakW=0;
+let originalBlob=null, curName='demo';
+let selStart=0, selEnd=0;
+let playing=false, playSrc=null, playAnchor=0, rafPlay=0;
+let sessionCount=0;
+
+function ensureCtx(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==='suspended') audioCtx.resume(); return audioCtx; }
+function setStatus(m,err){ const el=$('status'); el.textContent=m; el.classList.toggle('err',!!err); }
+
+/* ---------- canvas ---------- */
+const wrap=document.querySelector('.wavewrap'), canvas=$('wave'), ctx2d=canvas.getContext('2d');
+let cw=0, ch=0, dpr=1;
+function resizeCanvas(){
+  dpr=Math.min(2,window.devicePixelRatio||1); cw=wrap.clientWidth; ch=wrap.clientHeight;
+  canvas.width=Math.max(2,Math.floor(cw*dpr)); canvas.height=Math.max(2,Math.floor(ch*dpr));
+  ctx2d.setTransform(dpr,0,0,dpr,0,0); peaks=null; render();
+}
+function computePeaks(){
+  peakW=Math.max(1,Math.floor(cw)); peaks=new Float32Array(peakW*2);
+  if(!audioBuffer){ peaks=null; return; }
+  const n=audioBuffer.length, chans=audioBuffer.numberOfChannels, data=[];
+  for(let c=0;c<chans;c++) data.push(audioBuffer.getChannelData(c));
+  const step=n/peakW;
+  for(let x=0;x<peakW;x++){ let mn=1,mx=-1; const from=Math.floor(x*step),to=Math.min(n,Math.floor((x+1)*step));
+    for(let i=from;i<to;i++){ let v=0; for(let c=0;c<chans;c++) v+=data[c][i]; v/=chans; if(v<mn)mn=v; if(v>mx)mx=v; }
+    if(from>=to){ mn=0; mx=0; } peaks[x*2]=mn; peaks[x*2+1]=mx; }
+}
+function timeToX(t){ return (audioBuffer && audioBuffer.duration>0)? (t/audioBuffer.duration)*cw : 0; }
+function xToTime(x){ if(!audioBuffer || cw<=0 || audioBuffer.duration<=0) return 0; return Math.max(0,Math.min(audioBuffer.duration,(x/cw)*audioBuffer.duration)); }
+function render(){
+  ctx2d.clearRect(0,0,cw,ch);
+  ctx2d.strokeStyle='rgba(74,58,32,.5)'; ctx2d.lineWidth=1; ctx2d.beginPath();
+  for(let gx=0;gx<=cw;gx+=Math.max(40,cw/12)){ ctx2d.moveTo(gx+.5,0); ctx2d.lineTo(gx+.5,ch); } ctx2d.stroke();
+  const mid=ch/2;
+  ctx2d.strokeStyle='rgba(74,58,32,.9)'; ctx2d.beginPath(); ctx2d.moveTo(0,mid+.5); ctx2d.lineTo(cw,mid+.5); ctx2d.stroke();
+  if(!audioBuffer) return;
+  if(!peaks||peakW!==Math.floor(cw)) computePeaks();
+  const sX=timeToX(selStart), eX=timeToX(selEnd), amp=mid*0.92;
+  ctx2d.fillStyle='rgba(255,174,59,.10)'; ctx2d.fillRect(sX,0,Math.max(0,eX-sX),ch);
+  const grad=ctx2d.createLinearGradient(0,0,0,ch); grad.addColorStop(0,'#ffae3b'); grad.addColorStop(.5,'#ff8c1a'); grad.addColorStop(1,'#ffae3b');
+  ctx2d.strokeStyle='#5a4526'; ctx2d.beginPath();
+  for(let x=0;x<peakW;x++){ if(x>=sX&&x<=eX) continue; let y1=mid-peaks[x*2+1]*amp,y2=mid-peaks[x*2]*amp; if(y2-y1<1)y2=y1+1; ctx2d.moveTo(x+.5,y1); ctx2d.lineTo(x+.5,y2); } ctx2d.stroke();
+  ctx2d.strokeStyle=grad; ctx2d.beginPath();
+  for(let x=0;x<peakW;x++){ if(x<sX||x>eX) continue; let y1=mid-peaks[x*2+1]*amp,y2=mid-peaks[x*2]*amp; if(y2-y1<1)y2=y1+1; ctx2d.moveTo(x+.5,y1); ctx2d.lineTo(x+.5,y2); } ctx2d.stroke();
+  drawHandle(sX,'S'); drawHandle(eX,'E');
+  if(playing){ const px=timeToX(currentPlayTime()); ctx2d.strokeStyle='#fff'; ctx2d.lineWidth=2; ctx2d.beginPath(); ctx2d.moveTo(px,0); ctx2d.lineTo(px,ch); ctx2d.stroke(); ctx2d.lineWidth=1; }
+}
+function drawHandle(x,label){
+  ctx2d.fillStyle='#ffae3b'; ctx2d.fillRect(x-1,0,2,ch);
+  const hy=label==='S'?4:ch-22; ctx2d.fillRect(x-9,hy,18,18);
+  ctx2d.strokeStyle='#2a1600'; ctx2d.lineWidth=2; ctx2d.strokeRect(x-9,hy,18,18);
+  ctx2d.fillStyle='#2a1600'; ctx2d.font='bold 12px Courier New'; ctx2d.textAlign='center'; ctx2d.textBaseline='middle'; ctx2d.fillText(label,x,hy+9);
+}
+
+/* ---------- live recording waveform ---------- */
+let liveData=null;
+function drawLive(){
+  if(!recording){ return; }
+  const mid=ch/2;
+  ctx2d.clearRect(0,0,cw,ch);
+  ctx2d.strokeStyle='rgba(74,58,32,.5)'; ctx2d.lineWidth=1; ctx2d.beginPath(); ctx2d.moveTo(0,mid+.5); ctx2d.lineTo(cw,mid+.5); ctx2d.stroke();
+  analyser.getByteTimeDomainData(liveData);
+  // level meter (peak)
+  let peak=0; for(let i=0;i<liveData.length;i++){ const v=Math.abs(liveData[i]-128)/128; if(v>peak) peak=v; }
+  $('meter').style.width=Math.min(100,peak*140)+'%';
+  // scrolling-ish live wave
+  ctx2d.strokeStyle='#ff3b5c'; ctx2d.lineWidth=2; ctx2d.beginPath();
+  const N=liveData.length;
+  for(let x=0;x<cw;x++){ const i=Math.floor(x/cw*N); const v=(liveData[i]-128)/128; const y=mid - v*mid*0.92; if(x===0) ctx2d.moveTo(x,y); else ctx2d.lineTo(x,y); }
+  ctx2d.stroke();
+  const el=(performance.now()-recStart)/1000; $('timer').textContent=fmtTimer(el);
+  rafRec=requestAnimationFrame(drawLive);
+}
+
+/* ---------- record ---------- */
+async function startRecording(){
+  if(recording) return;
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ setStatus('Microphone recording isn\'t supported in this browser. You can still trim and export the demo waveform.',true); return; }
+  stopPlayback();
+  setStatus('Requesting microphone…');
+  try{ mediaStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}); }
+  catch(e){ setStatus('Microphone access was denied. Allow the mic and press RECORD again — the demo waveform stays available to trim.',true); return; }
+  ensureCtx();
+  srcNode=audioCtx.createMediaStreamSource(mediaStream);
+  analyser=audioCtx.createAnalyser(); analyser.fftSize=1024; liveData=new Uint8Array(analyser.fftSize);
+  srcNode.connect(analyser);
+  chunks=[];
+  let mime='audio/webm'; const cands=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4'];
+  for(const c of cands){ try{ if(MediaRecorder.isTypeSupported(c)){ mime=c; break; } }catch(e){} }
+  try{ recorder=new MediaRecorder(mediaStream,{mimeType:mime}); }catch(e){ try{ recorder=new MediaRecorder(mediaStream); mime=''; }catch(e2){ setStatus('Could not start the recorder.',true); return; } }
+  recorder.ondataavailable=ev=>{ if(ev.data&&ev.data.size) chunks.push(ev.data); };
+  recorder.onstop=onRecStop;
+  recorder.start();
+  recording=true; recStart=performance.now();
+  $('recDot').classList.add('on'); $('ovTxt').textContent='RECORDING';
+  $('recBtn').disabled=true; $('stopBtn').disabled=false; $('playBtn').disabled=true; $('wavBtn').disabled=true; $('webmBtn').disabled=true;
+  setStatus('Recording… speak into your mic, then press STOP.');
+  drawLive();
+}
+function stopRecording(){ if(!recording) return; recording=false; cancelAnimationFrame(rafRec); $('meter').style.width='0%'; try{ recorder.stop(); }catch(e){ onRecStop(); } }
+async function onRecStop(){
+  if(mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); mediaStream=null; }
+  $('recDot').classList.remove('on'); $('ovTxt').textContent='DECODING…';
+  const type=(recorder&&recorder.mimeType)||'audio/webm';
+  originalBlob=new Blob(chunks,{type});
+  $('recBtn').disabled=false; $('stopBtn').disabled=true;
+  if(!originalBlob.size){ setStatus('Nothing was captured.',true); $('ovTxt').textContent='EMPTY'; return; }
+  try{
+    ensureCtx();
+    const buf=await audioCtx.decodeAudioData(await originalBlob.arrayBuffer());
+    sessionCount++; curName='take-'+sessionCount;
+    setBuffer(buf,curName);
+    addRecording(originalBlob, buf.duration, curName);
+    setStatus('Recorded '+fmt(buf.duration)+'. Trim with the handles, then export WAV or the original WebM.');
+  }catch(e){ setStatus('Recorded, but decoding for the waveform failed on this browser. The original WebM is still downloadable below.',true); $('ovTxt').textContent='RECORDED'; $('webmBtn').disabled=false; }
+}
+
+/* ---------- buffer / playback ---------- */
+function setBuffer(buf,name){
+  stopPlayback(); audioBuffer=buf; curName=name; selStart=0; selEnd=buf.duration; peaks=null;
+  $('ovTxt').textContent=name.toUpperCase()+' · '+fmt(buf.duration);
+  $('playBtn').disabled=false; $('wavBtn').disabled=false; $('webmBtn').disabled=!originalBlob;
+  updateReadouts(); render();
+}
+function updateReadouts(){ $('roStart').textContent=fmt(selStart); $('roEnd').textContent=fmt(selEnd); $('roLen').textContent=fmt(Math.max(0,selEnd-selStart)); }
+function currentPlayTime(){ if(!playing) return selStart; return Math.min(selEnd, selStart+(audioCtx.currentTime-playAnchor)); }
+function stopPlayback(){ if(playSrc){ try{ playSrc.onended=null; playSrc.stop(); }catch(e){} playSrc=null; } playing=false; if(rafPlay){ cancelAnimationFrame(rafPlay); rafPlay=0; } const b=$('playBtn'); if(b){ b.classList.remove('primary'); b.textContent='▶ PLAY'; } render(); }
+function togglePlay(){ if(playing){ stopPlayback(); return; } if(!audioBuffer) return; stopPlayback(); ensureCtx();
+  const len=selEnd-selStart; if(len<=0.02) return;
+  playSrc=audioCtx.createBufferSource(); playSrc.buffer=audioBuffer; playSrc.connect(audioCtx.destination); playSrc.start(0,selStart,len);
+  playAnchor=audioCtx.currentTime; playing=true; const b=$('playBtn'); b.classList.add('primary'); b.textContent='⏹ STOP';
+  playSrc.onended=()=>stopPlayback();
+  const tick=()=>{ if(!playing) return; render(); rafPlay=requestAnimationFrame(tick); }; rafPlay=requestAnimationFrame(tick);
+}
+
+/* ---------- export ---------- */
+function exportWav(){ if(!audioBuffer) return; saveBlob(sliceToWav(audioBuffer,selStart,selEnd), curName+'-trim-'+stamp()+'.wav'); }
+function exportWebm(){ if(!originalBlob) return; const ext=(originalBlob.type.indexOf('mp4')>=0)?'mp4':(originalBlob.type.indexOf('ogg')>=0?'ogg':'webm'); saveBlob(originalBlob, curName+'-'+stamp()+'.'+ext); }
+
+/* ---------- recordings list ---------- */
+function addRecording(blob,dur,name){
+  const em=$('recEmpty'); if(em) em.remove();
+  const url=URL.createObjectURL(blob);
+  const item=document.createElement('div'); item.className='rec-item';
+  const idx=document.createElement('div'); idx.className='idx'; idx.textContent=sessionCount;
+  const m=document.createElement('div'); m.className='m';
+  m.innerHTML='<div class="n">'+name+'</div><div class="d">'+fmt(dur)+' · '+(blob.size/1024).toFixed(0)+' KB · '+new Date().toLocaleTimeString()+'</div>';
+  const audio=document.createElement('audio'); audio.src=url; audio.controls=true; audio.style.height='30px';
+  const load=document.createElement('button'); load.textContent='EDIT'; load.title='Load into the trimmer';
+  load.addEventListener('click',async()=>{ try{ ensureCtx(); originalBlob=blob; const buf=await audioCtx.decodeAudioData(await blob.arrayBuffer()); curName=name; setBuffer(buf,name); setStatus('Loaded '+name+' into the trimmer.'); }catch(e){ setStatus('Could not reload that take.',true); } });
+  const dl=document.createElement('button'); dl.textContent='WAV'; dl.addEventListener('click',async()=>{ try{ ensureCtx(); const buf=await audioCtx.decodeAudioData(await blob.arrayBuffer()); saveBlob(audioBufferToWav(buf), name+'.wav'); }catch(e){ setStatus('WAV export failed for that take.',true); } });
+  item.appendChild(idx); item.appendChild(audio); item.appendChild(m); item.appendChild(load); item.appendChild(dl);
+  $('recList').prepend(item);
+}
+
+/* ---------- pointer trim ---------- */
+let dragging=null;
+function pointerX(ev){ const r=wrap.getBoundingClientRect(); const cx=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left; return Math.max(0,Math.min(cw,cx)); }
+function nearest(x){ return Math.abs(x-timeToX(selStart))<=Math.abs(x-timeToX(selEnd))?'S':'E'; }
+function applyHandle(w,x){ const t=xToTime(x); if(w==='S') selStart=Math.min(t,selEnd-0.02); else selEnd=Math.max(t,selStart+0.02); selStart=Math.max(0,selStart); updateReadouts(); render(); }
+function onDown(ev){ if(!audioBuffer||recording||cw<=0) return; ev.preventDefault(); const x=pointerX(ev); dragging=nearest(x); applyHandle(dragging,x); }
+function onMove(ev){ if(!dragging) return; ev.preventDefault(); applyHandle(dragging,pointerX(ev)); }
+function onUp(){ dragging=null; }
+
+/* ---------- demo waveform ---------- */
+function makeDemoBuffer(){
+  const sr=8000, dur=3.0, ctx=new (window.OfflineAudioContext||window.webkitOfflineAudioContext)(1,Math.floor(sr*dur),sr);
+  const b=ctx.createBuffer(1,Math.floor(sr*dur),sr), d=b.getChannelData(0);
+  // synth a "spoken sentence": bursts of formant-ish tone with pauses
+  const words=[[0.15,0.45,180],[0.6,0.95,150],[1.15,1.7,200],[1.9,2.15,160],[2.3,2.85,190]];
+  for(let i=0;i<d.length;i++){ const t=i/sr; let s=0;
+    for(const [a,z,f] of words){ if(t>=a&&t<=z){ const env=Math.sin(Math.PI*(t-a)/(z-a)); const vib=1+0.03*Math.sin(2*Math.PI*5*t);
+      s+= env*(Math.sin(2*Math.PI*f*vib*t)*0.6 + Math.sin(2*Math.PI*f*2*t)*0.25 + Math.sin(2*Math.PI*f*3*t)*0.12) ; } }
+    s+= (Math.random()*2-1)*0.015; d[i]=s*0.5;
+  }
+  return b;
+}
+
+/* ---------- wiring ---------- */
+$('recBtn').addEventListener('click',startRecording);
+$('stopBtn').addEventListener('click',stopRecording);
+$('playBtn').addEventListener('click',togglePlay);
+$('wavBtn').addEventListener('click',exportWav);
+$('webmBtn').addEventListener('click',exportWebm);
+wrap.addEventListener('mousedown',onDown); window.addEventListener('mousemove',onMove); window.addEventListener('mouseup',onUp);
+wrap.addEventListener('touchstart',onDown,{passive:false}); wrap.addEventListener('touchmove',onMove,{passive:false}); window.addEventListener('touchend',onUp);
+document.addEventListener('keydown',e=>{ if(e.code!=='Space') return; const tn=document.activeElement?document.activeElement.tagName:''; if(tn==='INPUT'||tn==='BUTTON'||tn==='A'||tn==='AUDIO') return; e.preventDefault(); togglePlay(); });
+window.addEventListener('resize',resizeCanvas);
+
+/* ---------- boot ---------- */
+resizeCanvas();
+try{ audioBuffer=makeDemoBuffer(); selStart=0.15; selEnd=2.85; $('ovTxt').textContent='DEMO WAVEFORM'; updateReadouts(); render(); }catch(e){ setStatus('Demo waveform unavailable, but recording still works.',true); }
+if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ $('recBtn').disabled=true; setStatus('No microphone API here — you can still trim and export the demo waveform below.',true); }
+// enable demo export/play even before recording
+if(audioBuffer){ $('playBtn').disabled=false; $('wavBtn').disabled=false; }
+</script>
+</body>
+</html>

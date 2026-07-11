@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JWT Decoder · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#c792ea; --accent-soft:rgba(199,146,234,.4);
+  --panel:#161623; --line:#2c2c46; --text:#f2e9ff; --dim:#9285ad;
+  --err:#ff5470; --good:#3ddc84; --warn:#ffd166;
+  --c-header:#ff6b8b; --c-payload:#c792ea; --c-sig:#4da6ff;
+  --k:#ff9ec4; --s:#7ee7a0; --n:#ffd166; --b:#4da6ff; --nul:#8b9bb0;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:26px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:12px 8px 6px; }
+h1{ display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:4px; color:var(--accent); text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft); }
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:960px; margin:8px auto 0; padding:0 14px; }
+.panel{ background:var(--panel); border:2px solid var(--line); padding:12px; box-shadow:0 0 0 1px #000, 0 0 20px rgba(199,146,234,.06); margin-bottom:12px; }
+.lbl{ font-size:10px; letter-spacing:2px; color:var(--accent); text-shadow:0 0 8px var(--accent-soft); margin-bottom:6px; display:block; }
+button{ font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer; background:#121220; color:var(--dim); border:1px solid var(--line); padding:5px 10px; }
+button:hover{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+button.okflash{ color:#150a1c !important; background:var(--good) !important; border-color:var(--good) !important; }
+.inrow{ display:flex; gap:8px; align-items:center; margin-bottom:6px; flex-wrap:wrap; }
+.inrow button{ margin-left:0; }
+.inrow .grow{ flex:1; }
+textarea#jwt{ width:100%; min-height:88px; resize:vertical; background:#0b0b14; color:var(--text); border:1px solid var(--line); font-family:inherit; font-size:12px; line-height:1.5; padding:10px; outline:none; word-break:break-all; }
+textarea#jwt:focus{ border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft) inset; }
+#tokenColored{ font-size:12px; word-break:break-all; line-height:1.6; margin-top:8px; padding:8px; background:#0b0b14; border:1px solid var(--line); min-height:20px; }
+#tokenColored .sh{ color:var(--c-header); } #tokenColored .sp{ color:var(--c-payload); } #tokenColored .ss{ color:var(--c-sig); } #tokenColored .dot{ color:var(--dim); }
+.status{ font-size:11px; margin-top:6px; letter-spacing:1px; min-height:16px; }
+.status.ok{ color:var(--good); } .status.bad{ color:var(--err); }
+.cols{ display:flex; gap:12px; flex-wrap:wrap; }
+.cols .col{ flex:1; min-width:260px; }
+.seg{ border-top:3px solid var(--line); }
+.seg.h{ border-color:var(--c-header); } .seg.p{ border-color:var(--c-payload); } .seg.s{ border-color:var(--c-sig); }
+.seg .st{ font-size:11px; letter-spacing:2px; padding:6px 2px 6px; display:flex; align-items:center; gap:8px; }
+.seg.h .st{ color:var(--c-header); } .seg.p .st{ color:var(--c-payload); } .seg.s .st{ color:var(--c-sig); }
+.seg .st button{ margin-left:auto; }
+pre.json{ background:#0b0b14; border:1px solid var(--line); padding:10px; font-size:12px; line-height:1.55; overflow-x:auto; white-space:pre; margin:0; }
+pre.json .key{ color:var(--k); } pre.json .str{ color:var(--s); } pre.json .num{ color:var(--n); } pre.json .bool{ color:var(--b); } pre.json .null{ color:var(--nul); }
+.segerr{ color:var(--err); font-size:12px; padding:10px; background:rgba(255,84,112,.06); border:1px solid rgba(255,84,112,.3); }
+.claims{ width:100%; border-collapse:collapse; font-size:11px; margin-top:4px; }
+.claims td{ padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+.claims td.k{ color:var(--k); width:70px; white-space:nowrap; }
+.claims td.d{ color:var(--dim); width:120px; }
+.claims td.v{ color:var(--text); word-break:break-word; }
+.badge{ display:inline-block; font-size:9px; letter-spacing:1px; padding:1px 6px; border-radius:2px; margin-left:6px; vertical-align:middle; }
+.badge.expired{ background:var(--err); color:#150a1c; box-shadow:0 0 8px var(--err); }
+.badge.valid{ background:var(--good); color:#0a1a10; }
+.badge.future{ background:var(--warn); color:#1a1405; }
+.rel{ color:var(--dim); font-size:10px; }
+.sigbox{ font-size:11px; color:var(--dim); line-height:1.6; }
+.sigbox .raw{ color:var(--c-sig); word-break:break-all; display:block; margin:6px 0; padding:8px; background:#0b0b14; border:1px solid var(--line); }
+.sigbox b{ color:var(--text); }
+.note{ color:var(--good); }
+footer{ text-align:center; margin-top:10px; font-size:10px; color:var(--dim); letter-spacing:2px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>JWT DECODER</h1>
+  <div class="sub">DECODE HEADER &middot; PAYLOAD &middot; CLAIMS &mdash; 100% IN-BROWSER</div>
+</header>
+<main>
+  <section class="panel">
+    <span class="lbl">&#9646; PASTE A JSON WEB TOKEN</span>
+    <div class="inrow">
+      <span class="grow"></span>
+      <button type="button" id="btnDemo">LOAD DEMO</button>
+      <button type="button" id="btnClear">CLEAR</button>
+      <button type="button" id="btnCopy">COPY TOKEN</button>
+    </div>
+    <textarea id="jwt" spellcheck="false" placeholder="header.payload.signature"></textarea>
+    <div id="tokenColored"></div>
+    <div class="status" id="status"></div>
+  </section>
+
+  <section class="panel">
+    <div class="cols">
+      <div class="col">
+        <div class="seg h">
+          <div class="st">&#9646; HEADER <button type="button" class="cpseg" data-seg="header">COPY</button></div>
+          <div id="headerOut"></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="seg p">
+          <div class="st">&#9646; PAYLOAD <button type="button" class="cpseg" data-seg="payload">COPY</button></div>
+          <div id="payloadOut"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="claimsPanel">
+    <span class="lbl">&#9646; CLAIMS &amp; TIMESTAMPS</span>
+    <div id="claimsOut"></div>
+  </section>
+
+  <section class="panel">
+    <div class="seg s">
+      <div class="st">&#9646; SIGNATURE</div>
+      <div class="sigbox" id="sigOut"></div>
+    </div>
+  </section>
+</main>
+<footer>WIZZED ARCADE // JWT DECODER</footer>
+<script>
+"use strict";
+var LS_KEY="wizzed-jwt-decoder";
+
+function b64urlEncode(str){
+  var bytes=new TextEncoder().encode(str), bin="";
+  for(var i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+function b64urlDecode(seg){
+  if(/[^A-Za-z0-9_\-]/.test(seg)) throw new Error("contains characters outside the base64url alphabet");
+  var t=seg.replace(/-/g,"+").replace(/_/g,"/");
+  var pad=t.length%4; if(pad===1) throw new Error("invalid base64url length"); if(pad) t+="====".slice(pad);
+  var bin;
+  try{ bin=atob(t); }catch(e){ throw new Error("could not base64-decode this segment"); }
+  var bytes=new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return new TextDecoder("utf-8").decode(bytes);
+}
+
+function makeDemo(){
+  var now=Math.floor(Date.now()/1000);
+  var header={alg:"HS256", typ:"JWT", kid:"wz-2026-07"};
+  var payload={
+    iss:"wizzed-arcade",
+    sub:"player-1138",
+    name:"Wizzed Player",
+    aud:"arcade-web",
+    scope:"play tools highscores",
+    admin:false,
+    iat:now-3600,
+    nbf:now-3600,
+    exp:now+86400*7,
+    jti:"a1b2c3d4e5"
+  };
+  var h=b64urlEncode(JSON.stringify(header));
+  var p=b64urlEncode(JSON.stringify(payload));
+  var s="dQw4w9WgXcQ7f3rT5nP2kLmZ8vB1yH6jS0aE4uI9oX";
+  return h+"."+p+"."+s;
+}
+
+var CLAIM_DESC={
+  iss:"Issuer", sub:"Subject", aud:"Audience", exp:"Expiration", nbf:"Not before",
+  iat:"Issued at", jti:"JWT ID", typ:"Token type", alg:"Algorithm", kid:"Key ID",
+  cty:"Content type", azp:"Authorized party", scope:"Scope", scp:"Scope",
+  name:"Full name", email:"Email", role:"Role", roles:"Roles", admin:"Admin flag",
+  given_name:"Given name", family_name:"Family name", preferred_username:"Username"
+};
+var TIME_CLAIMS={exp:1, nbf:1, iat:1, auth_time:1};
+
+function escapeHtml(s){ return String(s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];}); }
+
+function syntaxHighlight(obj){
+  var json=JSON.stringify(obj, null, 2);
+  json=escapeHtml(json);
+  return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false)\b|\bnull\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+  function(m){
+    var cls="num";
+    if(/^"/.test(m)){ cls=/:$/.test(m)?"key":"str"; }
+    else if(/^(true|false)$/.test(m)) cls="bool";
+    else if(m==="null") cls="null";
+    return '<span class="'+cls+'">'+m+'</span>';
+  });
+}
+
+function relTime(deltaSec){
+  var past=deltaSec<0, abs=Math.abs(deltaSec);
+  var units=[["year",31536000],["month",2592000],["day",86400],["hour",3600],["minute",60],["second",1]];
+  var out="";
+  for(var i=0;i<units.length;i++){
+    if(abs>=units[i][1] || units[i][0]==="second"){
+      var v=Math.floor(abs/units[i][1]);
+      if(v<1 && units[i][0]!=="second") continue;
+      out=v+" "+units[i][0]+(v===1?"":"s");
+      break;
+    }
+  }
+  return past ? out+" ago" : "in "+out;
+}
+function fmtLocal(ts){
+  var d=new Date(ts*1000);
+  if(isNaN(d.getTime())) return "invalid date";
+  return d.toLocaleString(undefined,{year:"numeric",month:"short",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"});
+}
+
+var jwt=document.getElementById("jwt");
+var statusEl=document.getElementById("status");
+var tokenColored=document.getElementById("tokenColored");
+var headerOut=document.getElementById("headerOut");
+var payloadOut=document.getElementById("payloadOut");
+var claimsOut=document.getElementById("claimsOut");
+var sigOut=document.getElementById("sigOut");
+var lastDecoded={header:"", payload:""};
+
+function decodeSeg(seg){
+  if(seg===undefined || seg==="") return {ok:false, error:"segment is empty"};
+  var raw;
+  try{ raw=b64urlDecode(seg); }
+  catch(e){ return {ok:false, error:"base64url: "+e.message}; }
+  var obj;
+  try{ obj=JSON.parse(raw); }
+  catch(e){ return {ok:false, error:"decoded but not valid JSON", raw:raw}; }
+  return {ok:true, obj:obj};
+}
+
+function renderSegPanel(target, res, kind){
+  if(res.ok){
+    target.innerHTML="";
+    var pre=document.createElement("pre"); pre.className="json";
+    pre.innerHTML=syntaxHighlight(res.obj);
+    target.appendChild(pre);
+    lastDecoded[kind]=JSON.stringify(res.obj,null,2);
+  }else{
+    var d=document.createElement("div"); d.className="segerr";
+    d.textContent="⚠ "+res.error+(res.raw!==undefined?(" — raw: "+res.raw.slice(0,80)):"");
+    target.innerHTML=""; target.appendChild(d);
+    lastDecoded[kind]="";
+  }
+}
+
+function renderClaims(payloadRes){
+  claimsOut.innerHTML="";
+  if(!payloadRes.ok || typeof payloadRes.obj!=="object" || payloadRes.obj===null){
+    claimsOut.innerHTML="<div class='segerr'>No decodable payload claims.</div>";
+    return;
+  }
+  var obj=payloadRes.obj;
+  var now=Math.floor(Date.now()/1000);
+  var table=document.createElement("table"); table.className="claims";
+  Object.keys(obj).forEach(function(k){
+    var tr=document.createElement("tr");
+    var tdK=document.createElement("td"); tdK.className="k"; tdK.textContent=k;
+    var tdD=document.createElement("td"); tdD.className="d"; tdD.textContent=CLAIM_DESC[k]||"";
+    var tdV=document.createElement("td"); tdV.className="v";
+    var val=obj[k];
+    if(TIME_CLAIMS[k] && typeof val==="number"){
+      var wrap=document.createElement("span");
+      wrap.innerHTML=escapeHtml(fmtLocal(val))+' <span class="rel">('+relTime(val-now)+')</span>';
+      if(k==="exp"){
+        var b=document.createElement("span");
+        if(val<now){ b.className="badge expired"; b.textContent="EXPIRED"; }
+        else{ b.className="badge valid"; b.textContent="VALID"; }
+        wrap.appendChild(b);
+      }
+      if(k==="nbf" && val>now){
+        var bf=document.createElement("span"); bf.className="badge future"; bf.textContent="NOT YET VALID"; wrap.appendChild(bf);
+      }
+      tdV.appendChild(wrap);
+    } else if(typeof val==="object" && val!==null){
+      tdV.textContent=JSON.stringify(val);
+    } else {
+      tdV.textContent=String(val);
+    }
+    tr.appendChild(tdK); tr.appendChild(tdD); tr.appendChild(tdV);
+    table.appendChild(tr);
+  });
+  claimsOut.appendChild(table);
+}
+
+function renderSignature(parts){
+  var sig=parts[2];
+  var alg="(unknown)";
+  var hres=decodeSeg(parts[0]);
+  if(hres.ok && hres.obj && hres.obj.alg) alg=hres.obj.alg;
+  var html="";
+  if(sig===undefined || sig===""){
+    html="<span style='color:var(--warn)'>No signature segment present (unsecured / malformed token).</span>";
+  }else{
+    html+="Encoded signature ("+escapeHtml(alg)+"):";
+    html+="<span class='raw'>"+escapeHtml(sig)+"</span>";
+  }
+  html+="This tool <b>decodes only</b> — it does <b>not</b> verify the signature. ";
+  html+="Verifying a "+escapeHtml(alg)+" token requires the signing <b>secret</b> (HMAC) or the issuer's <b>public key</b> (RSA/ECDSA), which is never entered here. ";
+  html+="<span class='note'>Nothing you paste leaves this page — all decoding happens locally in your browser.</span>";
+  sigOut.innerHTML=html;
+}
+
+function colorToken(parts){
+  var cls=["sh","sp","ss"];
+  var html="";
+  for(var i=0;i<parts.length;i++){
+    if(i>0) html+="<span class='dot'>.</span>";
+    var c=cls[i]||"dot";
+    html+="<span class='"+c+"'>"+escapeHtml(parts[i])+"</span>";
+  }
+  tokenColored.innerHTML=html||"<span style='color:var(--dim)'>(no token)</span>";
+}
+
+function decode(){
+  var val=jwt.value.trim();
+  save();
+  if(val===""){
+    tokenColored.innerHTML="<span style='color:var(--dim)'>(paste a token above)</span>";
+    statusEl.className="status"; statusEl.textContent="";
+    headerOut.innerHTML="<div class='segerr'>waiting for token…</div>";
+    payloadOut.innerHTML="<div class='segerr'>waiting for token…</div>";
+    claimsOut.innerHTML=""; sigOut.textContent="";
+    return;
+  }
+  var parts=val.split(".");
+  colorToken(parts);
+  if(parts.length!==3){
+    statusEl.className="status bad";
+    statusEl.textContent="✖ A JWT must have exactly 3 dot-separated segments — found "+parts.length+".";
+  }else{
+    statusEl.className="status ok";
+    statusEl.textContent="✔ 3 segments detected (header.payload.signature).";
+  }
+  var hres=decodeSeg(parts[0]);
+  var pres=decodeSeg(parts[1]);
+  renderSegPanel(headerOut, hres, "header");
+  renderSegPanel(payloadOut, pres, "payload");
+  renderClaims(pres);
+  renderSignature(parts);
+}
+
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({token:jwt.value})); }catch(e){} }
+function copyText(t, btn){
+  var done=function(){ var o=btn.textContent; btn.classList.add("okflash"); btn.textContent="OK!"; setTimeout(function(){ btn.classList.remove("okflash"); btn.textContent=o; },850); };
+  var fb=function(){ var ta=document.createElement("textarea"); ta.value=t; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch(e){} document.body.removeChild(ta); done(); };
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, fb); else fb();
+}
+
+jwt.addEventListener("input", decode);
+document.getElementById("btnDemo").addEventListener("click",function(){ jwt.value=makeDemo(); decode(); });
+document.getElementById("btnClear").addEventListener("click",function(){ jwt.value=""; decode(); jwt.focus(); });
+document.getElementById("btnCopy").addEventListener("click",function(){ copyText(jwt.value, this); });
+Array.prototype.forEach.call(document.querySelectorAll(".cpseg"),function(btn){
+  btn.addEventListener("click",function(){ copyText(lastDecoded[btn.dataset.seg]||"", btn); });
+});
+
+// init
+var start="";
+try{ var s=JSON.parse(localStorage.getItem(LS_KEY)||"null"); if(s && typeof s.token==="string") start=s.token; }catch(e){}
+jwt.value = start || makeDemo();
+decode();
+</script>
+</body>
+</html>

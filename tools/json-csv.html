@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON ⇄ CSV · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ffb300; --soft:rgba(255,179,0,.4);
+  --panel:#151006; --line:#5c4410; --text:#ffeec2; --dim:#bfa46a; --warn:#ff6b6b; --ok:#00ff9c;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:10px 12px 40px;
+}
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:linear-gradient(rgba(255,179,0,.03) 1px,transparent 1px),
+             linear-gradient(90deg,rgba(255,179,0,.03) 1px,transparent 1px);
+  background-size:30px 30px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:4px 8px 2px; position:relative; z-index:1; }
+h1{ display:inline-block; font-size:clamp(18px,3vw,26px); letter-spacing:4px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--soft); }
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:1080px; margin:8px auto 0; position:relative; z-index:1; }
+.toolbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center; margin-bottom:10px; }
+button.btn, label.tog{
+  font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer; text-transform:uppercase;
+  color:var(--accent); background:#1a1305; border:2px solid var(--line); padding:7px 11px; box-shadow:0 3px 0 #0a0800;
+  display:inline-flex; align-items:center; gap:6px; user-select:none;
+}
+button.btn:hover, label.tog:hover{ border-color:var(--accent); box-shadow:0 3px 0 #0a0800,0 0 12px var(--soft); }
+button.btn:active{ transform:translateY(2px); box-shadow:0 1px 0 #0a0800; }
+label.tog input{ accent-color:var(--accent); }
+label.tog.off{ color:var(--dim); border-color:#332809; opacity:.75; }
+.stage{ display:grid; grid-template-columns:1fr 54px 1fr; gap:0; align-items:stretch; }
+@media(max-width:760px){ .stage{ grid-template-columns:1fr; } }
+.pane{
+  background:var(--panel); border:2px solid var(--line);
+  box-shadow:0 0 22px rgba(255,179,0,.06); display:flex; flex-direction:column; min-height:340px;
+}
+.pane.active{ border-color:var(--accent); box-shadow:0 0 22px var(--soft); }
+.pane .head{ display:flex; justify-content:space-between; align-items:center; padding:7px 10px; border-bottom:1px solid var(--line); }
+.pane .head .t{ font-size:11px; letter-spacing:2px; color:var(--accent); text-transform:uppercase; }
+.pane .head .t small{ color:var(--dim); letter-spacing:1px; }
+.pane .head .badge{ font-size:9px; letter-spacing:1px; padding:2px 6px; border:1px solid var(--line); color:var(--dim); }
+.pane .head .badge.src{ color:var(--accent); border-color:var(--accent); }
+textarea{
+  flex:1; width:100%; resize:none; font-family:inherit; font-size:12.5px; line-height:1.45;
+  color:var(--text); background:#0b0803; border:none; padding:10px 12px; outline:none;
+  white-space:pre; overflow:auto; tab-size:2;
+}
+.err{ font-size:11px; padding:6px 10px; min-height:26px; letter-spacing:.3px; border-top:1px solid var(--line); }
+.err.bad{ color:var(--warn); }
+.err.good{ color:var(--ok); }
+.swap{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; }
+@media(max-width:760px){ .swap{ flex-direction:row; padding:8px 0; } }
+.swap button{
+  font-family:inherit; font-size:20px; cursor:pointer; color:var(--accent); background:#1a1305;
+  border:2px solid var(--line); width:44px; height:44px; box-shadow:0 3px 0 #0a0800;
+}
+.swap button:hover{ border-color:var(--accent); box-shadow:0 3px 0 #0a0800,0 0 14px var(--soft); }
+.swap .dir{ font-size:8px; color:var(--dim); letter-spacing:1px; writing-mode:vertical-rl; text-orientation:upright; }
+@media(max-width:760px){ .swap .dir{ writing-mode:horizontal-tb; } }
+.priv{ text-align:center; font-size:10px; color:var(--dim); letter-spacing:1px; margin-top:12px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>JSON ⇄ CSV</h1>
+  <div class="sub">FLATTEN · UNFLATTEN · TYPE-INFER · ROUND-TRIP SAFE</div>
+</header>
+<main>
+  <div class="toolbar">
+    <button class="btn" id="demoBtn">◆ Load demo</button>
+    <label class="tog" id="inferTog"><input type="checkbox" id="infer" checked>Type infer</label>
+    <label class="tog" id="unflatTog"><input type="checkbox" id="unflat" checked>Unflatten dots</label>
+    <button class="btn" id="copyBtn">⧉ Copy result</button>
+    <button class="btn" id="dlBtn">⭳ Download</button>
+  </div>
+
+  <div class="stage">
+    <div class="pane" id="jsonPane">
+      <div class="head"><div class="t">JSON <small>array of objects</small></div><div class="badge" id="jsonBadge">target</div></div>
+      <textarea id="jsonTa" spellcheck="false" aria-label="JSON"></textarea>
+      <div class="err" id="jsonErr"></div>
+    </div>
+    <div class="swap">
+      <button id="swapBtn" title="Swap conversion direction">⇄</button>
+      <div class="dir" id="dirLabel">JSON→CSV</div>
+    </div>
+    <div class="pane" id="csvPane">
+      <div class="head"><div class="t">CSV <small>comma separated</small></div><div class="badge" id="csvBadge">target</div></div>
+      <textarea id="csvTa" spellcheck="false" aria-label="CSV"></textarea>
+      <div class="err" id="csvErr"></div>
+    </div>
+  </div>
+  <div class="priv">100% local conversion — your data is parsed in-browser and never uploaded anywhere.</div>
+</main>
+
+<script>
+"use strict";
+var $=function(id){return document.getElementById(id);};
+
+/* ---------- JSON -> CSV ---------- */
+function isPlainObject(v){ return v!==null && typeof v==='object' && !Array.isArray(v); }
+function flatten(obj, prefix, out){
+  out=out||{}; prefix=prefix||'';
+  for(var k in obj){
+    if(!Object.prototype.hasOwnProperty.call(obj,k)) continue;
+    var v=obj[k], key=prefix?prefix+'.'+k:k;
+    if(isPlainObject(v)){
+      if(Object.keys(v).length===0) out[key]='{}';
+      else flatten(v, key, out);
+    } else if(Array.isArray(v)){
+      out[key]=JSON.stringify(v);
+    } else if(v===null || v===undefined){
+      out[key]='';
+    } else {
+      out[key]=v;
+    }
+  }
+  return out;
+}
+function csvEscape(val){
+  var s = (val===null||val===undefined)?'':String(val);
+  if(/[",\r\n]/.test(s)){ return '"'+s.replace(/"/g,'""')+'"'; }
+  return s;
+}
+function jsonToCsv(text){
+  var data;
+  try{ data=JSON.parse(text); }
+  catch(e){ throw {msg:'JSON parse error'+jsonPos(text,e), line:jsonLine(text,e)}; }
+  if(isPlainObject(data)) data=[data];
+  if(!Array.isArray(data)) throw {msg:'Top level must be an array of objects (or a single object).'};
+  if(data.length===0) return '';
+  var rows=[], cols=[], seen={};
+  for(var i=0;i<data.length;i++){
+    if(!isPlainObject(data[i])) throw {msg:'Row '+(i+1)+' is not an object.'};
+    var fr=flatten(data[i]);
+    rows.push(fr);
+    for(var c in fr){ if(!seen[c]){ seen[c]=true; cols.push(c); } }
+  }
+  var lines=[cols.map(csvEscape).join(',')];
+  for(var r=0;r<rows.length;r++){
+    var line=cols.map(function(c){ return csvEscape(rows[r][c]); });
+    lines.push(line.join(','));
+  }
+  return lines.join('\r\n');
+}
+function jsonPos(text,e){
+  var m=/position (\d+)/.exec(e.message||'');
+  if(m){ var p=+m[1]; var before=text.slice(0,p); var ln=before.split('\n').length; var col=p-before.lastIndexOf('\n'); return ' near line '+ln+', col '+col; }
+  return '';
+}
+function jsonLine(text,e){ var m=/position (\d+)/.exec(e.message||''); if(m){ return text.slice(0,+m[1]).split('\n').length; } return 0; }
+
+/* ---------- CSV -> JSON ---------- */
+function parseCsv(text){
+  // RFC4180-ish, returns array of rows (arrays of strings)
+  var rows=[], row=[], field='', i=0, n=text.length, inQ=false;
+  // strip a leading BOM
+  if(text.charCodeAt(0)===0xFEFF){ text=text.slice(1); n=text.length; }
+  while(i<n){
+    var ch=text[i];
+    if(inQ){
+      if(ch==='"'){
+        if(text[i+1]==='"'){ field+='"'; i+=2; continue; }
+        inQ=false; i++; continue;
+      }
+      field+=ch; i++; continue;
+    }
+    if(ch==='"'){ inQ=true; i++; continue; }
+    if(ch===','){ row.push(field); field=''; i++; continue; }
+    if(ch==='\r'){ if(text[i+1]==='\n') i++; row.push(field); field=''; rows.push(row); row=[]; i++; continue; }
+    if(ch==='\n'){ row.push(field); field=''; rows.push(row); row=[]; i++; continue; }
+    field+=ch; i++;
+  }
+  // last field/row (skip trailing empty line)
+  if(field!=='' || row.length>0){ row.push(field); rows.push(row); }
+  if(inQ) throw {msg:'Unterminated quoted field — check for an unmatched " character.'};
+  return rows;
+}
+function inferValue(s){
+  if(s==='') return '';
+  if(s==='null') return null;
+  if(s==='true') return true;
+  if(s==='false') return false;
+  if(/^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/.test(s)){
+    var num=Number(s); if(isFinite(num)) return num;
+  }
+  var c=s.charAt(0);
+  if(c==='['||c==='{'){ try{ return JSON.parse(s); }catch(e){ return s; } }
+  return s;
+}
+function unflattenRow(flat){
+  var out={};
+  for(var key in flat){
+    if(!Object.prototype.hasOwnProperty.call(flat,key)) continue;
+    var parts=key.split('.'), cur=out;
+    for(var i=0;i<parts.length;i++){
+      var p=parts[i];
+      if(i===parts.length-1){ cur[p]=flat[key]; }
+      else { if(!isPlainObject(cur[p])) cur[p]={}; cur=cur[p]; }
+    }
+  }
+  return out;
+}
+function csvToJson(text, opts){
+  var rows=parseCsv(text);
+  if(rows.length===0) return '[]';
+  var header=rows[0];
+  var out=[];
+  for(var r=1;r<rows.length;r++){
+    var cells=rows[r];
+    // ignore fully-empty trailing rows
+    if(cells.length===1 && cells[0]===''){ continue; }
+    var obj={};
+    for(var c=0;c<header.length;c++){
+      var raw = c<cells.length ? cells[c] : '';
+      obj[header[c]] = opts.infer ? inferValue(raw) : raw;
+    }
+    out.push(opts.unflat ? unflattenRow(obj) : obj);
+  }
+  return JSON.stringify(out, null, 2);
+}
+
+/* ---------- demo data ---------- */
+var DEMO=[
+  {id:1, name:"Ada Lovelace", email:"ada@analytical.io", active:true,
+   address:{city:"London", zip:"NW1"}, tags:["math","poetry"],
+   note:"Countess of Lovelace, \"first programmer\", born 1815"},
+  {id:2, name:"Grace Hopper", email:"grace@navy.mil", active:false,
+   address:{city:"New York", zip:"10001"}, tags:["compiler","navy"],
+   note:"Coined \"bug\"; loved\nmultiline notes, and commas, too"},
+  {id:3, name:"Alan Turing", email:"alan@bletchley.uk", active:true,
+   address:{city:"Maida Vale", zip:"W9"}, tags:["enigma","ai"],
+   note:"Universal machine"}
+];
+
+/* ---------- app state ---------- */
+var state={ dir:'json2csv' }; // or 'csv2json'
+function opts(){ return { infer: $('infer').checked, unflat: $('unflat').checked }; }
+
+function setBadges(){
+  var jsonSrc = state.dir==='json2csv';
+  $('jsonBadge').textContent = jsonSrc?'source':'target';
+  $('csvBadge').textContent  = jsonSrc?'target':'source';
+  $('jsonBadge').classList.toggle('src', jsonSrc);
+  $('csvBadge').classList.toggle('src', !jsonSrc);
+  $('jsonPane').classList.toggle('active', jsonSrc);
+  $('csvPane').classList.toggle('active', !jsonSrc);
+  $('dirLabel').textContent = jsonSrc?'JSON→CSV':'CSV→JSON';
+  $('jsonTa').readOnly = !jsonSrc;
+  $('csvTa').readOnly = jsonSrc;
+  $('inferTog').classList.toggle('off', jsonSrc);
+  $('unflatTog').classList.toggle('off', jsonSrc);
+}
+function convert(){
+  if(state.dir==='json2csv'){
+    var src=$('jsonTa').value;
+    try{
+      var csv=jsonToCsv(src);
+      $('csvTa').value=csv;
+      var n=csv?csv.split('\r\n').length-1:0;
+      setErr('jsonErr','good','✓ valid JSON');
+      setErr('csvErr','good','✓ '+n+' data row'+(n===1?'':'s')+' generated');
+    }catch(e){ setErr('jsonErr','bad','✕ '+e.msg); }
+  } else {
+    var s=$('csvTa').value;
+    try{
+      var json=csvToJson(s, opts());
+      $('jsonTa').value=json;
+      var cnt=JSON.parse(json).length;
+      setErr('csvErr','good','✓ parsed CSV');
+      setErr('jsonErr','good','✓ '+cnt+' object'+(cnt===1?'':'s')+' produced');
+    }catch(e){ setErr('csvErr','bad','✕ '+e.msg); }
+  }
+  persist();
+}
+function setErr(id,cls,msg){ var el=$(id); el.className='err '+cls; el.textContent=msg; }
+function persist(){
+  try{ localStorage.setItem('wizzed-json-csv', JSON.stringify({dir:state.dir, json:$('jsonTa').value, csv:$('csvTa').value, infer:$('infer').checked, unflat:$('unflat').checked})); }catch(e){}
+}
+function download(){
+  var isJson = state.dir==='csv2json';
+  var text = isJson ? $('jsonTa').value : $('csvTa').value;
+  var name = isJson ? 'data.json' : 'data.csv';
+  var type = isJson ? 'application/json' : 'text/csv';
+  var blob=new Blob([text],{type:type+';charset=utf-8'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 100);
+}
+function copyResult(){
+  var text = state.dir==='json2csv' ? $('csvTa').value : $('jsonTa').value;
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).catch(function(){}); }
+  else { var ta=state.dir==='json2csv'?$('csvTa'):$('jsonTa'); ta.select(); try{document.execCommand('copy');}catch(e){} }
+  var b=$('copyBtn'), o=b.textContent; b.textContent='✓ Copied'; setTimeout(function(){ b.textContent=o; },1000);
+}
+function loadDemo(){
+  state.dir='json2csv'; setBadges();
+  $('jsonTa').value=JSON.stringify(DEMO,null,2);
+  convert();
+}
+
+/* ---------- wire up ---------- */
+$('jsonTa').addEventListener('input', function(){ if(state.dir==='json2csv') convert(); });
+$('csvTa').addEventListener('input', function(){ if(state.dir==='csv2json') convert(); });
+$('swapBtn').addEventListener('click', function(){
+  state.dir = state.dir==='json2csv'?'csv2json':'json2csv';
+  setBadges(); convert();
+});
+$('infer').addEventListener('change', function(){ if(state.dir==='csv2json') convert(); else persist(); });
+$('unflat').addEventListener('change', function(){ if(state.dir==='csv2json') convert(); else persist(); });
+$('demoBtn').addEventListener('click', loadDemo);
+$('dlBtn').addEventListener('click', download);
+$('copyBtn').addEventListener('click', copyResult);
+
+/* ---------- init ---------- */
+(function init(){
+  var restored=false;
+  try{
+    var raw=localStorage.getItem('wizzed-json-csv');
+    if(raw){
+      var s=JSON.parse(raw);
+      if(s && typeof s.json==='string' && s.json.trim()){
+        state.dir = s.dir==='csv2json'?'csv2json':'json2csv';
+        $('infer').checked = s.infer!==false;
+        $('unflat').checked = s.unflat!==false;
+        $('jsonTa').value=s.json||'';
+        $('csvTa').value=s.csv||'';
+        restored=true;
+      }
+    }
+  }catch(e){}
+  setBadges();
+  if(restored) convert(); else loadDemo();
+})();
+</script>
+</body>
+</html>

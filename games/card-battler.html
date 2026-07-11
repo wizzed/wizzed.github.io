@@ -575,6 +575,7 @@ function closeOverlay(id){ document.getElementById(id).style.display='none'; }
 
 /* ---------- start / restart ---------- */
 function start(){
+  if(document.getElementById('title').style.display==='none')return;
   document.getElementById('title').style.display='none';
   audio(); beep(440,0.1,'triangle',0.05,660);
   newRun();

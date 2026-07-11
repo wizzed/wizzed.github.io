@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cron Explainer · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#00ff9c; --soft:rgba(0,255,156,.4);
+  --panel:#0c1712; --line:#155238; --text:#d4ffe9; --dim:#6fbd97; --warn:#ff6b6b;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:10px 12px 48px;
+}
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:linear-gradient(rgba(0,255,156,.03) 1px,transparent 1px),
+             linear-gradient(90deg,rgba(0,255,156,.03) 1px,transparent 1px);
+  background-size:30px 30px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:4px 8px 2px; position:relative; z-index:1; }
+h1{ display:inline-block; font-size:clamp(18px,3vw,26px); letter-spacing:4px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--soft); }
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:980px; margin:8px auto 0; position:relative; z-index:1; display:flex; flex-direction:column; gap:12px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line);
+  box-shadow:0 0 22px rgba(0,255,156,.07), inset 0 1px 0 rgba(255,255,255,.04);
+  padding:12px 14px;
+}
+.lbl{ font-size:10px; letter-spacing:3px; color:var(--dim); margin-bottom:8px; text-transform:uppercase; }
+.lbl b{ color:var(--accent); font-weight:normal; text-shadow:0 0 6px var(--soft); }
+.exprow{ display:flex; gap:10px; align-items:stretch; flex-wrap:wrap; }
+.exprow input{
+  flex:1 1 320px; font-family:inherit; font-size:clamp(18px,4vw,30px); letter-spacing:4px; text-align:center;
+  color:var(--accent); background:#07110c; border:2px solid var(--line); padding:10px 12px; outline:none;
+  text-shadow:0 0 8px var(--soft); box-shadow:inset 0 2px 10px rgba(0,0,0,.6);
+}
+.exprow input:focus{ border-color:var(--accent); box-shadow:inset 0 2px 10px rgba(0,0,0,.6),0 0 14px var(--soft); }
+.exprow input.bad{ border-color:var(--warn); color:var(--warn); text-shadow:0 0 8px rgba(255,107,107,.5); }
+.err{ color:var(--warn); font-size:12px; margin-top:8px; min-height:15px; letter-spacing:.5px; }
+.english{ font-size:clamp(15px,2.4vw,20px); color:var(--text); line-height:1.5; letter-spacing:.5px; }
+.english .hl{ color:var(--accent); text-shadow:0 0 6px var(--soft); }
+.grid2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media(max-width:760px){ .grid2{ grid-template-columns:1fr; } }
+table{ width:100%; border-collapse:collapse; font-size:12px; }
+th,td{ text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+th{ color:var(--dim); font-size:9px; letter-spacing:1.5px; text-transform:uppercase; }
+td.tok{ color:var(--accent); font-weight:bold; letter-spacing:1px; white-space:nowrap; text-shadow:0 0 6px var(--soft); }
+td.fld{ color:var(--dim); white-space:nowrap; }
+td.val{ color:var(--text); word-break:break-word; }
+.runs{ list-style:none; display:flex; flex-direction:column; gap:5px; }
+.runs li{ display:flex; justify-content:space-between; gap:8px; border:1px solid var(--line); background:#08120d; padding:6px 9px; font-size:13px; }
+.runs li .dt{ color:var(--accent); text-shadow:0 0 6px var(--soft); letter-spacing:1px; }
+.runs li .rel{ color:var(--dim); font-size:11px; white-space:nowrap; }
+.chips{ display:flex; gap:8px; flex-wrap:wrap; }
+.chip{
+  font-family:inherit; cursor:pointer; font-size:11px; letter-spacing:.5px;
+  color:var(--text); background:#0a1512; border:1px solid var(--line); padding:6px 10px;
+}
+.chip:hover{ border-color:var(--accent); color:var(--accent); box-shadow:0 0 10px var(--soft); }
+.chip code{ color:var(--accent); font-size:10px; opacity:.85; margin-left:6px; }
+.builder{ display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+@media(max-width:640px){ .builder{ grid-template-columns:repeat(2,1fr); } }
+.bfield label{ display:block; font-size:9px; letter-spacing:1px; color:var(--dim); margin-bottom:4px; text-transform:uppercase; }
+.bfield select{
+  width:100%; font-family:inherit; font-size:12px; color:var(--accent); background:#07110c;
+  border:1px solid var(--line); padding:6px; outline:none;
+}
+.bfield select:focus{ border-color:var(--accent); }
+.bout{ margin-top:10px; text-align:center; font-size:clamp(16px,3vw,22px); letter-spacing:3px; color:var(--accent); text-shadow:0 0 8px var(--soft); }
+.bout button{ margin-left:10px; font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer; color:var(--accent); background:#0a1512; border:1px solid var(--line); padding:5px 9px; vertical-align:middle; }
+.bout button:hover{ border-color:var(--accent); box-shadow:0 0 10px var(--soft); }
+.priv{ text-align:center; font-size:10px; color:var(--dim); letter-spacing:1px; margin-top:4px; }
+.legend{ font-size:10px; color:var(--dim); letter-spacing:.5px; margin-top:8px; line-height:1.6; }
+.legend code{ color:var(--accent); }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>CRON EXPLAINER</h1>
+  <div class="sub">DECODE ANY 5-FIELD SCHEDULE · NEXT RUNS IN LOCAL TIME</div>
+</header>
+<main>
+  <div class="panel">
+    <div class="lbl">Cron <b>expression</b> — <span style="color:var(--dim)">min hour day-of-month month day-of-week</span></div>
+    <div class="exprow">
+      <input id="expr" type="text" spellcheck="false" autocomplete="off" value="*/15 9-17 * * 1-5" aria-label="cron expression">
+    </div>
+    <div class="err" id="err"></div>
+    <div class="english" id="english"></div>
+    <div class="legend">
+      Syntax: <code>*</code> any · <code>*/n</code> every n · <code>a-b</code> range · <code>a,b</code> list · <code>a-b/n</code> stepped range · names <code>JAN..DEC</code> <code>SUN..SAT</code>. Day-of-week 0 and 7 are both Sunday. When both day-of-month and day-of-week are set, either match fires the job.
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <div class="lbl">Field-by-field <b>breakdown</b></div>
+      <table id="breakdown"><tbody></tbody></table>
+    </div>
+    <div class="panel">
+      <div class="lbl">Next <b>10 runs</b> · <span id="tzlabel"></span></div>
+      <ul class="runs" id="runs"></ul>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="lbl">Preset <b>gallery</b> — click to load</div>
+    <div class="chips" id="presets"></div>
+  </div>
+
+  <div class="panel">
+    <div class="lbl">Builder <b>mode</b> — pick parts, we write the cron</div>
+    <div class="builder" id="builder"></div>
+    <div class="bout"><span id="bout">* * * * *</span><button id="useBuilt">USE ↑</button></div>
+  </div>
+  <div class="priv">100% local — nothing you type ever leaves your browser.</div>
+</main>
+
+<script>
+"use strict";
+var MONTH_NAMES=['','January','February','March','April','May','June','July','August','September','October','November','December'];
+var MON_ABBR=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var DOW_NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+var DOW_ABBR=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var MONTH_MAP={JAN:1,FEB:2,MAR:3,APR:4,MAY:5,JUN:6,JUL:7,AUG:8,SEP:9,OCT:10,NOV:11,DEC:12};
+var DOW_MAP={SUN:0,MON:1,TUE:2,WED:3,THU:4,FRI:5,SAT:6};
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+// ---- parse a single field ----
+function parseField(token, minV, maxV, nameMap, isDow){
+  token=String(token).trim();
+  if(token==='') throw {msg:'empty field'};
+  var values=new Set();
+  var star = token==='*';
+  var everyStep = null;
+  var m = token.match(/^\*\/(\d+)$/);
+  if(m){ everyStep=parseInt(m[1],10); }
+  var parts=token.split(',');
+  function toNum(s){
+    s=s.trim();
+    if(/^\d+$/.test(s)) return parseInt(s,10);
+    if(nameMap){ var u=s.toUpperCase(); if(Object.prototype.hasOwnProperty.call(nameMap,u)) return nameMap[u]; }
+    throw {msg:'"'+s+'" is not a valid value'};
+  }
+  for(var i=0;i<parts.length;i++){
+    var part=parts[i].trim();
+    if(part==='') throw {msg:'empty list item'};
+    var step=1, base=part;
+    var sl=part.split('/');
+    if(sl.length===2){ step=parseInt(sl[1],10); base=sl[0]; if(!(step>=1)) throw {msg:'step must be ≥ 1 in "'+part+'"'}; }
+    else if(sl.length>2){ throw {msg:'bad step in "'+part+'"'}; }
+    var lo,hi;
+    if(base==='*'){ lo=minV; hi=maxV; }
+    else if(base.indexOf('-')>=0){
+      var rp=base.split('-');
+      if(rp.length!==2) throw {msg:'bad range "'+base+'"'};
+      lo=toNum(rp[0]); hi=toNum(rp[1]);
+    } else {
+      lo=toNum(base);
+      hi = (sl.length===2) ? maxV : lo; // "a/n" means a..max step n
+    }
+    // dow: allow 7 as Sunday bound
+    var rangeMax = isDow ? 7 : maxV;
+    if(lo<minV||lo>rangeMax) throw {msg:'value '+lo+' out of range ('+minV+'-'+maxV+')'};
+    if(hi<minV||hi>rangeMax) throw {msg:'value '+hi+' out of range ('+minV+'-'+maxV+')'};
+    if(hi<lo) throw {msg:'range "'+base+'" is backwards'};
+    for(var v=lo; v<=hi; v+=step){
+      var vv=v;
+      if(isDow && vv===7) vv=0;
+      values.add(vv);
+    }
+  }
+  if(values.size===0) throw {msg:'no values matched'};
+  var arr=Array.from(values).sort(function(a,b){return a-b;});
+  return { raw:token, star:star, everyStep:everyStep, values:arr, set:new Set(arr) };
+}
+
+function parseCron(expr){
+  var t=String(expr).trim().replace(/\s+/g,' ');
+  if(t==='') throw {msg:'enter a cron expression'};
+  var f=t.split(' ');
+  if(f.length!==5) throw {msg:'need exactly 5 fields (got '+f.length+')'};
+  var minute=parseField(f[0],0,59,null,false);
+  var hour  =parseField(f[1],0,23,null,false);
+  var dom   =parseField(f[2],1,31,null,false);
+  var month =parseField(f[3],1,12,MONTH_MAP,false);
+  var dow   =parseField(f[4],0,6,DOW_MAP,true);
+  return { minute:minute, hour:hour, dom:dom, month:month, dow:dow, tokens:f };
+}
+
+// ---- next run iterator ----
+function dayMatches(c, d){
+  var domStar=c.dom.star, dowStar=c.dow.star;
+  var domM=c.dom.set.has(d.getDate());
+  var dowM=c.dow.set.has(d.getDay());
+  if(!domStar && !dowStar) return domM || dowM;
+  if(!domStar) return domM;
+  if(!dowStar) return dowM;
+  return true;
+}
+function nextRun(c, after){
+  var d=new Date(after.getTime());
+  d.setSeconds(0,0);
+  d.setMinutes(d.getMinutes()+1);
+  var guard=0, limit=6*366*24*60; // ~6 years of minutes
+  while(guard++ < limit){
+    if(!c.month.set.has(d.getMonth()+1)){
+      d.setMonth(d.getMonth()+1,1); d.setHours(0,0,0,0); continue;
+    }
+    if(!dayMatches(c,d)){
+      d.setDate(d.getDate()+1); d.setHours(0,0,0,0); continue;
+    }
+    if(!c.hour.set.has(d.getHours())){
+      d.setHours(d.getHours()+1,0,0,0); continue;
+    }
+    if(!c.minute.set.has(d.getMinutes())){
+      d.setMinutes(d.getMinutes()+1,0,0); continue;
+    }
+    return new Date(d.getTime());
+  }
+  return null;
+}
+function nextRuns(c, from, n){
+  var out=[], cur=from;
+  for(var i=0;i<n;i++){
+    var nx=nextRun(c,cur);
+    if(!nx) break;
+    out.push(nx); cur=nx;
+  }
+  return out;
+}
+
+// ---- description helpers ----
+function compress(arr, mapper){
+  var runs=[], i=0;
+  while(i<arr.length){
+    var j=i;
+    while(j+1<arr.length && arr[j+1]===arr[j]+1) j++;
+    if(j-i>=2){ runs.push((mapper?mapper(arr[i]):arr[i])+'–'+(mapper?mapper(arr[j]):arr[j])); }
+    else { for(var k=i;k<=j;k++) runs.push(mapper?mapper(arr[k]):String(arr[k])); }
+    i=j+1;
+  }
+  return runs;
+}
+function joinList(items){
+  if(items.length===1) return items[0];
+  if(items.length===2) return items[0]+' and '+items[1];
+  return items.slice(0,-1).join(', ')+' and '+items[items.length-1];
+}
+function ordinal(n){
+  var s=['th','st','nd','rd'], v=n%100;
+  return n+(s[(v-20)%10]||s[v]||s[0]);
+}
+function minuteHourPhrase(min, hr){
+  if(min.star && hr.star) return 'Every minute';
+  if(min.everyStep && hr.star) return 'Every '+min.everyStep+' minutes';
+  if(min.values.length===1 && hr.star) return 'At minute '+min.values[0]+' of every hour';
+  // both fully specified -> combine
+  var minTxt, hrTxt;
+  if(min.everyStep) minTxt='every '+min.everyStep+' minutes';
+  else if(min.star) minTxt='every minute';
+  else minTxt='at minute '+joinList(compress(min.values));
+  if(hr.everyStep) hrTxt='every '+hr.everyStep+' hours';
+  else if(hr.star) hrTxt='';
+  else hrTxt='during hours '+joinList(compress(hr.values));
+  // nice case: single minute + single hour
+  if(min.values.length===1 && hr.values.length===1){
+    return 'At '+pad2(hr.values[0])+':'+pad2(min.values[0]);
+  }
+  // single minute, range of hours
+  if(min.values.length===1 && !hr.star && !hr.everyStep){
+    return 'At '+min.values[0]+' minutes past the hour, during hours '+joinList(compress(hr.values));
+  }
+  if(hrTxt==='') return capitalize(minTxt);
+  return capitalize(minTxt)+', '+hrTxt;
+}
+function dayPhrase(dom, month, dow){
+  var clauses=[];
+  if(!dom.star && !dow.star){
+    clauses.push('on the '+joinList(compress(dom.values).map(function(x){ return /–/.test(x)?x:ordinal(parseInt(x,10)); }))+' of the month, or on '+joinList(compress(dow.values, function(n){return DOW_NAMES[n];})));
+  } else if(!dom.star){
+    if(dom.everyStep) clauses.push('every '+dom.everyStep+' days of the month');
+    else clauses.push('on the '+joinList(compress(dom.values).map(function(x){ return /–/.test(x)?x:ordinal(parseInt(x,10)); }))+' of the month');
+  } else if(!dow.star){
+    clauses.push('on '+joinList(compress(dow.values, function(n){return DOW_NAMES[n];})));
+  } else {
+    clauses.push('every day');
+  }
+  if(!month.star){
+    clauses.push('in '+joinList(compress(month.values, function(n){return MONTH_NAMES[n];})));
+  }
+  return clauses.join(' ');
+}
+function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+function describe(c){
+  var t=minuteHourPhrase(c.minute,c.hour);
+  var day=dayPhrase(c.dom,c.month,c.dow);
+  var s=t;
+  if(day) s+=', '+day;
+  return s+'.';
+}
+
+// field meaning text for breakdown
+function fieldMeaning(fld, kind){
+  if(fld.star) return 'every '+kind;
+  if(fld.everyStep) return 'every '+fld.everyStep+' '+kind+(fld.everyStep===1?'':'s');
+  return kind+' '+joinList(compress(fld.values));
+}
+
+// ---- rendering ----
+var $=function(id){return document.getElementById(id);};
+function fmtRun(d, now){
+  var wd=DOW_ABBR[d.getDay()];
+  var dateStr=wd+' '+d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+  var timeStr=pad2(d.getHours())+':'+pad2(d.getMinutes());
+  var rel=relTime(d.getTime()-now.getTime());
+  return {dt:dateStr+'  '+timeStr, rel:rel};
+}
+function relTime(ms){
+  var s=Math.round(ms/1000);
+  if(s<0) return 'now';
+  if(s<60) return 'in '+s+'s';
+  var mins=Math.round(s/60);
+  if(mins<60) return 'in '+mins+' min';
+  var h=Math.floor(mins/60), rm=mins%60;
+  if(h<24) return 'in '+h+'h'+(rm?' '+rm+'m':'');
+  var days=Math.floor(h/24), rh=h%24;
+  if(days<31) return 'in '+days+'d'+(rh?' '+rh+'h':'');
+  var mo=Math.floor(days/30);
+  if(mo<24) return 'in ~'+mo+' mo';
+  return 'in ~'+Math.floor(days/365)+' yr';
+}
+
+function render(){
+  var expr=$('expr').value;
+  var errEl=$('err'), engEl=$('english');
+  try{
+    var c=parseCron(expr);
+    $('expr').classList.remove('bad');
+    errEl.textContent='';
+    engEl.innerHTML='<span class="hl">▸</span> '+escapeHtml(describe(c));
+    // breakdown
+    var rows=[
+      ['minute', c.minute, fieldMeaning(c.minute,'minute')],
+      ['hour', c.hour, fieldMeaning(c.hour,'hour')],
+      ['day-of-month', c.dom, fieldMeaning(c.dom,'day')],
+      ['month', c.month, monthMeaning(c.month)],
+      ['day-of-week', c.dow, dowMeaning(c.dow)]
+    ];
+    var tb=$('breakdown').querySelector('tbody');
+    tb.innerHTML='<tr><th>Field</th><th>Value</th><th>Means</th></tr>'+rows.map(function(r){
+      return '<tr><td class="fld">'+r[0]+'</td><td class="tok">'+escapeHtml(r[1].raw)+'</td><td class="val">'+escapeHtml(r[2])+'</td></tr>';
+    }).join('');
+    // runs
+    var now=new Date();
+    var runs=nextRuns(c, now, 10);
+    var ul=$('runs');
+    if(runs.length===0){ ul.innerHTML='<li><span class="dt">No runs within 6 years</span></li>'; }
+    else ul.innerHTML=runs.map(function(d){ var f=fmtRun(d,now); return '<li><span class="dt">'+f.dt+'</span><span class="rel">'+f.rel+'</span></li>'; }).join('');
+    try{ localStorage.setItem('wizzed-cron-explainer', expr); }catch(e){}
+  }catch(e){
+    $('expr').classList.add('bad');
+    errEl.textContent='✕ '+(e && e.msg ? e.msg : 'invalid expression');
+    engEl.innerHTML='';
+  }
+}
+function monthMeaning(m){
+  if(m.star) return 'every month';
+  return 'in '+joinList(compress(m.values, function(n){return MONTH_NAMES[n];}));
+}
+function dowMeaning(w){
+  if(w.star) return 'every day of the week';
+  return 'on '+joinList(compress(w.values, function(n){return DOW_NAMES[n];}));
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+// ---- presets ----
+var PRESETS=[
+  ['Every minute','* * * * *'],
+  ['Every 15 min','*/15 * * * *'],
+  ['Hourly','0 * * * *'],
+  ['Every 6 hours','0 */6 * * *'],
+  ['Nightly (midnight)','0 0 * * *'],
+  ['Every day 9am','0 9 * * *'],
+  ['Weekdays 9am','0 9 * * 1-5'],
+  ['Every 15m, work hrs','*/15 9-17 * * 1-5'],
+  ['Noon daily','0 12 * * *'],
+  ['1st of month','0 0 1 * *'],
+  ['Every Sunday 8am','0 8 * * SUN'],
+  ['Sat & Sun 10:30','30 10 * * 6,0'],
+  ['Quarterly','0 0 1 1,4,7,10 *'],
+  ['New Year','0 0 1 JAN *']
+];
+function renderPresets(){
+  $('presets').innerHTML=PRESETS.map(function(p,i){
+    return '<button class="chip" data-i="'+i+'">'+escapeHtml(p[0])+'<code>'+escapeHtml(p[1])+'</code></button>';
+  }).join('');
+  $('presets').querySelectorAll('.chip').forEach(function(b){
+    b.addEventListener('click',function(){ $('expr').value=PRESETS[+b.dataset.i][1]; render(); });
+  });
+}
+
+// ---- builder ----
+var BUILD={ minute:'0', hour:'0', dom:'*', month:'*', dow:'*' };
+function opt(v,label,sel){ return '<option value="'+escapeHtml(v)+'"'+(sel?' selected':'')+'>'+escapeHtml(label)+'</option>'; }
+function buildOptions(kind){
+  var out='';
+  if(kind==='minute'){
+    out+=opt('*','every minute', BUILD.minute==='*');
+    out+=opt('*/5','every 5 min', BUILD.minute==='*/5');
+    out+=opt('*/15','every 15 min', BUILD.minute==='*/15');
+    out+=opt('*/30','every 30 min', BUILD.minute==='*/30');
+    for(var i=0;i<60;i+=5) out+=opt(String(i),'at :'+pad2(i), BUILD.minute===String(i));
+  } else if(kind==='hour'){
+    out+=opt('*','every hour', BUILD.hour==='*');
+    out+=opt('*/2','every 2 hrs', BUILD.hour==='*/2');
+    out+=opt('*/6','every 6 hrs', BUILD.hour==='*/6');
+    out+=opt('9-17','9am–5pm', BUILD.hour==='9-17');
+    for(var h=0;h<24;h++) out+=opt(String(h),pad2(h)+':00', BUILD.hour===String(h));
+  } else if(kind==='dom'){
+    out+=opt('*','every day', BUILD.dom==='*');
+    out+=opt('1','1st', BUILD.dom==='1');
+    out+=opt('15','15th', BUILD.dom==='15');
+    out+=opt('1,15','1st & 15th', BUILD.dom==='1,15');
+    out+=opt('*/2','every 2 days', BUILD.dom==='*/2');
+    for(var dd=1;dd<=31;dd++) out+=opt(String(dd),ordinal(dd), BUILD.dom===String(dd));
+  } else if(kind==='month'){
+    out+=opt('*','every month', BUILD.month==='*');
+    out+=opt('1,4,7,10','quarterly', BUILD.month==='1,4,7,10');
+    for(var mo=1;mo<=12;mo++) out+=opt(String(mo),MON_ABBR[mo], BUILD.month===String(mo));
+  } else if(kind==='dow'){
+    out+=opt('*','every weekday+weekend', BUILD.dow==='*');
+    out+=opt('1-5','Mon–Fri', BUILD.dow==='1-5');
+    out+=opt('6,0','Sat & Sun', BUILD.dow==='6,0');
+    for(var w=0;w<7;w++) out+=opt(String(w),DOW_NAMES[w], BUILD.dow===String(w));
+  }
+  return out;
+}
+function renderBuilder(){
+  var fields=[['minute','Minute'],['hour','Hour'],['dom','Day-of-month'],['month','Month'],['dow','Day-of-week']];
+  $('builder').innerHTML=fields.map(function(f){
+    return '<div class="bfield"><label>'+f[1]+'</label><select data-k="'+f[0]+'">'+buildOptions(f[0])+'</select></div>';
+  }).join('');
+  $('builder').querySelectorAll('select').forEach(function(sel){
+    sel.addEventListener('change',function(){ BUILD[sel.dataset.k]=sel.value; updateBuilt(); });
+  });
+  updateBuilt();
+}
+function builtExpr(){ return [BUILD.minute,BUILD.hour,BUILD.dom,BUILD.month,BUILD.dow].join(' '); }
+function updateBuilt(){ $('bout').textContent=builtExpr(); }
+
+// ---- init ----
+(function init(){
+  $('tzlabel').textContent=Intl.DateTimeFormat().resolvedOptions().timeZone||'local time';
+  try{ var saved=localStorage.getItem('wizzed-cron-explainer'); if(saved) $('expr').value=saved; }catch(e){}
+  $('expr').addEventListener('input', render);
+  $('useBuilt').addEventListener('click',function(){ $('expr').value=builtExpr(); render(); });
+  renderPresets();
+  renderBuilder();
+  render();
+  setInterval(function(){ /* refresh relative times each minute */ render(); }, 60000);
+})();
+</script>
+</body>
+</html>

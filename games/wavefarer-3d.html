@@ -557,6 +557,8 @@
   }
   pauseBtn.addEventListener('click', () => setPaused(!paused));
   document.getElementById('resumeBtn').addEventListener('click', () => setPaused(false));
+  // auto-pause (freezes sim + mutes audio) when the tab / app is backgrounded
+  document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
 
   // distant lightning that grows more frequent as the storm builds (cheap: 1 jagged line + light flash)
   const BOLT_SEG = 9;

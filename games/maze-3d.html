@@ -206,6 +206,8 @@ function setPaused(p) {
 }
 pauseBtn.addEventListener('click', () => setPaused(!paused));
 document.getElementById('resume-btn').addEventListener('click', () => setPaused(false));
+// auto-pause (freezes sim) when the tab / app is backgrounded
+document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
 
 // ── Fireflies (cheap additive drifting motes) ──────────────────────────────
 const FN = 34, FRANGE = 11;
@@ -611,7 +613,10 @@ function loop(ts) {
   updateFireflies(t);
   document.getElementById('time').textContent = fmt(timeSec);
   const parEl = document.getElementById('par');
-  parEl.className = timeSec > parSec ? 'over' : '';
+  // inline style is needed here: #par carries an inline colour that would out-specify the .over class
+  const overPar = timeSec > parSec;
+  parEl.style.color = overPar ? '#ff5577' : '#7fdba0';
+  parEl.style.textShadow = overPar ? '0 0 10px #ff2255' : '';
 
   if (showMap) drawMap();
   renderer.render(scene, camera);

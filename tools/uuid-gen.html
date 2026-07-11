@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UUID Generator · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#00ff9c; --accent-soft:rgba(0,255,156,.38);
+  --panel:#141422; --line:#26402f; --text:#e4fff2; --dim:#78a692;
+  --err:#ff5470; --good:#3ddc84; --warn:#ffd166; --blue:#4da6ff;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:26px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:12px 8px 6px; }
+h1{ display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:4px; color:var(--accent); text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft); }
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:960px; margin:8px auto 0; padding:0 14px; }
+.panel{ background:var(--panel); border:2px solid var(--line); padding:12px; box-shadow:0 0 0 1px #000, 0 0 20px rgba(0,255,156,.06); margin-bottom:12px; }
+.lbl{ font-size:10px; letter-spacing:2px; color:var(--accent); text-shadow:0 0 8px var(--accent-soft); }
+button{ font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer; background:#121220; color:var(--dim); border:1px solid var(--line); padding:6px 11px; }
+button:hover{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+button.prime{ color:#04140c; background:var(--accent); border-color:var(--accent); font-weight:bold; box-shadow:0 0 12px var(--accent-soft); }
+button.okflash{ color:#04140c !important; background:var(--good) !important; border-color:var(--good) !important; }
+.ctrls{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.countbox{ display:flex; align-items:center; gap:8px; }
+.countbox input[type=number]{ width:64px; font-family:inherit; font-size:13px; background:#0b0b14; color:var(--text); border:1px solid var(--line); padding:5px 6px; text-align:center; }
+.countbox input[type=range]{ width:140px; accent-color:var(--accent); }
+.countbox input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+.opts{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+label.tog{ display:inline-flex; align-items:center; gap:6px; cursor:pointer; user-select:none; font-size:10px; letter-spacing:1px; color:var(--dim); border:1px solid var(--line); background:#121220; padding:5px 10px; }
+label.tog.on{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+label.tog input{ accent-color:var(--accent); }
+.actions{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center; }
+.actions .info{ font-size:10px; color:var(--dim); margin-left:auto; letter-spacing:1px; }
+.grid2{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+.grid2 .left{ flex:2; min-width:280px; }
+.grid2 .right{ flex:1; min-width:250px; }
+#list{ max-height:340px; overflow:auto; border:1px solid var(--line); background:#0b0b14; }
+.urow{ display:flex; align-items:center; gap:8px; padding:5px 8px; border-bottom:1px solid rgba(255,255,255,.03); }
+.urow:last-child{ border-bottom:none; }
+.urow .idx{ color:var(--dim); font-size:10px; width:28px; flex-shrink:0; text-align:right; }
+.urow .u{ flex:1; font-size:12.5px; color:var(--text); user-select:all; word-break:break-all; letter-spacing:.5px; }
+.urow button.cp{ flex-shrink:0; font-size:9px; padding:3px 7px; }
+.urow button.cp.okflash{ color:#04140c !important; background:var(--good) !important; border-color:var(--good) !important; }
+textarea#insp{ width:100%; background:#0b0b14; color:var(--text); border:1px solid var(--line); font-family:inherit; font-size:12px; padding:8px; outline:none; resize:vertical; min-height:44px; word-break:break-all; }
+textarea#insp:focus{ border-color:var(--blue); box-shadow:0 0 10px rgba(77,166,255,.3) inset; }
+.ires{ margin-top:8px; }
+.ibadge{ display:inline-block; font-size:9px; letter-spacing:1px; padding:2px 8px; border-radius:2px; margin-bottom:8px; }
+.ibadge.ok{ background:var(--good); color:#04140c; box-shadow:0 0 8px var(--good); }
+.ibadge.bad{ background:var(--err); color:#150a10; box-shadow:0 0 8px var(--err); }
+table.itab{ width:100%; border-collapse:collapse; font-size:11px; }
+table.itab td{ padding:4px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+table.itab td.k{ color:var(--blue); width:78px; }
+table.itab td.v{ color:var(--text); word-break:break-all; }
+.bits{ font-size:10px; color:var(--dim); margin-top:6px; line-height:1.6; }
+.bits b{ color:var(--warn); }
+.subhead{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.subhead .note{ font-size:9px; color:var(--dim); margin-left:auto; letter-spacing:1px; }
+footer{ text-align:center; margin-top:10px; font-size:10px; color:var(--dim); letter-spacing:2px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>UUID GENERATOR</h1>
+  <div class="sub">RFC 4122 VERSION 4 &middot; CRYPTO-RANDOM &middot; LOCAL ONLY</div>
+</header>
+<main>
+  <section class="panel">
+    <div class="ctrls">
+      <span class="lbl">COUNT</span>
+      <div class="countbox">
+        <input type="range" id="countRange" min="1" max="500" value="10">
+        <input type="number" id="countNum" min="1" max="500" value="10">
+        <span class="lbl" style="color:var(--dim)">/ 500</span>
+      </div>
+    </div>
+    <div class="opts" id="opts">
+      <label class="tog" data-opt="upper"><input type="checkbox" id="optUpper">UPPERCASE</label>
+      <label class="tog" data-opt="nohyphen"><input type="checkbox" id="optNohyphen">NO HYPHENS</label>
+      <label class="tog" data-opt="braces"><input type="checkbox" id="optBraces">{ BRACES }</label>
+      <label class="tog" data-opt="quoted"><input type="checkbox" id="optQuoted">"QUOTED", (code list)</label>
+    </div>
+    <div class="actions">
+      <button type="button" id="btnGen" class="prime">&#10227; GENERATE</button>
+      <button type="button" id="btnCopyAll">&#9783; COPY ALL</button>
+      <button type="button" id="btnDownload">&#8681; .TXT</button>
+      <span class="info" id="cryptoInfo"></span>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <section class="panel left">
+      <div class="subhead">
+        <span class="lbl">&#9646; GENERATED</span>
+        <span class="note" id="listCount"></span>
+      </div>
+      <div id="list"></div>
+    </section>
+
+    <section class="panel right">
+      <div class="subhead">
+        <span class="lbl" style="color:var(--blue)">&#9646; VALIDATE / INSPECT</span>
+      </div>
+      <textarea id="insp" spellcheck="false" placeholder="Paste any UUID to inspect its version &amp; variant bits…"></textarea>
+      <div class="ires" id="inspRes"></div>
+    </section>
+  </div>
+</main>
+<footer>WIZZED ARCADE // UUID GENERATOR</footer>
+<script>
+"use strict";
+var LS_KEY="wizzed-uuid-gen";
+
+var hasCrypto = !!(window.crypto && window.crypto.getRandomValues);
+function randBytes(n){
+  var b=new Uint8Array(n);
+  if(hasCrypto) window.crypto.getRandomValues(b);
+  else for(var i=0;i<n;i++) b[i]=Math.floor(Math.random()*256);
+  return b;
+}
+function uuidv4(){
+  var b=randBytes(16);
+  b[6]=(b[6]&0x0f)|0x40; // version 4
+  b[8]=(b[8]&0x3f)|0x80; // variant 10xx
+  var h=new Array(16);
+  for(var i=0;i<16;i++) h[i]=b[i].toString(16).padStart(2,"0");
+  return h[0]+h[1]+h[2]+h[3]+"-"+h[4]+h[5]+"-"+h[6]+h[7]+"-"+h[8]+h[9]+"-"+h[10]+h[11]+h[12]+h[13]+h[14]+h[15];
+}
+
+var opts={upper:false, nohyphen:false, braces:false, quoted:false};
+try{
+  var saved=JSON.parse(localStorage.getItem(LS_KEY)||"null");
+  if(saved && saved.opts){ ["upper","nohyphen","braces","quoted"].forEach(function(k){ opts[k]=!!saved.opts[k]; }); }
+}catch(e){}
+
+function fmt(canonical){
+  var u=canonical;
+  if(opts.nohyphen) u=u.replace(/-/g,"");
+  if(opts.upper) u=u.toUpperCase();
+  if(opts.braces) u="{"+u+"}";
+  if(opts.quoted) u='"'+u+'",';
+  return u;
+}
+
+var batch=[];
+var listEl=document.getElementById("list");
+var listCount=document.getElementById("listCount");
+
+function renderList(){
+  listEl.innerHTML="";
+  var frag=document.createDocumentFragment();
+  for(var i=0;i<batch.length;i++){
+    (function(i){
+      var row=document.createElement("div"); row.className="urow";
+      var idx=document.createElement("span"); idx.className="idx"; idx.textContent=(i+1);
+      var u=document.createElement("span"); u.className="u"; u.textContent=fmt(batch[i]);
+      var cp=document.createElement("button"); cp.className="cp"; cp.textContent="COPY";
+      cp.addEventListener("click",function(){ copyText(fmt(batch[i]), cp); });
+      row.appendChild(idx); row.appendChild(u); row.appendChild(cp);
+      frag.appendChild(row);
+    })(i);
+  }
+  listEl.appendChild(frag);
+  listCount.textContent=batch.length+" UUID"+(batch.length===1?"":"s");
+}
+function allText(){
+  var lines=[];
+  for(var i=0;i<batch.length;i++) lines.push(fmt(batch[i]));
+  return lines.join("\n");
+}
+
+var countNum=document.getElementById("countNum");
+var countRange=document.getElementById("countRange");
+function clampCount(v){ v=parseInt(v,10); if(isNaN(v)) v=10; return Math.max(1, Math.min(500, v)); }
+function generate(){
+  var n=clampCount(countNum.value);
+  countNum.value=n; countRange.value=n;
+  batch=[];
+  for(var i=0;i<n;i++) batch.push(uuidv4());
+  renderList();
+}
+countRange.addEventListener("input",function(){ countNum.value=countRange.value; });
+countNum.addEventListener("input",function(){ var n=clampCount(countNum.value); countRange.value=n; });
+countNum.addEventListener("change",function(){ countNum.value=clampCount(countNum.value); countRange.value=countNum.value; });
+
+document.getElementById("btnGen").addEventListener("click", generate);
+
+// option toggles
+document.getElementById("opts").addEventListener("change",function(ev){
+  var box=ev.target; var lbl=box.closest("label.tog"); if(!lbl) return;
+  opts[lbl.dataset.opt]=box.checked;
+  lbl.classList.toggle("on", box.checked);
+  renderList();
+  save();
+});
+function syncOptUI(){
+  Array.prototype.forEach.call(document.querySelectorAll("#opts label.tog"),function(lbl){
+    var box=lbl.querySelector("input"); box.checked=opts[lbl.dataset.opt];
+    lbl.classList.toggle("on", opts[lbl.dataset.opt]);
+  });
+}
+
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({opts:opts})); }catch(e){} }
+
+function copyText(t, btn){
+  var done=function(){ var o=btn.textContent; btn.classList.add("okflash"); btn.textContent="OK!"; setTimeout(function(){ btn.classList.remove("okflash"); btn.textContent=o; },850); };
+  var fb=function(){ var ta=document.createElement("textarea"); ta.value=t; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch(e){} document.body.removeChild(ta); done(); };
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, fb); else fb();
+}
+document.getElementById("btnCopyAll").addEventListener("click",function(){ copyText(allText(), this); });
+document.getElementById("btnDownload").addEventListener("click",function(){
+  var blob=new Blob([allText()],{type:"text/plain"});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a"); a.href=url; a.download="uuids.txt";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); },1000);
+  var b=this, o=b.textContent; b.classList.add("okflash"); b.textContent="SAVED"; setTimeout(function(){ b.classList.remove("okflash"); b.textContent=o; },900);
+});
+
+// ---- inspect ----
+var VERSIONS={
+  "1":"v1 — time + MAC based",
+  "2":"v2 — DCE security",
+  "3":"v3 — name-based (MD5)",
+  "4":"v4 — random",
+  "5":"v5 — name-based (SHA-1)",
+  "6":"v6 — reordered time",
+  "7":"v7 — Unix-epoch time",
+  "8":"v8 — custom / vendor"
+};
+function variantOf(nibble){
+  if(nibble<0x8) return {bits:"0xx", name:"NCS (reserved, legacy)"};
+  if(nibble<=0xB) return {bits:"10x", name:"RFC 4122 / DCE 1.1"};
+  if(nibble<=0xD) return {bits:"110", name:"Microsoft GUID (reserved)"};
+  return {bits:"111", name:"Reserved (future)"};
+}
+var insp=document.getElementById("insp");
+var inspRes=document.getElementById("inspRes");
+function esc(s){ return String(s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];}); }
+
+function inspect(){
+  var raw=insp.value.trim();
+  if(raw===""){ inspRes.innerHTML="<div class='bits'>Paste a UUID above — this box parses its version and variant bits entirely offline.</div>"; return; }
+  var cleaned=raw.replace(/^urn:uuid:/i,"").replace(/[{}\s]/g,"");
+  var hex=cleaned.replace(/-/g,"");
+  if(hex.length!==32 || /[^0-9a-fA-F]/.test(hex)){
+    inspRes.innerHTML="<span class='ibadge bad'>INVALID</span>"+
+      "<div class='bits'>Expected 32 hex digits (with or without hyphens). Got <b>"+hex.length+"</b> hex character"+(hex.length===1?"":"s")+
+      (/[^0-9a-fA-F-]/.test(cleaned)?" including non-hex symbols":"")+".</div>";
+    return;
+  }
+  var lower=hex.toLowerCase();
+  var canonical=lower.slice(0,8)+"-"+lower.slice(8,12)+"-"+lower.slice(12,16)+"-"+lower.slice(16,20)+"-"+lower.slice(20);
+  var isNil=/^0{32}$/.test(lower);
+  var isMax=/^f{32}$/.test(lower);
+  var verChar=lower[12];
+  var verNum=parseInt(verChar,16);
+  var varNibble=parseInt(lower[16],16);
+  var variant=variantOf(varNibble);
+  var hyphenOk = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(cleaned) || cleaned.indexOf("-")<0;
+
+  var verName;
+  if(isNil) verName="Nil UUID (all zeros)";
+  else if(isMax) verName="Max UUID (all ones)";
+  else verName=VERSIONS[verChar]||("unknown (0x"+verChar+")");
+
+  var html="<span class='ibadge ok'>VALID FORMAT</span>";
+  html+="<table class='itab'>";
+  html+="<tr><td class='k'>Canonical</td><td class='v'>"+esc(canonical)+"</td></tr>";
+  html+="<tr><td class='k'>Version</td><td class='v'>"+esc(verName)+"</td></tr>";
+  html+="<tr><td class='k'>Variant</td><td class='v'>"+esc(variant.name)+"</td></tr>";
+  html+="<tr><td class='k'>Hyphens</td><td class='v'>"+(hyphenOk?"canonical 8-4-4-4-12":"non-standard grouping")+"</td></tr>";
+  html+="</table>";
+  html+="<div class='bits'>version nibble (13th hex) = <b>0x"+verChar+"</b> &rarr; v"+ (isNil||isMax?"—":verNum) +
+        " &middot; variant nibble (17th hex) = <b>0x"+lower[16]+"</b> &rarr; bits <b>"+variant.bits+"</b></div>";
+  if(verChar==="4" && variant.bits==="10x"){
+    html+="<div class='bits' style='color:var(--good)'>✔ Well-formed RFC 4122 version-4 (random) UUID.</div>";
+  }
+  inspRes.innerHTML=html;
+}
+insp.addEventListener("input", inspect);
+
+// ---- init ----
+document.getElementById("cryptoInfo").textContent = hasCrypto ? "source: crypto.getRandomValues" : "source: Math.random (fallback)";
+syncOptUI();
+countNum.value=10; countRange.value=10;
+generate();               // fresh batch of 10 on load
+insp.value=batch[0];      // pre-fill inspector with a real UUID
+inspect();
+</script>
+</body>
+</html>

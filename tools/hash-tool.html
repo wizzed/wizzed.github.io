@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hash Generator · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ffd166; --accent-soft:rgba(255,209,102,.4);
+  --panel:#161623; --line:#2c2c46; --text:#fff6e0; --dim:#9a8f70;
+  --err:#ff5470; --good:#3ddc84; --hex:#ffd166; --b64:#4da6ff;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding-bottom:26px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:12px 8px 6px; }
+h1{ display:inline-block; font-size:clamp(17px,3vw,26px); letter-spacing:5px; color:var(--accent); text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft); }
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:920px; margin:8px auto 0; padding:0 14px; }
+.panel{ background:var(--panel); border:2px solid var(--line); padding:12px; box-shadow:0 0 0 1px #000, 0 0 20px rgba(255,209,102,.06); margin-bottom:12px; }
+.tabs{ display:flex; gap:6px; margin-bottom:10px; }
+button{ font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer; background:#121220; color:var(--dim); border:1px solid var(--line); padding:6px 11px; }
+button:hover{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+.tabs button.on{ color:#151006; background:var(--accent); border-color:var(--accent); box-shadow:0 0 12px var(--accent); font-weight:bold; }
+.toprow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+.toprow .lbl{ font-size:10px; letter-spacing:2px; color:var(--accent); text-shadow:0 0 8px var(--accent-soft); }
+label.tog{ display:inline-flex; align-items:center; gap:6px; cursor:pointer; user-select:none; font-size:10px; letter-spacing:1px; color:var(--dim); border:1px solid var(--line); background:#121220; padding:5px 10px; margin-left:auto; }
+label.tog.on{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 8px var(--accent-soft); }
+label.tog input{ accent-color:var(--accent); }
+textarea{ width:100%; min-height:90px; resize:vertical; background:#0b0b14; color:var(--text); border:1px solid var(--line); font-family:inherit; font-size:13px; line-height:1.5; padding:10px; outline:none; }
+textarea:focus{ border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft) inset; }
+.meta{ font-size:11px; color:var(--dim); margin-top:6px; letter-spacing:1px; }
+.meta b{ color:var(--text); }
+#drop{ border:2px dashed var(--line); background:#0b0b14; padding:22px 12px; text-align:center; color:var(--dim); cursor:pointer; transition:.15s; }
+#drop.hot{ border-color:var(--accent); color:var(--accent); box-shadow:0 0 18px var(--accent-soft) inset; }
+#drop b{ color:var(--accent); }
+#drop .big{ font-size:24px; display:block; margin-bottom:6px; }
+#fileInfo{ margin-top:8px; font-size:12px; color:var(--text); }
+#fileInfo .prog{ height:4px; background:#0b0b14; border:1px solid var(--line); margin-top:6px; overflow:hidden; }
+#fileInfo .prog i{ display:block; height:100%; width:0; background:var(--accent); box-shadow:0 0 8px var(--accent); transition:width .1s; }
+.hide{ display:none !important; }
+.hcard{ border:1px solid var(--line); background:#101019; margin-bottom:8px; }
+.hcard .hh{ display:flex; align-items:center; gap:8px; padding:6px 10px; border-bottom:1px solid var(--line); background:#0d0d16; }
+.hcard .hh .name{ font-size:12px; letter-spacing:2px; color:var(--accent); font-weight:bold; }
+.hcard .hh .bits{ font-size:9px; color:var(--dim); }
+.hrow{ display:flex; align-items:flex-start; gap:8px; padding:6px 10px; border-bottom:1px solid rgba(255,255,255,.03); }
+.hrow:last-child{ border-bottom:none; }
+.hrow .enc{ font-size:9px; letter-spacing:1px; width:42px; flex-shrink:0; padding-top:3px; }
+.hrow .enc.hex{ color:var(--hex); } .hrow .enc.b64{ color:var(--b64); }
+.hrow .val{ flex:1; font-size:12px; word-break:break-all; color:var(--text); user-select:all; min-height:16px; }
+.hrow .val.pending{ color:var(--dim); font-style:italic; }
+.hrow button.cp{ flex-shrink:0; font-size:9px; padding:3px 7px; }
+.hrow button.cp.okflash{ color:#151006 !important; background:var(--good) !important; border-color:var(--good) !important; }
+.note{ font-size:10px; color:var(--dim); letter-spacing:1px; text-align:center; margin-top:4px; }
+.note b{ color:var(--good); }
+footer{ text-align:center; margin-top:10px; font-size:10px; color:var(--dim); letter-spacing:2px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>HASH GENERATOR</h1>
+  <div class="sub">CRC32 &middot; SHA-1 &middot; SHA-256 &middot; SHA-384 &middot; SHA-512</div>
+</header>
+<main>
+  <section class="panel">
+    <div class="tabs">
+      <button type="button" id="tabText" class="on">TEXT</button>
+      <button type="button" id="tabFile">FILE</button>
+    </div>
+    <div id="textMode">
+      <div class="toprow">
+        <span class="lbl">&#9646; INPUT TEXT &mdash; hashes live as you type</span>
+      </div>
+      <textarea id="txt" spellcheck="false" placeholder="Type or paste text to hash…"></textarea>
+      <div class="meta" id="txtMeta"></div>
+    </div>
+    <div id="fileMode" class="hide">
+      <div id="drop">
+        <span class="big">&#128193;</span>
+        Drop a file here or <b>click to browse</b><br>
+        <span style="font-size:10px">processed 100% locally &mdash; nothing is uploaded</span>
+        <input type="file" id="fileInput" style="display:none">
+      </div>
+      <div id="fileInfo" class="hide"></div>
+    </div>
+    <div class="toprow" style="margin-top:10px">
+      <span class="lbl">RESULTS</span>
+      <label class="tog" id="ucLbl"><input type="checkbox" id="ucChk">UPPERCASE HEX</label>
+    </div>
+    <div id="results"></div>
+    <div class="note">All hashing runs in your browser via the Web Crypto API + a local CRC32 table &mdash; <b>data never leaves this page</b>.</div>
+  </section>
+</main>
+<footer>WIZZED ARCADE // HASH TOOL</footer>
+<script>
+"use strict";
+var LS_KEY="wizzed-hash-tool";
+
+// ---- CRC32 (self-implemented table) ----
+var CRC_TABLE=(function(){
+  var t=new Uint32Array(256);
+  for(var n=0;n<256;n++){
+    var c=n;
+    for(var k=0;k<8;k++){ c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); }
+    t[n]=c>>>0;
+  }
+  return t;
+})();
+function crc32(bytes){
+  var crc=0xFFFFFFFF;
+  for(var i=0;i<bytes.length;i++){ crc=(crc>>>8)^CRC_TABLE[(crc^bytes[i])&0xFF]; }
+  return (crc^0xFFFFFFFF)>>>0;
+}
+function crc32Buffer(bytes){
+  var v=crc32(bytes);
+  var b=new Uint8Array(4);
+  b[0]=(v>>>24)&0xFF; b[1]=(v>>>16)&0xFF; b[2]=(v>>>8)&0xFF; b[3]=v&0xFF;
+  return b.buffer;
+}
+function hexOf(buf){
+  var bytes=new Uint8Array(buf), s="";
+  for(var i=0;i<bytes.length;i++) s+=bytes[i].toString(16).padStart(2,"0");
+  return s;
+}
+function b64Of(buf){
+  var bytes=new Uint8Array(buf), bin="";
+  for(var i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+var ALGOS=[
+  {id:"crc32", name:"CRC32", bits:32, subtle:false},
+  {id:"SHA-1", name:"SHA-1", bits:160, subtle:true},
+  {id:"SHA-256", name:"SHA-256", bits:256, subtle:true},
+  {id:"SHA-384", name:"SHA-384", bits:384, subtle:true},
+  {id:"SHA-512", name:"SHA-512", bits:512, subtle:true}
+];
+
+var hasSubtle = !!(window.crypto && window.crypto.subtle && window.crypto.subtle.digest);
+
+// ---- build result cards ----
+var results=document.getElementById("results");
+var rowMap={}; // id -> {hex:el, b64:el}
+ALGOS.forEach(function(a){
+  var card=document.createElement("div"); card.className="hcard";
+  var hh=document.createElement("div"); hh.className="hh";
+  var nm=document.createElement("span"); nm.className="name"; nm.textContent=a.name;
+  var bits=document.createElement("span"); bits.className="bits"; bits.textContent=a.bits+" bit";
+  hh.appendChild(nm); hh.appendChild(bits);
+  card.appendChild(hh);
+  rowMap[a.id]={};
+  ["hex","b64"].forEach(function(enc){
+    var row=document.createElement("div"); row.className="hrow";
+    var lab=document.createElement("span"); lab.className="enc "+enc; lab.textContent=enc==="hex"?"HEX":"BASE64";
+    var val=document.createElement("span"); val.className="val pending"; val.textContent="computing…";
+    var cp=document.createElement("button"); cp.className="cp"; cp.textContent="COPY";
+    cp.addEventListener("click",function(){ copyText(val.textContent, cp); });
+    row.appendChild(lab); row.appendChild(val); row.appendChild(cp);
+    card.appendChild(row);
+    rowMap[a.id][enc]=val;
+  });
+  results.appendChild(card);
+});
+
+function copyText(t, btn){
+  var done=function(){ var o=btn.textContent; btn.classList.add("okflash"); btn.textContent="OK!"; setTimeout(function(){ btn.classList.remove("okflash"); btn.textContent=o; },850); };
+  var fb=function(){ var ta=document.createElement("textarea"); ta.value=t; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch(e){} document.body.removeChild(ta); done(); };
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, fb); else fb();
+}
+
+// ---- state ----
+var uppercase=false;
+var lastResults={}; // id -> {hexRaw, b64}
+var txt=document.getElementById("txt");
+var ucChk=document.getElementById("ucChk");
+var ucLbl=document.getElementById("ucLbl");
+
+try{
+  var saved=JSON.parse(localStorage.getItem(LS_KEY)||"null");
+  if(saved && typeof saved==="object"){
+    if(typeof saved.text==="string") txt.value=saved.text;
+    uppercase=!!saved.uppercase;
+  }
+}catch(e){}
+if(txt.value==="") txt.value="Wizzed Arcade";
+ucChk.checked=uppercase; ucLbl.classList.toggle("on",uppercase);
+
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({text:txt.value, uppercase:uppercase})); }catch(e){} }
+
+function applyCase(){
+  ALGOS.forEach(function(a){
+    var r=lastResults[a.id]; if(!r) return;
+    rowMap[a.id].hex.textContent = uppercase ? r.hexRaw.toUpperCase() : r.hexRaw;
+  });
+}
+
+function setRow(id, hexRaw, b64){
+  lastResults[id]={hexRaw:hexRaw, b64:b64};
+  var h=rowMap[id].hex, b=rowMap[id].b64;
+  h.classList.remove("pending"); b.classList.remove("pending");
+  h.textContent = uppercase ? hexRaw.toUpperCase() : hexRaw;
+  b.textContent = b64;
+}
+function setUnavailable(id){
+  var h=rowMap[id].hex, b=rowMap[id].b64;
+  h.classList.remove("pending"); b.classList.remove("pending");
+  h.textContent="(Web Crypto unavailable — needs https/localhost)";
+  b.textContent="—";
+}
+
+var token=0;
+function computeBytes(bytes){
+  var myToken=++token;
+  // CRC32 sync
+  var cbuf=crc32Buffer(bytes);
+  setRow("crc32", hexOf(cbuf), b64Of(cbuf));
+  ALGOS.forEach(function(a){
+    if(!a.subtle) return;
+    if(!hasSubtle){ setUnavailable(a.id); return; }
+    rowMap[a.id].hex.classList.add("pending"); rowMap[a.id].hex.textContent="computing…";
+    rowMap[a.id].b64.classList.add("pending"); rowMap[a.id].b64.textContent="computing…";
+    window.crypto.subtle.digest(a.id, bytes).then(function(buf){
+      if(myToken!==token) return;
+      setRow(a.id, hexOf(buf), b64Of(buf));
+    }).catch(function(){
+      if(myToken!==token) return;
+      setUnavailable(a.id);
+    });
+  });
+}
+
+// ---- text mode ----
+function hashText(){
+  var bytes=new TextEncoder().encode(txt.value);
+  document.getElementById("txtMeta").innerHTML="<b>"+bytes.length+"</b> bytes &middot; <b>"+txt.value.length+"</b> chars";
+  computeBytes(bytes);
+}
+txt.addEventListener("input",function(){ hashText(); save(); });
+ucChk.addEventListener("change",function(){ uppercase=ucChk.checked; ucLbl.classList.toggle("on",uppercase); applyCase(); save(); });
+
+// ---- tabs ----
+var mode="text";
+var tabText=document.getElementById("tabText"), tabFile=document.getElementById("tabFile");
+var textMode=document.getElementById("textMode"), fileMode=document.getElementById("fileMode");
+function setMode(m){
+  mode=m;
+  tabText.classList.toggle("on",m==="text");
+  tabFile.classList.toggle("on",m==="file");
+  textMode.classList.toggle("hide",m!=="text");
+  fileMode.classList.toggle("hide",m!=="file");
+  if(m==="text") hashText();
+}
+tabText.addEventListener("click",function(){ setMode("text"); });
+tabFile.addEventListener("click",function(){ setMode("file"); });
+
+// ---- file mode ----
+var drop=document.getElementById("drop");
+var fileInput=document.getElementById("fileInput");
+var fileInfo=document.getElementById("fileInfo");
+function fmtSize(n){
+  if(n<1024) return n+" B";
+  if(n<1048576) return (n/1024).toFixed(1)+" KB";
+  if(n<1073741824) return (n/1048576).toFixed(2)+" MB";
+  return (n/1073741824).toFixed(2)+" GB";
+}
+function handleFile(file){
+  if(!file) return;
+  fileInfo.classList.remove("hide");
+  fileInfo.innerHTML="<b>"+escapeHtml(file.name)+"</b> &middot; "+fmtSize(file.size)+" &middot; "+(file.type||"unknown type")+
+    "<div class='prog'><i id='fprog'></i></div>";
+  var prog=document.getElementById("fprog");
+  var reader=new FileReader();
+  reader.onprogress=function(e){ if(e.lengthComputable && prog){ prog.style.width=(e.loaded/e.total*100).toFixed(0)+"%"; } };
+  reader.onload=function(){
+    if(prog) prog.style.width="100%";
+    computeBytes(new Uint8Array(reader.result));
+  };
+  reader.onerror=function(){ fileInfo.innerHTML+="<div style='color:var(--err)'>Could not read file.</div>"; };
+  reader.readAsArrayBuffer(file);
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
+drop.addEventListener("click",function(){ fileInput.click(); });
+fileInput.addEventListener("change",function(){ if(fileInput.files[0]) handleFile(fileInput.files[0]); });
+["dragenter","dragover"].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.add("hot"); }); });
+["dragleave","drop"].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.remove("hot"); }); });
+drop.addEventListener("drop",function(e){ if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+// init
+hashText();
+</script>
+</body>
+</html>

@@ -120,15 +120,15 @@ const MAP=[
 'MGGTGGGGGGGGGGBPPGGM',
 'MGGPGGGGGGGGGGWGGGGM',
 'MGGPPPPPPPPPPPWGGGGM',
-'MGGNGGGGGGGGGPWGFFGM',
-'MGSSSGGGGGGGGPWGFFGM',
-'MGSSSGGGGGGGGPWGGGGM',
-'MGSSSGGGGGGGGGWWGGGM',
+'MGGNGGGGGGGGGPWGFFXM',
+'MGSSSGGGGGGGGPWGDDDM',
+'MGSSSGGGGGGGGPWGDDDM',
+'MGSSSGGGGGGGGGWWDDDM',
 'MGGGGGGGGGGGGGGWGGGM',
 'MMMMMMMMMMMMMMMMMMMM'
 ];
 const tileAt=(x,y)=>(y<0||x<0||y>=MHT||x>=MW)?'M':MAP[y][x];
-const WALK='GFPBTCSN';
+const WALK='GFPBTCSNDX';
 
 const WEAPONS=[{n:'Stick',b:0,cost:0},{n:'Bronze Sword',b:3,cost:30},{n:'Steel Sword',b:7,cost:90},{n:'Flame Blade',b:12,cost:220}];
 const ARMORS=[{n:'Clothes',b:0,cost:0},{n:'Leather Vest',b:2,cost:25},{n:'Chain Mail',b:5,cost:80},{n:'Holy Plate',b:9,cost:200}];
@@ -147,22 +147,25 @@ const ENEMIES={
  skeleton:{n:'Skeleton',hp:28,atk:11,def:3,xp:18,g:15},
  ghost:{n:'Ghost',hp:28,atk:12,def:2,xp:19,g:14},
  knight:{n:'Dark Knight',hp:46,atk:14,def:5,xp:28,g:24},
+ ember:{n:'Ember Imp',hp:30,atk:11,def:3,xp:20,g:16},
+ cinderwyrm:{n:'CINDER WYRM',hp:72,atk:15,def:5,xp:44,g:55},
  boss:{n:'THE DARK LORD',hp:160,atk:16,def:6,xp:0,g:0,boss:true}
 };
 const WESTPOOL=['slime','slime','slime','bat','bat','bat','wolf','wolf','goblin','goblin'];
 const EASTPOOL=['skeleton','skeleton','ghost','ghost','ghost','knight','knight'];
 const SWAMPPOOL=['bogling','bogling','bogling','bogbeast'];
+const BARRENPOOL=['ember','ember','ember','cinderwyrm'];
 
 /* ---------- state ---------- */
 let state='title';
 let p=null,bossDead=false,saved=null;
-let encTimer=0,townLock=false,castleLock=false,npcLock=false,pendingQuestMsg='';
+let encTimer=0,townLock=false,castleLock=false,npcLock=false,xLock=false,pendingQuestMsg='';
 let animT=0,lastT=0,shakeT=0,wmsgT=0;
 let held={},moveCd=0;
 let bt=null,btId=0,menuList=[],menuSel=0,menuKind='';
 
 function freshP(){
-  return {x:3,y:7,dir:2,lvl:1,xp:0,hp:30,mhp:30,mp:8,mmp:8,atk:6,def:2,gold:20,pots:2,wep:0,arm:0,quest:0};
+  return {x:3,y:7,dir:2,lvl:1,xp:0,hp:30,mhp:30,mp:8,mmp:8,atk:6,def:2,gold:20,pots:2,wep:0,arm:0,quest:0,quest2:0};
 }
 function save(){
   try{localStorage.setItem(SKEY,JSON.stringify({p,bossDead}));}catch(e){}
@@ -366,6 +369,7 @@ function winBattle(){
   }
   showBMsg(bt.name+' is defeated! +'+bt.xp+' XP, +'+bt.g+'g');
   if(bt.key==='bogbeast'&&(p.quest||0)===1){p.quest=2;pendingQuestMsg='The Bog Beast is slain! Return to the Marsh Hermit for your reward.';}
+  if(bt.key==='cinderwyrm'&&(p.quest2||0)===1){p.quest2=2;pendingQuestMsg='The Cinder Wyrm falls! Return to the Alchemist for your reward.';}
   p.xp+=bt.xp;p.gold+=bt.g;
   let leveled=false;
   while(p.xp>=xpNext()){
@@ -499,6 +503,41 @@ function closeNPC(){
   state='world';whud.style.display='block';updateHUD();save();
 }
 
+/* ---------- sidequest NPC (Wandering Alchemist / Cinder Barrens) ---------- */
+function openAlch(){
+  state='alch';xLock=true;
+  whud.style.display='none';townEl.style.display='block';
+  alchDialog();
+  beep(520,0.1,'square',0.05);
+}
+function alchDialog(){
+  ttitle.textContent='WANDERING ALCHEMIST';
+  tbody.innerHTML='';
+  const q=p.quest2||0;
+  if(q===0){
+    tbody.innerHTML='<div style="color:#a05e8a;margin-bottom:8px">"Ahh, a brave face! Beyond these cinders roams a <b style="color:#ff7a3c">Cinder Wyrm</b>. Fetch me its ember-heart and I\'ll brew you a reward worth the burns."</div>';
+    tbtn('🔥 ACCEPT — hunt the Cinder Wyrm',()=>{p.quest2=1;save();showWMsg('Quest: slay the Cinder Wyrm in the eastern barrens!',3);closeAlch();});
+    tbtn('🚪 Not now',closeAlch);
+  }else if(q===1){
+    tbody.innerHTML='<div style="color:#a05e8a;margin-bottom:8px">"The Wyrm still coils in the ash-fields east of here. Mind the heat, hero."</div>';
+    tbtn('🚪 LEAVE',closeAlch);
+  }else if(q===2){
+    tbody.innerHTML='<div style="color:#a05e8a;margin-bottom:8px">"The ember-heart! Marvelous. Drink this elixir — it will toughen your very bones. And take some coin besides."</div>';
+    tbtn('🎁 CLAIM REWARD — 150g + 2 potions + 15 max HP',()=>{
+      p.gold+=150;p.pots+=2;p.mhp+=15;p.hp+=15;p.quest2=3;save();
+      beep(660,0.1,'square',0.05);setTimeout(()=>beep(880,0.14,'square',0.05),110);
+      showWMsg('Reward: +150 gold, +2 potions, +15 max HP!',3.4);closeAlch();
+    });
+  }else{
+    tbody.innerHTML='<div style="color:#a05e8a;margin-bottom:8px">"The barrens smoulder quietly now. My elixirs will remember your name, hero."</div>';
+    tbtn('🚪 LEAVE',closeAlch);
+  }
+}
+function closeAlch(){
+  townEl.style.display='none';
+  state='world';whud.style.display='block';updateHUD();save();
+}
+
 /* ---------- world movement ---------- */
 function tryStep(dx,dy){
   p.dir=dy<0?0:dx>0?1:dy>0?2:3;
@@ -509,9 +548,11 @@ function tryStep(dx,dy){
   if(t!=='T')townLock=false;
   if(t!=='C')castleLock=false;
   if(t!=='N')npcLock=false;
+  if(t!=='X')xLock=false;
   beep(220,0.02,'square',0.015);
   if(t==='T'&&!townLock){openTown();save();return;}
   if(t==='N'&&!npcLock){openNPC();save();return;}
+  if(t==='X'&&!xLock){openAlch();save();return;}
   if(t==='C'&&!castleLock){
     castleLock=true;
     if(bossDead){showWMsg('The castle stands silent. Peace reigns.');}
@@ -519,9 +560,12 @@ function tryStep(dx,dy){
     save();return;
   }
   if(encTimer>0){encTimer--;}
-  else if(t==='G'||t==='F'||t==='S'){
+  else if(t==='G'||t==='F'||t==='S'||t==='D'){
     if(t==='S'){
-      if(Math.random()<0.20)startBattle(SWAMPPOOL[ri(SWAMPPOOL.length)],'swamp');
+      // the Bog Beast only stalks the mire once the Marsh Hermit sends you after it
+      if(Math.random()<0.20){const sp=(p.quest||0)>=1?SWAMPPOOL[ri(SWAMPPOOL.length)]:'bogling';startBattle(sp,'swamp');}
+    }else if(t==='D'){
+      if(Math.random()<0.22)startBattle(BARRENPOOL[ri(BARRENPOOL.length)],'barren');
     }else{
       const rate=t==='F'?0.18:0.10;
       if(Math.random()<rate){
@@ -623,6 +667,26 @@ function drawTileArt(t,sx,sy,x,y){
       ctx.fillStyle='#111';ctx.fillRect(sx+14,sy+12,1.5,1.5);ctx.fillRect(sx+18,sy+12,1.5,1.5);
       ctx.fillStyle='#6a4a2a';ctx.fillRect(sx+22,sy+6,2,22);
       ctx.fillStyle='#8ad4ff';ctx.globalAlpha=0.5+0.4*Math.sin(animT*4);ctx.beginPath();ctx.arc(sx+23,sy+6,3,0,7);ctx.fill();ctx.globalAlpha=1;
+      break;
+    case 'D': // cinder barrens (volcanic ash)
+      ctx.fillStyle='#2a1512';ctx.fillRect(sx,sy,TS,TS);
+      ctx.fillStyle='#3a1d15';
+      ctx.beginPath();ctx.ellipse(sx+16,sy+20,13,8,0,0,7);ctx.fill();
+      ctx.fillStyle='#5a2a18';
+      if(h<0.5){ctx.fillRect(sx+6+h*16,sy+7,3,2);ctx.fillRect(sx+20-h*12,sy+22,2,2);}
+      ctx.fillStyle='#ff6a2a';ctx.globalAlpha=0.35+0.35*Math.sin(animT*3+x*1.7+y);
+      ctx.fillRect(sx+8+h*10,sy+12,3,3);
+      ctx.globalAlpha=1;
+      break;
+    case 'X': // wandering alchemist
+      ctx.fillStyle='#1d3a22';ctx.fillRect(sx,sy,TS,TS);
+      ctx.fillStyle='#254a2b';ctx.fillRect(sx+5,sy+25,3,3);ctx.fillRect(sx+23,sy+24,2,3);
+      ctx.fillStyle='#6a3a8a';ctx.fillRect(sx+10,sy+13+Math.sin(animT*3)*0.6,12,15);
+      ctx.fillStyle='#7d4aa0';ctx.fillRect(sx+11,sy+6,10,8);
+      ctx.fillStyle='#e8c9a0';ctx.fillRect(sx+13,sy+10,6,4);
+      ctx.fillStyle='#111';ctx.fillRect(sx+14,sy+11,1.5,1.5);ctx.fillRect(sx+18,sy+11,1.5,1.5);
+      ctx.fillStyle='#cfd8e3';ctx.fillRect(sx+23,sy+14,3,3);
+      ctx.fillStyle='#4acb5a';ctx.globalAlpha=0.55+0.4*Math.sin(animT*4);ctx.beginPath();ctx.arc(sx+24,sy+19,3.4,0,7);ctx.fill();ctx.globalAlpha=1;
       break;
   }
 }
@@ -775,6 +839,49 @@ function eDraw(key,cx,cy,flash){
     ctx.moveTo(-40,40);ctx.lineTo(-52,54);ctx.moveTo(-32,44);ctx.lineTo(-42,60);
     ctx.moveTo(40,40);ctx.lineTo(52,54);ctx.moveTo(32,44);ctx.lineTo(42,60);
     ctx.stroke();
+  }else if(key==='ember'){
+    if(!w){ctx.fillStyle='#ff6a2a';ctx.globalAlpha=0.4+0.2*Math.sin(animT*8);
+      ctx.beginPath();ctx.ellipse(0,6,34,42,0,0,7);ctx.fill();ctx.globalAlpha=1;}
+    ctx.fillStyle=C('#7a1f1f');
+    ctx.beginPath();ctx.moveTo(-20,2);ctx.quadraticCurveTo(-50,-18,-56,10);ctx.quadraticCurveTo(-40,4,-22,18);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(20,2);ctx.quadraticCurveTo(50,-18,56,10);ctx.quadraticCurveTo(40,4,22,18);ctx.closePath();ctx.fill();
+    ctx.fillStyle=C('#c0392b');
+    ctx.beginPath();ctx.ellipse(0,14,22,24,0,0,7);ctx.fill();
+    ctx.beginPath();ctx.ellipse(0,-16,16,15,0,0,7);ctx.fill();
+    ctx.beginPath();ctx.moveTo(-12,-24);ctx.lineTo(-20,-42);ctx.lineTo(-6,-28);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(12,-24);ctx.lineTo(20,-42);ctx.lineTo(6,-28);ctx.closePath();ctx.fill();
+    ctx.fillStyle=C('#e8703c');
+    ctx.beginPath();ctx.ellipse(0,16,12,14,0,0,7);ctx.fill();
+    ctx.fillStyle='#ffe066';
+    ctx.beginPath();ctx.arc(-7,-16,4.5,0,7);ctx.arc(7,-16,4.5,0,7);ctx.fill();
+    ctx.fillStyle='#3a0a08';
+    ctx.beginPath();ctx.arc(-7,-16,2,0,7);ctx.arc(7,-16,2,0,7);ctx.fill();
+    ctx.fillStyle=C('#3a0a08');ctx.fillRect(-7,-5,14,3);
+    if(!w){ctx.fillStyle='#ffb03c';
+      ctx.beginPath();ctx.moveTo(14,30);ctx.quadraticCurveTo(30,26,26,10);ctx.lineTo(22,20);ctx.quadraticCurveTo(18,28,14,30);ctx.closePath();ctx.fill();}
+  }else if(key==='cinderwyrm'){
+    ctx.strokeStyle=C('#7a1f10');ctx.lineWidth=22;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(-46,64);ctx.quadraticCurveTo(-16,36,-34,6);ctx.quadraticCurveTo(-48,-22,-4,-30);ctx.stroke();
+    ctx.strokeStyle=C('#c0392b');ctx.lineWidth=13;
+    ctx.beginPath();ctx.moveTo(-46,64);ctx.quadraticCurveTo(-16,36,-34,6);ctx.quadraticCurveTo(-48,-22,-4,-30);ctx.stroke();
+    ctx.lineCap='butt';
+    ctx.fillStyle=C('#8a2a12');
+    ctx.beginPath();ctx.ellipse(8,-34,30,24,0,0,7);ctx.fill();
+    ctx.fillStyle=C('#c0392b');
+    ctx.beginPath();ctx.ellipse(12,-30,22,16,0,0,7);ctx.fill();
+    ctx.fillStyle=C('#e8b04a');
+    ctx.beginPath();ctx.moveTo(-6,-52);ctx.lineTo(-16,-82);ctx.lineTo(6,-54);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(22,-52);ctx.lineTo(32,-80);ctx.lineTo(12,-52);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#ffe066';ctx.globalAlpha=w?1:0.85+0.15*Math.sin(animT*7);
+    ctx.beginPath();ctx.arc(4,-36,6,0,7);ctx.arc(24,-36,6,0,7);ctx.fill();ctx.globalAlpha=1;
+    ctx.fillStyle='#2a0a06';
+    ctx.beginPath();ctx.ellipse(4,-36,2,5,0,0,7);ctx.ellipse(24,-36,2,5,0,0,7);ctx.fill();
+    ctx.fillStyle=C('#4a1008');ctx.fillRect(-2,-22,32,5);
+    ctx.fillStyle=C('#e8dcc0');
+    ctx.beginPath();ctx.moveTo(2,-18);ctx.lineTo(0,-8);ctx.lineTo(8,-18);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(24,-18);ctx.lineTo(26,-8);ctx.lineTo(18,-18);ctx.closePath();ctx.fill();
+    if(!w){ctx.fillStyle='#ff8a2a';ctx.globalAlpha=0.5+0.3*Math.sin(animT*5);
+      ctx.beginPath();ctx.arc(-38,34,6,0,7);ctx.arc(-28,54,5,0,7);ctx.arc(-40,16,4,0,7);ctx.fill();ctx.globalAlpha=1;}
   }
   ctx.restore();
 }
@@ -800,6 +907,16 @@ function drawBattle(){
     for(let i=0;i<6;i++)ctx.fillRect(30+i*115,140,6,110);
     ctx.strokeStyle='#1d5a34';ctx.lineWidth=2;
     for(let i=0;i<4;i++){const yy=330+i*32;ctx.beginPath();ctx.moveTo(20,yy);ctx.lineTo(220,yy+Math.sin(animT*1.5+i)*4);ctx.stroke();}
+  }else if(reg==='barren'){
+    ctx.fillStyle='#1a0f0d';ctx.fillRect(0,0,CW,CH);
+    ctx.fillStyle='#2a1512';
+    ctx.beginPath();ctx.moveTo(0,240);ctx.lineTo(140,150);ctx.lineTo(300,240);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(320,250);ctx.lineTo(500,140);ctx.lineTo(640,250);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#0d0605';ctx.fillRect(0,270,CW,210);
+    ctx.strokeStyle='#ff6a2a';ctx.lineWidth=2;
+    for(let i=0;i<5;i++){const yy=300+i*30;ctx.globalAlpha=0.35+0.3*Math.sin(animT*2+i);
+      ctx.beginPath();ctx.moveTo(24+i*18,yy);ctx.lineTo(250+i*30,yy+Math.sin(animT+i)*5);ctx.stroke();}
+    ctx.globalAlpha=1;
   }else{
     ctx.fillStyle='#0f1d2e';ctx.fillRect(0,0,CW,CH);
     ctx.fillStyle='#16301b';
@@ -916,9 +1033,9 @@ function loop(t){
   ctx.save();
   if(shakeT>0)ctx.translate((Math.random()-0.5)*8,(Math.random()-0.5)*8);
   if(state==='title')drawTitle();
-  else if(state==='world'||state==='town'||state==='npc'){
+  else if(state==='world'||state==='town'||state==='npc'||state==='alch'){
     drawWorld(false);
-    if(state==='town'||state==='npc'){ctx.fillStyle='rgba(15,15,26,0.5)';ctx.fillRect(0,0,CW,CH);}
+    if(state==='town'||state==='npc'||state==='alch'){ctx.fillStyle='rgba(15,15,26,0.5)';ctx.fillRect(0,0,CW,CH);}
     // world movement (held keys)
     if(state==='world'){
       moveCd-=dt;
@@ -949,9 +1066,10 @@ function startGame(mode){
   if(mode==='continue'&&saved){p=saved.p;bossDead=!!saved.bossDead;}
   else{p=freshP();bossDead=false;}
   if(p.quest===undefined)p.quest=0;
+  if(p.quest2===undefined)p.quest2=0;
   pendingQuestMsg='';
   state='world';
-  townLock=(tileAt(p.x,p.y)==='T');castleLock=false;npcLock=(tileAt(p.x,p.y)==='N');encTimer=1;
+  townLock=(tileAt(p.x,p.y)==='T');castleLock=false;npcLock=(tileAt(p.x,p.y)==='N');xLock=(tileAt(p.x,p.y)==='X');encTimer=1;
   whud.style.display='block';updateHUD();save();
   showWMsg(bossDead?'The realm is at peace. Explore freely!':'Head east to the dark castle... but level up first!');
   beep(440,0.1,'square',0.05);setTimeout(()=>beep(660,0.15,'square',0.05),110);
@@ -975,6 +1093,10 @@ window.addEventListener('keydown',e=>{
   }
   if(state==='npc'){
     if(k==='Escape')closeNPC();
+    return;
+  }
+  if(state==='alch'){
+    if(k==='Escape')closeAlch();
     return;
   }
   if(state==='battle'){

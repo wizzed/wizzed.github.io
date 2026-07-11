@@ -1,6 +1,6 @@
 # 🎮 Wizzed Arcade — Game & Tool Catalog
 
-A complete reference to everything in the arcade. **101 games** and **65 tools**, plus **11 preserved classics** in [The Old Arcade](old.html).
+A complete reference to everything in the arcade. **102 games** and **65 tools**, plus **11 preserved classics** in [The Old Arcade](old.html).
 
 Every entry is a single standalone HTML file — no build step, no dependencies (except the 3D games, which load `lib/three.min.js`). Open any file directly in a browser, or browse them all from [`index.html`](index.html). Each game/tool has 5 preview screenshots under `shots/<slug>/1..5.jpg`.
 
@@ -15,14 +15,14 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | Section | Count |
 | --- | --- |
 | 🎮 RPG & Adventure | 8 |
-| 🎮 Arcade | 20 |
+| 🎮 Arcade | 21 |
 | 🎮 Action & Shooter | 11 |
 | 🎮 Puzzle | 17 |
 | 🎮 Board & Strategy | 9 |
 | 🎮 Word, Trivia & Number | 11 |
 | 🎮 Cards & Casino | 12 |
 | 🎮 3D | 13 |
-| **Games total** | **101** |
+| **Games total** | **102** |
 | 🛠️ Productivity | 11 |
 | 🛠️ Text & Dev | 8 |
 | 🛠️ Numbers & Calculators | 9 |
@@ -51,7 +51,7 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🗺️ **Pocket Quest** `NEW` | JRPG | [`games/pocket-quest.html`](games/pocket-quest.html) | A tiny JRPG: overworld, random battles, spells, and a dark castle to conquer. |
 | 🗼 **Shadow Tower** `NEW` | Roguelite | [`games/shadow-tower.html`](games/shadow-tower.html) | 30 floors of card-drawn fate. Stack relics, slay the tower lords. |
 
-### Arcade  (20)
+### Arcade  (21)
 
 | Game | Genre | File | Description |
 | --- | --- | --- | --- |
@@ -64,6 +64,7 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🎒 **Jetpack Jack** `NEW` | Side-Scroller | [`games/jetpack.html`](games/jetpack.html) | Hold to thrust past zappers and missiles in the lab that never ends. |
 | 🏎️ **Lane Racer** `NEW` | Racing | [`games/lane-racer.html`](games/lane-racer.html) | Weave lanes at absurd speed — near-misses build your combo. |
 | 🟡 **Maze Muncher** | Maze Chase | [`games/maze-muncher.html`](games/maze-muncher.html) | Clear the maze of dots while four ghosts with attitude hunt you down. |
+| 🌐 **MEGA TAG** `NEW` | MMO Tag | [`games/mega-tag.html`](games/mega-tag.html) | One global arena, everyone plays tag — live online count, AI fills the floor when humans sleep. |
 | ☄️ **Meteor Dodge** | Survival | [`games/meteor-dodge.html`](games/meteor-dodge.html) | Weave through a meteor shower that never, ever lets up. |
 | 🌙 **Moon Lander** `NEW` | Physics | [`games/moon-lander.html`](games/moon-lander.html) | Feather the thrusters and touch down soft. Fuel is precious. |
 | 🥷 **Ninja Climb** `NEW` | Wall Jumper | [`games/ninja-wall.html`](games/ninja-wall.html) | Leap wall to wall past spikes, snagging scrolls on the way up. |
@@ -305,15 +306,16 @@ The original eleven, preserved exactly as they were. Reachable from [`old.html`]
 
 
 - **`index.html`** — the frontpage. A sticky bar at the top toggles between the **Games** and **Tools** views and holds the category filter chips, search box, and a **light/dark theme toggle** (defaults to your system preference, saved in `localStorage`; the Old Arcade shares the same preference). Hover any card to preview its 5 screenshots (cross-faded, flicker-free).
-- **`games/`** — the 101 games. **`tools/`** — the 65 tools. **`games/old/`** — the 11 classics.
+- **`games/`** — the 102 games. **`tools/`** — the 65 tools. **`games/old/`** — the 11 classics.
 - **`old.html`** — landing page for The Old Arcade.
 - **`shots/<slug>/1..5.jpg`** — five gameplay screenshots per entry, captured at 800×500. The frontpage cycles through them on hover.
 - **`lib/three.min.js`** — three.js r160 (UMD), used by the 3D games, Groove Dancer, and the frontpage hero.
-- **Character Forge** (`games/character-forge-3d.html`) exports standard **`.glb`** (glTF 2.0 binary) model files; **Groove Dancer** (`tools/groove-dancer.html`) reuses your saved Forge hero.
+- **MEGA TAG** (`games/mega-tag.html`) is massively multiplayer over public MQTT-over-WebSocket brokers (no accounts — see `private.md` for infrastructure notes and how to point it at your own broker via `?broker=`); AI bots fill the arena when humans are scarce and are always badged 🤖.
+- **Character Forge** (`games/character-forge-3d.html`) exports standard **`.glb`** model files; **Groove Dancer** (`tools/groove-dancer.html`) reuses your saved Forge hero.
 - **Visualizer Studio** (`tools/visualizer-studio.html`) exports MP4/WEBM music videos at 720p/1080p/4K/square/vertical; the audio tools (cutter, slowed+reverb, vocal remover) export 16-bit WAV.
 
 **Shared conventions across every game/tool**
-- Single self-contained HTML file: all CSS and JS inline, no external network resources (3D pages load only the local `lib/three.min.js`).
+- Single self-contained HTML file: all CSS and JS inline, no external network resources (3D pages load only the local `lib/three.min.js`; MEGA TAG connects to its MQTT broker).
 - Dark neon aesthetic (`#0f0f1a` background, per-page accent colour), monospace UI.
 - A fixed **← Arcade** back link, top-left, returns to `index.html`.
 - Scores, settings and progress persist in `localStorage` under the key `wizzed-<slug>` (e.g. `wizzed-pong`).

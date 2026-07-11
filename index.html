@@ -325,6 +325,7 @@
     width: 100%; height: 100%;
     object-fit: cover; display: block;
     opacity: 0;
+    transition: opacity .28s ease;
   }
   .shot-layer.on { opacity: 1; }
   .card.no-shots .shot-layer { display: none; }
@@ -333,6 +334,7 @@
     transform: translateX(-50%);
     display: flex; gap: 5px; opacity: 0;
     transition: opacity .2s ease;
+    z-index: 1000;
   }
   .card:hover .shot-dots, .card.cycling .shot-dots { opacity: 1; }
   .card.no-shots .shot-dots { display: none; }
@@ -347,6 +349,7 @@
     position: absolute; inset: 0;
     background: linear-gradient(105deg, transparent 42%, rgba(255,255,255,.13) 50%, transparent 58%);
     transform: translateX(-120%); pointer-events: none;
+    z-index: 999;
   }
   .card:hover .shine { animation: shine .8s ease; }
   @keyframes shine { to { transform: translateX(120%); } }
@@ -356,7 +359,7 @@
     padding: 5px 7px; background: var(--purple); color: #fff;
     text-shadow: 0 0 4px rgba(0,0,0,.6);
     box-shadow: 0 0 12px rgba(157,107,255,.8);
-    letter-spacing: 1px; z-index: 2;
+    letter-spacing: 1px; z-index: 1000;
   }
   .badge.new { background: var(--green); color: #05130b; box-shadow: 0 0 12px rgba(0,255,156,.8); }
   .card-body { display: flex; flex-direction: column; gap: 7px; padding: 13px 14px 15px; flex: 1; }
@@ -834,10 +837,22 @@ function preloadShots(card) {
 function setDots(card, n) {
   card.querySelectorAll('.shot-dots i').forEach((d, j) => d.classList.toggle('on', j === n - 1));
 }
+/* Cross-fade with no dip: the new frame fades in ON TOP of the old frame,
+   which stays fully opaque beneath it. Only once the fade has finished do the
+   covered layers get hidden (invisibly). This means there is never a moment
+   where the background can peek through or the image dims — no flicker. */
 function showFrame(card, n) {
   const st = cardState.get(card);
   if (!st) return;
-  st.layers.forEach((l, j) => l.classList.toggle('on', j === n - 1));
+  if (st.cur === n && st.layers[n - 1].classList.contains('on')) { setDots(card, n); return; }
+  const layer = st.layers[n - 1];
+  st.z = (st.z || 1) + 1;
+  layer.style.zIndex = st.z;
+  layer.classList.add('on');
+  clearTimeout(st.hideT);
+  st.hideT = setTimeout(() => {
+    st.layers.forEach((l, j) => { if (j !== n - 1) l.classList.remove('on'); });
+  }, 320);
   st.cur = n;
   setDots(card, n);
 }

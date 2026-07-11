@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vocal Remover · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ff2d78; --accent-soft:rgba(255,45,120,.45);
+  --panel:#1c1320; --line:#40263a; --text:#ffe2ee; --dim:#c07e9c;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:0 0 24px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:12px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(18px,3.4vw,28px); letter-spacing:4px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:3px; }
+main{ max-width:860px; margin:6px auto 0; padding:0 12px; display:flex; flex-direction:column; gap:12px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:12px 14px;
+  box-shadow:0 0 0 1px #000, 0 0 22px rgba(255,45,120,.08);
+}
+.row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+.spread{ justify-content:space-between; }
+button, label.filebtn{
+  font-family:inherit; font-size:12px; letter-spacing:1px; cursor:pointer;
+  background:#241626; color:var(--text); border:2px solid var(--line); padding:8px 12px;
+  text-transform:uppercase; display:inline-flex; align-items:center; gap:6px;
+}
+button:hover, label.filebtn:hover{ border-color:var(--accent); text-shadow:0 0 6px var(--accent); }
+button:active{ transform:translateY(1px); }
+button:disabled{ opacity:.4; cursor:not-allowed; }
+button.on{ color:#180310; background:var(--accent); border-color:var(--accent); box-shadow:0 0 12px var(--accent); text-shadow:none; }
+button.primary{ color:#180310; background:var(--accent); border-color:var(--accent); box-shadow:0 0 14px var(--accent-soft); text-shadow:none; font-weight:bold; }
+button.big{ font-size:14px; padding:11px 16px; }
+input[type=file]{ display:none; }
+.fname{ font-size:12px; color:var(--dim); letter-spacing:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:280px; }
+.modes{ display:flex; gap:10px; flex-wrap:wrap; }
+.modes button{ flex:1 1 180px; flex-direction:column; padding:12px; font-size:14px; line-height:1.5; }
+.modes button small{ color:var(--dim); font-size:10px; text-transform:none; letter-spacing:1px; }
+.modes button.on small{ color:#3a0a22; }
+.abrow{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.abrow .ab{ flex:1 1 120px; justify-content:center; }
+.wavelabel{ font-size:10px; letter-spacing:2px; color:var(--dim); margin:8px 0 3px; display:flex; justify-content:space-between; }
+.wavelabel b{ color:var(--accent); }
+canvas.wave{ display:block; width:100%; height:90px; background:#0a0812; border:1px solid var(--line); }
+canvas.wave.active{ border-color:var(--accent); box-shadow:0 0 14px var(--accent-soft) inset; }
+.notice{
+  border:1px dashed var(--accent); background:rgba(255,45,120,.08); color:var(--accent);
+  padding:8px 10px; font-size:11px; letter-spacing:1px; margin-top:8px; display:none;
+}
+.honest{ font-size:11px; color:var(--dim); letter-spacing:1px; margin-top:8px; line-height:1.5; }
+.honest b{ color:var(--text); }
+#drop.dragover{ outline:2px dashed var(--accent); outline-offset:3px; }
+.time{ font-size:11px; color:var(--dim); letter-spacing:1px; text-align:right; min-width:110px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>VOCAL REMOVER</h1>
+  <div class="sub">🎤 CENTER-CHANNEL KARAOKE TOOL</div>
+</header>
+<main>
+  <div class="panel" id="drop">
+    <div class="row spread">
+      <div class="row">
+        <label class="filebtn">📂 LOAD SONG<input type="file" id="file" accept="audio/*"></label>
+        <button id="demoBtn">🎵 DEMO TRACK</button>
+      </div>
+      <div class="fname" id="fname">no file loaded</div>
+    </div>
+    <div class="notice" id="monoNotice">⚠ This file is MONO. Center-cancellation needs a STEREO (2-channel) mix — REMOVE VOCALS can't separate a single channel. Try a stereo track or the demo.</div>
+  </div>
+
+  <div class="panel">
+    <div class="modes">
+      <button id="mRemove">🎤 REMOVE VOCALS<br><small>side signal · L−R / R−L</small></button>
+      <button id="mCenter">🗣 ISOLATE CENTER<br><small>mid signal · (L+R)/2</small></button>
+    </div>
+    <div class="honest">honest note: this works best when vocals are mixed <b>dead-center</b> — <b>results vary by song</b>. Instruments panned to the center (bass, kick, snare) get affected too.</div>
+  </div>
+
+  <div class="panel">
+    <div class="abrow">
+      <button id="playBtn" class="big" disabled>▶ PLAY</button>
+      <button id="abOrig" class="ab on" disabled>🅰 ORIGINAL</button>
+      <button id="abProc" class="ab" disabled>🅱 PROCESSED</button>
+      <div class="time" id="timeLbl">0:00 / 0:00</div>
+    </div>
+    <div class="wavelabel"><span>ORIGINAL</span><b id="lblOrig"></b></div>
+    <canvas id="waveOrig" class="wave active"></canvas>
+    <div class="wavelabel"><span>PROCESSED</span><b id="lblProc"></b></div>
+    <canvas id="waveProc" class="wave"></canvas>
+  </div>
+
+  <div class="panel">
+    <button id="exportBtn" class="primary big" style="width:100%" disabled>⬇ EXPORT (WAV)</button>
+    <div class="honest" style="margin-top:8px">exports the current PROCESSED buffer as 16-bit WAV</div>
+  </div>
+</main>
+
+<script>
+"use strict";
+const SLUG='wizzed-vocal-remover';
+const $=id=>document.getElementById(id);
+
+/* ---------- shared WAV encoder (16-bit PCM) ---------- */
+function audioBufferToWav(buffer){
+  const numCh=buffer.numberOfChannels, sr=buffer.sampleRate, frames=buffer.length;
+  const blockAlign=numCh*2, dataSize=frames*blockAlign, byteRate=sr*blockAlign;
+  const ab=new ArrayBuffer(44+dataSize), view=new DataView(ab);
+  let off=0;
+  const wStr=s=>{ for(let i=0;i<s.length;i++) view.setUint8(off++,s.charCodeAt(i)); };
+  const wU32=v=>{ view.setUint32(off,v,true); off+=4; };
+  const wU16=v=>{ view.setUint16(off,v,true); off+=2; };
+  wStr('RIFF'); wU32(36+dataSize); wStr('WAVE');
+  wStr('fmt '); wU32(16); wU16(1); wU16(numCh); wU32(sr); wU32(byteRate); wU16(blockAlign); wU16(16);
+  wStr('data'); wU32(dataSize);
+  const chans=[]; for(let c=0;c<numCh;c++) chans.push(buffer.getChannelData(c));
+  for(let i=0;i<frames;i++){
+    for(let c=0;c<numCh;c++){
+      let s=Math.max(-1,Math.min(1,chans[c][i]));
+      s=s<0? s*0x8000 : s*0x7FFF;
+      view.setInt16(off,s|0,true); off+=2;
+    }
+  }
+  return new Blob([ab],{type:'audio/wav'});
+}
+function downloadBlob(blob,name){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=name; document.body.appendChild(a); a.click();
+  a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+/* ---------- demo track: stereo with dead-center melody so REMOVE works ---------- */
+async function makeDemoBuffer(){
+  const sr=44100, dur=16, ctx=new OfflineAudioContext(2, sr*dur, sr);
+  const master=ctx.createGain(); master.gain.value=0.85;
+  const comp=ctx.createDynamicsCompressor();
+  master.connect(comp).connect(ctx.destination);
+  const noise=ctx.createBuffer(1, Math.floor(sr*0.25), sr);
+  const nd=noise.getChannelData(0); for(let i=0;i<nd.length;i++) nd[i]=Math.random()*2-1;
+  const pan=v=>{ const p=ctx.createStereoPanner(); p.pan.value=v; return p; };
+  function kick(t){ const o=ctx.createOscillator(),g=ctx.createGain();
+    o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(48,t+0.12);
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.9,t+0.005); g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+    o.connect(g).connect(master); o.start(t); o.stop(t+0.22); }
+  function hat(t,p){ const s=ctx.createBufferSource(); s.buffer=noise;
+    const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=7000;
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.22,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.05);
+    s.connect(hp).connect(g).connect(pan(p)).connect(master); s.start(t); s.stop(t+0.06); }
+  function bass(t,f,d){ const o=ctx.createOscillator(); o.type='sawtooth'; o.frequency.value=f;
+    const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=420;
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.4,t+0.02); g.gain.exponentialRampToValueAtTime(0.001,t+d);
+    o.connect(lp).connect(g).connect(pan(-0.15)).connect(master); o.start(t); o.stop(t+d+0.05); }
+  function arp(t,f,p){ const o=ctx.createOscillator(); o.type='square'; o.frequency.value=f;
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.13,t+0.01); g.gain.exponentialRampToValueAtTime(0.001,t+0.22);
+    o.connect(g).connect(pan(p)).connect(master); o.start(t); o.stop(t+0.25); }
+  function lead(t,f,d){ /* DEAD CENTER = the "vocal" that REMOVE cancels */
+    const o=ctx.createOscillator(); o.type='sawtooth'; o.frequency.value=f;
+    const o2=ctx.createOscillator(); o2.type='triangle'; o2.frequency.value=f;
+    const vib=ctx.createOscillator(); vib.frequency.value=5.5; const vg=ctx.createGain(); vg.gain.value=f*0.012; vib.connect(vg).connect(o.frequency); vib.connect(vg).connect(o2.frequency);
+    const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=2600;
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.34,t+0.03); g.gain.setValueAtTime(0.34,t+d*0.7); g.gain.exponentialRampToValueAtTime(0.001,t+d);
+    o.connect(lp); o2.connect(lp); lp.connect(g).connect(master); /* no panner => equal L/R => center */
+    o.start(t); o.stop(t+d); o2.start(t); o2.stop(t+d); vib.start(t); vib.stop(t+d); }
+  const beat=0.5;
+  const chords=[{bass:110,arp:[220,261.63,329.63]},{bass:87.31,arp:[174.61,220,261.63]},{bass:98,arp:[196,246.94,293.66]},{bass:82.41,arp:[164.81,196,246.94]}];
+  for(let bar=0;bar<8;bar++){ const t0=bar*4*beat, ch=chords[bar%4];
+    for(let b=0;b<4;b++){ kick(t0+b*beat); bass(t0+b*beat,ch.bass,beat*0.9); }
+    for(let e=0;e<8;e++){ hat(t0+e*beat*0.5, e%2?0.6:-0.6); arp(t0+e*beat*0.5, ch.arp[e%3], e%2?0.7:-0.7); } }
+  const mel=[[0,440,1],[1,523.25,1],[2,659.25,2],[4,587.33,1],[5,523.25,1],[6,440,2],[8,493.88,1],[9,587.33,1],[10,493.88,2],[12,440,1],[13,493.88,1],[14,329.63,2],[16,440,1],[17,523.25,1],[18,659.25,2],[20,587.33,1],[21,523.25,1],[22,440,2],[24,493.88,1],[25,587.33,1],[26,783.99,2],[28,659.25,2],[30,523.25,2]];
+  for(const m of mel) lead(m[0]*beat, m[1], m[2]*beat);
+  return await ctx.startRendering();
+}
+
+/* ---------- state ---------- */
+let audioCtx=null, audioBuffer=null, processedBuffer=null, fileName='demo';
+let mode='remove';           // 'remove' | 'center'
+let source='orig';           // 'orig' | 'proc' (A/B)
+let src=null, playing=false, playOffset=0, anchorTime=0, raf=0;
+
+function ensureCtx(){ // create only (suspended) — safe to call before a user gesture
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+function resumeCtx(){ // call from a user gesture (playback)
+  ensureCtx();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+}
+function saveSettings(){ try{ localStorage.setItem(SLUG,JSON.stringify({mode,source})); }catch(e){} }
+function loadSettings(){
+  try{ const s=JSON.parse(localStorage.getItem(SLUG)||'{}');
+    if(s.mode==='remove'||s.mode==='center') mode=s.mode;
+    if(s.source==='orig'||s.source==='proc') source=s.source;
+  }catch(e){}
+}
+function fmt(t){ if(!isFinite(t)||t<0)t=0; const m=Math.floor(t/60),s=Math.floor(t-m*60); return m+':'+(s<10?'0':'')+s; }
+
+/* ---------- allocate an AudioBuffer without a live context (avoids autoplay warning) ---------- */
+let bufFactory=null;
+function makeBuffer(numCh,len,sr){
+  if(!bufFactory || bufFactory.sampleRate!==sr) bufFactory=new OfflineAudioContext(1,1,sr);
+  return bufFactory.createBuffer(numCh,len,sr);
+}
+
+/* ---------- processing ---------- */
+function processBuffer(){
+  if(!audioBuffer) return;
+  const n=audioBuffer.length, sr=audioBuffer.sampleRate, numCh=audioBuffer.numberOfChannels;
+  const out=makeBuffer(2, n, sr);
+  const oL=out.getChannelData(0), oR=out.getChannelData(1);
+  if(numCh<2){
+    const m=audioBuffer.getChannelData(0);
+    for(let i=0;i<n;i++){
+      if(mode==='center'){ oL[i]=m[i]; oR[i]=m[i]; }
+      else { oL[i]=0; oR[i]=0; }   // L-R with L==R = silence (demonstrates need for stereo)
+    }
+  } else {
+    const L=audioBuffer.getChannelData(0), R=audioBuffer.getChannelData(1);
+    for(let i=0;i<n;i++){
+      if(mode==='remove'){ const s=(L[i]-R[i])*0.5; oL[i]=s; oR[i]=-s; }
+      else { const mid=(L[i]+R[i])*0.5; oL[i]=mid; oR[i]=mid; }
+    }
+  }
+  processedBuffer=out;
+  peaksOrig=null;   // invalidate cache -> drawBoth rebuilds both waveforms
+}
+
+/* ---------- waveform drawing (peaks cached so playback stays smooth) ---------- */
+let peaksOrig=null, peaksProc=null, waveW=0;
+function computePeaks(buffer,cols){
+  const out=new Float32Array(cols*2);
+  if(!buffer){ return out; }
+  const n=buffer.length, chn=buffer.numberOfChannels, step=n/cols;
+  const data=[]; for(let ch=0;ch<chn;ch++) data.push(buffer.getChannelData(ch));
+  for(let x=0;x<cols;x++){
+    let mn=1,mx=-1; const from=Math.floor(x*step), to=Math.min(n,Math.floor((x+1)*step));
+    for(let i=from;i<to;i++){ let v=0; for(let ch=0;ch<chn;ch++) v+=data[ch][i]; v/=chn; if(v<mn)mn=v; if(v>mx)mx=v; }
+    if(from>=to){ mn=0; mx=0; }
+    out[x*2]=mn; out[x*2+1]=mx;
+  }
+  return out;
+}
+function buildPeaks(){
+  waveW=Math.max(1,Math.floor($('waveOrig').clientWidth));
+  peaksOrig=computePeaks(audioBuffer, waveW);
+  peaksProc=computePeaks(processedBuffer, waveW);
+}
+function renderWave(cv,peaks,color){
+  const dpr=window.devicePixelRatio||1;
+  const w=cv.clientWidth, h=cv.clientHeight;
+  cv.width=Math.max(1,Math.floor(w*dpr)); cv.height=Math.max(1,Math.floor(h*dpr));
+  const c=cv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0);
+  c.clearRect(0,0,w,h);
+  const mid=h/2, amp=mid*0.9;
+  c.strokeStyle='rgba(64,38,58,.9)'; c.beginPath(); c.moveTo(0,mid+.5); c.lineTo(w,mid+.5); c.stroke();
+  if(peaks){
+    const grad=c.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0,color); grad.addColorStop(0.5,'#8a1440'); grad.addColorStop(1,color);
+    c.strokeStyle=grad; c.beginPath();
+    const cols=peaks.length/2;
+    for(let x=0;x<cols;x++){
+      let y1=mid-peaks[x*2+1]*amp, y2=mid-peaks[x*2]*amp; if(y2-y1<1) y2=y1+1;
+      c.moveTo(x+.5,y1); c.lineTo(x+.5,y2);
+    }
+    c.stroke();
+  }
+  if(playing && audioBuffer){
+    const x=(audioPos()/audioBuffer.duration)*w;
+    c.strokeStyle='#fff'; c.lineWidth=2; c.beginPath(); c.moveTo(x,0); c.lineTo(x,h); c.stroke(); c.lineWidth=1;
+  }
+}
+function drawBoth(){
+  if(!peaksOrig || waveW!==Math.floor($('waveOrig').clientWidth)) buildPeaks();
+  renderWave($('waveOrig'), peaksOrig, '#ff2d78');
+  renderWave($('waveProc'), peaksProc, '#ff77aa');
+}
+
+/* ---------- playback with instant A/B ---------- */
+function currentBuffer(){ return source==='orig'? audioBuffer : processedBuffer; }
+function audioPos(){
+  let p=playOffset;
+  if(playing) p += (audioCtx.currentTime-anchorTime);
+  return Math.min(audioBuffer? audioBuffer.duration:0, Math.max(0,p));
+}
+function startSource(offset){
+  src=audioCtx.createBufferSource(); src.buffer=currentBuffer();
+  src.connect(audioCtx.destination);
+  anchorTime=audioCtx.currentTime; playOffset=offset;
+  src.start(0, offset);
+  src.onended=()=>{ if(playing && audioPos()>=audioBuffer.duration-0.06){ playOffset=0; stopAudio(false); } };
+}
+function stopAudio(commit){
+  if(src){ try{ src.onended=null; src.stop(); }catch(e){} src=null; }
+  if(commit) playOffset=audioPos();
+  playing=false;
+  $('playBtn').classList.remove('on'); $('playBtn').textContent='▶ PLAY';
+}
+function play(){
+  if(!audioBuffer) return; resumeCtx();
+  if(!processedBuffer) processBuffer();
+  if(playOffset>=audioBuffer.duration-0.05) playOffset=0;
+  playing=true; startSource(playOffset);
+  $('playBtn').classList.add('on'); $('playBtn').textContent='⏸ PAUSE';
+}
+function togglePlay(){ if(playing) stopAudio(true); else play(); }
+function setSource(s){
+  if(source===s) return;
+  source=s; saveSettings();
+  $('abOrig').classList.toggle('on',source==='orig');
+  $('abProc').classList.toggle('on',source==='proc');
+  $('waveOrig').classList.toggle('active',source==='orig');
+  $('waveProc').classList.toggle('active',source==='proc');
+  if(playing){ const pos=audioPos(); if(src){ try{ src.onended=null; src.stop(); }catch(e){} } startSource(pos); }
+}
+
+/* ---------- mode ---------- */
+function setMode(m){
+  mode=m; saveSettings();
+  $('mRemove').classList.toggle('on',mode==='remove');
+  $('mCenter').classList.toggle('on',mode==='center');
+  processBuffer();
+  drawBoth();
+  if(playing && source==='proc'){ const pos=audioPos(); if(src){ try{ src.onended=null; src.stop(); }catch(e){} } startSource(pos); }
+}
+
+/* ---------- export ---------- */
+function exportProcessed(){
+  if(!processedBuffer) processBuffer();
+  if(!processedBuffer) return;
+  const tag = mode==='remove'? 'no-vocals' : 'center';
+  downloadBlob(audioBufferToWav(processedBuffer), fileName.replace(/\.[^.]+$/,'')+'-'+tag+'.wav');
+}
+
+/* ---------- loop / time ---------- */
+function updateTime(){
+  const cur=audioPos(), dur=audioBuffer? audioBuffer.duration:0;
+  $('timeLbl').textContent=fmt(cur)+' / '+fmt(dur);
+}
+function frame(){ if(playing){ drawBoth(); updateTime(); } raf=requestAnimationFrame(frame); }
+
+/* ---------- load ---------- */
+function setBuffer(buf,name){
+  stopAudio(false); playOffset=0;
+  audioBuffer=buf; fileName=name;
+  const isMono=buf.numberOfChannels<2;
+  $('monoNotice').style.display=isMono? 'block':'none';
+  $('fname').textContent=name+'  ·  '+fmt(buf.duration)+'  ·  '+buf.numberOfChannels+'ch';
+  $('lblOrig').textContent=buf.numberOfChannels+'ch';
+  $('lblProc').textContent=(mode==='remove'?'L−R side':'(L+R)/2 mid');
+  processBuffer();
+  ['playBtn','abOrig','abProc','exportBtn'].forEach(id=>$(id).disabled=false);
+  drawBoth(); updateTime();
+}
+async function loadDemo(){
+  $('fname').textContent='rendering demo…';
+  try{ setBuffer(await makeDemoBuffer(),'demo-track'); }
+  catch(e){ $('fname').textContent='demo render failed'; }
+}
+async function loadFile(file){
+  if(!file) return;
+  $('fname').textContent='decoding '+file.name+'…';
+  try{ ensureCtx(); const arr=await file.arrayBuffer(); setBuffer(await audioCtx.decodeAudioData(arr), file.name); }
+  catch(e){ $('fname').textContent='could not decode: '+file.name; }
+}
+
+/* ---------- wire ---------- */
+$('mRemove').addEventListener('click',()=>{ setMode('remove'); $('lblProc').textContent='L−R side'; });
+$('mCenter').addEventListener('click',()=>{ setMode('center'); $('lblProc').textContent='(L+R)/2 mid'; });
+$('abOrig').addEventListener('click',()=>setSource('orig'));
+$('abProc').addEventListener('click',()=>setSource('proc'));
+$('playBtn').addEventListener('click',togglePlay);
+$('exportBtn').addEventListener('click',exportProcessed);
+$('demoBtn').addEventListener('click',()=>{ ensureCtx(); loadDemo(); });
+$('file').addEventListener('change',e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); });
+
+const drop=$('drop');
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.add('dragover'); }));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); if(ev!=='drop'||!drop.contains(e.relatedTarget)) drop.classList.remove('dragover'); }));
+drop.addEventListener('drop',e=>{ e.preventDefault(); drop.classList.remove('dragover'); const f=e.dataTransfer.files[0]; if(f) loadFile(f); });
+
+document.addEventListener('keydown',e=>{
+  if(e.code!=='Space') return;
+  const tn=document.activeElement? document.activeElement.tagName:'';
+  if(tn==='INPUT'||tn==='BUTTON'||tn==='A') return;
+  e.preventDefault(); togglePlay();
+});
+window.addEventListener('resize',()=>drawBoth());
+
+/* ---------- init reflect settings ---------- */
+function initUI(){
+  $('mRemove').classList.toggle('on',mode==='remove');
+  $('mCenter').classList.toggle('on',mode==='center');
+  $('abOrig').classList.toggle('on',source==='orig');
+  $('abProc').classList.toggle('on',source==='proc');
+  $('waveOrig').classList.toggle('active',source==='orig');
+  $('waveProc').classList.toggle('active',source==='proc');
+}
+
+/* ---------- boot ---------- */
+loadSettings(); initUI(); frame();
+loadDemo();
+</script>
+</body>
+</html>

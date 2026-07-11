@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slowed + Reverb · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#9d6bff; --accent-soft:rgba(157,107,255,.45);
+  --panel:#16132a; --line:#2e2a48; --text:#eae2fa; --dim:#9a8ac0;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:0 0 24px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:12px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(18px,3.4vw,28px); letter-spacing:4px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:3px; }
+main{ max-width:860px; margin:6px auto 0; padding:0 12px; display:flex; flex-direction:column; gap:12px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:12px 14px;
+  box-shadow:0 0 0 1px #000, 0 0 22px rgba(157,107,255,.08);
+}
+.row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+.spread{ justify-content:space-between; }
+button, label.filebtn{
+  font-family:inherit; font-size:12px; letter-spacing:1px; cursor:pointer;
+  background:#181530; color:var(--text); border:2px solid var(--line); padding:8px 12px;
+  text-transform:uppercase; display:inline-flex; align-items:center; gap:6px;
+}
+button:hover, label.filebtn:hover{ border-color:var(--accent); text-shadow:0 0 6px var(--accent); }
+button:active{ transform:translateY(1px); }
+button:disabled{ opacity:.4; cursor:not-allowed; }
+button.on{ color:#100a20; background:var(--accent); border-color:var(--accent); box-shadow:0 0 12px var(--accent); text-shadow:none; }
+button.primary{ color:#100a20; background:var(--accent); border-color:var(--accent); box-shadow:0 0 14px var(--accent-soft); text-shadow:none; font-weight:bold; }
+button.big{ font-size:14px; padding:11px 16px; }
+input[type=file]{ display:none; }
+.fname{ font-size:12px; color:var(--dim); letter-spacing:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:280px; }
+.presets{ display:flex; gap:10px; flex-wrap:wrap; }
+.presets button{ flex:1 1 150px; flex-direction:column; padding:10px; font-size:13px; line-height:1.5; }
+.presets button small{ color:var(--dim); font-size:10px; text-transform:none; letter-spacing:1px; }
+.presets button.on small{ color:#231640; }
+.ctrl{ margin-top:14px; }
+.ctrl .top{ display:flex; justify-content:space-between; align-items:baseline; }
+.ctrl .lbl{ font-size:11px; letter-spacing:2px; color:var(--dim); }
+.ctrl .val{ font-size:20px; color:var(--accent); text-shadow:0 0 10px var(--accent-soft); }
+input[type=range]{
+  width:100%; -webkit-appearance:none; appearance:none; height:12px; margin-top:6px;
+  background:#0c0a18; border:1px solid var(--line); outline:none; cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:22px; height:26px;
+  background:var(--accent); border:2px solid #000; box-shadow:0 0 10px var(--accent); cursor:pointer;
+}
+input[type=range]::-moz-range-thumb{
+  width:20px; height:24px; border-radius:0;
+  background:var(--accent); border:2px solid #000; box-shadow:0 0 10px var(--accent); cursor:pointer;
+}
+#viz{ width:100%; height:110px; background:#0a0812; border:1px solid var(--line); display:block; }
+#progWrap{ height:8px; background:#0a0812; border:1px solid var(--line); margin-top:8px; position:relative; }
+#prog{ position:absolute; left:0; top:0; bottom:0; width:0%; background:var(--accent); box-shadow:0 0 10px var(--accent); }
+.hint{ font-size:10px; color:var(--dim); letter-spacing:1px; }
+#drop{ position:relative; }
+#drop.dragover{ outline:2px dashed var(--accent); outline-offset:3px; }
+.time{ font-size:11px; color:var(--dim); letter-spacing:1px; min-width:110px; text-align:right; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>SLOWED + REVERB</h1>
+  <div class="sub">🌙 THE EDIT-MAKER · SPEED · REVERB · BASS</div>
+</header>
+<main>
+  <div class="panel" id="drop">
+    <div class="row spread">
+      <div class="row">
+        <label class="filebtn">📂 LOAD SONG<input type="file" id="file" accept="audio/*"></label>
+        <button id="demoBtn">💿 DEMO TRACK</button>
+      </div>
+      <div class="fname" id="fname">no file loaded</div>
+    </div>
+    <canvas id="viz"></canvas>
+    <div id="progWrap"><div id="prog"></div></div>
+    <div class="row spread" style="margin-top:10px">
+      <div class="row">
+        <button id="playBtn" class="big" disabled>▶ PLAY</button>
+      </div>
+      <div class="time" id="timeLbl">0:00 / 0:00</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="hint" style="margin-bottom:8px; letter-spacing:2px; color:var(--accent)">PRESETS</div>
+    <div class="presets">
+      <button id="pSlow">🌙 SLOWED+REVERB<br><small>0.80× · deep reverb</small></button>
+      <button id="pNorm">💿 NORMAL<br><small>1.00× · dry</small></button>
+      <button id="pNight">⚡ NIGHTCORE<br><small>1.25× · bright</small></button>
+    </div>
+
+    <div class="ctrl">
+      <div class="top"><span class="lbl">SPEED</span><span class="val" id="speedVal">1.00×</span></div>
+      <input type="range" id="speed" min="0.5" max="1.5" step="0.01" value="1">
+    </div>
+    <div class="ctrl">
+      <div class="top"><span class="lbl">REVERB</span><span class="val" id="reverbVal">30%</span></div>
+      <input type="range" id="reverb" min="0" max="100" step="1" value="30">
+    </div>
+    <div class="ctrl">
+      <div class="top"><span class="lbl">BASS BOOST</span><span class="val" id="bassVal">+4 dB</span></div>
+      <input type="range" id="bass" min="0" max="12" step="0.5" value="4">
+    </div>
+  </div>
+
+  <div class="panel">
+    <button id="exportBtn" class="primary big" style="width:100%" disabled>⬇ EXPORT (WAV)</button>
+    <div class="hint" style="margin-top:8px">renders offline at the current speed / reverb / bass — filename includes the speed</div>
+  </div>
+</main>
+
+<script>
+"use strict";
+const SLUG='wizzed-slowed-reverb';
+const $=id=>document.getElementById(id);
+
+/* ---------- shared WAV encoder (16-bit PCM) ---------- */
+function audioBufferToWav(buffer){
+  const numCh=buffer.numberOfChannels, sr=buffer.sampleRate, frames=buffer.length;
+  const blockAlign=numCh*2, dataSize=frames*blockAlign, byteRate=sr*blockAlign;
+  const ab=new ArrayBuffer(44+dataSize), view=new DataView(ab);
+  let off=0;
+  const wStr=s=>{ for(let i=0;i<s.length;i++) view.setUint8(off++,s.charCodeAt(i)); };
+  const wU32=v=>{ view.setUint32(off,v,true); off+=4; };
+  const wU16=v=>{ view.setUint16(off,v,true); off+=2; };
+  wStr('RIFF'); wU32(36+dataSize); wStr('WAVE');
+  wStr('fmt '); wU32(16); wU16(1); wU16(numCh); wU32(sr); wU32(byteRate); wU16(blockAlign); wU16(16);
+  wStr('data'); wU32(dataSize);
+  const chans=[]; for(let c=0;c<numCh;c++) chans.push(buffer.getChannelData(c));
+  for(let i=0;i<frames;i++){
+    for(let c=0;c<numCh;c++){
+      let s=Math.max(-1,Math.min(1,chans[c][i]));
+      s=s<0? s*0x8000 : s*0x7FFF;
+      view.setInt16(off,s|0,true); off+=2;
+    }
+  }
+  return new Blob([ab],{type:'audio/wav'});
+}
+function downloadBlob(blob,name){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=name; document.body.appendChild(a); a.click();
+  a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+/* ---------- reverb impulse: 2.5s exponentially-decaying stereo noise ---------- */
+function makeImpulse(ctx){
+  const len=Math.floor(ctx.sampleRate*2.5);
+  const imp=ctx.createBuffer(2,len,ctx.sampleRate);
+  for(let c=0;c<2;c++){
+    const d=imp.getChannelData(c);
+    for(let i=0;i<len;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.5); }
+  }
+  return imp;
+}
+
+/* ---------- demo track generator (shared, stereo) ---------- */
+async function makeDemoBuffer(){
+  const sr=44100, dur=16, ctx=new OfflineAudioContext(2, sr*dur, sr);
+  const master=ctx.createGain(); master.gain.value=0.85;
+  const comp=ctx.createDynamicsCompressor();
+  master.connect(comp).connect(ctx.destination);
+  const noise=ctx.createBuffer(1, Math.floor(sr*0.25), sr);
+  const nd=noise.getChannelData(0); for(let i=0;i<nd.length;i++) nd[i]=Math.random()*2-1;
+  const pan=v=>{ const p=ctx.createStereoPanner(); p.pan.value=v; return p; };
+  function kick(t){ const o=ctx.createOscillator(),g=ctx.createGain();
+    o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(48,t+0.12);
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.95,t+0.005); g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+    o.connect(g).connect(master); o.start(t); o.stop(t+0.22); }
+  function hat(t,p){ const s=ctx.createBufferSource(); s.buffer=noise;
+    const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=7000;
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.22,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.05);
+    s.connect(hp).connect(g).connect(pan(p)).connect(master); s.start(t); s.stop(t+0.06); }
+  function bass(t,f,d){ const o=ctx.createOscillator(); o.type='sawtooth'; o.frequency.value=f;
+    const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=420;
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.42,t+0.02); g.gain.exponentialRampToValueAtTime(0.001,t+d);
+    o.connect(lp).connect(g).connect(master); o.start(t); o.stop(t+d+0.05); }
+  function arp(t,f,p){ const o=ctx.createOscillator(); o.type='square'; o.frequency.value=f;
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.14,t+0.01); g.gain.exponentialRampToValueAtTime(0.001,t+0.22);
+    o.connect(g).connect(pan(p)).connect(master); o.start(t); o.stop(t+0.25); }
+  function lead(t,f,d){ const o=ctx.createOscillator(); o.type='triangle'; o.frequency.value=f;
+    const vib=ctx.createOscillator(); vib.frequency.value=5.5; const vg=ctx.createGain(); vg.gain.value=f*0.01; vib.connect(vg).connect(o.frequency);
+    const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.3,t+0.03); g.gain.setValueAtTime(0.3,t+d*0.7); g.gain.exponentialRampToValueAtTime(0.001,t+d);
+    o.connect(g).connect(master); o.start(t); o.stop(t+d); vib.start(t); vib.stop(t+d); }
+  const beat=0.5;
+  const chords=[{bass:110,arp:[220,261.63,329.63]},{bass:87.31,arp:[174.61,220,261.63]},{bass:98,arp:[196,246.94,293.66]},{bass:82.41,arp:[164.81,196,246.94]}];
+  for(let bar=0;bar<8;bar++){ const t0=bar*4*beat, ch=chords[bar%4];
+    for(let b=0;b<4;b++){ kick(t0+b*beat); bass(t0+b*beat,ch.bass,beat*0.9); }
+    for(let e=0;e<8;e++){ hat(t0+e*beat*0.5, e%2?0.55:-0.55); arp(t0+e*beat*0.5, ch.arp[e%3], e%2?0.65:-0.65); } }
+  const mel=[[0,440,1],[1,523.25,1],[2,659.25,2],[4,587.33,1],[5,523.25,1],[6,440,2],[8,493.88,1],[9,587.33,1],[10,493.88,2],[12,440,1],[13,493.88,1],[14,329.63,2],[16,440,1],[17,523.25,1],[18,659.25,2],[20,587.33,1],[21,523.25,1],[22,440,2],[24,493.88,1],[25,587.33,1],[26,783.99,2],[28,659.25,2],[30,523.25,2]];
+  for(const m of mel) lead(m[0]*beat, m[1], m[2]*beat);
+  return await ctx.startRendering();
+}
+
+/* ---------- state ---------- */
+let audioCtx=null, audioBuffer=null, fileName='demo';
+let speed=1, reverbAmt=0.3, bassDb=4;
+let src=null, dry=null, wet=null, shelf=null, conv=null, analyser=null, outGain=null;
+let playing=false, playOffset=0, anchorTime=0, raf=0;
+
+function ensureCtx(){
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+/* ---------- settings ---------- */
+function saveSettings(){ try{ localStorage.setItem(SLUG,JSON.stringify({speed,reverbAmt,bassDb})); }catch(e){} }
+function loadSettings(){
+  try{ const s=JSON.parse(localStorage.getItem(SLUG)||'{}');
+    if(isFinite(s.speed)) speed=Math.min(1.5,Math.max(0.5,s.speed));
+    if(isFinite(s.reverbAmt)) reverbAmt=Math.min(1,Math.max(0,s.reverbAmt));
+    if(isFinite(s.bassDb)) bassDb=Math.min(12,Math.max(0,s.bassDb));
+  }catch(e){}
+}
+
+function fmt(t){ if(!isFinite(t)||t<0)t=0; const m=Math.floor(t/60),s=Math.floor(t-m*60); return m+':'+(s<10?'0':'')+s; }
+
+/* ---------- build live graph ---------- */
+function buildChain(){
+  shelf=audioCtx.createBiquadFilter(); shelf.type='lowshelf'; shelf.frequency.value=180; shelf.gain.value=bassDb;
+  conv=audioCtx.createConvolver(); conv.buffer=makeImpulse(audioCtx);
+  dry=audioCtx.createGain(); wet=audioCtx.createGain();
+  outGain=audioCtx.createGain(); outGain.gain.value=0.9;
+  analyser=audioCtx.createAnalyser(); analyser.fftSize=128; analyser.smoothingTimeConstant=0.8;
+  applyMix();
+  shelf.connect(dry).connect(outGain);
+  shelf.connect(conv).connect(wet).connect(outGain);
+  outGain.connect(analyser); analyser.connect(audioCtx.destination);
+}
+function applyMix(){
+  if(!dry) return;
+  dry.gain.value = 1 - 0.35*reverbAmt;
+  wet.gain.value = reverbAmt;
+  if(shelf) shelf.gain.value = bassDb;
+}
+
+function audioPos(){
+  let p=playOffset;
+  if(playing) p += (audioCtx.currentTime-anchorTime)*speed;
+  return Math.min(audioBuffer? audioBuffer.duration:0, Math.max(0,p));
+}
+
+/* ---------- playback ---------- */
+function stopAudio(commit){
+  if(src){ try{ src.onended=null; src.stop(); }catch(e){} src=null; }
+  if(commit) playOffset=audioPos();
+  playing=false;
+  $('playBtn').classList.remove('on'); $('playBtn').textContent='▶ PLAY';
+}
+function play(){
+  if(!audioBuffer) return;
+  ensureCtx();
+  if(!shelf) buildChain();
+  if(playOffset>=audioBuffer.duration-0.05) playOffset=0;
+  src=audioCtx.createBufferSource(); src.buffer=audioBuffer;
+  src.playbackRate.value=speed;
+  src.connect(shelf);
+  anchorTime=audioCtx.currentTime; playing=true;
+  src.start(0, playOffset);
+  $('playBtn').classList.add('on'); $('playBtn').textContent='⏸ PAUSE';
+  src.onended=()=>{ if(playing){ playOffset=0; stopAudio(false); updateTime(); } };
+}
+function togglePlay(){ if(playing) stopAudio(true); else play(); }
+
+/* ---------- visualizer ---------- */
+const viz=$('viz'), vctx=viz.getContext('2d');
+let vw=0,vh=0,vdpr=1, bins=new Uint8Array(64);
+function resizeViz(){
+  vdpr=window.devicePixelRatio||1;
+  vw=viz.clientWidth; vh=viz.clientHeight;
+  viz.width=Math.floor(vw*vdpr); viz.height=Math.floor(vh*vdpr);
+  vctx.setTransform(vdpr,0,0,vdpr,0,0);
+}
+function drawViz(){
+  vctx.clearRect(0,0,vw,vh);
+  if(analyser){ analyser.getByteFrequencyData(bins); }
+  const n=bins.length, bw=vw/n;
+  for(let i=0;i<n;i++){
+    const v = analyser? bins[i]/255 : (0.15+0.1*Math.sin(i*0.5+performance.now()/600));
+    const h=Math.max(2, v*vh*0.95);
+    const x=i*bw;
+    const g=vctx.createLinearGradient(0,vh,0,vh-h);
+    g.addColorStop(0,'#5a2fb0'); g.addColorStop(1,'#c79bff');
+    vctx.fillStyle=g; vctx.fillRect(x+1,vh-h,bw-2,h);
+    vctx.fillStyle='rgba(199,155,255,.9)'; vctx.fillRect(x+1,vh-h,bw-2,2);
+  }
+  raf=requestAnimationFrame(drawViz);
+}
+function updateTime(){
+  const cur=audioPos(), dur=audioBuffer? audioBuffer.duration:0;
+  $('timeLbl').textContent=fmt(cur)+' / '+fmt(dur);
+  $('prog').style.width=(dur? (cur/dur*100):0)+'%';
+}
+function loop(){ updateTime(); requestAnimationFrame(loop); }
+
+/* ---------- export (offline) ---------- */
+async function exportSong(){
+  if(!audioBuffer) return;
+  $('exportBtn').disabled=true; const old=$('exportBtn').textContent; $('exportBtn').textContent='RENDERING…';
+  try{
+    const sr=audioBuffer.sampleRate;
+    const frames=Math.ceil(audioBuffer.length/speed)+1;
+    const oc=new OfflineAudioContext(audioBuffer.numberOfChannels, frames, sr);
+    const s=oc.createBufferSource(); s.buffer=audioBuffer; s.playbackRate.value=speed;
+    const sh=oc.createBiquadFilter(); sh.type='lowshelf'; sh.frequency.value=180; sh.gain.value=bassDb;
+    const cv=oc.createConvolver(); cv.buffer=makeImpulse(oc);
+    const dg=oc.createGain(); dg.gain.value=1-0.35*reverbAmt;
+    const wg=oc.createGain(); wg.gain.value=reverbAmt;
+    const og=oc.createGain(); og.gain.value=0.9;
+    s.connect(sh);
+    sh.connect(dg).connect(og);
+    sh.connect(cv).connect(wg).connect(og);
+    og.connect(oc.destination);
+    s.start(0);
+    const rendered=await oc.startRendering();
+    const tag = speed<1? 'slowed-'+speed.toFixed(2).replace(/0$/,'')+'x' : (speed>1? 'sped-'+speed.toFixed(2).replace(/0$/,'')+'x' : 'edit');
+    downloadBlob(audioBufferToWav(rendered), fileName.replace(/\.[^.]+$/,'')+'-'+tag+'.wav');
+  }catch(e){}
+  $('exportBtn').textContent=old; $('exportBtn').disabled=false;
+}
+
+/* ---------- load ---------- */
+function setBuffer(buf,name){
+  stopAudio(false); playOffset=0;
+  audioBuffer=buf; fileName=name;
+  $('fname').textContent=name+'  ·  '+fmt(buf.duration)+'  ·  '+buf.numberOfChannels+'ch';
+  $('playBtn').disabled=false; $('exportBtn').disabled=false;
+  updateTime();
+}
+async function loadDemo(){
+  $('fname').textContent='rendering demo…';
+  try{ setBuffer(await makeDemoBuffer(),'demo-track'); }
+  catch(e){ $('fname').textContent='demo render failed'; }
+}
+async function loadFile(file){
+  if(!file) return;
+  $('fname').textContent='decoding '+file.name+'…';
+  try{ ensureCtx(); const arr=await file.arrayBuffer(); setBuffer(await audioCtx.decodeAudioData(arr), file.name); }
+  catch(e){ $('fname').textContent='could not decode: '+file.name; }
+}
+
+/* ---------- controls ---------- */
+function refreshUI(){
+  $('speed').value=speed; $('speedVal').textContent=speed.toFixed(2)+'×';
+  $('reverb').value=Math.round(reverbAmt*100); $('reverbVal').textContent=Math.round(reverbAmt*100)+'%';
+  $('bass').value=bassDb; $('bassVal').textContent='+'+bassDb+' dB';
+  $('pSlow').classList.toggle('on', Math.abs(speed-0.8)<0.001);
+  $('pNorm').classList.toggle('on', Math.abs(speed-1.0)<0.001);
+  $('pNight').classList.toggle('on', Math.abs(speed-1.25)<0.001);
+}
+function setSpeedLive(v){
+  if(playing){ playOffset=audioPos(); anchorTime=audioCtx.currentTime; if(src) src.playbackRate.value=v; }
+  speed=v;
+}
+$('speed').addEventListener('input',e=>{ setSpeedLive(parseFloat(e.target.value)); refreshUI(); saveSettings(); });
+$('reverb').addEventListener('input',e=>{ reverbAmt=parseFloat(e.target.value)/100; applyMix(); refreshUI(); saveSettings(); });
+$('bass').addEventListener('input',e=>{ bassDb=parseFloat(e.target.value); applyMix(); refreshUI(); saveSettings(); });
+$('pSlow').addEventListener('click',()=>{ setSpeedLive(0.8); reverbAmt=0.6; bassDb=6; applyMix(); refreshUI(); saveSettings(); });
+$('pNorm').addEventListener('click',()=>{ setSpeedLive(1.0); reverbAmt=0.1; bassDb=2; applyMix(); refreshUI(); saveSettings(); });
+$('pNight').addEventListener('click',()=>{ setSpeedLive(1.25); reverbAmt=0.15; bassDb=0; applyMix(); refreshUI(); saveSettings(); });
+
+$('playBtn').addEventListener('click',togglePlay);
+$('exportBtn').addEventListener('click',exportSong);
+$('demoBtn').addEventListener('click',()=>{ ensureCtx(); loadDemo(); });
+$('file').addEventListener('change',e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); });
+
+const drop=$('drop');
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.add('dragover'); }));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); if(ev!=='drop'||!drop.contains(e.relatedTarget)) drop.classList.remove('dragover'); }));
+drop.addEventListener('drop',e=>{ e.preventDefault(); drop.classList.remove('dragover'); const f=e.dataTransfer.files[0]; if(f) loadFile(f); });
+
+document.addEventListener('keydown',e=>{
+  if(e.code!=='Space') return;
+  const tn=document.activeElement? document.activeElement.tagName:'';
+  if(tn==='INPUT'||tn==='BUTTON'||tn==='A') return;
+  e.preventDefault(); togglePlay();
+});
+window.addEventListener('resize',resizeViz);
+
+/* ---------- boot ---------- */
+loadSettings(); refreshUI(); resizeViz(); drawViz(); loop();
+loadDemo();
+</script>
+</body>
+</html>

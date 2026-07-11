@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instrument Tuner · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#00e5ff; --accent-soft:rgba(0,229,255,.45);
+  --green:#3dff9a; --red:#ff4d6d;
+  --panel:#141422; --line:#2a2a44; --text:#e8fbff; --dim:#7c8ba0;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:
+    radial-gradient(circle at 12% 0%, rgba(0,229,255,.08), transparent 42%),
+    radial-gradient(circle at 92% 100%, rgba(61,255,154,.06), transparent 45%),
+    var(--bg);
+  color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:0 0 20px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:80;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:12px 8px 4px; }
+h1{
+  display:inline-block; font-size:clamp(18px,3.4vw,30px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 8px var(--accent), 0 0 28px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:3px; margin-top:3px; }
+main{
+  display:flex; flex-wrap:wrap; gap:16px; justify-content:center; align-items:flex-start;
+  max-width:900px; margin:10px auto 0; padding:0 12px;
+}
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:14px 16px;
+  box-shadow:0 0 0 1px #000, 0 0 26px rgba(0,229,255,.08);
+}
+.panel h2{
+  font-size:12px; letter-spacing:3px; color:var(--accent); margin-bottom:10px;
+  text-shadow:0 0 8px var(--accent-soft); text-transform:uppercase;
+}
+/* gauge */
+#gaugePanel{ width:430px; display:flex; flex-direction:column; align-items:center; }
+#gauge{ width:400px; max-width:100%; height:210px; display:block; }
+#readout{ display:flex; align-items:baseline; gap:14px; margin:2px 0 6px; }
+#noteBig{ font-size:66px; font-weight:bold; color:var(--accent); line-height:1; text-shadow:0 0 16px var(--accent); min-width:100px; text-align:center; }
+#noteBig .oct{ font-size:26px; color:var(--dim); text-shadow:none; }
+#readMeta{ text-align:left; font-size:13px; color:var(--dim); letter-spacing:1px; }
+#readMeta .freq{ color:var(--text); font-size:18px; }
+#readMeta .cents{ font-size:16px; }
+#micRow{ display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; justify-content:center; }
+#micStatus{ font-size:11px; color:var(--dim); letter-spacing:1px; }
+#micStatus.live{ color:var(--green); }
+#micStatus.err{ color:var(--red); }
+#histStrip{ display:flex; gap:5px; margin-top:10px; height:26px; align-items:center; flex-wrap:wrap; justify-content:center; }
+.hchip{ font-size:12px; padding:2px 7px; border:1px solid var(--line); color:var(--dim); background:#0d0d18; }
+.hchip.good{ color:var(--green); border-color:var(--green); box-shadow:0 0 8px rgba(61,255,154,.4); }
+/* buttons */
+button{
+  font-family:inherit; font-size:12px; letter-spacing:1px; cursor:pointer;
+  background:#12121f; color:var(--text); border:2px solid var(--line); padding:9px 13px;
+  text-transform:uppercase;
+}
+button:hover:not(:disabled){ border-color:var(--accent); text-shadow:0 0 6px var(--accent); color:var(--accent); }
+button:active:not(:disabled){ transform:translateY(1px); }
+button.primary{ border-color:var(--accent); color:var(--accent); }
+/* reference / side column */
+#side{ width:400px; display:flex; flex-direction:column; gap:16px; }
+.refRow{ display:flex; align-items:center; gap:8px; margin-bottom:12px; font-size:12px; color:var(--dim); letter-spacing:1px; }
+input[type=range]{
+  flex:1; -webkit-appearance:none; appearance:none; height:10px;
+  background:#0c0c16; border:1px solid var(--line); outline:none; cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:20px; height:24px;
+  background:var(--accent); border:2px solid #000; box-shadow:0 0 10px var(--accent); cursor:pointer;
+}
+input[type=range]::-moz-range-thumb{ width:18px; height:22px; border-radius:0; background:var(--accent); border:2px solid #000; box-shadow:0 0 10px var(--accent); cursor:pointer; }
+#a4Val{ color:var(--accent); font-size:16px; width:70px; text-align:right; }
+#octRow{ display:flex; align-items:center; gap:6px; margin-bottom:12px; font-size:12px; color:var(--dim); }
+#octRow button{ padding:5px 9px; }
+#octRow button.on{ border-color:var(--accent); color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+#tones{ display:grid; grid-template-columns:repeat(6,1fr); gap:6px; }
+.tone{ padding:12px 0; font-size:14px; text-align:center; }
+.tone.sharp{ color:var(--accent); }
+.tone.playing{ background:var(--accent); color:#000; box-shadow:0 0 16px var(--accent); }
+#a440chip{ margin-top:10px; width:100%; border-color:var(--green); color:var(--green); }
+#a440chip:hover{ text-shadow:0 0 6px var(--green); }
+#a440chip.playing{ background:var(--green); color:#000; box-shadow:0 0 16px var(--green); }
+#explain{ font-size:12px; color:var(--dim); line-height:1.7; }
+#explain b{ color:var(--accent); }
+#explain.hidden{ display:none; }
+@media(max-width:720px){ #gaugePanel,#side{ width:100%; } #gauge{ width:100%; } }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>INSTRUMENT TUNER</h1>
+  <div class="sub">MICROPHONE PITCH DETECTION · REFERENCE TONES</div>
+</header>
+<main>
+  <section class="panel" id="gaugePanel">
+    <h2>◇ Tuner</h2>
+    <canvas id="gauge" width="400" height="210"></canvas>
+    <div id="readout">
+      <div id="noteBig">A<span class="oct">4</span></div>
+      <div id="readMeta">
+        <div class="freq" id="freqOut">440.0 Hz</div>
+        <div class="cents" id="centsOut">0 cents</div>
+      </div>
+    </div>
+    <div id="micRow">
+      <button id="micBtn" class="primary">🎤 Enable Mic</button>
+      <span id="micStatus">Mic off — reference tones ready below.</span>
+    </div>
+    <div id="histStrip"></div>
+  </section>
+
+  <div id="side">
+    <section class="panel">
+      <h2>◇ Reference Tones</h2>
+      <div class="refRow">
+        <span>A4 REF</span>
+        <input type="range" id="a4Slider" min="430" max="450" step="1" value="440">
+        <span id="a4Val">440 Hz</span>
+      </div>
+      <div id="octRow"><span>OCTAVE</span></div>
+      <div id="tones"></div>
+      <button id="a440chip">▶ Play A440 Reference</button>
+    </section>
+    <section class="panel">
+      <h2 id="explainTitle">◇ How It Works</h2>
+      <div id="explain">
+        <b>Tap “Enable Mic”</b> and allow microphone access. Play a single steady note — the needle shows how sharp or flat you are, and the zone turns <b style="color:var(--green)">green within ±5 cents</b>.<br><br>
+        No mic? No problem — the <b>reference tones</b> above always work. Pick an octave and tap any note to hear a clean tuning pitch, or hit <b>A440</b> for the concert-pitch standard.
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+(function(){
+"use strict";
+var AC=window.AudioContext||window.webkitAudioContext;
+var ctx=null;
+function audio(){ if(!ctx) ctx=new AC(); if(ctx.state==='suspended') ctx.resume(); return ctx; }
+var LS_KEY='wizzed-tuner';
+function loadLS(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'{}'); }catch(e){ return {}; } }
+function saveLS(o){ try{ localStorage.setItem(LS_KEY, JSON.stringify(o)); }catch(e){} }
+var prefs=loadLS();
+
+var NOTE_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+var a4=prefs.a4||440;
+
+/* ---------- gauge ---------- */
+var gauge=document.getElementById('gauge'), gx=gauge.getContext('2d');
+var DPR=Math.min(2, window.devicePixelRatio||1);
+function sizeGauge(){
+  var w=gauge.clientWidth||400, h=210;
+  gauge.width=w*DPR; gauge.height=h*DPR;
+  gx.setTransform(DPR,0,0,DPR,0,0);
+  gW=w; gH=h;
+}
+var gW=400,gH=210;
+var displayCents=0, targetCents=0, hasSignal=false, idlePhase=0;
+function drawGauge(){
+  gx.clearRect(0,0,gW,gH);
+  var cx=gW/2, cy=gH-16, R=Math.min(gW/2-20, gH-40);
+  // arc background
+  var a0=Math.PI*1.15, a1=Math.PI*(-0.15); // sweep from left to right (top)
+  gx.lineWidth=16;
+  gx.strokeStyle='#0c1622';
+  gx.beginPath(); gx.arc(cx,cy,R,Math.PI,2*Math.PI,false); gx.stroke();
+  // green zone (center)
+  function centToAng(c){ return Math.PI + (c+50)/100*Math.PI; }
+  gx.strokeStyle='rgba(61,255,154,.9)';
+  gx.shadowColor='rgba(61,255,154,.6)'; gx.shadowBlur=10;
+  gx.beginPath(); gx.arc(cx,cy,R,centToAng(-5),centToAng(5),false); gx.stroke();
+  gx.shadowBlur=0;
+  // side zones tint
+  gx.strokeStyle='rgba(0,229,255,.25)'; gx.lineWidth=16;
+  gx.beginPath(); gx.arc(cx,cy,R,centToAng(-50),centToAng(-5),false); gx.stroke();
+  gx.beginPath(); gx.arc(cx,cy,R,centToAng(5),centToAng(50),false); gx.stroke();
+  // ticks
+  gx.strokeStyle='#3a4a5a'; gx.lineWidth=2; gx.fillStyle='#5a6a7a';
+  gx.font='10px "Courier New",monospace'; gx.textAlign='center';
+  for(var c=-50;c<=50;c+=10){
+    var ang=centToAng(c);
+    var x1=cx+Math.cos(ang)*(R-8), y1=cy+Math.sin(ang)*(R-8);
+    var x2=cx+Math.cos(ang)*(R+8), y2=cy+Math.sin(ang)*(R+8);
+    gx.beginPath(); gx.moveTo(x1,y1); gx.lineTo(x2,y2); gx.stroke();
+    if(c%20===0){
+      var xl=cx+Math.cos(ang)*(R+20), yl=cy+Math.sin(ang)*(R+20);
+      gx.fillText((c>0?'+':'')+c, xl, yl+3);
+    }
+  }
+  // needle
+  var shown = hasSignal ? displayCents : idleCents();
+  var na=centToAng(Math.max(-50,Math.min(50,shown)));
+  var inZone = hasSignal && Math.abs(shown)<=5;
+  var col = inZone ? '#3dff9a' : (hasSignal ? '#00e5ff' : '#39506a');
+  gx.strokeStyle=col; gx.lineWidth=4; gx.shadowColor=col; gx.shadowBlur=inZone?18:10;
+  gx.beginPath(); gx.moveTo(cx,cy); gx.lineTo(cx+Math.cos(na)*(R-6), cy+Math.sin(na)*(R-6)); gx.stroke();
+  gx.shadowBlur=0;
+  // hub
+  gx.fillStyle=col; gx.beginPath(); gx.arc(cx,cy,7,0,2*Math.PI); gx.fill();
+  gx.fillStyle='#0f0f1a'; gx.beginPath(); gx.arc(cx,cy,3,0,2*Math.PI); gx.fill();
+  // FLAT / SHARP labels
+  gx.fillStyle='#4a5a6a'; gx.font='11px "Courier New",monospace';
+  gx.textAlign='left'; gx.fillText('♭ FLAT', 6, gH-4);
+  gx.textAlign='right'; gx.fillText('SHARP ♯', gW-6, gH-4);
+}
+function idleCents(){ return Math.sin(idlePhase)*38; }
+
+/* ---------- pitch detection ---------- */
+function autoCorrelate(buf, sampleRate){
+  var SIZE=buf.length, rms=0, i;
+  for(i=0;i<SIZE;i++) rms+=buf[i]*buf[i];
+  rms=Math.sqrt(rms/SIZE);
+  if(rms<0.012) return {freq:-1, clarity:0};
+  var r1=0, r2=SIZE-1, thres=0.2;
+  for(i=0;i<SIZE/2;i++){ if(Math.abs(buf[i])<thres){ r1=i; break; } }
+  for(i=1;i<SIZE/2;i++){ if(Math.abs(buf[SIZE-i])<thres){ r2=SIZE-i; break; } }
+  var b=buf.slice(r1,r2), S=b.length;
+  var c=new Float32Array(S);
+  for(var lag=0; lag<S; lag++){
+    var sum=0;
+    for(i=0;i<S-lag;i++) sum+=b[i]*b[i+lag];
+    c[lag]=sum;
+  }
+  var d=0; while(d<S-1 && c[d]>c[d+1]) d++;
+  var maxval=-1, maxpos=-1;
+  for(i=d;i<S;i++){ if(c[i]>maxval){ maxval=c[i]; maxpos=i; } }
+  if(maxpos<=0) return {freq:-1, clarity:0};
+  var T0=maxpos;
+  var x1=c[T0-1]||0, x2=c[T0], x3=c[T0+1]||0;
+  var a=(x1+x3-2*x2)/2, bb=(x3-x1)/2;
+  if(a) T0=T0-bb/(2*a);
+  var clarity = c[0]>0 ? maxval/c[0] : 0;
+  return {freq: sampleRate/T0, clarity:clarity};
+}
+function freqToNote(freq){
+  var noteNum = 12*(Math.log(freq/a4)/Math.log(2)) + 69;
+  var midi=Math.round(noteNum);
+  var cents = Math.round((noteNum-midi)*100);
+  return { midi:midi, cents:cents, name:NOTE_NAMES[((midi%12)+12)%12], octave:Math.floor(midi/12)-1 };
+}
+
+/* ---------- mic ---------- */
+var analyser=null, micStream=null, dataBuf=null, running=false;
+var micBtn=document.getElementById('micBtn'), micStatus=document.getElementById('micStatus');
+var noteBig=document.getElementById('noteBig'), freqOut=document.getElementById('freqOut'), centsOut=document.getElementById('centsOut');
+var histStrip=document.getElementById('histStrip'), history=[];
+var lastHistNote='';
+
+function startMic(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    micFail('Microphone not supported in this browser — use the reference tones.'); return;
+  }
+  micStatus.textContent='Requesting microphone…'; micStatus.className='';
+  navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, autoGainControl:false, noiseSuppression:false}}).then(function(stream){
+    micStream=stream;
+    var a=audio();
+    var src=a.createMediaStreamSource(stream);
+    analyser=a.createAnalyser(); analyser.fftSize=2048;
+    dataBuf=new Float32Array(analyser.fftSize);
+    src.connect(analyser);
+    running=true;
+    micBtn.textContent='■ Stop Mic'; micBtn.classList.remove('primary');
+    micStatus.textContent='Listening… play a note.'; micStatus.className='live';
+  }).catch(function(err){
+    var msg='Microphone blocked.';
+    if(err && err.name==='NotAllowedError') msg='Mic permission denied — reference tones still work.';
+    else if(err && err.name==='NotFoundError') msg='No microphone found — use reference tones.';
+    micFail(msg);
+  });
+}
+function stopMic(){
+  running=false;
+  if(micStream){ micStream.getTracks().forEach(function(t){ t.stop(); }); micStream=null; }
+  analyser=null; hasSignal=false;
+  micBtn.textContent='🎤 Enable Mic'; micBtn.classList.add('primary');
+  micStatus.textContent='Mic off — reference tones ready below.'; micStatus.className='';
+}
+function micFail(msg){
+  micStatus.textContent=msg; micStatus.className='err';
+  micBtn.textContent='🎤 Try Again'; micBtn.classList.add('primary');
+  running=false;
+}
+micBtn.addEventListener('click', function(){ if(running) stopMic(); else startMic(); });
+
+function addHistory(name, octave, cents){
+  var tag=name+octave;
+  if(tag===lastHistNote) return;
+  lastHistNote=tag;
+  history.unshift({tag:tag, good:Math.abs(cents)<=5});
+  if(history.length>10) history.pop();
+  histStrip.innerHTML='';
+  history.forEach(function(h){
+    var el=document.createElement('span'); el.className='hchip'+(h.good?' good':''); el.textContent=h.tag;
+    histStrip.appendChild(el);
+  });
+}
+
+/* ---------- main loop ---------- */
+function loop(){
+  idlePhase+=0.025;
+  if(running && analyser){
+    analyser.getFloatTimeDomainData(dataBuf);
+    var res=autoCorrelate(dataBuf, audio().sampleRate);
+    if(res.freq>0 && res.clarity>0.9 && res.freq<2000 && res.freq>50){
+      hasSignal=true;
+      var n=freqToNote(res.freq);
+      targetCents=n.cents;
+      noteBig.innerHTML=n.name+'<span class="oct">'+n.octave+'</span>';
+      freqOut.textContent=res.freq.toFixed(1)+' Hz';
+      var sign=n.cents>0?'+':'';
+      centsOut.textContent=sign+n.cents+' cents';
+      centsOut.style.color = Math.abs(n.cents)<=5 ? 'var(--green)' : (Math.abs(n.cents)<=20?'var(--accent)':'var(--red)');
+      addHistory(n.name, n.octave, n.cents);
+    } else {
+      hasSignal=false;
+      centsOut.style.color='var(--dim)';
+    }
+  }
+  // smooth needle
+  displayCents += (targetCents-displayCents)*0.25;
+  drawGauge();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- reference tones ---------- */
+var octRow=document.getElementById('octRow'), tonesEl=document.getElementById('tones');
+var curOct=prefs.oct||4;
+var octBtns=[];
+for(var o=2;o<=6;o++){
+  (function(oo){
+    var b=document.createElement('button'); b.textContent=oo;
+    if(oo===curOct) b.classList.add('on');
+    b.addEventListener('click', function(){ curOct=oo; octBtns.forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); prefs.oct=oo; saveLS(prefs); });
+    octRow.appendChild(b); octBtns.push(b);
+  })(o);
+}
+function noteFreq(midi){ return a4*Math.pow(2,(midi-69)/12); }
+function playTone(midi, el){
+  var a=audio(), t=a.currentTime;
+  var o=a.createOscillator(), g=a.createGain();
+  o.type='sine'; o.frequency.value=noteFreq(midi);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(0.3,t+0.02);
+  g.gain.setValueAtTime(0.3,t+0.9);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+1.4);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t+1.45);
+  if(el){ el.classList.add('playing'); setTimeout(function(){ el.classList.remove('playing'); },900); }
+}
+NOTE_NAMES.forEach(function(nm, ix){
+  var b=document.createElement('button'); b.className='tone'+(nm.indexOf('#')>=0?' sharp':'');
+  b.textContent=nm;
+  b.addEventListener('click', function(){
+    var midi=(curOct+1)*12 + ix; // C4 = midi 60 -> (4+1)*12+0=60 ✓
+    playTone(midi, b);
+  });
+  tonesEl.appendChild(b);
+});
+var a440chip=document.getElementById('a440chip');
+a440chip.addEventListener('click', function(){
+  var a=audio(), t=a.currentTime;
+  var o=a.createOscillator(), g=a.createGain();
+  o.type='sine'; o.frequency.value=440;
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.3,t+0.02);
+  g.gain.setValueAtTime(0.3,t+1.1); g.gain.exponentialRampToValueAtTime(0.0001,t+1.6);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t+1.65);
+  a440chip.classList.add('playing'); setTimeout(function(){ a440chip.classList.remove('playing'); },1100);
+});
+
+/* ---------- a4 slider ---------- */
+var a4Slider=document.getElementById('a4Slider'), a4Val=document.getElementById('a4Val');
+a4Slider.value=a4; a4Val.textContent=a4+' Hz';
+a4Slider.addEventListener('input', function(){
+  a4=parseInt(a4Slider.value,10); a4Val.textContent=a4+' Hz';
+  prefs.a4=a4; saveLS(prefs);
+});
+
+/* ---------- init ---------- */
+window.addEventListener('resize', sizeGauge);
+sizeGauge();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

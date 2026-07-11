@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Groove Dancer — Your Music, Its Moves · Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0f0f1a; }
+  body { font-family: 'Courier New', ui-monospace, monospace; color: #eaf0ff; }
+  #app { position: fixed; inset: 0; }
+  canvas { display: block; }
+  .back {
+    position: fixed; top: 10px; right: 12px; z-index: 30;
+    padding: 6px 12px; font-size: 13px; letter-spacing: 1px;
+    color: #eaf0ff; text-decoration: none;
+    background: rgba(10,14,26,.55); border: 1px solid rgba(255,255,255,.25); border-radius: 4px;
+  }
+  .back:hover { border-color: #ffd166; color: #ffd166; }
+
+  #topbar {
+    position: fixed; top: 10px; left: 10px; right: 120px; z-index: 20;
+    display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
+  }
+  .btn {
+    font: inherit; font-size: 12px; letter-spacing: 1px;
+    padding: 8px 12px; border-radius: 6px; cursor: pointer;
+    background: rgba(14,18,38,.8); color: #cfe0ff; border: 1px solid #33395f;
+    backdrop-filter: blur(4px); transition: all .13s ease; white-space: nowrap;
+  }
+  .btn:hover { border-color: #ffd166; color: #ffd166; }
+  .btn.primary { background: linear-gradient(180deg,#ffd166,#f59e0b); color: #241705; border: none; font-weight: bold; }
+  .btn.primary:hover { filter: brightness(1.08); color: #241705; }
+  #songname { font-size: 11.5px; color: #8ff0c8; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    background: rgba(10,14,26,.55); padding: 8px 10px; border-radius: 6px; border: 1px solid #223; }
+
+  #stylebar {
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 20;
+    display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; padding: 0 10px;
+  }
+  #stylebar button {
+    font: inherit; font-size: 12px; letter-spacing: 1px;
+    padding: 9px 14px; border-radius: 999px; cursor: pointer;
+    background: rgba(10,14,28,.72); color: #cfe0ff;
+    border: 1px solid #33395f; backdrop-filter: blur(4px);
+  }
+  #stylebar button:hover { border-color: #ffd166; color: #ffd166; }
+  #stylebar button.on {
+    background: #ffd166; color: #241705; border-color: #ffd166;
+    box-shadow: 0 0 16px rgba(255,209,102,.6); font-weight: bold;
+  }
+
+  #hud {
+    position: fixed; top: 56px; left: 50%; transform: translateX(-50%); z-index: 15;
+    display: flex; gap: 14px; align-items: baseline;
+    text-shadow: 0 1px 5px rgba(0,0,0,.8); pointer-events: none;
+  }
+  #bpm { font-size: 34px; font-weight: bold; color: #ffd166; letter-spacing: 1px; }
+  #bpm small { font-size: 13px; color: #9aa6cc; }
+  #beatDot {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #2a2f52; align-self: center;
+    transition: transform .09s ease, background .09s ease, box-shadow .09s ease;
+  }
+  #beatDot.hit { background: #ff2d78; transform: scale(1.7); box-shadow: 0 0 22px #ff2d78; }
+  #forgeTag {
+    position: fixed; top: 52px; right: 12px; z-index: 15;
+    font-size: 10.5px; letter-spacing: 1px; color: #8ff0c8;
+    background: rgba(6,20,14,.7); border: 1px solid #1fdf82; border-radius: 999px;
+    padding: 5px 11px; display: none;
+  }
+  #hint {
+    position: fixed; bottom: 110px; left: 14px; z-index: 15;
+    font-size: 11px; color: #8b96c2; letter-spacing: 1px;
+    text-shadow: 0 1px 4px rgba(0,0,0,.8); pointer-events: none;
+  }
+  #toast {
+    position: fixed; top: 108px; left: 50%; transform: translateX(-50%) translateY(-170px);
+    z-index: 60; padding: 10px 18px; border-radius: 8px;
+    background: #041a10; color: #6dffb8; border: 1px solid #1fdf82;
+    font-size: 12.5px; letter-spacing: 1px; text-align: center; max-width: 90vw;
+    transition: transform .3s cubic-bezier(.2,1.4,.4,1);
+    box-shadow: 0 0 20px rgba(30,220,130,.4);
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #dropzone {
+    position: fixed; inset: 0; display: none; z-index: 50;
+    align-items: center; justify-content: center;
+    background: rgba(255,209,102,.12); border: 3px dashed #ffd166;
+    font-size: 22px; color: #ffe6a8; letter-spacing: 2px; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<div id="app"></div>
+<div id="dropzone">DROP YOUR SONG HERE</div>
+
+<div id="topbar">
+  <input type="file" id="fileInput" accept="audio/*" style="display:none">
+  <button class="btn primary" id="openBtn">📂 LOAD SONG</button>
+  <button class="btn" id="demoBtn">🎵 DEMO TRACK</button>
+  <button class="btn" id="playBtn">▶</button>
+  <span id="songname">no song — grooving to an imaginary beat</span>
+</div>
+<div id="forgeTag">🦸 DANCING: YOUR FORGE HERO</div>
+<div id="hud">
+  <span id="bpm">—<small> BPM</small></span>
+  <span id="beatDot"></span>
+</div>
+<div id="hint">drag to orbit · wheel to zoom</div>
+<div id="stylebar"></div>
+<div id="toast"></div>
+
+<script src="../lib/three.min.js"></script>
+<script>
+'use strict';
+(function () {
+  if (typeof THREE === 'undefined') return;
+  const SAVE_KEY = 'wizzed-groove-dancer';
+  const FORGE_KEY = 'wizzed-character-forge-3d';
+
+  // ================= renderer / scene =================
+  const app = document.getElementById('app');
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ antialias: true }); }
+  catch (e) { app.innerHTML = '<p style="padding:40px">WebGL unavailable.</p>'; return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  app.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x07070f);
+  scene.fog = new THREE.Fog(0x07070f, 55, 140);
+  const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 300);
+
+  scene.add(new THREE.HemisphereLight(0x9db4e8, 0x141020, 0.5));
+  const key = new THREE.DirectionalLight(0xfff2e0, 1.4);
+  key.position.set(10, 26, 14);
+  key.castShadow = true;
+  key.shadow.mapSize.set(1024, 1024);
+  key.shadow.camera.near = 1; key.shadow.camera.far = 70;
+  key.shadow.camera.left = -20; key.shadow.camera.right = 20;
+  key.shadow.camera.top = 28; key.shadow.camera.bottom = -4;
+  scene.add(key);
+
+  // party lights (orbit + pulse with music)
+  const PARTY_COLS = [0xff2d78, 0x00e5ff, 0xffd166, 0x9d6bff];
+  const partyLights = PARTY_COLS.map((cHex, i) => {
+    const l = new THREE.PointLight(cHex, 60, 60, 1.8);
+    scene.add(l);
+    return l;
+  });
+
+  // ---------- dance floor: 12x12 pulsing tiles ----------
+  const FLOOR_N = 12, TILE = 2.6;
+  const tiles = [];
+  {
+    const tileGeo = new THREE.BoxGeometry(TILE * 0.94, 0.22, TILE * 0.94);
+    for (let x = 0; x < FLOOR_N; x++) for (let z = 0; z < FLOOR_N; z++) {
+      const base = (x + z) % 2 ? 0x141830 : 0x0e1124;
+      const m = new THREE.Mesh(tileGeo, new THREE.MeshStandardMaterial({
+        color: base, roughness: 0.35, metalness: 0.4,
+        emissive: 0x000000, emissiveIntensity: 1,
+      }));
+      m.position.set((x - FLOOR_N / 2 + 0.5) * TILE, -0.11, (z - FLOOR_N / 2 + 0.5) * TILE);
+      m.receiveShadow = true;
+      scene.add(m);
+      tiles.push({ mesh: m, glow: 0, col: new THREE.Color(0xff2d78) });
+    }
+  }
+  // disco ball
+  const ball = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(1.7, 2),
+    new THREE.MeshStandardMaterial({ color: 0xd8e2f2, metalness: 0.95, roughness: 0.12, flatShading: true })
+  );
+  ball.position.set(0, 15.5, 0);
+  scene.add(ball);
+  const ballBeam = new THREE.PointLight(0xffffff, 30, 40, 1.6);
+  ballBeam.position.set(0, 13.5, 0);
+  scene.add(ballBeam);
+  const string = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 4, 6), new THREE.MeshBasicMaterial({ color: 0x333850 }));
+  string.position.set(0, 18, 0);
+  scene.add(string);
+
+  // ================= dancer (Character Forge compatible colors/proportions) =================
+  const M = (color, opts) => new THREE.MeshStandardMaterial(Object.assign({ color: new THREE.Color(color), roughness: 0.6, metalness: 0.08 }, opts || {}));
+  function mesh(geo, mat) { const m = new THREE.Mesh(geo, mat); m.castShadow = true; return m; }
+
+  let forge = null;
+  try {
+    const f = JSON.parse(localStorage.getItem(FORGE_KEY) || 'null');
+    if (f && f.skin) { forge = f; document.getElementById('forgeTag').style.display = 'block'; }
+  } catch (e) {}
+  const C = {
+    skin: forge ? forge.skin : '#eebd96',
+    shirt: forge ? forge.shirtColor : '#b02cd6',
+    pants: forge ? forge.pantsColor : '#2b2f66',
+    shoes: forge ? forge.shoeColor : '#22242e',
+    hair: forge ? forge.hairColor : '#3a2417',
+    height: forge ? forge.height : 1.0,
+    bulk: forge ? forge.bulk : 1.0,
+    headSize: forge ? forge.headSize : 1.0,
+  };
+
+  const rig = {};
+  const dancer = new THREE.Group();
+  (function buildDancer() {
+    const skin = M(C.skin), shirt = M(C.shirt), pants = M(C.pants), shoes = M(C.shoes, { roughness: 0.4 });
+    const bulk = C.bulk, hs = C.headSize;
+    const legLen = 6.4, hipY = legLen + 0.9, torsoH = 5.0;
+    const shoulderY = hipY + torsoH - 0.4, headY = hipY + torsoH + 1.1;
+
+    const torso = new THREE.Group(); torso.position.y = hipY; rig.torso = torso;
+    const chest = mesh(new THREE.CapsuleGeometry(1.85 * bulk, torsoH - 2.4, 4, 10), shirt);
+    chest.position.y = torsoH / 2; torso.add(chest);
+    const pelvis = mesh(new THREE.BoxGeometry(3.1 * bulk, 1.5, 2.0), pants);
+    pelvis.position.y = 0.1; torso.add(pelvis);
+
+    const headG = new THREE.Group(); headG.position.y = headY - hipY; rig.head = headG; torso.add(headG);
+    const HR = 1.85 * hs;
+    const head = mesh(new THREE.SphereGeometry(HR, 18, 14), skin);
+    head.position.y = HR * 0.72; headG.add(head);
+    const capm = mesh(new THREE.SphereGeometry(HR * 1.04, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), M(C.hair, { roughness: 0.8 }));
+    capm.position.y = HR * 0.74; headG.add(capm);
+    for (const s of [-1, 1]) {
+      const eye = mesh(new THREE.SphereGeometry(0.3 * hs, 8, 8), M('#f6f8ff', { roughness: 0.25 }));
+      eye.position.set(s * 0.6 * hs, HR * 0.82, HR * 0.8); eye.scale.z = 0.5; headG.add(eye);
+      const pup = mesh(new THREE.SphereGeometry(0.14 * hs, 8, 8), M('#1c2030'));
+      pup.position.set(s * 0.6 * hs, HR * 0.82, HR * 0.95); headG.add(pup);
+    }
+    const smile = mesh(new THREE.TorusGeometry(0.5 * hs, 0.09 * hs, 8, 14, Math.PI * 0.8), M('#7c2c33'));
+    smile.position.set(0, HR * 0.42, HR * 0.82);
+    smile.rotation.z = Math.PI + Math.PI * 0.1;
+    headG.add(smile);
+    // shades — this dancer means business
+    const bar = mesh(new THREE.BoxGeometry(1.85 * hs, 0.5 * hs, 0.14), M('#12141c', { roughness: 0.2, metalness: 0.4 }));
+    bar.position.set(0, HR * 0.82, HR * 0.9);
+    headG.add(bar);
+
+    const armR = 0.55 * bulk, upperLen = 2.5, foreLen = 2.3;
+    for (const s of [-1, 1]) {
+      const shoulder = new THREE.Group();
+      shoulder.position.set(s * (1.85 * bulk + armR * 0.7), shoulderY - hipY, 0);
+      torso.add(shoulder);
+      const pad = mesh(new THREE.SphereGeometry(armR * 1.25, 10, 10), shirt); shoulder.add(pad);
+      const up = mesh(new THREE.CapsuleGeometry(armR, upperLen - 1, 4, 8), shirt);
+      up.position.y = -upperLen / 2; shoulder.add(up);
+      const elbow = new THREE.Group(); elbow.position.y = -upperLen; shoulder.add(elbow);
+      const fore = mesh(new THREE.CapsuleGeometry(armR * 0.88, foreLen - 1, 4, 8), skin);
+      fore.position.y = -foreLen / 2; elbow.add(fore);
+      const hand = mesh(new THREE.SphereGeometry(armR * 1.05, 10, 10), skin);
+      hand.position.y = -foreLen - 0.15; elbow.add(hand);
+      if (s < 0) { rig.armL = shoulder; rig.elbowL = elbow; } else { rig.armR = shoulder; rig.elbowR = elbow; }
+    }
+    const thighLen = legLen * 0.52, shinLen = legLen * 0.48, legR = 0.62 * bulk;
+    for (const s of [-1, 1]) {
+      const hip = new THREE.Group();
+      hip.position.set(s * 0.95 * bulk, hipY - 0.4, 0);
+      dancer.add(hip);
+      const thigh = mesh(new THREE.CapsuleGeometry(legR, thighLen - 1, 4, 8), pants);
+      thigh.position.y = -thighLen / 2; hip.add(thigh);
+      const knee = new THREE.Group(); knee.position.y = -thighLen; hip.add(knee);
+      const shin = mesh(new THREE.CapsuleGeometry(legR * 0.85, shinLen - 1, 4, 8), pants);
+      shin.position.y = -shinLen / 2; knee.add(shin);
+      const foot = mesh(new THREE.BoxGeometry(1.15 * bulk, 0.72, 2.1), shoes);
+      foot.position.set(0, -shinLen - 0.1, 0.45); knee.add(foot);
+      if (s < 0) { rig.legL = hip; rig.kneeL = knee; } else { rig.legR = hip; rig.kneeR = knee; }
+    }
+    dancer.add(torso);
+    dancer.scale.setScalar(C.height);
+  })();
+  scene.add(dancer);
+  rig.root = dancer;
+
+  // ================= audio + beat detection =================
+  let audioCtx = null, analyser = null, srcNode = null, media = null;
+  const freq = new Uint8Array(1024);
+  function ensureCtx() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.6;
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function setMedia(url, name) {
+    if (media) { media.pause(); media.src = ''; media.remove(); }
+    media = document.createElement('audio');
+    media.src = url; media.preload = 'auto'; media.loop = true;
+    document.body.appendChild(media);
+    ensureCtx();
+    srcNode = audioCtx.createMediaElementSource(media);
+    srcNode.connect(analyser);
+    analyser.connect(audioCtx.destination);
+    document.getElementById('songname').textContent = '♪ ' + name;
+    media.play().then(() => { document.getElementById('playBtn').textContent = '⏸'; }).catch(() => {});
+  }
+  // beat state
+  const beat = { last: 0, period: 60 / 118, intervals: [], bpm: 0, energyHist: [], flash: 0 };
+  function detectBeat(now) {
+    const playing = media && !media.paused;
+    if (!playing || !analyser) return fakeBeat(now);
+    analyser.getByteFrequencyData(freq);
+    let bass = 0;
+    for (let i = 2; i < 22; i++) bass += freq[i];
+    bass /= 20 * 255;
+    beat.energyHist.push(bass);
+    if (beat.energyHist.length > 45) beat.energyHist.shift();
+    const avg = beat.energyHist.reduce((a, b) => a + b, 0) / beat.energyHist.length;
+    if (bass > Math.max(0.12, avg * 1.32) && now - beat.last > 0.28) {
+      const interval = now - beat.last;
+      beat.last = now;
+      if (interval < 1.2 && interval > 0.28) {
+        beat.intervals.push(interval);
+        if (beat.intervals.length > 10) beat.intervals.shift();
+        const sorted = [...beat.intervals].sort((a, b) => a - b);
+        const med = sorted[Math.floor(sorted.length / 2)];
+        beat.period = med;
+        beat.bpm = Math.round(60 / med);
+      }
+      onBeat();
+    }
+  }
+  let fakeNext = 0;
+  function fakeBeat(now) {
+    // no song: imaginary 118 BPM groove so the page is always alive
+    beat.period = 60 / 118;
+    if (now >= fakeNext) { fakeNext = now + beat.period; beat.last = now; onBeat(); }
+  }
+  let beatCount = 0;
+  function onBeat() {
+    beatCount++;
+    beat.flash = 1;
+    const dot = document.getElementById('beatDot');
+    dot.classList.add('hit');
+    setTimeout(() => dot.classList.remove('hit'), 110);
+    // floor tiles light up
+    const colsArr = [0xff2d78, 0x00e5ff, 0xffd166, 0x9d6bff, 0x00ff9c];
+    for (let k = 0; k < 22; k++) {
+      const tIdx = Math.floor(Math.random() * tiles.length);
+      tiles[tIdx].glow = 1;
+      tiles[tIdx].col.setHex(colsArr[Math.floor(Math.random() * colsArr.length)]);
+    }
+    // auto style advance every 8 beats
+    if (styleMode === 'Auto' && beatCount % 8 === 0) {
+      autoIdx = (autoIdx + 1) % AUTO_CYCLE.length;
+    }
+    document.getElementById('bpm').innerHTML =
+      (media && !media.paused && beat.bpm ? beat.bpm : (media && !media.paused ? '…' : 118)) + '<small> BPM</small>';
+  }
+
+  // ---------- demo track (18s, 124 BPM synthesized, WAV-encoded) ----------
+  function makeDemo() {
+    ensureCtx();
+    const secs = 18, sr = 44100, bps = 124 / 60;
+    const oct = new OfflineAudioContext(2, secs * sr, sr);
+    const master = oct.createGain(); master.gain.value = 0.5; master.connect(oct.destination);
+    const beatDur = 1 / bps;
+    for (let b = 0; b * beatDur < secs; b++) {
+      const t = b * beatDur;
+      const o = oct.createOscillator(), g = oct.createGain();
+      o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.1);
+      g.gain.setValueAtTime(1.0, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+      o.connect(g).connect(master); o.start(t); o.stop(t + 0.18);
+      if (b % 2 === 1) { // snare-ish
+        const nb = oct.createBuffer(1, 3000, sr), d = nb.getChannelData(0);
+        for (let i = 0; i < 3000; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / 3000, 1.6);
+        const s = oct.createBufferSource(); s.buffer = nb;
+        const sg = oct.createGain(); sg.gain.value = 0.4;
+        s.connect(sg).connect(master); s.start(t);
+      }
+    }
+    const notes = [130.8, 155.6, 196.0, 233.1];
+    for (let i = 0; i * beatDur / 2 < secs; i++) {
+      const t = i * beatDur / 2, o = oct.createOscillator(), g = oct.createGain();
+      o.type = 'sawtooth'; o.frequency.value = notes[i % 4] * (i % 8 < 4 ? 1 : 1.5);
+      g.gain.setValueAtTime(0.14, t); g.gain.exponentialRampToValueAtTime(0.001, t + beatDur * 0.45);
+      o.connect(g).connect(master); o.start(t); o.stop(t + beatDur * 0.5);
+    }
+    oct.startRendering().then(buf => {
+      const ch = buf.numberOfChannels, len = buf.length;
+      const bytes = 44 + len * ch * 2, ab = new ArrayBuffer(bytes), dv = new DataView(ab);
+      const w = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+      w(0, 'RIFF'); dv.setUint32(4, bytes - 8, true); w(8, 'WAVE'); w(12, 'fmt ');
+      dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, ch, true);
+      dv.setUint32(24, sr, true); dv.setUint32(28, sr * ch * 2, true);
+      dv.setUint16(32, ch * 2, true); dv.setUint16(34, 16, true);
+      w(36, 'data'); dv.setUint32(40, len * ch * 2, true);
+      let off = 44;
+      const chans = []; for (let c = 0; c < ch; c++) chans.push(buf.getChannelData(c));
+      for (let i = 0; i < len; i++) for (let c = 0; c < ch; c++) {
+        const v = Math.max(-1, Math.min(1, chans[c][i]));
+        dv.setInt16(off, v < 0 ? v * 0x8000 : v * 0x7FFF, true); off += 2;
+      }
+      setMedia(URL.createObjectURL(new Blob([ab], { type: 'audio/wav' })), 'demo-groove.wav');
+      toast('🎵 demo groove on — watch those moves!');
+    });
+  }
+
+  // ================= UI =================
+  const $ = id => document.getElementById(id);
+  let toastTimer;
+  function toast(m) {
+    const el = $('toast'); el.textContent = m; el.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 3400);
+  }
+  $('openBtn').addEventListener('click', () => { ensureCtx(); $('fileInput').click(); });
+  $('fileInput').addEventListener('change', e => {
+    if (e.target.files[0]) setMedia(URL.createObjectURL(e.target.files[0]), e.target.files[0].name);
+  });
+  $('demoBtn').addEventListener('click', makeDemo);
+  $('playBtn').addEventListener('click', () => {
+    if (!media) { makeDemo(); return; }
+    ensureCtx();
+    if (media.paused) { media.play(); $('playBtn').textContent = '⏸'; }
+    else { media.pause(); $('playBtn').textContent = '▶'; }
+  });
+  addEventListener('dragover', e => { e.preventDefault(); $('dropzone').style.display = 'flex'; });
+  addEventListener('dragleave', e => { if (!e.relatedTarget) $('dropzone').style.display = 'none'; });
+  addEventListener('drop', e => {
+    e.preventDefault(); $('dropzone').style.display = 'none';
+    ensureCtx();
+    if (e.dataTransfer.files[0]) setMedia(URL.createObjectURL(e.dataTransfer.files[0]), e.dataTransfer.files[0].name);
+  });
+
+  const STYLES = ['Auto', 'Bounce', 'Disco', 'Robot', 'Wave', 'Spin'];
+  const AUTO_CYCLE = ['Bounce', 'Disco', 'Wave', 'Robot', 'Spin'];
+  let styleMode = 'Auto', autoIdx = 0;
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (s && STYLES.includes(s.style)) styleMode = s.style; } catch (e) {}
+  const styleBtns = {};
+  for (const s of STYLES) {
+    const b = document.createElement('button');
+    b.textContent = s === 'Auto' ? '✨ Auto' : s;
+    b.addEventListener('click', () => {
+      styleMode = s;
+      for (const k in styleBtns) styleBtns[k].classList.toggle('on', k === s);
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify({ style: s })); } catch (e) {}
+    });
+    $('stylebar').appendChild(b);
+    styleBtns[s] = b;
+  }
+  styleBtns[styleMode].classList.add('on');
+
+  // ================= dance moves =================
+  // ph: 0..1 within current beat · bar: 0..3 beat index in bar
+  function dancePose(style, ph, bar, t) {
+    const r = rig;
+    const pulse = Math.sin(ph * Math.PI);            // rises mid-beat
+    const swing = Math.sin((bar + ph) * Math.PI);    // alternates per beat
+    // baseline groove
+    r.torso.rotation.z = Math.sin((bar + ph) * Math.PI) * 0.06;
+    r.head.rotation.x = -0.06 + pulse * 0.1;
+    r.head.rotation.y = Math.sin(t * 0.7) * 0.15;
+    r.root.position.y = 0;
+    r.root.rotation.y = r.root.rotation.y || 0;
+
+    if (style === 'Bounce') {
+      r.root.position.y = pulse * 0.65;
+      r.kneeL.rotation.x = (1 - pulse) * 0.55;
+      r.kneeR.rotation.x = (1 - pulse) * 0.55;
+      r.legL.rotation.x = -(1 - pulse) * 0.3;
+      r.legR.rotation.x = -(1 - pulse) * 0.3;
+      r.armL.rotation.z = 0.5 + pulse * 1.1;
+      r.armR.rotation.z = -0.5 - pulse * 1.1;
+      r.elbowL.rotation.x = -0.9 + pulse * 0.4;
+      r.elbowR.rotation.x = -0.9 + pulse * 0.4;
+    } else if (style === 'Disco') {
+      const up = bar % 2 === 0;
+      const k = Math.min(1, ph * 3);
+      r.armR.rotation.z = up ? -2.6 * k : -0.4;
+      r.armR.rotation.x = up ? -0.5 * k : 0.3;
+      r.elbowR.rotation.x = up ? 0 : -0.7;
+      r.armL.rotation.z = up ? 0.4 : 2.6 * k;
+      r.armL.rotation.x = up ? 0.3 : -0.5 * k;
+      r.elbowL.rotation.x = up ? -0.7 : 0;
+      r.torso.rotation.z = (up ? -1 : 1) * 0.14 * k;
+      r.root.position.y = pulse * 0.25;
+      r.legL.rotation.x = swing * 0.15;
+      r.legR.rotation.x = -swing * 0.15;
+      r.kneeL.rotation.x = 0.15; r.kneeR.rotation.x = 0.15;
+    } else if (style === 'Robot') {
+      const step = Math.floor(ph * 2);               // snap twice per beat
+      const q = (bar * 2 + step) % 4;
+      const P = [
+        { al: 1.6, ar: -0.3, el: -1.4, er: -0.3, hy: 0.35 },
+        { al: 1.6, ar: -1.6, el: -0.3, er: -0.3, hy: -0.35 },
+        { al: 0.3, ar: -1.6, el: -0.3, er: -1.4, hy: 0.35 },
+        { al: 0.3, ar: -0.3, el: -1.2, er: -1.2, hy: -0.35 },
+      ][q];
+      const snap = Math.min(1, (ph * 2 - step) * 6); // fast ease into pose
+      r.armL.rotation.z = P.al * snap + 0.2;
+      r.armR.rotation.z = P.ar * snap - 0.2;
+      r.elbowL.rotation.x = P.el * snap;
+      r.elbowR.rotation.x = P.er * snap;
+      r.head.rotation.y = P.hy * snap;
+      r.torso.rotation.z = 0;
+      r.root.position.y = 0.05;
+    } else if (style === 'Wave') {
+      const w = (t * 3) % (Math.PI * 2);
+      r.armL.rotation.z = 1.45 + Math.sin(w) * 0.35;
+      r.elbowL.rotation.z = Math.sin(w - 1.1) * 0.7;
+      r.armR.rotation.z = -1.45 + Math.sin(w - 2.2) * 0.35;
+      r.elbowR.rotation.z = Math.sin(w - 3.3) * 0.7;
+      r.torso.rotation.z = Math.sin(w - 1.6) * 0.1;
+      r.root.position.y = pulse * 0.2;
+      r.kneeL.rotation.x = 0.12; r.kneeR.rotation.x = 0.12;
+    } else if (style === 'Spin') {
+      r.root.rotation.y += 0.09;
+      r.armL.rotation.z = 1.5; r.armR.rotation.z = -1.5;
+      r.elbowL.rotation.x = -0.2; r.elbowR.rotation.x = -0.2;
+      r.root.position.y = pulse * 0.4;
+      r.kneeL.rotation.x = (1 - pulse) * 0.3;
+      r.kneeR.rotation.x = (1 - pulse) * 0.3;
+    }
+  }
+  function resetPose() {
+    const r = rig;
+    [r.armL, r.armR, r.elbowL, r.elbowR, r.legL, r.legR, r.kneeL, r.kneeR, r.head, r.torso].forEach(o => o.rotation.set(0, 0, 0));
+  }
+
+  // ================= camera =================
+  let camYaw = 0.35, camPitch = 0.24, camDist = 30;
+  let dragging = false, lastX = 0, lastY = 0;
+  const cvEl = renderer.domElement;
+  cvEl.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; });
+  addEventListener('pointerup', () => { dragging = false; });
+  addEventListener('pointermove', e => {
+    if (!dragging) return;
+    camYaw -= (e.clientX - lastX) * 0.008;
+    camPitch = Math.max(0.02, Math.min(1.1, camPitch + (e.clientY - lastY) * 0.005));
+    lastX = e.clientX; lastY = e.clientY;
+  });
+  cvEl.addEventListener('wheel', e => {
+    e.preventDefault();
+    camDist = Math.max(16, Math.min(60, camDist + e.deltaY * 0.03));
+  }, { passive: false });
+
+  function resize() {
+    renderer.setSize(innerWidth, innerHeight);
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  // ================= loop =================
+  let last = performance.now(), tAbs = 0;
+  function frame(now) {
+    let dt = (now - last) / 1000; last = now;
+    if (dt > 0.05) dt = 0.05;
+    tAbs += dt;
+
+    detectBeat(tAbs);
+    beat.flash = Math.max(0, beat.flash - dt * 3);
+
+    const ph = Math.min(1, Math.max(0, (tAbs - beat.last) / beat.period));
+    const bar = beatCount % 4;
+    const style = styleMode === 'Auto' ? AUTO_CYCLE[autoIdx] : styleMode;
+    resetPose();
+    dancePose(style, ph, bar, tAbs);
+
+    // floor decay
+    for (const tile of tiles) {
+      if (tile.glow > 0.01) {
+        tile.glow *= Math.pow(0.02, dt);   // fast decay
+        tile.mesh.material.emissive.copy(tile.col);
+        tile.mesh.material.emissiveIntensity = tile.glow * 1.6;
+      } else if (tile.mesh.material.emissiveIntensity > 0) {
+        tile.mesh.material.emissiveIntensity = 0;
+      }
+    }
+    // party lights orbit + pulse
+    partyLights.forEach((l, i) => {
+      const a = tAbs * (0.5 + i * 0.13) + i * Math.PI / 2;
+      l.position.set(Math.cos(a) * 13, 7 + Math.sin(tAbs * 0.8 + i) * 3, Math.sin(a) * 13);
+      l.intensity = 40 + beat.flash * 90;
+    });
+    ball.rotation.y += dt * 0.7;
+    ballBeam.intensity = 18 + beat.flash * 50;
+
+    // camera slow auto-orbit when not dragging
+    if (!dragging) camYaw += dt * 0.06;
+    camera.position.set(
+      Math.sin(camYaw) * Math.cos(camPitch) * camDist,
+      6 + Math.sin(camPitch) * camDist,
+      Math.cos(camYaw) * Math.cos(camPitch) * camDist
+    );
+    camera.lookAt(0, 7.5, 0);
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

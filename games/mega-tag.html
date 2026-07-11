@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MEGA TAG — Massively Multiplayer Tag · Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0f0f1a; }
+  body { font-family: 'Courier New', ui-monospace, monospace; color: #e8eeff; }
+  canvas { display: block; }
+  .back {
+    position: fixed; top: 10px; left: 12px; z-index: 30;
+    padding: 6px 12px; font-size: 13px; letter-spacing: 1px;
+    color: #e8eeff; text-decoration: none;
+    background: rgba(10,14,26,.6); border: 1px solid rgba(255,255,255,.25); border-radius: 4px;
+  }
+  .back:hover { border-color: #ff2d78; color: #ff8fb4; }
+
+  #status {
+    position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 25; display: flex; gap: 10px; align-items: center;
+    background: rgba(8,12,24,.75); border: 1px solid #2b2f55; border-radius: 999px;
+    padding: 7px 16px; backdrop-filter: blur(5px); white-space: nowrap;
+  }
+  #status .dot { width: 10px; height: 10px; border-radius: 50%; background: #666; }
+  #status .dot.live { background: #1fdf82; box-shadow: 0 0 10px #1fdf82; animation: pulse 1.6s ease-in-out infinite; }
+  #status .dot.off { background: #ff9d3c; box-shadow: 0 0 10px #ff9d3c; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+  #status b { color: #8ff0c8; font-weight: normal; }
+  #status .ai-b { color: #9d6bff; }
+  #status span { font-size: 12.5px; letter-spacing: 1px; }
+
+  #panel {
+    position: fixed; top: 54px; right: 12px; z-index: 20;
+    width: 215px; background: rgba(8,12,24,.78);
+    border: 1px solid #2b2f55; border-radius: 10px;
+    padding: 10px 12px; backdrop-filter: blur(5px);
+    font-size: 12px;
+  }
+  #panel h3 { font-size: 11px; letter-spacing: 2px; color: #8b96c2; margin-bottom: 6px; }
+  .prow {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 0; border-bottom: 1px dashed #1d2240;
+    white-space: nowrap; overflow: hidden;
+  }
+  .prow:last-child { border-bottom: none; }
+  .prow .sw { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px; }
+  .prow .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .prow .sc { color: #ffd166; }
+  .prow.me .nm { color: #8ff0c8; }
+  .aitag {
+    font-size: 9px; letter-spacing: 1px; color: #cbb2ff;
+    background: rgba(157,107,255,.18); border: 1px solid #9d6bff;
+    border-radius: 4px; padding: 0 4px;
+  }
+  .ittag {
+    font-size: 9px; letter-spacing: 1px; color: #ffb4c8;
+    background: rgba(255,45,120,.2); border: 1px solid #ff2d78;
+    border-radius: 4px; padding: 0 4px;
+  }
+  #mystats {
+    position: fixed; bottom: 14px; left: 14px; z-index: 20;
+    background: rgba(8,12,24,.78); border: 1px solid #2b2f55; border-radius: 10px;
+    padding: 9px 14px; backdrop-filter: blur(5px); font-size: 13px; line-height: 1.6;
+  }
+  #mystats b { color: #ffd166; font-weight: normal; }
+  #hint {
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+    z-index: 15; font-size: 11.5px; color: #8b96c2; letter-spacing: 1px;
+    text-shadow: 0 1px 4px rgba(0,0,0,.8); pointer-events: none; text-align: center;
+  }
+  #bigmsg {
+    position: fixed; top: 22%; left: 50%; transform: translateX(-50%);
+    z-index: 22; font-size: clamp(20px, 5vw, 44px); font-weight: bold; letter-spacing: 3px;
+    color: #ff2d78; text-shadow: 0 0 30px rgba(255,45,120,.8), 0 2px 6px rgba(0,0,0,.8);
+    opacity: 0; transition: opacity .3s ease; pointer-events: none; text-align: center;
+  }
+  #bigmsg.show { opacity: 1; }
+  #namebar {
+    position: fixed; top: 54px; left: 12px; z-index: 20;
+    display: flex; gap: 6px; align-items: center;
+    background: rgba(8,12,24,.78); border: 1px solid #2b2f55; border-radius: 10px;
+    padding: 7px 10px; backdrop-filter: blur(5px);
+  }
+  #nameInput {
+    width: 110px; font: inherit; font-size: 12.5px;
+    background: #0b0e1e; color: #8ff0c8; border: 1px solid #33395f;
+    border-radius: 5px; padding: 4px 7px;
+  }
+  #namebar label { font-size: 10.5px; letter-spacing: 1px; color: #8b96c2; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<canvas id="cv"></canvas>
+
+<div id="status">
+  <span class="dot" id="connDot"></span>
+  <span id="connTxt">connecting…</span>
+  <span>·</span>
+  <span>ONLINE <b id="onlineN">1</b></span>
+  <span>(<b id="humanN">1</b> human · <b class="ai-b" id="aiN">0</b> AI)</span>
+</div>
+
+<div id="namebar">
+  <label>NAME</label>
+  <input id="nameInput" maxlength="14">
+</div>
+
+<div id="panel">
+  <h3>PLAYERS NEARBY</h3>
+  <div id="plist"></div>
+</div>
+
+<div id="mystats">
+  SCORE <b id="myScore">0</b> · BEST <b id="myBest">0</b><br>
+  <span id="myState" style="color:#8ff0c8">RUN — don't get tagged!</span>
+</div>
+
+<div id="bigmsg"></div>
+<div id="hint">move: mouse / touch / WASD · one arena for everyone, up to 1,000,000 wanderers · 🤖 = AI</div>
+
+<script>
+'use strict';
+(function () {
+  const SAVE_KEY = 'wizzed-mega-tag';
+
+  // ================================================================
+  //  Minimal MQTT 3.1.1 client over WebSocket (public brokers, QoS 0)
+  // ================================================================
+  class TinyMQTT {
+    constructor(urls, clientId) {
+      this.urls = urls; this.urlIdx = 0;
+      this.clientId = clientId;
+      this.ws = null; this.buf = new Uint8Array(0);
+      this.connected = false;
+      this.onmessage = null; this.onstatus = null;
+      this.pingTimer = null; this.dead = false;
+      this.connect();
+    }
+    connect() {
+      if (this.dead) return;
+      const url = this.urls[this.urlIdx % this.urls.length];
+      try { this.ws = new WebSocket(url, 'mqtt'); }
+      catch (e) { this.retry(); return; }
+      this.ws.binaryType = 'arraybuffer';
+      const connectTimeout = setTimeout(() => { try { this.ws.close(); } catch (e) {} }, 6000);
+      this.ws.onopen = () => {
+        // MQTT CONNECT
+        const cid = this.enc(this.clientId);
+        const varh = new Uint8Array([0, 4, 77, 81, 84, 84, 4, 0x02, 0, 60]); // "MQTT",v4,clean,keepalive 60
+        this.send(0x10, this.cat(varh, cid));
+      };
+      this.ws.onmessage = e => { clearTimeout(connectTimeout); this.feed(new Uint8Array(e.data)); };
+      this.ws.onclose = () => { clearTimeout(connectTimeout); this.onDown(); };
+      this.ws.onerror = () => {};
+    }
+    onDown() {
+      this.connected = false;
+      clearInterval(this.pingTimer);
+      if (this.onstatus) this.onstatus(false);
+      this.retry();
+    }
+    retry() {
+      if (this.dead) return;
+      this.urlIdx++;
+      clearTimeout(this.retryT);
+      this.retryT = setTimeout(() => this.connect(), 2500);
+    }
+    close() { this.dead = true; clearInterval(this.pingTimer); try { this.ws.close(); } catch (e) {} }
+    enc(str) {
+      const b = new TextEncoder().encode(str);
+      const out = new Uint8Array(b.length + 2);
+      out[0] = b.length >> 8; out[1] = b.length & 255; out.set(b, 2);
+      return out;
+    }
+    cat(...arrs) {
+      const len = arrs.reduce((a, b) => a + b.length, 0);
+      const out = new Uint8Array(len);
+      let o = 0;
+      for (const a of arrs) { out.set(a, o); o += a.length; }
+      return out;
+    }
+    remLen(n) {
+      const out = [];
+      do { let d = n % 128; n = Math.floor(n / 128); if (n > 0) d |= 128; out.push(d); } while (n > 0);
+      return new Uint8Array(out);
+    }
+    send(type, body) {
+      if (!this.ws || this.ws.readyState !== 1) return;
+      this.ws.send(this.cat(new Uint8Array([type]), this.remLen(body.length), body));
+    }
+    subscribe(filter) {
+      const pid = new Uint8Array([0, 7]);
+      this.send(0x82, this.cat(pid, this.enc(filter), new Uint8Array([0])));
+    }
+    publish(topic, payloadStr) {
+      if (!this.connected) return;
+      const pl = new TextEncoder().encode(payloadStr);
+      this.send(0x30, this.cat(this.enc(topic), pl));
+    }
+    feed(chunk) {
+      this.buf = this.cat(this.buf, chunk);
+      for (;;) {
+        if (this.buf.length < 2) return;
+        // decode remaining length
+        let mul = 1, len = 0, pos = 1, ok = false;
+        for (; pos < Math.min(this.buf.length, 5); pos++) {
+          len += (this.buf[pos] & 127) * mul;
+          mul *= 128;
+          if ((this.buf[pos] & 128) === 0) { ok = true; pos++; break; }
+        }
+        if (!ok) return;
+        const total = pos + len;
+        if (this.buf.length < total) return;
+        this.handle(this.buf[0] >> 4, this.buf.slice(pos, total));
+        this.buf = this.buf.slice(total);
+      }
+    }
+    handle(type, body) {
+      if (type === 2) {           // CONNACK
+        if (body[1] === 0) {
+          this.connected = true;
+          this.pingTimer = setInterval(() => this.send(0xC0, new Uint8Array(0)), 25000);
+          if (this.onstatus) this.onstatus(true);
+        } else this.retry();
+      } else if (type === 3) {    // PUBLISH (qos0)
+        const tlen = (body[0] << 8) | body[1];
+        const topic = new TextDecoder().decode(body.slice(2, 2 + tlen));
+        const payload = new TextDecoder().decode(body.slice(2 + tlen));
+        if (this.onmessage) this.onmessage(topic, payload);
+      }
+      // SUBACK (9) / PINGRESP (13): nothing to do
+    }
+  }
+
+  // ================================================================
+  //  Game
+  // ================================================================
+  const WORLD = 3000, TAG_R = 46;
+  // Public MQTT brokers (free, no account). Override with ?broker=wss://your-broker
+  // to point the arena at your own — see private.md in the repo root.
+  const qsBroker = new URLSearchParams(location.search).get('broker');
+  const BROKERS = qsBroker ? [qsBroker] : [
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://test.mosquitto.org:8081',
+  ];
+  const ROOM = 'wizzed/megatag/v2/main';
+  const myId = 'p' + Math.random().toString(36).slice(2, 10);
+  const NAMES1 = ['Neon', 'Turbo', 'Pixel', 'Cosmic', 'Disco', 'Laser', 'Mega', 'Hyper', 'Retro', 'Glitch', 'Astro', 'Funky'];
+  const NAMES2 = ['Fox', 'Comet', 'Blob', 'Ghost', 'Racer', 'Wisp', 'Spark', 'Nova', 'Dasher', 'Zoomer', 'Byte', 'Star'];
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') || {}; } catch (e) {}
+  const rndName = () => NAMES1[Math.random() * NAMES1.length | 0] + NAMES2[Math.random() * NAMES2.length | 0];
+
+  const me = {
+    i: myId,
+    n: (saved.name || rndName()).slice(0, 14),
+    x: WORLD / 2 + (Math.random() - 0.5) * 600,
+    y: WORLD / 2 + (Math.random() - 0.5) * 600,
+    c: Math.random() * 360 | 0,
+    it: 0, itS: 0, ai: 0, s: 0,
+  };
+  let best = saved.best || 0;
+  const peers = new Map();   // id -> {state..., seen}
+  const bots = new Map();    // id -> bot sim state (only when I'm bot host)
+  let online = false;
+
+  document.getElementById('nameInput').value = me.n;
+  document.getElementById('nameInput').addEventListener('input', e => {
+    me.n = (e.target.value || 'Wanderer').slice(0, 14);
+    persist();
+  });
+  function persist() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ name: me.n, best })); } catch (e) {}
+  }
+  document.getElementById('myBest').textContent = best;
+
+  // ---------- networking ----------
+  const mq = new TinyMQTT(BROKERS, 'wz-' + myId);
+  mq.onstatus = up => {
+    online = up;
+    const dot = document.getElementById('connDot'), txt = document.getElementById('connTxt');
+    if (up) {
+      dot.className = 'dot live'; txt.textContent = 'LIVE — global arena';
+      mq.subscribe(ROOM + '/s/#');
+    } else {
+      dot.className = 'dot off'; txt.textContent = 'OFFLINE — bots keep you company';
+    }
+  };
+  mq.onmessage = (topic, payload) => {
+    try {
+      const st = JSON.parse(payload);
+      if (!st || !st.i || st.i === myId) return;
+      if (bots.has(st.i)) return;               // my own bots echoed back
+      const now = performance.now();
+      const prev = peers.get(st.i);
+      st.seen = now;
+      // track render interpolation
+      st.rx = prev ? prev.rx : st.x;
+      st.ry = prev ? prev.ry : st.y;
+      peers.set(st.i, st);
+    } catch (e) {}
+  };
+  // publish my state ~7Hz
+  setInterval(() => {
+    if (online) mq.publish(ROOM + '/s/' + myId, JSON.stringify({
+      i: me.i, n: me.n, x: Math.round(me.x), y: Math.round(me.y),
+      c: me.c, it: me.it, itS: me.itS, ai: 0, s: me.s,
+    }));
+  }, 150);
+  // prune dead peers
+  setInterval(() => {
+    const now = performance.now();
+    for (const [id, p] of peers) if (now - p.seen > 6000) peers.delete(id);
+  }, 1000);
+
+  // ---------- bots (host = alphabetically-lowest human id) ----------
+  const BOT_TARGET = 6; // arena feels alive with ~6 wanderers minimum
+  function humanIds() {
+    const ids = [myId];
+    for (const [id, p] of peers) if (!p.ai) ids.push(id);
+    return ids.sort();
+  }
+  function iAmBotHost() { return humanIds()[0] === myId; }
+  function botCountNeeded() {
+    const humans = humanIds().length;
+    let aiPeers = 0;
+    for (const p of peers.values()) if (p.ai) aiPeers++;
+    if (!iAmBotHost()) return bots.size ? 0 : 0;
+    return Math.max(0, BOT_TARGET - humans);
+  }
+  const BOTNAMES = ['HAL-9', 'BeepBoop', 'Circuit', 'Servo', 'Chip', 'Databyte', 'Sparky', 'Gizmo', 'Rusty', 'Volt'];
+  function manageBots() {
+    if (!iAmBotHost()) { bots.clear(); return; }
+    const need = botCountNeeded();
+    while (bots.size > need) { const k = bots.keys().next().value; bots.delete(k); }
+    while (bots.size < need) {
+      const bid = 'ai' + Math.random().toString(36).slice(2, 8);
+      const used = new Set([...bots.values()].map(b => b.n));
+      const free = BOTNAMES.filter(n => !used.has('🤖 ' + n));
+      const pickName = free.length ? free[Math.random() * free.length | 0] : BOTNAMES[0] + '-' + bots.size;
+      bots.set(bid, {
+        i: bid, n: '🤖 ' + pickName,
+        x: WORLD / 2 + (Math.random() - 0.5) * 1200,
+        y: WORLD / 2 + (Math.random() - 0.5) * 1200,
+        vx: 0, vy: 0, c: Math.random() * 360 | 0,
+        it: 0, itS: 0, ai: 1, s: 0,
+        wanderA: Math.random() * Math.PI * 2, wanderT: 0,
+      });
+    }
+  }
+  function simBots(dt) {
+    if (!iAmBotHost()) return;
+    const itP = currentIt();
+    for (const b of bots.values()) {
+      const speed = b.it ? 235 : 205;
+      let tx, ty;
+      if (b.it) {
+        // chase nearest non-it
+        let bestD = 1e9, t = null;
+        for (const q of everyone()) {
+          if (q.i === b.i || q.it) continue;
+          const d = (q.x - b.x) ** 2 + (q.y - b.y) ** 2;
+          if (d < bestD) { bestD = d; t = q; }
+        }
+        if (t) { tx = t.x; ty = t.y; }
+      } else if (itP && !b.it) {
+        const d = Math.hypot(itP.x - b.x, itP.y - b.y);
+        if (d < 500) { tx = b.x - (itP.x - b.x); ty = b.y - (itP.y - b.y); } // flee
+      }
+      if (tx === undefined) {
+        b.wanderT -= dt;
+        if (b.wanderT <= 0) { b.wanderA = Math.random() * Math.PI * 2; b.wanderT = 1.5 + Math.random() * 2; }
+        tx = b.x + Math.cos(b.wanderA) * 300; ty = b.y + Math.sin(b.wanderA) * 300;
+      }
+      const a = Math.atan2(ty - b.y, tx - b.x);
+      b.vx += (Math.cos(a) * speed - b.vx) * Math.min(1, dt * 2.2);
+      b.vy += (Math.sin(a) * speed - b.vy) * Math.min(1, dt * 2.2);
+      b.x = Math.max(30, Math.min(WORLD - 30, b.x + b.vx * dt));
+      b.y = Math.max(30, Math.min(WORLD - 30, b.y + b.vy * dt));
+      if (!b.it) b.s += dt;                        // bots score too
+      // bot tag logic (host authoritative for its bots)
+      if (b.it) {
+        for (const q of everyone()) {
+          if (q.i === b.i) continue;
+          if (Math.hypot(q.x - b.x, q.y - b.y) < TAG_R) {
+            if (q.i === myId) { becomeIt(); b.it = 0; }
+            else if (bots.has(q.i)) { const qb = bots.get(q.i); qb.it = 1; qb.itS = Date.now(); b.it = 0; }
+            // human peers tag themselves when they see the bot close — handled client-side there
+            break;
+          }
+        }
+      }
+    }
+    // publish bot states with my publishes cadence (piggyback timer below)
+  }
+  setInterval(() => {
+    if (!online || !iAmBotHost()) return;
+    for (const b of bots.values()) {
+      mq.publish(ROOM + '/s/' + b.i, JSON.stringify({
+        i: b.i, n: b.n, x: Math.round(b.x), y: Math.round(b.y),
+        c: b.c, it: b.it, itS: b.itS, ai: 1, s: Math.round(b.s),
+      }));
+    }
+  }, 220);
+
+  // ---------- shared helpers ----------
+  function everyone() {
+    const arr = [me];
+    for (const p of peers.values()) arr.push(p);
+    for (const b of bots.values()) arr.push(b);
+    return arr;
+  }
+  function currentIt() {
+    // IT = entity with the LATEST itS claim
+    let it = null;
+    for (const p of everyone()) if (p.it && (!it || p.itS > it.itS)) it = p;
+    return it;
+  }
+  function becomeIt() {
+    me.it = 1; me.itS = Date.now();
+    bigmsg('YOU ARE IT! 👑 GO TAG SOMEONE');
+    document.getElementById('myState').innerHTML = '<span style="color:#ff8fb4">YOU ARE IT — chase them down! 👑</span>';
+  }
+  function dropIt() {
+    if (!me.it) return;
+    me.it = 0;
+    document.getElementById('myState').innerHTML = '<span style="color:#8ff0c8">RUN — don\'t get tagged!</span>';
+  }
+  let bigT;
+  function bigmsg(t) {
+    const el = document.getElementById('bigmsg');
+    el.textContent = t; el.classList.add('show');
+    clearTimeout(bigT); bigT = setTimeout(() => el.classList.remove('show'), 2200);
+  }
+
+  // ---------- input ----------
+  const keys = {};
+  addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
+  addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+  let pointer = null;
+  addEventListener('pointermove', e => { pointer = { x: e.clientX, y: e.clientY }; });
+  addEventListener('pointerdown', e => { pointer = { x: e.clientX, y: e.clientY }; });
+
+  // ---------- render / main loop ----------
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  function resize() { cv.width = innerWidth; cv.height = innerHeight; }
+  addEventListener('resize', resize); resize();
+
+  let last = performance.now(), noItT = 0, scoreAcc = 0;
+  function frame(now) {
+    let dt = (now - last) / 1000; last = now;
+    if (dt > 0.06) dt = 0.06;
+
+    // ----- move me -----
+    const spd = me.it ? 250 : 215;
+    let dx = 0, dy = 0;
+    if (keys['w'] || keys['arrowup']) dy -= 1;
+    if (keys['s'] || keys['arrowdown']) dy += 1;
+    if (keys['a'] || keys['arrowleft']) dx -= 1;
+    if (keys['d'] || keys['arrowright']) dx += 1;
+    if (dx === 0 && dy === 0 && pointer) {
+      const px = pointer.x - cv.width / 2, py = pointer.y - cv.height / 2;
+      const d = Math.hypot(px, py);
+      if (d > 30) { dx = px / d; dy = py / d; }
+    } else if (dx || dy) {
+      const d = Math.hypot(dx, dy); dx /= d; dy /= d;
+    }
+    me.x = Math.max(30, Math.min(WORLD - 30, me.x + dx * spd * dt));
+    me.y = Math.max(30, Math.min(WORLD - 30, me.y + dy * spd * dt));
+
+    // ----- bots -----
+    manageBots();
+    simBots(dt);
+
+    // ----- tag resolution -----
+    const itP = currentIt();
+    if (itP && itP.i !== myId && me.it) dropIt();                     // someone claimed later than me
+    if (!itP) { noItT += dt; if (noItT > 2.5) { noItT = 0; if (humanIds()[0] === myId) becomeIt(); } }
+    else noItT = 0;
+    if (itP && itP.i !== myId && !me.it) {
+      const dd = Math.hypot(itP.x - me.x, itP.y - me.y);
+      if (dd < TAG_R) becomeIt();                                     // I got tagged: claim IT
+    }
+    // my scoring
+    if (!me.it) { scoreAcc += dt; if (scoreAcc >= 1) { me.s += Math.floor(scoreAcc); scoreAcc %= 1; } }
+    if (me.s > best) { best = me.s; persist(); }
+    document.getElementById('myScore').textContent = me.s;
+    document.getElementById('myBest').textContent = best;
+
+    // ----- interpolate peers -----
+    for (const p of peers.values()) {
+      p.rx += (p.x - p.rx) * Math.min(1, dt * 8);
+      p.ry += (p.y - p.ry) * Math.min(1, dt * 8);
+    }
+
+    draw(now / 1000);
+    updateHud();
+    requestAnimationFrame(frame);
+  }
+
+  function draw(t) {
+    const W = cv.width, H = cv.height;
+    ctx.fillStyle = '#0a0c18';
+    ctx.fillRect(0, 0, W, H);
+    const camX = me.x - W / 2, camY = me.y - H / 2;
+    // grid
+    ctx.strokeStyle = 'rgba(60,70,140,0.16)';
+    ctx.lineWidth = 1;
+    const G = 120;
+    for (let gx = Math.floor(camX / G) * G; gx < camX + W; gx += G) {
+      ctx.beginPath(); ctx.moveTo(gx - camX, 0); ctx.lineTo(gx - camX, H); ctx.stroke();
+    }
+    for (let gy = Math.floor(camY / G) * G; gy < camY + H; gy += G) {
+      ctx.beginPath(); ctx.moveTo(0, gy - camY); ctx.lineTo(W, gy - camY); ctx.stroke();
+    }
+    // world border
+    ctx.strokeStyle = '#ff2d78';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(-camX, -camY, WORLD, WORLD);
+
+    // entities
+    const list = everyone().map(p => ({
+      p, x: (p.i === myId ? me.x : (p.rx !== undefined ? p.rx : p.x)),
+      y: (p.i === myId ? me.y : (p.ry !== undefined ? p.ry : p.y)),
+    })).filter(e => e.x > camX - 60 && e.x < camX + W + 60 && e.y > camY - 60 && e.y < camY + H + 60)
+      .slice(0, 80);
+
+    for (const e of list) {
+      const p = e.p, x = e.x - camX, y = e.y - camY;
+      const isMe = p.i === myId;
+      const R = 16;
+      // IT ring
+      if (p.it) {
+        ctx.strokeStyle = '#ff2d78';
+        ctx.lineWidth = 3.5;
+        ctx.globalAlpha = 0.65 + Math.sin(t * 7) * 0.3;
+        ctx.beginPath(); ctx.arc(x, y, R + 9 + Math.sin(t * 7) * 2.5, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      // glow blob
+      const col = `hsl(${p.c},90%,62%)`;
+      ctx.shadowColor = col; ctx.shadowBlur = 20;
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+      // face
+      ctx.fillStyle = '#10131f';
+      ctx.beginPath(); ctx.arc(x - 5, y - 3, 3, 0, Math.PI * 2); ctx.arc(x + 5, y - 3, 3, 0, Math.PI * 2); ctx.fill();
+      // crown for IT
+      if (p.it) { ctx.font = '16px serif'; ctx.textAlign = 'center'; ctx.fillText('👑', x, y - R - 12); }
+      // robot marker
+      if (p.ai) { ctx.font = '11px serif'; ctx.textAlign = 'center'; ctx.fillText('🤖', x + R + 9, y - R + 2); }
+      // name
+      ctx.font = 'bold 11px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = isMe ? '#8ff0c8' : 'rgba(232,238,255,0.85)';
+      ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 4;
+      ctx.fillText((p.n || '???'), x, y + R + 15);
+      ctx.shadowBlur = 0;
+    }
+    // minimap
+    const MM = 110, mx = W - MM - 12, my2 = H - MM - 12;
+    ctx.fillStyle = 'rgba(8,12,24,0.75)';
+    ctx.fillRect(mx, my2, MM, MM);
+    ctx.strokeStyle = '#2b2f55';
+    ctx.strokeRect(mx, my2, MM, MM);
+    for (const e of everyone()) {
+      const ex = (e.i === myId ? me.x : e.x) / WORLD * MM + mx;
+      const ey = (e.i === myId ? me.y : e.y) / WORLD * MM + my2;
+      ctx.fillStyle = e.it ? '#ff2d78' : (e.i === myId ? '#8ff0c8' : (e.ai ? '#9d6bff' : '#e8eeff'));
+      ctx.fillRect(ex - 1.5, ey - 1.5, e.i === myId ? 4 : 3, e.i === myId ? 4 : 3);
+    }
+  }
+
+  let hudT = 0;
+  function updateHud() {
+    const now = performance.now();
+    if (now - hudT < 400) return;
+    hudT = now;
+    let humans = 1, ais = 0;
+    for (const p of peers.values()) (p.ai ? ais++ : humans++);
+    ais += bots.size;
+    document.getElementById('onlineN').textContent = (humans + ais).toLocaleString();
+    document.getElementById('humanN').textContent = humans;
+    document.getElementById('aiN').textContent = ais;
+    // player list (nearest 9)
+    const rows = everyone()
+      .map(p => ({ p, d: p.i === myId ? -1 : Math.hypot((p.rx ?? p.x) - me.x, (p.ry ?? p.y) - me.y) }))
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 9);
+    document.getElementById('plist').innerHTML = rows.map(({ p }) => `
+      <div class="prow${p.i === myId ? ' me' : ''}">
+        <span class="sw" style="background:hsl(${p.c},90%,62%)"></span>
+        <span class="nm">${(p.n || '???').replace(/[<>&]/g, '')}</span>
+        ${p.it ? '<span class="ittag">IT</span>' : ''}
+        ${p.ai ? '<span class="aitag">AI</span>' : ''}
+        <span class="sc">${Math.round(p.s || 0)}</span>
+      </div>`).join('');
+  }
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

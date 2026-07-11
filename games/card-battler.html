@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spellstack — Wizzed Arcade</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:#0f0f1a;color:#e6e0ff;font-family:'Courier New',ui-monospace,monospace;overflow:hidden;user-select:none}
+:root{--acc:#b46bff;--red:#ff5a7a;--blue:#5fb0ff;--green:#5fff9c;--gold:#ffd166}
+a.back{position:fixed;top:8px;left:10px;z-index:90;color:#8890b0;text-decoration:none;font-size:12px;letter-spacing:1px;padding:3px 8px;border:1px solid rgba(136,144,176,.35);background:rgba(15,15,26,.8);border-radius:4px}
+a.back:hover{color:var(--acc);border-color:var(--acc);text-shadow:0 0 8px var(--acc)}
+#game{position:relative;width:100vw;height:100vh;display:flex;flex-direction:column;background:radial-gradient(circle at 50% 20%,#1a1330,#0d0d18 70%)}
+#topbar{display:flex;align-items:center;gap:10px;padding:6px 10px 6px 74px;flex:0 0 auto;flex-wrap:wrap;font-size:12px}
+#floorV{color:var(--acc);font-weight:bold;letter-spacing:1px;text-shadow:0 0 8px rgba(180,107,255,.5)}
+#relics{display:flex;gap:5px;margin-left:auto}
+.relic{width:30px;height:30px;border:1px solid var(--gold);border-radius:6px;background:rgba(255,209,102,.1);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:help;position:relative}
+.relic .tt{position:absolute;top:34px;right:0;width:160px;background:rgba(10,10,20,.97);border:1px solid var(--gold);border-radius:6px;padding:6px 8px;font-size:10px;color:#ffe6a8;display:none;z-index:20;line-height:1.4;text-align:left}
+.relic:hover .tt{display:block}
+#arena{flex:1 1 auto;position:relative;display:flex;flex-direction:column;justify-content:space-between;min-height:0;padding:4px 10px}
+.combatant{display:flex;align-items:center;gap:12px}
+.enemyRow{justify-content:center;margin-top:6px}
+.sprite{font-size:54px;line-height:1;filter:drop-shadow(0 0 12px rgba(180,107,255,.4));text-align:center}
+.enemyRow .sprite{cursor:pointer}
+.enemyRow .sprite.hit{animation:shake .3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.info{min-width:170px}
+.nm{font-size:14px;color:#eee;letter-spacing:1px;margin-bottom:3px}
+.hpbar{width:190px;max-width:44vw;height:16px;border:1px solid rgba(255,255,255,.25);border-radius:8px;background:#20101a;position:relative;overflow:hidden}
+.hpfill{position:absolute;inset:0;background:linear-gradient(90deg,#ff3d6b,#ff8fa8);transition:width .25s;width:100%}
+.hpbar.plr .hpfill{background:linear-gradient(90deg,#3dff8f,#8fffb8)}
+.hptext{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;text-shadow:0 0 3px #000;font-weight:bold}
+.stats{display:flex;gap:5px;margin-top:4px;flex-wrap:wrap}
+.badge{font-size:10px;padding:2px 5px;border-radius:4px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2)}
+.badge.block{color:#9fd8ff;border-color:#5fb0ff}
+.badge.str{color:#ffd166;border-color:#ffd166}
+.badge.vuln{color:#ff9a6b;border-color:#ff9a6b}
+.badge.weak{color:#b7a8ff;border-color:#9d6bff}
+.badge.poison{color:#8fff8f;border-color:#5fff5f}
+.intent{font-size:15px;color:#ff9a6b;margin-bottom:4px;font-weight:bold;min-height:20px;letter-spacing:1px}
+.intent .ai{font-size:18px}
+#plrRow{align-items:flex-end}
+.energy{width:44px;height:44px;border-radius:50%;border:2px solid var(--blue);background:radial-gradient(circle at 40% 35%,#7fd0ff,#2b6bd0);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold;color:#fff;text-shadow:0 0 4px #003;box-shadow:0 0 14px rgba(95,176,255,.5)}
+#bottom{flex:0 0 auto;display:flex;align-items:flex-end;gap:8px;padding:4px 8px 10px}
+#piles{display:flex;flex-direction:column;gap:6px;font-size:10px;color:#9a9ac0}
+#piles div{border:1px solid rgba(150,150,200,.3);border-radius:5px;padding:3px 6px;text-align:center;min-width:56px}
+#piles b{color:#cfc0ff;font-size:13px;display:block}
+#hand{flex:1 1 auto;display:flex;justify-content:center;align-items:flex-end;gap:6px;min-height:150px;flex-wrap:nowrap;overflow:visible}
+.card{width:96px;height:138px;border-radius:9px;border:2px solid #4a4270;background:linear-gradient(180deg,#242042,#171430);padding:6px;cursor:pointer;position:relative;transition:transform .12s,box-shadow .12s;flex:0 0 auto;display:flex;flex-direction:column}
+.card:hover{transform:translateY(-14px) scale(1.05);box-shadow:0 6px 20px rgba(180,107,255,.5);z-index:5}
+.card.attack{border-color:#ff6b8a}.card.skill{border-color:#5fb0ff}.card.power{border-color:#ffd166}
+.card.cheap{}
+.card.no{opacity:.5;filter:grayscale(.5)}
+.card .cost{position:absolute;top:-8px;left:-8px;width:24px;height:24px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#7fd0ff,#2b6bd0);border:2px solid #cfe6ff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:bold;color:#fff}
+.card .cn{font-size:11px;font-weight:bold;text-align:center;color:#fff;margin:2px 0 4px;line-height:1.1}
+.card .cn.up{color:var(--green)}
+.card .art{font-size:26px;text-align:center;margin:2px 0}
+.card .desc{font-size:9.5px;color:#c7c0e8;text-align:center;line-height:1.25;margin-top:auto}
+.card .desc b{color:var(--gold)}
+#endTurn{flex:0 0 auto;align-self:center;padding:14px 12px;border-radius:10px;border:2px solid var(--acc);background:linear-gradient(180deg,#2a1f4a,#1c1533);color:#dcc9ff;font-family:inherit;font-size:13px;cursor:pointer;letter-spacing:1px;writing-mode:horizontal-tb;min-width:70px;text-align:center}
+#endTurn:hover:not(:disabled){box-shadow:0 0 16px rgba(180,107,255,.5)}
+#endTurn:disabled{opacity:.4;cursor:not-allowed}
+/* overlays */
+.overlay{position:fixed;inset:0;z-index:60;background:rgba(7,7,15,.93);display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:16px}
+.panel{background:linear-gradient(180deg,#191434,#0e0b1e);border:2px solid var(--acc);border-radius:14px;padding:22px 26px;max-width:560px;max-height:92vh;overflow-y:auto}
+.panel h1{font-size:40px;color:var(--acc);text-shadow:0 0 20px rgba(180,107,255,.6),3px 3px 0 #3a1a5a;letter-spacing:3px;margin-bottom:4px}
+.panel .sub{color:var(--gold);letter-spacing:2px;font-size:13px;margin-bottom:14px}
+.panel p{color:#b8b0d8;line-height:1.55;font-size:13px;margin-bottom:12px}
+.pulse{display:inline-block;color:#fff;border:2px solid var(--acc);padding:11px 24px;border-radius:8px;font-size:15px;letter-spacing:2px;cursor:pointer;animation:pl 1.2s infinite;margin-top:6px}
+@keyframes pl{0%,100%{box-shadow:0 0 8px rgba(180,107,255,.4)}50%{box-shadow:0 0 22px rgba(180,107,255,.85)}}
+.rewardCards{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:12px 0}
+.reward .card{cursor:pointer}
+.reward .card:hover{transform:translateY(-8px) scale(1.06)}
+.skipBtn{margin-top:8px;font-family:inherit;font-size:12px;color:#9a9ac0;background:none;border:1px solid rgba(150,150,200,.4);padding:8px 16px;border-radius:8px;cursor:pointer}
+.skipBtn:hover{color:#fff;border-color:var(--acc)}
+.relicChoice{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:14px 0}
+.relicPick{width:150px;border:2px solid var(--gold);border-radius:10px;background:rgba(255,209,102,.08);padding:12px;cursor:pointer;transition:.12s}
+.relicPick:hover{box-shadow:0 0 16px rgba(255,209,102,.5);transform:translateY(-4px)}
+.relicPick .ri{font-size:32px}.relicPick .rn{color:var(--gold);font-weight:bold;margin:4px 0;font-size:13px}.relicPick .rd{font-size:11px;color:#e8dcc0;line-height:1.35}
+.log{text-align:left;font-size:11px;color:#9a9ac0;max-height:150px;overflow-y:auto;border-top:1px solid rgba(150,150,200,.2);margin-top:10px;padding-top:8px}
+.log div{padding:2px 0}
+.log .win{color:var(--green)}.log .loss{color:var(--red)}
+.deathT{color:var(--red);text-shadow:0 0 20px rgba(255,90,122,.6),3px 3px 0 #5a0a1a}
+.winT{color:var(--gold);text-shadow:0 0 20px rgba(255,209,102,.6),3px 3px 0 #5a4a0a}
+#toast{position:fixed;top:44px;left:50%;transform:translateX(-50%);z-index:80;background:rgba(15,15,26,.96);border:1px solid var(--acc);color:#dcc9ff;padding:6px 14px;border-radius:16px;font-size:12px;opacity:0;transition:opacity .3s;pointer-events:none;text-align:center;max-width:90%}
+.hint{font-size:11px;color:#8f8fb8;margin-top:6px}
+@media(max-width:560px){.sprite{font-size:40px}.card{width:80px;height:120px}.hpbar{width:150px}}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<div id="game">
+  <div id="topbar">
+    <span id="floorV">FLOOR 1</span>
+    <span style="color:#8f8fb8;font-size:11px" id="turnV">Your Turn</span>
+    <div id="relics"></div>
+  </div>
+  <div id="arena">
+    <div class="combatant enemyRow" id="enemyRow">
+      <div class="info" style="text-align:right">
+        <div class="nm" id="enName">Fiend</div>
+        <div class="hpbar" id="enHp"><div class="hpfill" id="enHpFill"></div><div class="hptext" id="enHpText">0/0</div></div>
+        <div class="stats" id="enStats" style="justify-content:flex-end"></div>
+      </div>
+      <div>
+        <div class="intent" id="enIntent">&nbsp;</div>
+        <div class="sprite" id="enSprite">👾</div>
+      </div>
+    </div>
+    <div class="combatant" id="plrRow">
+      <div class="energy" id="energyV">3/3</div>
+      <div class="sprite" id="plrSprite">🧙</div>
+      <div class="info">
+        <div class="nm">You</div>
+        <div class="hpbar plr" id="plHp"><div class="hpfill" id="plHpFill"></div><div class="hptext" id="plHpText">0/0</div></div>
+        <div class="stats" id="plStats"></div>
+      </div>
+    </div>
+  </div>
+  <div id="bottom">
+    <div id="piles">
+      <div>DRAW<b id="drawN">0</b></div>
+      <div>DISCARD<b id="discN">0</b></div>
+      <div>EXHAUST<b id="exhN">0</b></div>
+    </div>
+    <div id="hand"></div>
+    <button id="endTurn">END<br>TURN</button>
+  </div>
+</div>
+
+<div class="overlay" id="title">
+  <div class="panel">
+    <h1>SPELLSTACK</h1>
+    <div class="sub">&#9876; A RUN-BASED DECKBUILDER &#9876;</div>
+    <p>Descend 8 fiends deep, then face the boss. Spend energy on cards, read the enemy's intent, and build a lethal deck one reward at a time. Death is permanent — every run is a fresh gamble.</p>
+    <p class="hint">Click cards to play them · click END TURN to pass · <b>E</b> ends turn · <b>1-9</b> plays a card · <b>R</b> new run</p>
+    <div class="pulse" id="startBtn">CLICK / PRESS ENTER TO BEGIN</div>
+    <div class="log" id="titleLog"></div>
+  </div>
+</div>
+
+<div class="overlay" id="reward" style="display:none">
+  <div class="panel">
+    <h1 style="font-size:26px">&#9733; VICTORY &#9733;</h1>
+    <div class="sub" id="rewardSub">Choose a card to add to your deck</div>
+    <div class="rewardCards reward" id="rewardCards"></div>
+    <button class="skipBtn" id="skipReward">Skip &mdash; take nothing</button>
+  </div>
+</div>
+
+<div class="overlay" id="relicOverlay" style="display:none">
+  <div class="panel">
+    <h1 style="font-size:24px;color:var(--gold);text-shadow:0 0 16px rgba(255,209,102,.5)">&#128142; RELIC FOUND</h1>
+    <div class="sub">Choose one relic — it lasts the whole run</div>
+    <div class="relicChoice" id="relicChoice"></div>
+  </div>
+</div>
+
+<div class="overlay" id="death" style="display:none">
+  <div class="panel">
+    <h1 class="deathT" style="font-size:34px">YOU DIED</h1>
+    <div class="sub" id="deathSub"></div>
+    <p id="deathMsg"></p>
+    <div class="pulse" id="deathRestart">NEW RUN</div>
+    <div class="log" id="deathLog"></div>
+  </div>
+</div>
+
+<div class="overlay" id="victory" style="display:none">
+  <div class="panel">
+    <h1 class="winT" style="font-size:34px">&#9733; RUN COMPLETE &#9733;</h1>
+    <div class="sub" id="vicSub"></div>
+    <p>You conquered all 8 fiends and slew the boss. The stack is yours.</p>
+    <div class="pulse" id="vicRestart">RUN AGAIN</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+(function(){
+const SAVE='wizzed-card-battler';
+
+/* ---------- audio ---------- */
+let actx=null;
+function audio(){if(!actx){try{actx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(actx&&actx.state==='suspended')actx.resume();}
+function beep(f,d,type,v,f2){if(!actx)return;try{const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.type=type||'square';o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(Math.max(20,f2),t+d);g.gain.setValueAtTime(v||0.05,t);g.gain.exponentialRampToValueAtTime(0.0001,t+d);o.connect(g).connect(actx.destination);o.start(t);o.stop(t+d);}catch(e){}}
+function sHit(){beep(220,0.08,'sawtooth',0.05,120);} function sBlock(){beep(360,0.08,'square',0.04,480);}
+function sCard(){beep(600,0.05,'square',0.04,760);} function sWin(){beep(523,0.1,'triangle',0.06);setTimeout(()=>beep(659,0.1,'triangle',0.06),110);setTimeout(()=>beep(784,0.18,'triangle',0.06),220);}
+function sLose(){beep(200,0.3,'sawtooth',0.06,60);}
+
+/* ---------- card catalog ---------- */
+// type: attack/skill/power ; e:cost ; ex:exhaust
+// ef(c): c={pl,en,draw(n),energy(n)} ; use dealDmg(en,n)/gainBlock(pl,n) etc.
+const CARDS={
+ strike:   {name:'Strike',   type:'attack',e:1, art:'🗡️', desc:n=>'Deal <b>'+n+'</b> damage.',           dmg:6,  up:'strike_p'},
+ strike_p: {name:'Strike+',  type:'attack',e:1, art:'🗡️', desc:n=>'Deal <b>'+n+'</b> damage.',           dmg:9,  U:1},
+ defend:   {name:'Defend',   type:'skill', e:1, art:'🛡️', desc:n=>'Gain <b>'+n+'</b> block.',            blk:5,  up:'defend_p'},
+ defend_p: {name:'Defend+',  type:'skill', e:1, art:'🛡️', desc:n=>'Gain <b>'+n+'</b> block.',            blk:8,  U:1},
+ fireball: {name:'Fireball', type:'attack',e:2, art:'🔥', desc:n=>'Deal <b>'+n+'</b> damage.',           dmg:12, up:'fireball_p'},
+ fireball_p:{name:'Fireball+',type:'attack',e:2,art:'🔥', desc:n=>'Deal <b>'+n+'</b> damage.',           dmg:17, U:1},
+ poison:   {name:'Venom',    type:'attack',e:1, art:'🧪', desc:n=>'Apply <b>'+n+'</b> poison.',          pois:5, up:'poison_p'},
+ poison_p: {name:'Venom+',   type:'attack',e:1, art:'🧪', desc:n=>'Apply <b>'+n+'</b> poison.',          pois:8, U:1},
+ cloud:    {name:'Toxic Cloud',type:'skill',e:2,art:'☁️', desc:n=>'Apply <b>'+n+'</b> poison & 1 weak.', pois:6, weak:1, up:'cloud_p'},
+ cloud_p:  {name:'Toxic Cloud+',type:'skill',e:2,art:'☁️',desc:n=>'Apply <b>'+n+'</b> poison & 2 weak.', pois:9, weak:2, U:1},
+ bash:     {name:'Bash',     type:'attack',e:2, art:'💥', desc:n=>'Deal <b>'+n+'</b> & apply 2 vulnerable.',dmg:8, vuln:2, up:'bash_p'},
+ bash_p:   {name:'Bash+',    type:'attack',e:2, art:'💥', desc:n=>'Deal <b>'+n+'</b> & apply 3 vulnerable.',dmg:10,vuln:3, U:1},
+ cleave:   {name:'Cleave',   type:'attack',e:1, art:'⚔️', desc:n=>'Deal <b>'+n+'</b> damage.',           dmg:8,  up:'cleave_p'},
+ cleave_p: {name:'Cleave+',  type:'attack',e:1, art:'⚔️', desc:n=>'Deal <b>'+n+'</b> damage.',           dmg:11, U:1},
+ dagger:   {name:'Quick Dagger',type:'attack',e:0,art:'🔪',desc:n=>'Deal <b>'+n+'</b>. Exhaust.',        dmg:4,  ex:1, up:'dagger_p'},
+ dagger_p: {name:'Quick Dagger+',type:'attack',e:0,art:'🔪',desc:n=>'Deal <b>'+n+'</b>. Exhaust.',       dmg:7,  ex:1, U:1},
+ focus:    {name:'Focus',    type:'power', e:1, art:'💪', desc:n=>'Gain <b>'+n+'</b> strength.',         str:2,  up:'focus_p'},
+ focus_p:  {name:'Focus+',   type:'power', e:1, art:'💪', desc:n=>'Gain <b>'+n+'</b> strength.',         str:3,  U:1},
+ wall:     {name:'Iron Wall',type:'skill', e:2, art:'🧱', desc:n=>'Gain <b>'+n+'</b> block.',            blk:12, up:'wall_p'},
+ wall_p:   {name:'Iron Wall+',type:'skill',e:2, art:'🧱', desc:n=>'Gain <b>'+n+'</b> block.',            blk:17, U:1},
+ shrug:    {name:'Shrug Off', type:'skill',e:1, art:'😤', desc:n=>'Gain <b>'+n+'</b> block. Draw 1.',    blk:8,  drawc:1, up:'shrug_p'},
+ shrug_p:  {name:'Shrug Off+',type:'skill',e:1, art:'😤', desc:n=>'Gain <b>'+n+'</b> block. Draw 1.',    blk:11, drawc:1, U:1},
+ quickdraw:{name:'Quick Draw',type:'skill',e:1,art:'📇', desc:n=>'Draw <b>'+n+'</b> cards.',             drawc:2, up:'quickdraw_p'},
+ quickdraw_p:{name:'Quick Draw+',type:'skill',e:1,art:'📇',desc:n=>'Draw <b>'+n+'</b> cards.',           drawc:3, U:1},
+ heal:     {name:'Second Wind',type:'skill',e:1,art:'💚',desc:n=>'Heal <b>'+n+'</b> HP.',                heal:6, up:'heal_p'},
+ heal_p:   {name:'Second Wind+',type:'skill',e:1,art:'💚',desc:n=>'Heal <b>'+n+'</b> HP.',               heal:9, U:1},
+ adren:    {name:'Adrenaline',type:'skill',e:0,art:'⚡', desc:n=>'Gain 1 energy, draw 1. Exhaust.',       energy:1, drawc:1, ex:1, up:'adren_p'},
+ adren_p:  {name:'Adrenaline+',type:'skill',e:0,art:'⚡',desc:n=>'Gain 2 energy, draw 1. Exhaust.',      energy:2, drawc:1, ex:1, U:1},
+ weaken:   {name:'Enfeeble', type:'skill', e:1, art:'🌀', desc:n=>'Apply <b>'+n+'</b> weak.',            weak:2, up:'weaken_p'},
+ weaken_p: {name:'Enfeeble+',type:'skill', e:1, art:'🌀', desc:n=>'Apply <b>'+n+'</b> weak.',            weak:3, U:1},
+ rampage:  {name:'Rampage',  type:'attack',e:2, art:'😡', desc:n=>'Deal <b>'+n+'</b> damage.',           dmg:14, up:'rampage_p'},
+ rampage_p:{name:'Rampage+', type:'attack',e:2, art:'😡', desc:n=>'Deal <b>'+n+'</b> damage.',           dmg:19, U:1},
+};
+function cardDmg(k){ const c=CARDS[k]; return c.dmg; }
+function cardDesc(k){ const c=CARDS[k]; const v=c.dmg||c.blk||c.pois||c.str||c.heal||c.drawc||c.weak||0; return c.desc(v); }
+// reward pool (base cards only, weighted-ish)
+const REWARD_POOL=['fireball','poison','cloud','bash','cleave','dagger','focus','wall','shrug','quickdraw','heal','adren','weaken','rampage','strike','defend'];
+
+/* ---------- relics ---------- */
+const RELICS={
+ ember:   {ic:'🔴', name:'Ember Core',  desc:'Start each combat with +2 Strength.'},
+ iron:    {ic:'🪨', name:'Iron Plate',  desc:'Start each combat with 8 Block.'},
+ battery: {ic:'🔋', name:'Battery',     desc:'Gain +1 energy on your first turn each combat.'},
+ fang:    {ic:'🦷', name:'Vampiric Fang',desc:'Heal 6 HP after each combat won.'},
+ vial:    {ic:'🧫', name:'Toxic Vial',  desc:'Enemies begin combat with 3 Poison.'},
+ coin:    {ic:'🪙', name:'Lucky Coin',  desc:'Draw 1 extra card each turn.'},
+ stone:   {ic:'🔥', name:'Warm Stone',  desc:'Heal 5 HP at the start of each combat.'},
+ shield:  {ic:'🛡️', name:'Runic Shield', desc:'Your Block is not removed at turn start.'},
+};
+
+/* ---------- enemies (floors 1-8 + boss 9) ---------- */
+const ENEMIES=[
+ {sprite:'🟢', name:'Slime',    hp:22, moves:[{k:'atk',v:6},{k:'atkdef',v:4,b:5},{k:'atk',v:8}]},
+ {sprite:'🦇', name:'Cave Bat',  hp:20, moves:[{k:'atk',v:5},{k:'debuff',deb:'weak',dv:2,v:3},{k:'atk',v:7}]},
+ {sprite:'👺', name:'Goblin',    hp:28, moves:[{k:'atkdef',v:7,b:6},{k:'atk',v:10},{k:'def',b:9}]},
+ {sprite:'🕷️', name:'Wraith Spider',hp:26,moves:[{k:'atkdebuff',v:4,deb:'vuln',dv:2},{k:'atk',v:8},{k:'poison',v:4}]},
+ {sprite:'💀', name:'Skeleton',  hp:32, moves:[{k:'atk',v:11},{k:'buff',s:3},{k:'atkdef',v:6,b:8}]},
+ {sprite:'👹', name:'Ogre',      hp:40, moves:[{k:'atk',v:14},{k:'def',b:12},{k:'atk',v:9}]},
+ {sprite:'👻', name:'Revenant',  hp:34, moves:[{k:'multi',v:6,hits:2},{k:'atkdebuff',v:5,deb:'weak',dv:2},{k:'atk',v:12}]},
+ {sprite:'🗿', name:'Stone Golem',hp:50,moves:[{k:'atkdef',v:16,b:10},{k:'def',b:16},{k:'atk',v:20}]},
+ {sprite:'🐉', name:'Elder Dragon',hp:90,boss:1,moves:[{k:'atk',v:20},{k:'multi',v:8,hits:2},{k:'buff',s:4},{k:'atkdef',v:14,b:14},{k:'atkdebuff',v:10,deb:'vuln',dv:2}]},
+];
+
+/* ---------- persistent meta ---------- */
+let META={runs:0, wins:0, bestFloor:0, log:[]};
+function loadMeta(){ try{ const r=localStorage.getItem(SAVE); if(r){ const p=JSON.parse(r); if(p){ META=Object.assign(META,p); if(!Array.isArray(META.log))META.log=[]; } } }catch(e){} }
+function saveMeta(){ try{ localStorage.setItem(SAVE, JSON.stringify(META)); }catch(e){} }
+function pushLog(entry){ META.log.unshift(entry); if(META.log.length>14)META.log.length=14; saveMeta(); }
+
+/* ---------- run state ---------- */
+let R=null; // run: {deck:[keys], hp, maxhp, relics:[], floor}
+let C=null; // combat state
+let busy=false;
+function newRun(){
+  const deck=[];
+  for(let i=0;i<5;i++)deck.push('strike');
+  for(let i=0;i<4;i++)deck.push('defend');
+  deck.push('bash'); deck.push('focus');
+  R={deck:deck, hp:60, maxhp:60, relics:[], floor:0};
+  META.runs++; saveMeta();
+  renderRelics();
+  startCombat();
+}
+
+/* ---------- combat setup ---------- */
+function startCombat(){
+  R.floor++;
+  const tmpl=ENEMIES[Math.min(R.floor-1, ENEMIES.length-1)];
+  const en={sprite:tmpl.sprite,name:tmpl.name,hp:tmpl.hp,maxhp:tmpl.hp,block:0,str:0,vuln:0,weak:0,poison:0,
+            moves:tmpl.moves, mi:0, intent:null, boss:!!tmpl.boss};
+  const pl={hp:R.hp,maxhp:R.maxhp,block:0,str:0,vuln:0,weak:0,poison:0,energy:0,maxEnergy:3};
+  C={en,pl,draw:[],hand:[],disc:[],exh:[],turn:0,firstTurn:true,playerTurn:true,over:false};
+  // shuffle deck into draw
+  C.draw=shuffle(R.deck.slice());
+  // relic: combat-start hooks
+  if(hasRelic('ember')) pl.str+=2;
+  if(hasRelic('iron')) pl.block+=8;
+  if(hasRelic('stone')) pl.hp=Math.min(pl.maxhp,pl.hp+5);
+  if(hasRelic('vial')) en.poison+=3;
+  // first intent
+  pickIntent(en);
+  document.getElementById('floorV').textContent=(en.boss?'BOSS — FLOOR ':'FLOOR ')+R.floor;
+  startPlayerTurn();
+  renderAll();
+}
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; const t=a[i];a[i]=a[j];a[j]=t; } return a; }
+function hasRelic(id){ return R.relics.indexOf(id)>=0; }
+
+/* ---------- draw / piles ---------- */
+function drawCards(n){
+  for(let i=0;i<n;i++){
+    if(C.draw.length===0){ if(C.disc.length===0)break; C.draw=shuffle(C.disc); C.disc=[]; }
+    if(C.hand.length>=10){ break; }
+    C.hand.push(C.draw.pop());
+  }
+}
+
+/* ---------- turn flow ---------- */
+function startPlayerTurn(){
+  C.playerTurn=true; C.turn++;
+  const pl=C.pl;
+  if(!hasRelic('shield')) pl.block=0;
+  pl.energy=pl.maxEnergy + (C.firstTurn&&hasRelic('battery')?1:0);
+  // tick player poison
+  if(pl.poison>0){ dealPoison(pl); }
+  // decrement player debuffs (applied last enemy turn)
+  // (durations tick at start of own turn)
+  let dn=5 + (hasRelic('coin')?1:0);
+  drawCards(dn);
+  if(pl.vuln>0)pl.vuln--; if(pl.weak>0)pl.weak--;
+  C.firstTurn=false;
+  document.getElementById('turnV').textContent='Your Turn';
+  checkDeaths();
+  renderAll();
+}
+function endTurn(){
+  if(C.over||!C.playerTurn||busy)return;
+  audio(); sCard();
+  // discard hand
+  C.disc=C.disc.concat(C.hand); C.hand=[];
+  C.playerTurn=false;
+  document.getElementById('turnV').textContent="Enemy Turn";
+  renderAll();
+  busy=true;
+  setTimeout(enemyTurn, 450);
+}
+function enemyTurn(){
+  const en=C.en, pl=C.pl;
+  if(C.over){busy=false;return;}
+  // enemy block resets at start of its turn
+  en.block=0;
+  // tick enemy poison
+  if(en.poison>0){ dealPoison(en); renderAll(); if(en.hp<=0){ setTimeout(()=>{winCombat();busy=false;},400); return; } }
+  // execute intent
+  execIntent(en, en.intent);
+  renderAll();
+  checkDeaths();
+  if(C.over){busy=false;return;}
+  // decrement enemy debuffs
+  if(en.vuln>0)en.vuln--; if(en.weak>0)en.weak--;
+  // pick next intent
+  pickIntent(en);
+  setTimeout(()=>{ busy=false; if(!C.over) startPlayerTurn(); }, 500);
+}
+
+/* ---------- intents ---------- */
+function pickIntent(en){
+  // cycle through moves in order for predictability, boss random
+  let mv;
+  if(en.boss){ mv=en.moves[(Math.random()*en.moves.length)|0]; }
+  else { mv=en.moves[en.mi % en.moves.length]; en.mi++; }
+  en.intent=mv;
+}
+function intentText(en){
+  const mv=en.intent; if(!mv)return '&nbsp;';
+  const strAdj=(v)=>Math.max(0, v+en.str) ; // display raw incoming (before player vuln)
+  if(mv.k==='atk')   return '<span class="ai">⚔️</span> '+strAdj(mv.v);
+  if(mv.k==='atkdef')return '<span class="ai">⚔️</span> '+strAdj(mv.v)+' <span class="ai">🛡️</span>'+mv.b;
+  if(mv.k==='multi') return '<span class="ai">⚔️</span> '+strAdj(mv.v)+'×'+mv.hits;
+  if(mv.k==='def')   return '<span class="ai">🛡️</span> '+mv.b;
+  if(mv.k==='buff')  return '<span class="ai">💪</span> Buff';
+  if(mv.k==='debuff')return '<span class="ai">🌀</span> Weaken';
+  if(mv.k==='poison')return '<span class="ai">🧪</span> Poison';
+  if(mv.k==='atkdebuff')return '<span class="ai">⚔️</span> '+strAdj(mv.v)+' <span class="ai">'+(mv.deb==='vuln'?'🎯':'🌀')+'</span>';
+  return '&nbsp;';
+}
+function execIntent(en,mv){
+  const pl=C.pl;
+  if(!mv)return;
+  if(mv.k==='atk'){ attack(en,pl,mv.v); }
+  else if(mv.k==='atkdef'){ attack(en,pl,mv.v); en.block+=mv.b; }
+  else if(mv.k==='multi'){ for(let i=0;i<mv.hits;i++){ if(pl.hp>0)attack(en,pl,mv.v); } }
+  else if(mv.k==='def'){ en.block+=mv.b; sBlock(); }
+  else if(mv.k==='buff'){ en.str+=mv.s; beep(300,0.12,'sawtooth',0.04,420); }
+  else if(mv.k==='debuff'){ pl.weak+=mv.dv; if(mv.v)attack(en,pl,mv.v); beep(260,0.1,'sine',0.04); }
+  else if(mv.k==='poison'){ pl.poison+=mv.v; beep(240,0.12,'sine',0.04); }
+  else if(mv.k==='atkdebuff'){ attack(en,pl,mv.v); if(mv.deb==='vuln')pl.vuln+=mv.dv; else pl.weak+=mv.dv; }
+}
+
+/* ---------- combat math ---------- */
+function attack(src,tgt,base){
+  let dmg=base+ (src.str||0);
+  if(src.weak>0)dmg=Math.floor(dmg*0.75);
+  if(tgt.vuln>0)dmg=Math.floor(dmg*1.5);
+  if(dmg<0)dmg=0;
+  const absorbed=Math.min(tgt.block,dmg);
+  tgt.block-=absorbed; dmg-=absorbed;
+  tgt.hp-=dmg;
+  sHit();
+  spriteHit(tgt===C.en);
+}
+function dealPoison(who){
+  const p=who.poison;
+  who.hp-=p; who.poison=Math.max(0,who.poison-1);
+  beep(180,0.1,'sine',0.03);
+}
+function spriteHit(isEnemy){
+  const el=document.getElementById(isEnemy?'enSprite':'plrSprite');
+  el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit');
+}
+
+/* ---------- play a card ---------- */
+function playCard(idx){
+  if(C.over||!C.playerTurn||busy)return;
+  const key=C.hand[idx]; if(!key)return;
+  const c=CARDS[key];
+  if(C.pl.energy<c.e){ toast('Not enough energy'); beep(160,0.08,'sawtooth',0.04); return; }
+  audio(); sCard();
+  C.pl.energy-=c.e;
+  const pl=C.pl,en=C.en;
+  const val=(k)=>c[k]||0;
+  if(c.dmg){ attack(pl,en, c.dmg); }
+  if(c.blk){ pl.block+=c.blk; sBlock(); }
+  if(c.pois){ en.poison+=c.pois; }
+  if(c.weak){ en.weak+=c.weak; }
+  if(c.vuln){ en.vuln+=c.vuln; }
+  if(c.str){ pl.str+=c.str; }
+  if(c.heal){ pl.hp=Math.min(pl.maxhp, pl.hp+c.heal); beep(520,0.1,'triangle',0.05,760); }
+  if(c.energy){ pl.energy+=c.energy; }
+  // remove from hand
+  C.hand.splice(idx,1);
+  if(c.ex) C.exh.push(key); else C.disc.push(key);
+  if(c.drawc){ drawCards(c.drawc); }
+  checkDeaths();
+  renderAll();
+}
+
+/* ---------- deaths ---------- */
+function checkDeaths(){
+  if(C.over)return;
+  if(C.en.hp<=0){ winCombat(); return; }
+  if(C.pl.hp<=0){ loseRun(); return; }
+}
+function winCombat(){
+  if(C.over)return;
+  C.over=true; sWin();
+  R.hp=C.pl.hp;
+  if(hasRelic('fang')) R.hp=Math.min(R.maxhp, R.hp+6);
+  if(R.floor>META.bestFloor){ META.bestFloor=R.floor; saveMeta(); }
+  const boss=C.en.boss;
+  if(boss){ setTimeout(victory, 700); return; }
+  // relic milestone after floors 2,4,6
+  if(R.floor===2||R.floor===4||R.floor===6){ setTimeout(offerRelic, 650); }
+  else setTimeout(offerReward, 650);
+}
+function loseRun(){
+  if(C.over)return;
+  C.over=true; sLose();
+  pushLog({t:'loss', txt:'Floor '+R.floor+' — slain by '+C.en.name});
+  document.getElementById('deathSub').textContent='Reached Floor '+R.floor+' of 9';
+  document.getElementById('deathMsg').textContent='The '+C.en.name+' finished you off. Best floor ever: '+META.bestFloor+'.';
+  renderLog('deathLog');
+  document.getElementById('death').style.display='flex';
+}
+function victory(){
+  pushLog({t:'win', txt:'★ VICTORY — cleared the boss!'});
+  META.wins++; saveMeta();
+  document.getElementById('vicSub').textContent='Total victories: '+META.wins;
+  document.getElementById('victory').style.display='flex';
+}
+
+/* ---------- rewards ---------- */
+function pick3Cards(){
+  const pool=REWARD_POOL.slice(); shuffle(pool);
+  const picks=pool.slice(0,3);
+  // ~35% upgraded variant
+  return picks.map(k=>{ const c=CARDS[k]; if(c.up && Math.random()<0.35) return c.up; return k; });
+}
+function offerReward(){
+  const cards=pick3Cards();
+  const wrap=document.getElementById('rewardCards'); wrap.innerHTML='';
+  document.getElementById('rewardSub').textContent='Floor '+R.floor+' cleared — choose a card';
+  cards.forEach(k=>{ const el=makeCardEl(k); el.addEventListener('click',()=>{ audio();beep(660,0.08,'square',0.05,880); R.deck.push(k); closeOverlay('reward'); startCombat(); }); wrap.appendChild(el); });
+  document.getElementById('reward').style.display='flex';
+}
+function offerRelic(){
+  const pool=Object.keys(RELICS).filter(id=>!hasRelic(id)); shuffle(pool);
+  const picks=pool.slice(0,3);
+  const wrap=document.getElementById('relicChoice'); wrap.innerHTML='';
+  picks.forEach(id=>{ const r=RELICS[id]; const el=document.createElement('div'); el.className='relicPick';
+    el.innerHTML='<div class="ri">'+r.ic+'</div><div class="rn">'+r.name+'</div><div class="rd">'+r.desc+'</div>';
+    el.addEventListener('click',()=>{ audio();beep(700,0.1,'triangle',0.05,980); R.relics.push(id); renderRelics(); closeOverlay('relicOverlay'); offerRewardAfterRelic(); });
+    wrap.appendChild(el); });
+  if(picks.length===0){ offerRewardAfterRelic(); return; }
+  document.getElementById('relicOverlay').style.display='flex';
+}
+function offerRewardAfterRelic(){ setTimeout(offerReward, 250); }
+
+/* ---------- card element ---------- */
+function makeCardEl(key, idx, playable){
+  const c=CARDS[key];
+  const el=document.createElement('div');
+  el.className='card '+c.type+(c.U?' up':'');
+  if(playable===false) el.classList.add('no');
+  el.innerHTML='<div class="cost">'+c.e+'</div>'+
+    '<div class="cn'+(c.U?' up':'')+'">'+c.name+'</div>'+
+    '<div class="art">'+c.art+'</div>'+
+    '<div class="desc">'+cardDesc(key)+'</div>';
+  return el;
+}
+
+/* ---------- render ---------- */
+function badges(who){
+  let h='';
+  if(who.block>0)h+='<span class="badge block">🛡 '+who.block+'</span>';
+  if(who.str>0)h+='<span class="badge str">💪 '+who.str+'</span>';
+  if(who.vuln>0)h+='<span class="badge vuln">🎯 '+who.vuln+'</span>';
+  if(who.weak>0)h+='<span class="badge weak">🌀 '+who.weak+'</span>';
+  if(who.poison>0)h+='<span class="badge poison">🧪 '+who.poison+'</span>';
+  return h;
+}
+function renderAll(){
+  if(!C)return;
+  const en=C.en,pl=C.pl;
+  document.getElementById('enName').textContent=en.name;
+  document.getElementById('enSprite').textContent=en.sprite;
+  document.getElementById('enHpFill').style.width=Math.max(0,en.hp/en.maxhp*100)+'%';
+  document.getElementById('enHpText').textContent=Math.max(0,en.hp)+'/'+en.maxhp;
+  document.getElementById('enStats').innerHTML=badges(en);
+  document.getElementById('enIntent').innerHTML=C.playerTurn?intentText(en):'<span style="color:#888">...</span>';
+  document.getElementById('plHpFill').style.width=Math.max(0,pl.hp/pl.maxhp*100)+'%';
+  document.getElementById('plHpText').textContent=Math.max(0,pl.hp)+'/'+pl.maxhp;
+  document.getElementById('plStats').innerHTML=badges(pl);
+  document.getElementById('energyV').textContent=pl.energy+'/'+pl.maxEnergy;
+  document.getElementById('drawN').textContent=C.draw.length;
+  document.getElementById('discN').textContent=C.disc.length;
+  document.getElementById('exhN').textContent=C.exh.length;
+  // hand
+  const hand=document.getElementById('hand'); hand.innerHTML='';
+  C.hand.forEach((key,i)=>{
+    const playable=C.playerTurn && pl.energy>=CARDS[key].e && !C.over;
+    const el=makeCardEl(key,i,playable);
+    el.addEventListener('click',()=>playCard(i));
+    hand.appendChild(el);
+  });
+  document.getElementById('endTurn').disabled=!C.playerTurn||C.over||busy;
+}
+function renderRelics(){
+  const el=document.getElementById('relics'); el.innerHTML='';
+  R.relics.forEach(id=>{ const r=RELICS[id]; const d=document.createElement('div'); d.className='relic';
+    d.innerHTML=r.ic+'<div class="tt"><b>'+r.name+'</b><br>'+r.desc+'</div>'; el.appendChild(d); });
+}
+function renderLog(elId){
+  const el=document.getElementById(elId); if(!el)return;
+  let h='<div style="color:#cfc0ff;margin-bottom:3px">— UNLOCK LOG —</div>';
+  h+='<div>Runs: '+META.runs+' · Wins: '+META.wins+' · Best floor: '+META.bestFloor+'</div>';
+  META.log.forEach(e=>{ h+='<div class="'+(e.t==='win'?'win':'loss')+'">'+e.txt+'</div>'; });
+  el.innerHTML=h;
+}
+
+/* ---------- toast ---------- */
+let toastT=0;
+function toast(m){ const el=document.getElementById('toast'); el.textContent=m; el.style.opacity='1'; toastT=1.8; }
+setInterval(()=>{ if(toastT>0){ toastT-=0.2; if(toastT<=0){ document.getElementById('toast').style.opacity='0'; } } },200);
+
+/* ---------- overlays ---------- */
+function closeOverlay(id){ document.getElementById(id).style.display='none'; }
+
+/* ---------- start / restart ---------- */
+function start(){
+  document.getElementById('title').style.display='none';
+  audio(); beep(440,0.1,'triangle',0.05,660);
+  newRun();
+}
+function restart(){
+  closeOverlay('death'); closeOverlay('victory');
+  newRun();
+}
+document.getElementById('startBtn').addEventListener('click',start);
+document.getElementById('title').addEventListener('click',e=>{ if(e.target.closest('#title'))start(); });
+document.getElementById('endTurn').addEventListener('click',endTurn);
+document.getElementById('skipReward').addEventListener('click',()=>{ audio();closeOverlay('reward'); startCombat(); });
+document.getElementById('deathRestart').addEventListener('click',()=>{audio();restart();});
+document.getElementById('vicRestart').addEventListener('click',()=>{audio();restart();});
+addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(document.getElementById('title').style.display!=='none'){ if(k==='enter'||k===' '){e.preventDefault();start();} return; }
+  if(document.getElementById('death').style.display==='flex'||document.getElementById('victory').style.display==='flex'){ if(k==='r'||k==='enter'){restart();} return; }
+  if(document.getElementById('reward').style.display==='flex'||document.getElementById('relicOverlay').style.display==='flex')return;
+  if(k==='e'){ e.preventDefault(); endTurn(); }
+  else if(k>='1'&&k<='9'){ const i=parseInt(k,10)-1; if(C&&i<C.hand.length) playCard(i); }
+  else if(k==='r'){ if(confirmRestartAllowed()){ /* only via death screen normally */ } }
+});
+function confirmRestartAllowed(){ return false; }
+
+/* ---------- boot ---------- */
+loadMeta();
+renderLog('titleLog');
+})();
+</script>
+</body>
+</html>

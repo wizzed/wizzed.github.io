@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Idle Factory — Wizzed Arcade</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:#0f0f1a;color:#d8ffe6;font-family:'Courier New',ui-monospace,monospace;overflow:hidden}
+:root{--acc:#ffb347;--acc2:#4dd2ff}
+a.back{position:fixed;top:10px;left:12px;z-index:60;color:#8890b0;text-decoration:none;font-size:13px;letter-spacing:1px;padding:4px 9px;border:1px solid rgba(136,144,176,.35);background:rgba(15,15,26,.8);border-radius:4px}
+a.back:hover{color:var(--acc);border-color:var(--acc);text-shadow:0 0 8px var(--acc)}
+#wrap{display:flex;flex-direction:column;height:100vh;width:100vw}
+#top{display:flex;align-items:center;gap:14px;padding:8px 12px 8px 96px;border-bottom:1px solid rgba(255,179,71,.25);background:linear-gradient(180deg,#161628,#10101d);flex:0 0 auto;flex-wrap:wrap}
+#top .stat{display:flex;flex-direction:column;line-height:1.1}
+#top .stat b{color:var(--acc);font-size:20px;text-shadow:0 0 10px rgba(255,179,71,.5)}
+#top .stat span{font-size:10px;color:#8f9ac0;letter-spacing:1px}
+#top .rate b{color:#7CFC00;text-shadow:0 0 10px rgba(124,252,0,.4)}
+#main{display:flex;flex:1 1 auto;min-height:0}
+#left{flex:1 1 46%;min-width:0;position:relative;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#15152a,#0c0c16);border-right:1px solid rgba(255,179,71,.2)}
+#belts{image-rendering:pixelated;max-width:100%;max-height:100%}
+#right{flex:1 1 54%;min-width:0;overflow-y:auto;padding:8px 10px 60px;background:#0d0d18}
+#right::-webkit-scrollbar{width:8px}#right::-webkit-scrollbar-thumb{background:#2a2a44;border-radius:4px}
+.card{border:1px solid rgba(120,130,180,.25);border-radius:7px;padding:8px 10px;margin-bottom:8px;background:linear-gradient(180deg,#15152a,#111120)}
+.card.tier{border-left:4px solid var(--tc,#fff)}
+.chead{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.chead .ic{font-size:22px;filter:drop-shadow(0 0 6px var(--tc))}
+.chead .nm{font-weight:bold;font-size:15px;color:#eaf0ff}
+.chead .ct{margin-left:auto;font-size:11px;color:#9aa6d0;text-align:right;line-height:1.3}
+.chead .ct b{color:var(--tc);font-size:14px}
+.brow{display:flex;gap:6px}
+.btn{flex:1;border:1px solid rgba(120,130,180,.4);background:#1a1a30;color:#dfe6ff;font-family:inherit;font-size:12px;padding:7px 4px;border-radius:5px;cursor:pointer;line-height:1.25;transition:.1s;text-align:center}
+.btn small{display:block;color:#8f9ac0;font-size:10px}
+.btn:hover:not(:disabled){border-color:var(--acc);box-shadow:0 0 8px rgba(255,179,71,.35);color:#fff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.buy{border-color:rgba(124,252,0,.4)}
+.btn.buy:hover:not(:disabled){border-color:#7CFC00;box-shadow:0 0 8px rgba(124,252,0,.4)}
+.btn.mgr{border-color:rgba(157,107,255,.5)}
+.btn.mgr.owned{background:linear-gradient(180deg,#2a1f4a,#1c1533);border-color:#9d6bff;color:#c9b3ff}
+.btn.big{padding:10px;font-size:14px}
+.prestige{border:1px solid rgba(255,45,120,.4);background:linear-gradient(180deg,#2a1424,#180d18)}
+.prestige b{color:#ff2d78}
+#mineBtn{width:100%;padding:12px;margin-bottom:10px;font-size:16px;border:2px solid var(--acc);background:linear-gradient(180deg,#2a2214,#1a160c);color:var(--acc);border-radius:8px;cursor:pointer;font-family:inherit;letter-spacing:1px;text-shadow:0 0 8px rgba(255,179,71,.5);transition:.08s}
+#mineBtn:active{transform:scale(.97)}
+#mineBtn:hover{box-shadow:0 0 16px rgba(255,179,71,.4)}
+.sect{font-size:11px;letter-spacing:2px;color:#6f7aa0;margin:10px 2px 5px;text-transform:uppercase}
+/* overlay */
+.overlay{position:fixed;inset:0;z-index:40;background:rgba(8,8,16,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px}
+.overlay h1{font-size:44px;color:var(--acc);text-shadow:0 0 20px rgba(255,179,71,.6),4px 4px 0 #5a3a0a;letter-spacing:3px;margin-bottom:6px}
+.overlay .sub{color:var(--acc2);letter-spacing:3px;font-size:14px;margin-bottom:22px;text-shadow:0 0 10px rgba(77,210,255,.5)}
+.overlay p{color:#aab3d8;max-width:440px;line-height:1.6;margin-bottom:18px;font-size:14px}
+.pulse{color:#fff;border:2px solid var(--acc);padding:12px 26px;border-radius:8px;font-size:16px;letter-spacing:2px;animation:pl 1.2s infinite;background:rgba(255,179,71,.08)}
+@keyframes pl{0%,100%{box-shadow:0 0 8px rgba(255,179,71,.4)}50%{box-shadow:0 0 24px rgba(255,179,71,.8)}}
+.modal{background:linear-gradient(180deg,#181830,#101020);border:2px solid var(--acc);border-radius:12px;padding:22px 26px;max-width:400px}
+.modal h2{color:var(--acc);margin-bottom:10px;letter-spacing:1px}
+.modal .big{font-size:30px;color:#7CFC00;text-shadow:0 0 14px rgba(124,252,0,.5);margin:8px 0}
+.modal button{margin-top:14px;padding:10px 26px;font-family:inherit;font-size:15px;border:2px solid var(--acc);background:rgba(255,179,71,.1);color:var(--acc);border-radius:8px;cursor:pointer;letter-spacing:1px}
+.modal button:hover{box-shadow:0 0 14px rgba(255,179,71,.5)}
+#toast{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:55;background:rgba(15,15,26,.95);border:1px solid var(--acc);color:var(--acc);padding:8px 16px;border-radius:20px;font-size:12px;letter-spacing:1px;opacity:0;transition:opacity .35s;pointer-events:none;text-align:center}
+@media (max-width:620px){#main{flex-direction:column}#left{flex:0 0 150px;border-right:none;border-bottom:1px solid rgba(255,179,71,.2)}#top{padding-left:12px;padding-top:36px}}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<div id="wrap">
+  <div id="top">
+    <div class="stat"><b id="moneyV">$0</b><span>CREDITS</span></div>
+    <div class="stat rate"><b id="rateV">$0/s</b><span>INCOME</span></div>
+    <div class="stat"><b id="oreV" style="color:#ffb347">0</b><span>ORE</span></div>
+    <div class="stat"><b id="metalV" style="color:#ff6b6b">0</b><span>METAL</span></div>
+    <div class="stat"><b id="partsV" style="color:#4dd2ff">0</b><span>PARTS</span></div>
+    <div class="stat"><b id="bpV" style="color:#ff2d78">0</b><span>BLUEPRINTS (+<span id="bpPct">0</span>%)</span></div>
+  </div>
+  <div id="main">
+    <div id="left"><canvas id="belts" width="360" height="380"></canvas></div>
+    <div id="right">
+      <button id="mineBtn">&#9935; MINE ORE (+<span id="clickAmt">1</span>)</button>
+      <div class="sect">Production Chain</div>
+      <div id="tiers"></div>
+      <div class="sect">Factory</div>
+      <div class="card prestige">
+        <div class="chead"><span class="ic" style="filter:none">&#9851;</span><span class="nm">Rebuild Factory</span>
+          <span class="ct">pending <b id="pendBp">0</b> BP</span></div>
+        <div style="font-size:11px;color:#9aa6d0;margin-bottom:6px">Tear it all down. Keep Blueprints — each grants +10% permanent output. Resets machines, resources &amp; credits.</div>
+        <button class="btn big" id="prestigeBtn" style="width:100%">REBUILD &#8635;</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="title">
+  <h1>IDLE FACTORY</h1>
+  <div class="sub">&#9935; SMELT &middot; ASSEMBLE &middot; SHIP &middot; PRESTIGE</div>
+  <p>Build a production line — miners feed smelters feed assemblers feed shippers. Automate with managers, then rebuild for permanent multipliers. Watch the credits stack up.</p>
+  <div class="pulse" id="startBtn">CLICK / PRESS ENTER TO START</div>
+</div>
+
+<div class="overlay" id="welcome" style="display:none">
+  <div class="modal">
+    <h2>&#9200; Welcome Back!</h2>
+    <div>Your factory ran while you were away.</div>
+    <div class="big" id="offlineAmt">+$0</div>
+    <div id="offlineTime" style="color:#9aa6d0;font-size:12px"></div>
+    <button id="welcomeOk">COLLECT</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+(function(){
+const SAVE='wizzed-idle-factory';
+const cvs=document.getElementById('belts'), ctx=cvs.getContext('2d');
+const W=cvs.width, H=cvs.height;
+
+/* ---------- number formatting ---------- */
+const SUF=['','K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc','UDc','DDc'];
+function fmt(n){
+  if(!isFinite(n))return '∞';
+  if(n<0)return '-'+fmt(-n);
+  if(n<1000)return (n<10?Math.round(n*10)/10:Math.round(n)).toString();
+  let t=Math.floor(Math.log10(n)/3);
+  if(t>=SUF.length)t=SUF.length-1;
+  let v=n/Math.pow(1000,t);
+  return (v<10?v.toFixed(2):v<100?v.toFixed(1):Math.floor(v))+SUF[t];
+}
+function money(n){return '$'+fmt(n);}
+
+/* ---------- audio ---------- */
+let actx=null;
+function audio(){if(!actx){try{actx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(actx&&actx.state==='suspended')actx.resume();}
+function beep(f,d,type,v,f2){if(!actx)return;try{const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.type=type||'square';o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(Math.max(20,f2),t+d);g.gain.setValueAtTime(v||0.05,t);g.gain.exponentialRampToValueAtTime(0.0001,t+d);o.connect(g).connect(actx.destination);o.start(t);o.stop(t+d);}catch(e){}}
+
+/* ---------- tiers ---------- */
+const TIERS=[
+ {key:'mine',   name:'Miners',    ic:'⛏️', color:'#ffb347', res:'ore',   baseCost:10,  costMul:1.15, baseOut:1.0, upgBase:120,   mgrCost:2500},
+ {key:'smelt',  name:'Smelters',  ic:'🔥', color:'#ff6b6b', res:'metal', baseCost:20,  costMul:1.16, baseOut:1.0, upgBase:400,   mgrCost:30000},
+ {key:'assemble',name:'Assemblers',ic:'⚙️',color:'#4dd2ff', res:'parts', baseCost:40,  costMul:1.17, baseOut:1.0, upgBase:1600,  mgrCost:400000},
+ {key:'ship',   name:'Shippers',  ic:'🚚', color:'#7CFC00', res:'money', baseCost:80,  costMul:1.18, baseOut:1.0, upgBase:6400,  mgrCost:5000000},
+];
+// credits earned per unit each tier outputs (downstream tiers are worth much more)
+const VALUE=[0.35, 1.6, 7, 30];
+
+let S=null;              // game state
+function freshState(){
+  return {
+    money:0, ore:0, metal:0, parts:0,
+    tiers:TIERS.map(()=>({count:0,lvl:1,mgr:false})),
+    blueprints:0, totalEarned:0, runEarned:0,
+    started:false, last:Date.now()
+  };
+}
+
+function machineCost(i){return TIERS[i].baseCost*Math.pow(TIERS[i].costMul, S.tiers[i].count);}
+function upgCost(i){return TIERS[i].upgBase*Math.pow(6, S.tiers[i].lvl-1);}
+function globalMult(){return 1 + S.blueprints*0.10;}
+function tierRate(i){ // max units/sec this tier can output
+  const t=S.tiers[i]; if(t.count<=0)return 0;
+  return t.count*TIERS[i].baseOut*Math.pow(2,t.lvl-1)*(t.mgr?3:1)*globalMult();
+}
+function bottleneck(){ // steady product/sec = min of active tier rates (0 if any missing)
+  let m=Infinity;
+  for(let i=0;i<4;i++){ if(S.tiers[i].count<=0)return 0; m=Math.min(m,tierRate(i)); }
+  return m===Infinity?0:m;
+}
+function incomePerSec(){return bottleneck()*PRICE*(1); }
+
+/* ---------- persistence ---------- */
+function save(){ try{ S.last=Date.now(); localStorage.setItem(SAVE, JSON.stringify(S)); }catch(e){} }
+function load(){
+  try{ const raw=localStorage.getItem(SAVE); if(raw){ const p=JSON.parse(raw);
+    S=freshState();
+    for(const k in S){ if(p[k]!==undefined) S[k]=p[k]; }
+    // sanitize tiers
+    if(!Array.isArray(S.tiers)||S.tiers.length!==4) S.tiers=TIERS.map(()=>({count:0,lvl:1,mgr:false}));
+    S.tiers=S.tiers.map(t=>({count:+t.count||0,lvl:Math.max(1,+t.lvl||1),mgr:!!t.mgr}));
+    return true;
+  }}catch(e){}
+  S=freshState(); return false;
+}
+
+/* ---------- offline ---------- */
+function applyOffline(){
+  const now=Date.now(); let dt=(now-(S.last||now))/1000;
+  if(dt<5)return null;
+  dt=Math.min(dt, 8*3600); // cap 8h
+  const rate=incomePerSec()*0.5; // offline efficiency
+  const earned=rate*dt;
+  if(earned<1)return null;
+  S.money+=earned; S.totalEarned+=earned; S.runEarned+=earned;
+  return {earned, dt};
+}
+
+/* ---------- flow simulation ---------- */
+function step(dt){
+  // manual/auto flow through the chain
+  const gm=globalMult();
+  // miners produce raw ore
+  const mine=tierRate(0)*dt; S.ore+=mine;
+  // smelt: ore -> metal
+  let cap=tierRate(1)*dt; let mv=Math.min(cap,S.ore); S.ore-=mv; S.metal+=mv;
+  // assemble: metal -> parts
+  cap=tierRate(2)*dt; let av=Math.min(cap,S.metal); S.metal-=av; S.parts+=av;
+  // ship: parts -> money
+  cap=tierRate(3)*dt; let sv=Math.min(cap,S.parts); S.parts-=sv;
+  const earn=sv*PRICE;
+  S.money+=earn; S.totalEarned+=earn; S.runEarned+=earn;
+  // clamp buffers so numbers don't run away visually
+  const bcap=1e12;
+  if(S.ore>bcap)S.ore=bcap; if(S.metal>bcap)S.metal=bcap; if(S.parts>bcap)S.parts=bcap;
+}
+
+/* ---------- actions ---------- */
+function buyMachine(i){
+  const c=machineCost(i);
+  if(S.money>=c){ S.money-=c; S.tiers[i].count++; beep(440+i*80,0.06,'square',0.05,560+i*80); flash(i); renderCards(); }
+  else beep(160,0.08,'sawtooth',0.04);
+}
+function buyUpgrade(i){
+  const c=upgCost(i);
+  if(S.money>=c){ S.money-=c; S.tiers[i].lvl++; beep(660,0.09,'triangle',0.06,990); flash(i); renderCards(); }
+  else beep(160,0.08,'sawtooth',0.04);
+}
+function buyManager(i){
+  if(S.tiers[i].mgr)return;
+  const c=TIERS[i].mgrCost;
+  if(S.money>=c){ S.money-=c; S.tiers[i].mgr=true; beep(520,0.12,'triangle',0.06,880); toast('Manager hired for '+TIERS[i].name+'! +200% output'); renderCards(); }
+  else beep(160,0.08,'sawtooth',0.04);
+}
+function pendingBP(){ return Math.floor(Math.sqrt(S.runEarned/1e6)); }
+function doPrestige(){
+  const bp=pendingBP();
+  if(bp<1){ toast('Earn at least $1M this run to rebuild ('+money(S.runEarned)+' so far)'); beep(160,0.1,'sawtooth',0.04); return; }
+  S.blueprints+=bp;
+  // reset run
+  S.money=0;S.ore=0;S.metal=0;S.parts=0;S.runEarned=0;
+  S.tiers=TIERS.map(()=>({count:0,lvl:1,mgr:false}));
+  starterChain();
+  beep(300,0.3,'sawtooth',0.06,900);
+  toast('Factory rebuilt! +'+bp+' Blueprints (now '+S.blueprints+', +'+(S.blueprints*10)+'% output)');
+  renderCards();
+}
+function starterChain(){ for(let i=0;i<4;i++){ if(S.tiers[i].count<1)S.tiers[i].count=1; } S.money=Math.max(S.money,25); }
+function manualMine(){ const amt=1*globalMult()*(1+S.blueprints*0.2); S.ore+=amt; flashes[0]=1; beep(700,0.04,'square',0.035,900); }
+
+/* ---------- flash + popups on canvas ---------- */
+const flashes=[0,0,0,0]; function flash(i){flashes[i]=1;}
+let pops=[];
+function popText(t){ /* handled via toast for mine; keep light */ }
+
+/* ---------- rendering: control cards ---------- */
+const tiersEl=document.getElementById('tiers');
+let cardEls=[];
+function buildCards(){
+  tiersEl.innerHTML='';
+  cardEls=[];
+  for(let i=0;i<4;i++){
+    const T=TIERS[i];
+    const card=document.createElement('div');
+    card.className='card tier'; card.style.setProperty('--tc',T.color);
+    card.innerHTML=
+      '<div class="chead"><span class="ic">'+T.ic+'</span><span class="nm">'+T.name+'</span>'+
+      '<span class="ct">x<b class="cnt">0</b> &middot; Lv <b class="lvl">1</b><br><span class="rt" style="color:#9aa6d0">0/s</span></span></div>'+
+      '<div class="brow">'+
+        '<button class="btn buy bBuy">Buy<small class="cBuy">$0</small></button>'+
+        '<button class="btn bUpg">Upgrade<small class="cUpg">$0</small></button>'+
+        '<button class="btn mgr bMgr">Manager<small class="cMgr">$0</small></button>'+
+      '</div>';
+    tiersEl.appendChild(card);
+    const refs={
+      cnt:card.querySelector('.cnt'), lvl:card.querySelector('.lvl'), rt:card.querySelector('.rt'),
+      bBuy:card.querySelector('.bBuy'), cBuy:card.querySelector('.cBuy'),
+      bUpg:card.querySelector('.bUpg'), cUpg:card.querySelector('.cUpg'),
+      bMgr:card.querySelector('.bMgr'), cMgr:card.querySelector('.cMgr')
+    };
+    refs.bBuy.addEventListener('click',()=>{audio();buyMachine(i);});
+    refs.bUpg.addEventListener('click',()=>{audio();buyUpgrade(i);});
+    refs.bMgr.addEventListener('click',()=>{audio();buyManager(i);});
+    cardEls.push(refs);
+  }
+}
+function renderCards(){
+  for(let i=0;i<4;i++){
+    const r=cardEls[i],t=S.tiers[i];
+    r.cnt.textContent=t.count; r.lvl.textContent=t.lvl;
+    r.rt.textContent=fmt(tierRate(i))+'/s';
+    const mc=machineCost(i),uc=upgCost(i),gc=TIERS[i].mgrCost;
+    r.cBuy.textContent=money(mc); r.bBuy.disabled=S.money<mc;
+    r.cUpg.textContent=money(uc); r.bUpg.disabled=S.money<uc;
+    if(t.mgr){ r.bMgr.classList.add('owned'); r.bMgr.innerHTML='Manager<small>HIRED ✓</small>'; r.bMgr.disabled=true; }
+    else { r.bMgr.classList.remove('owned'); r.cMgr.textContent=money(gc); r.bMgr.disabled=S.money<gc; }
+  }
+  const bp=pendingBP();
+  document.getElementById('pendBp').textContent=bp;
+  document.getElementById('prestigeBtn').disabled=bp<1;
+}
+function renderTop(){
+  document.getElementById('moneyV').textContent=money(S.money);
+  document.getElementById('rateV').textContent=money(incomePerSec())+'/s';
+  document.getElementById('oreV').textContent=fmt(S.ore);
+  document.getElementById('metalV').textContent=fmt(S.metal);
+  document.getElementById('partsV').textContent=fmt(S.parts);
+  document.getElementById('bpV').textContent=fmt(S.blueprints);
+  document.getElementById('bpPct').textContent=(S.blueprints*10);
+  document.getElementById('clickAmt').textContent=fmt(1*globalMult()*(1+S.blueprints*0.2));
+}
+
+/* ---------- canvas belts ---------- */
+let beltT=0;
+function draw(dt){
+  beltT+=dt;
+  ctx.clearRect(0,0,W,H);
+  // bg grid
+  ctx.fillStyle='#0c0c16'; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(80,90,130,0.10)'; ctx.lineWidth=1;
+  for(let x=0;x<=W;x+=30){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<=H;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  const rows=4, pad=18, top=34, bh=(H-top-16)/rows;
+  const labels=['ORE','METAL','PARTS','SHIP'];
+  const resVals=[S.ore,S.metal,S.parts,S.money];
+  for(let i=0;i<rows;i++){
+    const T=TIERS[i], y=top+i*bh+bh*0.5;
+    const rate=tierRate(i);
+    const active=S.tiers[i].count>0;
+    // belt track
+    const bx0=pad+34, bx1=W-pad-34, bw=bx1-bx0;
+    ctx.strokeStyle=active?'rgba(120,130,180,.5)':'rgba(80,90,120,.25)';
+    ctx.lineWidth=14; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(bx0,y); ctx.lineTo(bx1,y); ctx.stroke();
+    // belt tread dashes moving
+    if(active){
+      ctx.strokeStyle='rgba(30,34,54,.9)'; ctx.lineWidth=14;
+      ctx.setLineDash([6,10]);
+      const spd=Math.min(60, 12+rate*3);
+      ctx.lineDashOffset=-(beltT*spd)%16;
+      ctx.beginPath(); ctx.moveTo(bx0,y); ctx.lineTo(bx1,y); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // machine icon left (source) + glow flash
+    const gl=flashes[i]; if(flashes[i]>0)flashes[i]=Math.max(0,flashes[i]-dt*2);
+    ctx.save();
+    ctx.shadowColor=T.color; ctx.shadowBlur=active?(8+gl*20):3;
+    ctx.font='22px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.globalAlpha=active?1:0.4;
+    ctx.fillText(T.ic, pad+14, y);
+    ctx.restore();
+    // items flowing on belt (dots), count proportional to rate
+    if(active){
+      const nItems=Math.max(1,Math.min(9,Math.round(2+Math.log10(rate+1)*3)));
+      const spd=Math.min(0.5, 0.08+rate*0.004);
+      for(let k=0;k<nItems;k++){
+        let f=((beltT*spd)+(k/nItems))%1;
+        const ix=bx0+f*bw;
+        ctx.fillStyle=T.color;
+        ctx.shadowColor=T.color; ctx.shadowBlur=6;
+        const sz=5;
+        ctx.fillRect(ix-sz/2,y-sz/2,sz,sz);
+        ctx.shadowBlur=0;
+      }
+    }
+    // arrow / output icon on right
+    ctx.globalAlpha=1;
+    ctx.font='11px "Courier New",monospace'; ctx.textAlign='right'; ctx.textBaseline='alphabetic';
+    ctx.fillStyle=T.color; ctx.shadowColor=T.color; ctx.shadowBlur=active?6:0;
+    ctx.fillText(labels[i], bx1+30, y-10);
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#9aa6d0';
+    ctx.fillText(fmt(resVals[i]), bx1+30, y+16);
+    // rate label under machine
+    ctx.textAlign='left';
+    ctx.fillStyle=active?'#cdd6f5':'#5a6488';
+    ctx.font='10px "Courier New",monospace';
+    ctx.fillText(fmt(rate)+'/s', pad+2, y+bh*0.42);
+  }
+  // header
+  ctx.textAlign='center';
+  ctx.fillStyle='#ffb347'; ctx.shadowColor='#ffb347'; ctx.shadowBlur=8;
+  ctx.font='bold 14px "Courier New",monospace';
+  ctx.fillText('▸ PRODUCTION LINE ▸', W/2, 20);
+  ctx.shadowBlur=0;
+}
+
+/* ---------- toast ---------- */
+let toastT=0;
+function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.style.opacity='1'; toastT=3; }
+
+/* ---------- loop ---------- */
+let last=performance.now(), acc=0, saveT=0;
+function loop(now){
+  let dt=(now-last)/1000; last=now; if(dt>0.25)dt=0.25;
+  if(S.started){ step(dt); }
+  draw(dt);
+  renderTop();
+  // periodic card refresh (buttons enable/disable)
+  acc+=dt; if(acc>0.2){ acc=0; if(S.started)renderCards(); }
+  saveT+=dt; if(saveT>10){ saveT=0; save(); }
+  toastT-=dt; if(toastT<=0){ const el=document.getElementById('toast'); if(el.style.opacity==='1')el.style.opacity='0'; }
+  requestAnimationFrame(loop);
+}
+
+/* ---------- start flow ---------- */
+function startGame(){
+  if(document.getElementById('title').style.display==='none')return;
+  document.getElementById('title').style.display='none';
+  S.started=true;
+  audio(); beep(520,0.1,'triangle',0.06,780);
+  renderCards();
+}
+function beginTitle(){
+  const had=load();
+  if(had && S.started){
+    // returning player
+    const off=applyOffline();
+    document.getElementById('title').style.display='none';
+    if(off){
+      document.getElementById('offlineAmt').textContent='+'+money(off.earned);
+      const mins=Math.floor(off.dt/60), hrs=Math.floor(mins/60);
+      document.getElementById('offlineTime').textContent='away for '+(hrs>0?hrs+'h ':'')+(mins%60)+'m (50% efficiency)';
+      const wl=document.getElementById('welcome'); wl.style.display='flex';
+    }
+  } else if(had && !S.started){
+    // had save but never started (rare) -> show title
+  } else {
+    // brand new
+    starterChain();
+  }
+  buildCards(); renderCards(); renderTop();
+}
+
+/* ---------- events ---------- */
+document.getElementById('startBtn').addEventListener('click',startGame);
+document.getElementById('title').addEventListener('click',function(e){ if(e.target.id==='startBtn'||e.target.closest('#startBtn')||e.target.id==='title'||e.target.tagName==='H1'||e.target.classList.contains('sub')||e.target.tagName==='P') startGame(); });
+document.getElementById('welcomeOk').addEventListener('click',function(){ document.getElementById('welcome').style.display='none'; audio(); });
+document.getElementById('mineBtn').addEventListener('click',function(){ if(!S.started)return; audio(); manualMine(); });
+document.getElementById('prestigeBtn').addEventListener('click',function(){ audio(); doPrestige(); });
+addEventListener('keydown',function(e){
+  const k=e.key.toLowerCase();
+  if((k==='enter'||k===' ') && document.getElementById('title').style.display!=='none'){ e.preventDefault(); startGame(); }
+  else if(k==='enter' && document.getElementById('welcome').style.display==='flex'){ document.getElementById('welcome').style.display='none'; }
+  if(k==='r' && S.started){ /* reserved */ }
+});
+addEventListener('beforeunload',save);
+document.addEventListener('visibilitychange',function(){ if(document.hidden)save(); });
+addEventListener('resize',function(){ /* canvas is CSS max-scaled; nothing needed */ });
+
+/* ---------- boot ---------- */
+beginTitle();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

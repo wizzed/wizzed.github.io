@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini Golf — Wizzed Arcade</title>
+<style>
+  :root{ --accent:#00ff9c; --hot:#ffd166; }
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ min-height:100%; }
+  body{ background:#0f0f1a; color:#d4ffe9; font-family:'Courier New',ui-monospace,monospace; display:flex; flex-direction:column; align-items:center; min-height:100vh; padding:4px 8px 10px; overflow-x:hidden; }
+  a.back{ position:fixed; top:10px; left:12px; z-index:60; color:#7f7fa8; text-decoration:none; font-size:12px; letter-spacing:1px; padding:4px 9px; border:1px solid #26264a; border-radius:6px; background:rgba(15,15,26,.85); }
+  a.back:hover{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 8px rgba(0,255,156,.4); }
+  h1{ margin-top:2px; font-size:clamp(15px,3.2vmin,22px); letter-spacing:5px; color:#e2ffef; text-shadow:0 0 8px var(--accent),0 0 22px rgba(0,255,156,.5); }
+  .topbar{ display:flex; gap:8px; align-items:center; margin:4px 0 3px; flex-wrap:wrap; justify-content:center; }
+  .chip{ background:#0c2018; border:1px solid #16563b; border-radius:8px; padding:3px 10px; font-size:11px; letter-spacing:1px; color:#8fe6c2; }
+  .chip b{ font-size:15px; color:var(--accent); text-shadow:0 0 8px var(--accent); }
+  .chip.hot b{ color:var(--hot); text-shadow:0 0 8px var(--hot); }
+  button{ font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer; background:#0c2018; color:var(--accent); border:1px solid #1c6b48; padding:5px 10px; border-radius:6px; }
+  button:hover{ border-color:var(--accent); box-shadow:0 0 8px rgba(0,255,156,.35); }
+  .stagewrap{ position:relative; }
+  canvas{ display:block; border-radius:14px; touch-action:none; box-shadow:0 0 26px rgba(0,255,156,.2); background:#08130d; }
+  .hint{ font-size:10px; color:#5f8a76; text-align:center; letter-spacing:1px; margin-top:5px; max-width:520px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>MINI GOLF</h1>
+<div class="topbar">
+  <span class="chip">HOLE <b id="holeEl">1</b>/9</span>
+  <span class="chip">PAR <b id="parEl">2</b></span>
+  <span class="chip">STROKES <b id="strEl">0</b></span>
+  <span class="chip hot">TOTAL <b id="totEl">E</b></span>
+  <button id="newBtn">RESTART</button>
+</div>
+<div class="stagewrap"><canvas id="cv"></canvas></div>
+<div class="hint">Drag back from the ball to aim &amp; power — release to putt. Avoid water (+1), mind slopes &amp; the windmill. R = restart course</div>
+
+<script>
+const W=680, H=460;
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const KEY='wizzed-mini-golf';
+const M=16, LX=M, RX=W-M, TY=M, BY=H-M;
+const BR=8, CUPR=12, MAXPOW=760;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+
+/* audio */
+let AC=null;
+function ac(){ if(!AC){ try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}} return AC; }
+function beep(f,d,t,v){ const a=ac(); if(!a)return; try{ const o=a.createOscillator(),g=a.createGain(); o.type=t||'sine'; o.frequency.value=f; o.connect(g); g.connect(a.destination); const n=a.currentTime; g.gain.setValueAtTime(0.0001,n); g.gain.exponentialRampToValueAtTime(v||0.1,n+0.005); g.gain.exponentialRampToValueAtTime(0.0001,n+(d||0.08)); o.start(n); o.stop(n+(d||0.08)+0.02);}catch(e){} }
+let lastW=0;
+function hitSnd(p){ beep(160+p*300,0.06,'square',0.09); }
+function wall(){ const now=performance.now(); if(now-lastW<40)return; lastW=now; beep(220,0.04,'triangle',0.06); }
+function sink(){ [523,659,784].forEach((f,i)=>setTimeout(()=>beep(f,0.13,'sine',0.13),i*80)); }
+function splash(){ beep(140,0.25,'sawtooth',0.12); }
+function finishSnd(){ [523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>beep(f,0.15,'triangle',0.14),i*110)); }
+function resumeAudio(){ const a=ac(); if(a&&a.state==='suspended')a.resume(); }
+
+/* geometry helpers */
+function box(x,y,w,h){ return [ {ax:x,ay:y,bx:x+w,by:y},{ax:x+w,ay:y,bx:x+w,by:y+h},{ax:x+w,ay:y+h,bx:x,by:y+h},{ax:x,ay:y+h,bx:x,by:y} ]; }
+
+/* holes */
+function buildHoles(){
+  const hs=[];
+  // 1: straight
+  hs.push({ par:2, tee:[90,230], cup:[590,230], walls:[], slopes:[], sands:[], waters:[], tunnels:[], windmill:null });
+  // 2: dogleg wall
+  hs.push({ par:3, tee:[90,360], cup:[590,100],
+    walls:[ ...box(230,150,40,290) ], slopes:[], sands:[], waters:[], tunnels:[], windmill:null });
+  // 3: slope pushes down, aim high
+  hs.push({ par:3, tee:[90,120], cup:[590,120],
+    walls:[], slopes:[{x:220,y:40,w:240,h:380,ax:0,ay:150}], sands:[], waters:[], tunnels:[], windmill:null });
+  // 4: sand trap in the middle
+  hs.push({ par:3, tee:[90,230], cup:[590,230],
+    walls:[ ...box(320,40,30,120), ...box(320,300,30,120) ],
+    slopes:[], sands:[{x:250,y:170,w:180,h:120}], waters:[], tunnels:[], windmill:null });
+  // 5: water hazard, go around
+  hs.push({ par:4, tee:[90,90], cup:[590,370],
+    walls:[ ...box(120,190,300,30) ],
+    slopes:[], sands:[], waters:[{x:150,y:250,w:360,h:150}], tunnels:[], windmill:null });
+  // 6: tunnels
+  hs.push({ par:3, tee:[90,230], cup:[590,230],
+    walls:[ ...box(300,40,40,150), ...box(300,270,40,150) ],
+    slopes:[], sands:[], waters:[], tunnels:[[190,230,470,230]], windmill:null });
+  // 7: windmill corridor
+  hs.push({ par:4, tee:[90,380], cup:[590,80],
+    walls:[ ...box(60,180,300,26), ...box(340,180,26,150) ],
+    slopes:[], sands:[], waters:[], tunnels:[], windmill:{x:470,y:180,len:88,speed:1.6} });
+  // 8: slope + wall maze
+  hs.push({ par:4, tee:[80,80], cup:[600,380],
+    walls:[ ...box(180,40,30,260), ...box(360,160,30,260), ...box(470,40,30,220) ],
+    slopes:[{x:210,y:300,w:150,h:120,ax:120,ay:60}], sands:[{x:520,y:300,w:90,h:90}], waters:[], tunnels:[], windmill:null });
+  // 9: grand finale
+  hs.push({ par:5, tee:[80,230], cup:[610,230],
+    walls:[ ...box(200,40,26,150), ...box(200,300,26,120) ],
+    slopes:[{x:250,y:60,w:120,h:340,ax:70,ay:0}],
+    sands:[{x:430,y:60,w:90,h:110}],
+    waters:[{x:430,y:290,w:120,h:120}],
+    tunnels:[],
+    windmill:{x:340,y:230,len:80,speed:2.0} });
+  return hs;
+}
+let HOLES=buildHoles();
+
+/* state */
+let state='title';
+let holeIdx=0, strokes=0, scores=new Array(9).fill(0);
+let ball={x:0,y:0,vx:0,vy:0,tpCool:0};
+let shotStart={x:0,y:0};
+let aimAng=0, dragging=false, power=0, dpx=0, dpy=0;
+let windAng=0;
+let best=localStorage.getItem(KEY)? +localStorage.getItem(KEY):null;
+let msg='', msgT=0;
+
+const holeEl=document.getElementById('holeEl'), parEl=document.getElementById('parEl'),
+      strEl=document.getElementById('strEl'), totEl=document.getElementById('totEl');
+function hole(){ return HOLES[holeIdx]; }
+function totalRel(){ let s=0,p=0; for(let i=0;i<=holeIdx;i++){ if(scores[i]>0){ s+=scores[i]; p+=HOLES[i].par; } } const r=s-p; return r; }
+function fmtRel(r){ return r===0?'E':(r>0?'+'+r:''+r); }
+function updHud(){
+  holeEl.textContent=holeIdx+1; parEl.textContent=hole().par; strEl.textContent=strokes;
+  totEl.textContent=fmtRel(totalRel());
+}
+
+function loadHole(){
+  const h=hole();
+  ball.x=h.tee[0]; ball.y=h.tee[1]; ball.vx=0; ball.vy=0; ball.tpCool=0;
+  strokes=0; state='aim'; power=0; dragging=false;
+  shotStart.x=ball.x; shotStart.y=ball.y;
+  updHud();
+}
+function startCourse(){ holeIdx=0; scores=new Array(9).fill(0); loadHole(); }
+
+/* physics */
+function inRect(px,py,r){ return px>r.x&&px<r.x+r.w&&py>r.y&&py<r.y+r.h; }
+function collideSeg(b,ax,ay,bx,by){
+  const abx=bx-ax, aby=by-ay; const L2=abx*abx+aby*aby||1;
+  let t=clamp(((b.x-ax)*abx+(b.y-ay)*aby)/L2,0,1);
+  const cx=ax+abx*t, cy=ay+aby*t; let dx=b.x-cx, dy=b.y-cy; let d=Math.hypot(dx,dy);
+  if(d<BR){ if(d<0.001){dx=0;dy=-1;d=1;} const nx=dx/d, ny=dy/d;
+    b.x=cx+nx*BR; b.y=cy+ny*BR; const vn=b.vx*nx+b.vy*ny;
+    if(vn<0){ b.vx-=1.7*vn*nx; b.vy-=1.7*vn*ny; if(Math.abs(vn)>40)wall(); }
+  }
+}
+function step(dt){
+  const h=hole();
+  const sub=3;
+  for(let s=0;s<sub;s++){
+    const st=dt/sub;
+    ball.x+=ball.vx*st; ball.y+=ball.vy*st;
+    // slopes force
+    for(const sl of h.slopes){ if(inRect(ball.x,ball.y,sl)){ ball.vx+=sl.ax*st; ball.vy+=sl.ay*st; } }
+    // walls
+    for(const w of h.walls) collideSeg(ball,w.ax,w.ay,w.bx,w.by);
+    // windmill
+    if(h.windmill){
+      const wm=h.windmill;
+      for(let bl=0;bl<2;bl++){
+        const a=windAng+bl*Math.PI;
+        const ex=wm.x+Math.cos(a)*wm.len, ey=wm.y+Math.sin(a)*wm.len;
+        const before={vx:ball.vx,vy:ball.vy};
+        collideSeg(ball,wm.x,wm.y,ex,ey);
+        if(ball.vx!==before.vx||ball.vy!==before.vy){
+          // add tangential push from blade rotation
+          const rx=ball.x-wm.x, ry=ball.y-wm.y;
+          ball.vx += -ry*wm.speed*0.9; ball.vy += rx*wm.speed*0.9;
+        }
+      }
+    }
+    // boundary rails
+    if(ball.x<LX+BR){ ball.x=LX+BR; ball.vx=-ball.vx*0.7; wall(); }
+    if(ball.x>RX-BR){ ball.x=RX-BR; ball.vx=-ball.vx*0.7; wall(); }
+    if(ball.y<TY+BR){ ball.y=TY+BR; ball.vy=-ball.vy*0.7; wall(); }
+    if(ball.y>BY-BR){ ball.y=BY-BR; ball.vy=-ball.vy*0.7; wall(); }
+    // tunnels
+    if(ball.tpCool<=0){
+      for(const t of h.tunnels){
+        if(Math.hypot(ball.x-t[0],ball.y-t[1])<14){ ball.x=t[2]; ball.y=t[3]; ball.tpCool=0.3; beep(600,0.08,'sine',0.1); break; }
+        if(Math.hypot(ball.x-t[2],ball.y-t[3])<14){ ball.x=t[0]; ball.y=t[1]; ball.tpCool=0.3; beep(600,0.08,'sine',0.1); break; }
+      }
+    }
+  }
+  if(ball.tpCool>0) ball.tpCool-=dt;
+  // friction (sand stronger)
+  let fr=0.985; let inSand=false;
+  for(const sd of h.sands){ if(inRect(ball.x,ball.y,sd)){ fr=0.90; inSand=true; } }
+  ball.vx*=fr; ball.vy*=fr;
+  const sp=Math.hypot(ball.vx,ball.vy);
+  if(sp<4){ ball.vx=0; ball.vy=0; }
+  // water
+  for(const wt of h.waters){ if(inRect(ball.x,ball.y,wt)){
+    splash(); msg='WATER! +1 penalty'; msgT=120; strokes++;
+    ball.x=shotStart.x; ball.y=shotStart.y; ball.vx=0; ball.vy=0; updHud();
+    return;
+  }}
+  // cup
+  const cd=Math.hypot(ball.x-h.cup[0],ball.y-h.cup[1]);
+  if(cd<CUPR){
+    // attraction
+    if(sp<180){ ball.vx+=(h.cup[0]-ball.x)*0.12; ball.vy+=(h.cup[1]-ball.y)*0.12; }
+    if(cd<6 && sp<160){ holeSunk(); return; }
+  }
+}
+function holeSunk(){
+  sink();
+  scores[holeIdx]=strokes;
+  ball.vx=0; ball.vy=0; ball.x=hole().cup[0]; ball.y=hole().cup[1];
+  const rel=strokes-hole().par;
+  let label = strokes===1?'HOLE IN ONE!':(rel<=-2?'EAGLE!':rel===-1?'BIRDIE!':rel===0?'PAR':rel===1?'BOGEY':'+'+rel);
+  msg=label; msgT=160;
+  if(holeIdx>=8){ state='gameover'; finishSnd(); saveBest(); }
+  else { state='holecomplete'; }
+  updHud();
+}
+function saveBest(){
+  let total=0; for(let i=0;i<9;i++) total+=scores[i];
+  if(best===null || total<best){ best=total; localStorage.setItem(KEY,best); }
+}
+function nextHole(){
+  if(holeIdx>=8){ startCourse(); return; }
+  holeIdx++; loadHole();
+}
+
+/* input */
+function toCanvas(e){ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height)}; }
+cv.addEventListener('pointerdown',e=>{
+  resumeAudio();
+  if(state==='title'){ startCourse(); return; }
+  if(state==='holecomplete'){ nextHole(); return; }
+  if(state==='gameover'){ startCourse(); return; }
+  if(state==='aim'){ dragging=true; const p=toCanvas(e); dpx=p.x; dpy=p.y; }
+});
+cv.addEventListener('pointermove',e=>{
+  if(state!=='aim'||!dragging)return;
+  const p=toCanvas(e); dpx=p.x; dpy=p.y;
+  const dx=ball.x-p.x, dy=ball.y-p.y; aimAng=Math.atan2(dy,dx);
+  power=clamp(Math.hypot(dx,dy)*3.6,0,MAXPOW);
+});
+function release(){
+  if(state==='aim'&&dragging){ dragging=false;
+    if(power>40){ shotStart.x=ball.x; shotStart.y=ball.y; strokes++; ball.vx=Math.cos(aimAng)*power; ball.vy=Math.sin(aimAng)*power; state='moving'; hitSnd(power/MAXPOW); updHud(); }
+    power=0;
+  }
+}
+cv.addEventListener('pointerup',release);
+cv.addEventListener('pointerleave',()=>{ dragging=false; });
+addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(k==='r'){ resumeAudio(); startCourse(); }
+  if((state==='title')&&(k===' '||k==='enter')){ resumeAudio(); startCourse(); }
+  if(state==='holecomplete'&&(k===' '||k==='enter')){ nextHole(); }
+  if(state==='gameover'&&(k===' '||k==='enter')){ startCourse(); }
+  if(k===' ') e.preventDefault();
+});
+document.getElementById('newBtn').addEventListener('click',()=>{ resumeAudio(); startCourse(); });
+
+/* update */
+function update(dt){
+  windAng+=dt* (hole().windmill? hole().windmill.speed:0);
+  if(msgT>0)msgT--;
+  if(state==='moving'){
+    step(dt);
+    if(Math.hypot(ball.vx,ball.vy)===0 && state==='moving'){ state='aim'; }
+  }
+}
+
+/* draw */
+function resize(){
+  const availW=Math.max(280, Math.min(window.innerWidth-16, 760));
+  const availH=Math.max(180, Math.min(window.innerHeight-150, 560));
+  let dispW=availW, dispH=dispW*(H/W);
+  if(dispH>availH){ dispH=availH; dispW=dispH*(W/H); }
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  cv.style.width=dispW+'px'; cv.style.height=dispH+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+addEventListener('resize',resize); resize();
+
+function drawHole(){
+  const h=hole();
+  // green
+  ctx.fillStyle='#0a2318'; ctx.fillRect(0,0,W,H);
+  const fg=ctx.createLinearGradient(0,TY,0,BY); fg.addColorStop(0,'#14522f'); fg.addColorStop(1,'#0e3c22');
+  ctx.fillStyle=fg; ctx.fillRect(LX,TY,RX-LX,BY-TY);
+  // texture
+  ctx.strokeStyle='rgba(0,255,156,0.05)'; ctx.lineWidth=1;
+  for(let x=LX; x<RX; x+=26){ ctx.beginPath(); ctx.moveTo(x,TY); ctx.lineTo(x,BY); ctx.stroke(); }
+  // border
+  ctx.strokeStyle='#0a2416'; ctx.lineWidth=8; ctx.strokeRect(LX+4,TY+4,RX-LX-8,BY-TY-8);
+  // waters
+  h.waters.forEach(w=>{ const g=ctx.createLinearGradient(0,w.y,0,w.y+w.h); g.addColorStop(0,'#1e6fb0'); g.addColorStop(1,'#0e3f78'); ctx.fillStyle=g; ctx.fillRect(w.x,w.y,w.w,w.h); ctx.strokeStyle='#3aa0e0'; ctx.lineWidth=2; ctx.strokeRect(w.x,w.y,w.w,w.h);
+    ctx.strokeStyle='rgba(255,255,255,0.15)'; for(let i=0;i<3;i++){ ctx.beginPath(); ctx.moveTo(w.x+8,w.y+14+i*16); ctx.lineTo(w.x+w.w-8,w.y+14+i*16); ctx.stroke(); } });
+  // sands
+  h.sands.forEach(s=>{ ctx.fillStyle='#d9c179'; ctx.fillRect(s.x,s.y,s.w,s.h); ctx.strokeStyle='#b89f56'; ctx.lineWidth=2; ctx.strokeRect(s.x,s.y,s.w,s.h); });
+  // slopes (arrows)
+  h.slopes.forEach(sl=>{ if(sl.ax===0&&sl.ay===0)return; ctx.fillStyle='rgba(0,229,255,0.08)'; ctx.fillRect(sl.x,sl.y,sl.w,sl.h);
+    const ang=Math.atan2(sl.ay,sl.ax); ctx.strokeStyle='rgba(120,220,255,0.4)'; ctx.lineWidth=2;
+    for(let gx=sl.x+20; gx<sl.x+sl.w; gx+=44){ for(let gy=sl.y+20; gy<sl.y+sl.h; gy+=44){
+      ctx.save(); ctx.translate(gx,gy); ctx.rotate(ang);
+      ctx.beginPath(); ctx.moveTo(-8,0); ctx.lineTo(8,0); ctx.lineTo(3,-4); ctx.moveTo(8,0); ctx.lineTo(3,4); ctx.stroke(); ctx.restore();
+    }}});
+  // tunnels
+  h.tunnels.forEach(t=>{ [[t[0],t[1],'#9d6bff'],[t[2],t[3],'#ff6bd0']].forEach(p=>{ ctx.beginPath(); ctx.arc(p[0],p[1],13,0,7); ctx.fillStyle='#0a0a18'; ctx.fill(); ctx.strokeStyle=p[2]; ctx.lineWidth=3; ctx.shadowColor=p[2]; ctx.shadowBlur=12; ctx.stroke(); ctx.shadowBlur=0; }); });
+  // walls
+  ctx.fillStyle='#2a5a3a';
+  drawWalls(h.walls);
+  // cup
+  ctx.beginPath(); ctx.arc(h.cup[0],h.cup[1],CUPR,0,7); ctx.fillStyle='#04160c'; ctx.fill(); ctx.strokeStyle='#00ff9c'; ctx.lineWidth=2; ctx.shadowColor='#00ff9c'; ctx.shadowBlur=10; ctx.stroke(); ctx.shadowBlur=0;
+  // flag
+  ctx.strokeStyle='#e8e8e8'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(h.cup[0],h.cup[1]); ctx.lineTo(h.cup[0],h.cup[1]-34); ctx.stroke();
+  ctx.fillStyle='#ff2d78'; ctx.beginPath(); ctx.moveTo(h.cup[0],h.cup[1]-34); ctx.lineTo(h.cup[0]+20,h.cup[1]-28); ctx.lineTo(h.cup[0],h.cup[1]-22); ctx.closePath(); ctx.fill();
+  // tee marker
+  ctx.strokeStyle='rgba(255,255,255,0.25)'; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.arc(h.tee[0],h.tee[1],11,0,7); ctx.stroke(); ctx.setLineDash([]);
+  // windmill
+  if(h.windmill){ const wm=h.windmill;
+    ctx.strokeStyle='#ffd166'; ctx.lineWidth=7; ctx.lineCap='round'; ctx.shadowColor='#ffd166'; ctx.shadowBlur=10;
+    for(let bl=0;bl<2;bl++){ const a=windAng+bl*Math.PI; ctx.beginPath(); ctx.moveTo(wm.x,wm.y); ctx.lineTo(wm.x+Math.cos(a)*wm.len,wm.y+Math.sin(a)*wm.len); ctx.stroke(); }
+    ctx.shadowBlur=0; ctx.beginPath(); ctx.arc(wm.x,wm.y,9,0,7); ctx.fillStyle='#8b5a1e'; ctx.fill(); ctx.strokeStyle='#ffd166'; ctx.lineWidth=2; ctx.stroke();
+  }
+}
+function drawWalls(walls){
+  // draw as thick glowing segments
+  ctx.strokeStyle='#3fae6c'; ctx.lineWidth=8; ctx.lineCap='round'; ctx.shadowColor='#00ff9c'; ctx.shadowBlur=6;
+  for(const w of walls){ ctx.beginPath(); ctx.moveTo(w.ax,w.ay); ctx.lineTo(w.bx,w.by); ctx.stroke(); }
+  ctx.shadowBlur=0;
+}
+function drawBall(){
+  ctx.beginPath(); ctx.arc(ball.x+1.5,ball.y+2,BR,0,7); ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fill();
+  const gr=ctx.createRadialGradient(ball.x-3,ball.y-3,1,ball.x,ball.y,BR); gr.addColorStop(0,'#fff'); gr.addColorStop(1,'#c0d8cc');
+  ctx.beginPath(); ctx.arc(ball.x,ball.y,BR,0,7); ctx.fillStyle=gr; ctx.shadowColor='#fff'; ctx.shadowBlur=6; ctx.fill(); ctx.shadowBlur=0;
+}
+function drawAim(){
+  if(state!=='aim')return;
+  if(dragging){
+    ctx.setLineDash([6,6]); ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(ball.x,ball.y); ctx.lineTo(ball.x+Math.cos(aimAng)*(40+power*0.18), ball.y+Math.sin(aimAng)*(40+power*0.18)); ctx.stroke(); ctx.setLineDash([]);
+    // club pull-back
+    ctx.strokeStyle='#d9b070'; ctx.lineWidth=5; ctx.beginPath(); ctx.moveTo(ball.x,ball.y); ctx.lineTo(ball.x-Math.cos(aimAng)*(power*0.14+12), ball.y-Math.sin(aimAng)*(power*0.14+12)); ctx.stroke();
+    const pw=power/MAXPOW;
+    ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(ball.x-32,ball.y+BR+10,64,7);
+    ctx.fillStyle=pw>0.75?'#ff6b35':(pw>0.4?'#ffd166':'#00ff9c'); ctx.fillRect(ball.x-32,ball.y+BR+10,64*pw,7);
+  } else {
+    // idle aim hint pulse ring
+    const t=(performance.now()%1000)/1000;
+    ctx.strokeStyle='rgba(0,255,156,'+(0.5-t*0.4)+')'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(ball.x,ball.y,BR+4+t*10,0,7); ctx.stroke();
+  }
+}
+function draw(){
+  drawHole();
+  drawBall();
+  drawAim();
+  if(msgT>0){ ctx.save(); ctx.globalAlpha=Math.min(1,msgT/50); ctx.textAlign='center'; ctx.fillStyle='#ffd166'; ctx.shadowColor='#ffd166'; ctx.shadowBlur=16; ctx.font='bold 30px "Courier New",monospace'; ctx.fillText(msg,W/2,70); ctx.restore(); }
+  if(state==='holecomplete') drawHoleComplete();
+  if(state==='title') drawTitle();
+  if(state==='gameover') drawGameOver();
+}
+function drawTitle(){
+  ctx.fillStyle='rgba(6,16,10,0.72)'; ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center'; ctx.fillStyle='#00ff9c'; ctx.shadowColor='#00ff9c'; ctx.shadowBlur=24; ctx.font='bold 54px "Courier New",monospace';
+  ctx.fillText('MINI GOLF', W/2, H/2-40); ctx.shadowBlur=0;
+  ctx.fillStyle='#e2ffef'; ctx.font='bold 17px "Courier New",monospace'; ctx.fillText('Tap / SPACE to tee off', W/2, H/2+6);
+  ctx.fillStyle='#8fe6c2'; ctx.font='13px "Courier New",monospace';
+  ctx.fillText('9 holes · drag back to putt · avoid water & time the windmill', W/2, H/2+38);
+  if(best!==null){ ctx.fillStyle='#ffd166'; ctx.fillText('Best total: '+best+' strokes', W/2, H/2+64); }
+}
+function drawHoleComplete(){
+  ctx.fillStyle='rgba(6,16,10,0.78)'; ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.fillStyle='#00ff9c'; ctx.shadowColor='#00ff9c'; ctx.shadowBlur=18; ctx.font='bold 30px "Courier New",monospace';
+  ctx.fillText('HOLE '+(holeIdx+1)+' COMPLETE', W/2, 90); ctx.shadowBlur=0;
+  drawScorecard(130);
+  ctx.fillStyle='#e2ffef'; ctx.font='bold 15px "Courier New",monospace'; ctx.fillText('Tap / SPACE for next hole', W/2, H-30);
+}
+function drawGameOver(){
+  ctx.fillStyle='rgba(6,16,10,0.85)'; ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  let total=0; for(let i=0;i<9;i++) total+=scores[i];
+  let par=0; for(let i=0;i<9;i++) par+=HOLES[i].par;
+  ctx.fillStyle='#ffd166'; ctx.shadowColor='#ffd166'; ctx.shadowBlur=20; ctx.font='bold 34px "Courier New",monospace';
+  ctx.fillText('COURSE COMPLETE', W/2, 70); ctx.shadowBlur=0;
+  drawScorecard(100);
+  ctx.fillStyle='#e2ffef'; ctx.font='bold 18px "Courier New",monospace';
+  ctx.fillText('TOTAL '+total+'   ( '+fmtRel(total-par)+' vs par '+par+' )', W/2, H-56);
+  ctx.fillStyle='#8fe6c2'; ctx.font='13px "Courier New",monospace'; ctx.fillText('Tap / R to play again'+(best!==null?'   ·   Best: '+best:''), W/2, H-30);
+}
+function drawScorecard(y0){
+  const cw=64, x0=W/2-cw*4.5;
+  ctx.textAlign='center'; ctx.font='11px "Courier New",monospace';
+  // header
+  ctx.fillStyle='#8fe6c2'; ctx.fillText('HOLE',x0-34,y0+14);
+  ctx.fillStyle='#8fe6c2'; ctx.fillText('PAR',x0-34,y0+34);
+  ctx.fillStyle='#8fe6c2'; ctx.fillText('YOU',x0-34,y0+54);
+  for(let i=0;i<9;i++){
+    const cx=x0+cw*i+cw/2;
+    ctx.fillStyle='#daffee'; ctx.fillText(i+1,cx,y0+14);
+    ctx.fillStyle='#8fe6c2'; ctx.fillText(HOLES[i].par,cx,y0+34);
+    const s=scores[i];
+    ctx.fillStyle= s===0?'#445':(s<HOLES[i].par?'#00ff9c':s>HOLES[i].par?'#ff6b35':'#daffee');
+    ctx.fillText(s===0?'-':s,cx,y0+54);
+  }
+  ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1;
+  ctx.strokeRect(x0,y0,cw*9,64);
+}
+
+/* loop */
+let last=0;
+function loop(t){
+  requestAnimationFrame(loop);
+  const dt=Math.min(0.033,(t-last)/1000||0); last=t;
+  update(dt);
+  draw();
+}
+loadHole(); state='title';
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

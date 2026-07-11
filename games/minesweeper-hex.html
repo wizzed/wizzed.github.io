@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hex Sweeper — Wizzed Arcade</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  :root{--neon:#ff9e3d;--neon2:#ffd166;}
+  html,body{height:100%;}
+  body{
+    background:#0f0f1a;
+    background-image:radial-gradient(ellipse at 50% -10%,rgba(255,158,61,.10),transparent 60%);
+    color:#ffe6c9;font-family:'Courier New',ui-monospace,monospace;
+    display:flex;flex-direction:column;align-items:center;
+    min-height:100%;padding:6px;overflow-x:hidden;
+    user-select:none;-webkit-user-select:none;touch-action:manipulation;
+  }
+  a.back{
+    position:fixed;top:10px;left:12px;z-index:60;color:#7a7a9a;text-decoration:none;
+    font-size:13px;padding:4px 8px;border:1px solid #2a2a4a;border-radius:6px;background:rgba(15,15,26,.8);
+  }
+  a.back:hover{color:var(--neon);border-color:var(--neon);}
+  h1{
+    margin:4px 0 0;font-size:clamp(18px,4.5vmin,28px);letter-spacing:5px;color:var(--neon);
+    text-shadow:0 0 8px var(--neon),0 0 26px rgba(255,158,61,.5);
+  }
+  .sub{color:#9c6a2f;font-size:10px;letter-spacing:3px;margin-bottom:4px;}
+  .hud{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center;margin:4px 0;}
+  .stat{background:#191320;border:2px solid #4a3220;border-radius:8px;padding:2px 10px;min-width:74px;text-align:center;}
+  .stat .lbl{display:block;font-size:9px;letter-spacing:2px;color:#9c6a2f;}
+  .stat .val{display:block;font-size:16px;font-weight:bold;color:var(--neon2);text-shadow:0 0 6px rgba(255,209,102,.6);}
+  .btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+  button{
+    font-family:inherit;font-size:12px;letter-spacing:1px;cursor:pointer;
+    background:#191320;color:var(--neon);border:2px solid #4a3220;border-radius:8px;padding:5px 10px;
+  }
+  button:hover{border-color:var(--neon);box-shadow:0 0 10px rgba(255,158,61,.4);}
+  button.on{background:var(--neon);color:#191320;border-color:var(--neon);font-weight:bold;}
+  #wrap{position:relative;margin-top:6px;width:100%;max-width:760px;flex:1;min-height:0;display:flex;justify-content:center;}
+  canvas{display:block;background:#0b0b14;border:3px solid var(--neon);border-radius:12px;
+    box-shadow:0 0 18px rgba(255,158,61,.28),0 0 60px rgba(255,158,61,.06);touch-action:none;max-width:100%;}
+  .hint{color:#9c6a2f;font-size:11px;letter-spacing:1px;text-align:center;margin:6px 4px 2px;line-height:1.5;}
+  .hint b{color:var(--neon2);}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>HEX SWEEPER</h1>
+<div class="sub">SIX-SIDED MINEFIELD</div>
+<div class="hud">
+  <div class="stat"><span class="lbl">MINES</span><span class="val" id="mineCt">—</span></div>
+  <div class="stat"><span class="lbl">TIME</span><span class="val" id="timeCt">0</span></div>
+  <div class="stat"><span class="lbl">BEST</span><span class="val" id="bestCt">—</span></div>
+</div>
+<div class="btns" style="margin-bottom:4px">
+  <button data-size="s" id="bS">SMALL</button>
+  <button data-size="m" id="bM" class="on">MEDIUM</button>
+  <button data-size="l" id="bL">LARGE</button>
+  <button id="newBtn">↻ NEW (R)</button>
+  <button id="flagBtn">🚩 FLAG: OFF</button>
+</div>
+<div id="wrap"><canvas id="cv" width="700" height="440"></canvas></div>
+<div class="hint">Left-click reveal · Right-click / long-press <b>flag</b> · click a satisfied number to <b>chord</b> · first click is always safe · <b>F</b> toggles flag-mode</div>
+<script>
+(function(){
+"use strict";
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const SLUG='wizzed-minesweeper-hex';
+const SIZES={s:{R:3,mines:6,name:'SMALL'},m:{R:4,mines:12,name:'MEDIUM'},l:{R:5,mines:22,name:'LARGE'}};
+const NUMCOL=['#0b0b14','#66e0ff','#7dffa6','#ffd166','#ff9e3d','#ff5e8a','#c98bff','#ff5555','#ffffff'];
+let sizeKey='m', cfg=SIZES.m;
+let cells=new Map(), order=[];
+let state='title'; // title, play, won, lost
+let firstClick=true, flagMode=false, mineCount=0, revealedCount=0;
+let startTime=0, elapsed=0, timerRunning=false;
+let hexSize=22, ox=0, oy=0;
+let best={}; try{best=JSON.parse(localStorage.getItem(SLUG))||{};}catch(e){best={};}
+
+// audio
+let AC=null;
+function ac(){ if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;}} if(AC&&AC.state==='suspended')AC.resume(); return AC; }
+function beep(f,d,t,v){ const a=ac(); if(!a)return; const o=a.createOscillator(),g=a.createGain(); o.type=t||'square'; o.frequency.value=f; o.connect(g); g.connect(a.destination); const n=a.currentTime; g.gain.setValueAtTime(0.0001,n); g.gain.exponentialRampToValueAtTime(v||0.12,n+0.01); g.gain.exponentialRampToValueAtTime(0.0001,n+(d||0.09)); o.start(n); o.stop(n+(d||0.09)+0.02); }
+
+const DIRS=[[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
+function key(q,r){return q+','+r;}
+
+function buildBoard(){
+  cells.clear(); order=[];
+  const R=cfg.R;
+  for(let q=-R;q<=R;q++){
+    for(let r=Math.max(-R,-q-R);r<=Math.min(R,-q+R);r++){
+      const c={q,r,mine:false,rev:false,flag:false,adj:0};
+      cells.set(key(q,r),c); order.push(c);
+    }
+  }
+  firstClick=true; mineCount=cfg.mines; revealedCount=0;
+  elapsed=0; timerRunning=false; state='play';
+}
+
+function placeMines(safeQ,safeR){
+  const safe=new Set([key(safeQ,safeR)]);
+  for(const [dq,dr] of DIRS) safe.add(key(safeQ+dq,safeR+dr));
+  const pool=order.filter(c=>!safe.has(key(c.q,c.r)));
+  // shuffle
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  const n=Math.min(cfg.mines,pool.length);
+  for(let i=0;i<n;i++) pool[i].mine=true;
+  mineCount=n;
+  for(const c of order){
+    let a=0;
+    for(const [dq,dr] of DIRS){ const nb=cells.get(key(c.q+dq,c.r+dr)); if(nb&&nb.mine)a++; }
+    c.adj=a;
+  }
+}
+
+function layout(){
+  // pointy-top hex; compute pixel extents then fit
+  const R=cfg.R;
+  // pick hexSize based on canvas
+  const W=cv.width, H=cv.height;
+  // width in hexes ~ sqrt(3)*(R+ R/2)... compute from bounds with size=1
+  let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
+  for(const c of order){
+    const x=Math.sqrt(3)*(c.q+c.r/2);
+    const y=1.5*c.r;
+    if(x<minx)minx=x; if(x>maxx)maxx=x; if(y<miny)miny=y; if(y>maxy)maxy=y;
+  }
+  const spanX=(maxx-minx)+Math.sqrt(3);
+  const spanY=(maxy-miny)+2;
+  const s=Math.min((W-24)/spanX,(H-24)/spanY);
+  hexSize=s;
+  ox=W/2 - s*(minx+maxx)/2;
+  oy=H/2 - s*(miny+maxy)/2;
+}
+
+function cellPix(c){
+  return {x:ox+hexSize*Math.sqrt(3)*(c.q+c.r/2), y:oy+hexSize*1.5*c.r};
+}
+function pixToCell(px,py){
+  const x=(px-ox)/hexSize, y=(py-oy)/hexSize;
+  const q=(Math.sqrt(3)/3*x - 1/3*y);
+  const r=(2/3*y);
+  // cube round
+  let cx=q, cz=r, cy=-cx-cz;
+  let rx=Math.round(cx), ry=Math.round(cy), rz=Math.round(cz);
+  const xd=Math.abs(rx-cx), yd=Math.abs(ry-cy), zd=Math.abs(rz-cz);
+  if(xd>yd&&xd>zd) rx=-ry-rz; else if(yd>zd) ry=-rx-rz; else rz=-rx-ry;
+  return cells.get(key(rx,rz))||null;
+}
+
+function hexPath(x,y,s){
+  ctx.beginPath();
+  for(let i=0;i<6;i++){
+    const a=Math.PI/180*(60*i-90);
+    const px=x+s*Math.cos(a), py=y+s*Math.sin(a);
+    if(i===0)ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  ctx.closePath();
+}
+
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // subtle bg grid glow
+  if(state==='title'){ drawTitle(); return; }
+  const s=hexSize*0.92;
+  for(const c of order){
+    const p=cellPix(c);
+    hexPath(p.x,p.y,s);
+    if(c.rev){
+      if(c.mine){ ctx.fillStyle='#3a1520'; } else { ctx.fillStyle='#141026'; }
+      ctx.fill();
+      ctx.lineWidth=1.2; ctx.strokeStyle='#2a2340'; ctx.stroke();
+      if(c.mine){
+        ctx.fillStyle='#ff5e8a';
+        ctx.font=`bold ${s*0.9}px monospace`;
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('✸',p.x,p.y+1);
+      } else if(c.adj>0){
+        ctx.fillStyle=NUMCOL[c.adj];
+        ctx.shadowColor=NUMCOL[c.adj]; ctx.shadowBlur=8;
+        ctx.font=`bold ${s*0.95}px 'Courier New',monospace`;
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(String(c.adj),p.x,p.y+1);
+        ctx.shadowBlur=0;
+      }
+    } else {
+      // covered cell
+      const g=ctx.createLinearGradient(p.x,p.y-s,p.x,p.y+s);
+      g.addColorStop(0,'#2a2036'); g.addColorStop(1,'#1a1428');
+      ctx.fillStyle=g; ctx.fill();
+      ctx.lineWidth=1.5; ctx.strokeStyle=c.flag?'#ffd166':'#4a3a5a'; ctx.stroke();
+      if(c.flag){
+        ctx.font=`${s*0.95}px monospace`;
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('🚩',p.x,p.y);
+      }
+    }
+  }
+}
+
+function drawTitle(){
+  const W=cv.width,H=cv.height;
+  // honeycomb backdrop
+  const s=26;
+  ctx.save();
+  for(let row=-1;row<H/(s*1.5)+1;row++){
+    for(let col=-1;col<W/(s*Math.sqrt(3))+1;col++){
+      const x=col*s*Math.sqrt(3)+ (row%2?s*Math.sqrt(3)/2:0);
+      const y=row*s*1.5;
+      hexPath(x,y,s*0.9);
+      const t=(Math.sin(row*0.7+col*0.5+performance.now()/900)+1)/2;
+      ctx.fillStyle=`rgba(255,158,61,${0.03+t*0.06})`;
+      ctx.fill();
+      ctx.strokeStyle=`rgba(255,158,61,${0.10+t*0.12})`;
+      ctx.lineWidth=1; ctx.stroke();
+    }
+  }
+  // a few "number" hexes glowing
+  const demo=[[W*0.28,H*0.62,'3','#ffd166'],[W*0.5,H*0.7,'✸','#ff5e8a'],[W*0.72,H*0.6,'1','#66e0ff'],[W*0.62,H*0.44,'2','#7dffa6'],[W*0.38,H*0.44,'✸','#ff5e8a']];
+  for(const [x,y,ch,col] of demo){
+    hexPath(x,y,s*1.05);
+    ctx.fillStyle='#141026'; ctx.fill();
+    ctx.strokeStyle=col; ctx.lineWidth=2; ctx.shadowColor=col; ctx.shadowBlur=12; ctx.stroke(); ctx.shadowBlur=0;
+    ctx.fillStyle=col; ctx.font='bold 24px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.shadowColor=col; ctx.shadowBlur=8; ctx.fillText(ch,x,y+1); ctx.shadowBlur=0;
+  }
+  ctx.restore();
+  ctx.textAlign='center';
+  ctx.fillStyle='#ff9e3d'; ctx.shadowColor='#ff9e3d'; ctx.shadowBlur=18;
+  ctx.font='bold 46px "Courier New",monospace';
+  ctx.fillText('HEX SWEEPER',W/2,H*0.28);
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#ffd166'; ctx.font='16px "Courier New",monospace';
+  ctx.fillText('· clear the honeycomb without hitting a mine ·',W/2,H*0.28+30);
+  ctx.fillStyle='#ffe6c9'; ctx.font='bold 18px "Courier New",monospace';
+  const pulse=0.6+0.4*Math.sin(performance.now()/350);
+  ctx.globalAlpha=pulse;
+  ctx.fillText('▶ CLICK / TAP  or  press ENTER to start',W/2,H*0.9);
+  ctx.globalAlpha=1;
+}
+
+function reveal(c){
+  if(c.rev||c.flag) return;
+  if(firstClick){ placeMines(c.q,c.r); firstClick=false; startTimer(); }
+  const stack=[c];
+  while(stack.length){
+    const cur=stack.pop();
+    if(cur.rev||cur.flag) continue;
+    cur.rev=true;
+    if(cur.mine){ loseGame(); return; }
+    revealedCount++;
+    if(cur.adj===0){
+      for(const [dq,dr] of DIRS){ const nb=cells.get(key(cur.q+dq,cur.r+dr)); if(nb&&!nb.rev&&!nb.flag&&!nb.mine) stack.push(nb); }
+    }
+  }
+  beep(520,0.05,'square',0.08);
+  checkWin();
+}
+
+function chord(c){
+  if(!c.rev||c.adj===0) return;
+  let f=0; const hidden=[];
+  for(const [dq,dr] of DIRS){ const nb=cells.get(key(c.q+dq,c.r+dr)); if(!nb)continue; if(nb.flag)f++; else if(!nb.rev)hidden.push(nb); }
+  if(f===c.adj){ for(const nb of hidden) reveal(nb); }
+}
+
+function toggleFlag(c){
+  if(c.rev) return;
+  c.flag=!c.flag;
+  beep(c.flag?680:360,0.05,'triangle',0.09);
+}
+
+function checkWin(){
+  const total=order.length;
+  if(revealedCount===total-mineCount){ winGame(); }
+}
+function winGame(){
+  state='won'; timerRunning=false;
+  for(const c of order){ if(c.mine) c.flag=true; }
+  const t=Math.floor(elapsed);
+  const bk=sizeKey;
+  if(best[bk]===undefined||t<best[bk]){ best[bk]=t; try{localStorage.setItem(SLUG,JSON.stringify(best));}catch(e){} }
+  updateHud();
+  beep(660,0.1,'square',0.12); setTimeout(()=>beep(880,0.12,'square',0.12),110); setTimeout(()=>beep(1100,0.16,'square',0.12),240);
+}
+function loseGame(){
+  state='lost'; timerRunning=false;
+  for(const c of order){ if(c.mine) c.rev=true; }
+  beep(200,0.3,'sawtooth',0.14); setTimeout(()=>beep(120,0.4,'sawtooth',0.12),120);
+}
+
+function startTimer(){ startTime=performance.now(); timerRunning=true; }
+
+function updateHud(){
+  let flags=0; for(const c of order) if(c.flag)flags++;
+  document.getElementById('mineCt').textContent=(mineCount-flags);
+  document.getElementById('timeCt').textContent=Math.floor(elapsed);
+  const b=best[sizeKey];
+  document.getElementById('bestCt').textContent=(b===undefined?'—':b);
+}
+
+let overlayEl=null;
+function tick(){
+  if(timerRunning) elapsed=(performance.now()-startTime)/1000;
+  draw();
+  updateHud();
+  drawResult();
+  requestAnimationFrame(tick);
+}
+function drawResult(){
+  if(state!=='won'&&state!=='lost') return;
+  const W=cv.width,H=cv.height;
+  ctx.fillStyle='rgba(8,8,18,0.72)'; ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  if(state==='won'){
+    ctx.fillStyle='#7dffa6'; ctx.shadowColor='#7dffa6'; ctx.shadowBlur=18;
+    ctx.font='bold 42px "Courier New",monospace'; ctx.fillText('CLEARED!',W/2,H/2-24);
+    ctx.shadowBlur=0; ctx.fillStyle='#ffe6c9'; ctx.font='18px monospace';
+    ctx.fillText('Time '+Math.floor(elapsed)+'s · Best '+(best[sizeKey]!==undefined?best[sizeKey]+'s':'—'),W/2,H/2+12);
+  } else {
+    ctx.fillStyle='#ff5e8a'; ctx.shadowColor='#ff5e8a'; ctx.shadowBlur=18;
+    ctx.font='bold 42px "Courier New",monospace'; ctx.fillText('BOOM!',W/2,H/2-24);
+    ctx.shadowBlur=0; ctx.fillStyle='#ffe6c9'; ctx.font='18px monospace';
+    ctx.fillText('You hit a mine',W/2,H/2+12);
+  }
+  ctx.fillStyle='#ffd166'; ctx.font='15px monospace';
+  ctx.fillText('press R or ↻ NEW to play again',W/2,H/2+42);
+}
+
+// input
+let pressTimer=null, longPressed=false, downCell=null;
+function getCanvasXY(e){
+  const rect=cv.getBoundingClientRect();
+  const cx=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+  const cy=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;
+  return {x:cx*cv.width/rect.width, y:cy*cv.height/rect.height};
+}
+function primaryAction(c){
+  if(!c) return;
+  if(flagMode){ toggleFlag(c); return; }
+  if(c.rev){ chord(c); } else { reveal(c); }
+}
+cv.addEventListener('mousedown',(e)=>{
+  ac();
+  if(state==='title'){ startGame(); return; }
+  if(state==='won'||state==='lost') return;
+  const p=getCanvasXY(e); const c=pixToCell(p.x,p.y);
+  if(e.button===2){ if(c)toggleFlag(c); return; }
+  downCell=c; longPressed=false;
+  pressTimer=setTimeout(()=>{ longPressed=true; if(c)toggleFlag(c); },420);
+});
+cv.addEventListener('mouseup',(e)=>{
+  if(state!=='play'){ clearTimeout(pressTimer); return; }
+  clearTimeout(pressTimer);
+  if(e.button===2) return;
+  if(longPressed){ longPressed=false; return; }
+  const p=getCanvasXY(e); const c=pixToCell(p.x,p.y);
+  if(c&&c===downCell) primaryAction(c);
+  downCell=null;
+});
+cv.addEventListener('mouseleave',()=>{ clearTimeout(pressTimer); });
+cv.addEventListener('contextmenu',(e)=>e.preventDefault());
+// touch
+cv.addEventListener('touchstart',(e)=>{
+  e.preventDefault(); ac();
+  if(state==='title'){ startGame(); return; }
+  if(state!=='play') return;
+  const p=getCanvasXY(e); const c=pixToCell(p.x,p.y);
+  downCell=c; longPressed=false;
+  pressTimer=setTimeout(()=>{ longPressed=true; if(c)toggleFlag(c); },420);
+},{passive:false});
+cv.addEventListener('touchend',(e)=>{
+  e.preventDefault();
+  if(state!=='play'){ clearTimeout(pressTimer); return; }
+  clearTimeout(pressTimer);
+  if(longPressed){ longPressed=false; return; }
+  if(downCell) primaryAction(downCell);
+  downCell=null;
+},{passive:false});
+
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Enter'||e.key===' '){ if(state==='title'){ e.preventDefault(); startGame(); } }
+  if(e.key==='r'||e.key==='R'){ newGame(); }
+  if(e.key==='f'||e.key==='F'){ toggleFlagMode(); }
+});
+
+function startGame(){ if(state==='title'){ state='play'; buildBoard(); layout(); updateHud(); beep(440,0.08,'square',0.1); } }
+function newGame(){ buildBoard(); layout(); updateHud(); beep(440,0.08,'square',0.1); }
+function toggleFlagMode(){ flagMode=!flagMode; document.getElementById('flagBtn').textContent='🚩 FLAG: '+(flagMode?'ON':'OFF'); document.getElementById('flagBtn').classList.toggle('on',flagMode); }
+
+document.getElementById('newBtn').addEventListener('click',()=>{ if(state==='title') startGame(); else newGame(); });
+document.getElementById('flagBtn').addEventListener('click',toggleFlagMode);
+['s','m','l'].forEach(k=>{
+  document.getElementById('b'+k.toUpperCase()).addEventListener('click',()=>{
+    sizeKey=k; cfg=SIZES[k];
+    ['s','m','l'].forEach(kk=>document.getElementById('b'+kk.toUpperCase()).classList.toggle('on',kk===k));
+    if(state==='title'){ /* stay on title but reflect */ } else { newGame(); }
+    updateHud();
+  });
+});
+
+function resize(){
+  const wrap=document.getElementById('wrap');
+  const availW=Math.min(760,wrap.clientWidth||760);
+  const availH=Math.max(300,(window.innerHeight - wrap.getBoundingClientRect().top - 90));
+  const W=Math.max(320,availW), H=Math.max(280,Math.min(availH,availW*0.72));
+  cv.width=Math.round(W); cv.height=Math.round(H);
+  if(state!=='title') layout();
+}
+window.addEventListener('resize',resize);
+
+// init
+resize(); updateHud(); tick();
+})();
+</script>
+</html>

@@ -11,10 +11,15 @@ body{background:#0f0f1a;color:#dfe6ff;font-family:'Courier New',ui-monospace,mon
 canvas{background:#0c0c16;border:2px solid rgba(0,240,255,.55);box-shadow:0 0 22px rgba(0,240,255,.35),0 0 90px rgba(0,240,255,.10),inset 0 0 60px rgba(0,240,255,.05)}
 a.back{position:fixed;top:10px;left:12px;z-index:10;color:#8890b0;text-decoration:none;font-size:13px;letter-spacing:1px;padding:4px 9px;border:1px solid rgba(136,144,176,.35);background:rgba(15,15,26,.75)}
 a.back:hover{color:#00f0ff;border-color:#00f0ff;text-shadow:0 0 8px #00f0ff}
+#pauseBtn{position:fixed;top:10px;right:12px;z-index:11;width:40px;height:32px;color:#00f0ff;background:rgba(15,15,26,.75);border:1px solid rgba(0,240,255,.4);font-size:15px;line-height:1;cursor:pointer;border-radius:4px;font-family:inherit}
+#pauseBtn:hover{border-color:#00f0ff;box-shadow:0 0 10px rgba(0,240,255,.4)}
+#touchHint{position:fixed;left:50%;bottom:42px;transform:translateX(-50%);z-index:11;color:#bff6ff;background:rgba(15,15,26,.9);border:1px solid rgba(0,240,255,.4);padding:8px 15px;border-radius:20px;font-size:12px;letter-spacing:1px;opacity:0;transition:opacity .5s;pointer-events:none;white-space:nowrap}
 </style>
 </head>
 <body>
 <a class="back" href="../index.html">&larr; Arcade</a>
+<button id="pauseBtn" aria-label="Pause">&#9208;</button>
+<div id="touchHint">DRAG UP / DOWN TO MOVE YOUR PADDLE</div>
 <canvas id="game" width="800" height="500"></canvas>
 <script>
 'use strict';
@@ -40,11 +45,20 @@ const trail=[];
 let pScore=0,aScore=0,state='title',stateT=0,serveDir=1,rally=0;
 let aiTarget=H/2,aiTimer=0,mouseY=null,mouseFresh=0,winner='';
 const keys={};
+/* ---- juice + pause ---- */
+let paused=false,shake=0,hitFlash=0,hitFlashCol='#fff',matchTime=0,maxRally=0,newRallyBest=false;
+const parts=[];
+let bestRally=0;try{bestRally=parseInt(localStorage.getItem('wizzed-pong-rally')||'0',10)||0;}catch(e){}
+function saveRally(){try{localStorage.setItem('wizzed-pong-rally',String(bestRally));}catch(e){}}
+function burst(x,y,col,n){for(let i=0;i<(n||14);i++){const a=rand(0,Math.PI*2),sp=rand(50,260);parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:rand(0.3,0.8),max:0.8,col,s:rand(2,5)});}}
+function canPause(){return state==='play'||state==='serve'||state==='point';}
+function togglePause(){if(!paused&&!canPause())return;paused=!paused;const b=document.getElementById('pauseBtn');if(b)b.innerHTML=paused?'&#9654;':'&#9208;';audio();beep(paused?300:520,0.08,'square',0.05);}
 /* ---- input ---- */
 addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();
   if(['arrowup','arrowdown',' '].includes(k))e.preventDefault();
   keys[k]=true;mouseFresh=0;
+  if(k==='p'){togglePause();return;}
   if((k===' '||k==='enter')&&(state==='title'||state==='over')){audio();startMatch();}
   else if(k==='r'&&state==='over'){audio();startMatch();}
 });
@@ -56,16 +70,20 @@ addEventListener('touchstart',e=>{mouseY=ptY(e.touches[0].clientY);mouseFresh=1.
 addEventListener('mousedown',tapStart);
 function tapStart(){audio();if(state==='title'||state==='over')startMatch();}
 /* ---- game flow ---- */
-function startMatch(){pScore=0;aScore=0;serveDir=Math.random()<0.5?1:-1;serve();}
+function startMatch(){pScore=0;aScore=0;matchTime=0;maxRally=0;newRallyBest=false;parts.length=0;serveDir=Math.random()<0.5?1:-1;serve();}
 function serve(){ball.x=W/2;ball.y=H/2;ball.vx=0;ball.vy=0;ball.speed=330;rally=0;trail.length=0;state='serve';stateT=0.9;}
 function launchBall(){const a=rand(-0.45,0.45);ball.vx=Math.cos(a)*ball.speed*serveDir;ball.vy=Math.sin(a)*ball.speed;}
 function pointScored(who){
-  if(who==='player'){pScore++;serveDir=1;}else{aScore++;serveDir=-1;}
+  if(who==='player'){pScore++;serveDir=1;burst(W-40,clamp(ball.y,20,H-20),ACC,16);hitFlash=0.3;hitFlashCol=ACC;}
+  else{aScore++;serveDir=-1;burst(40,clamp(ball.y,20,H-20),ACC2,16);hitFlash=0.3;hitFlashCol=ACC2;}
+  shake=Math.max(shake,0.4);
   beep(who==='player'?660:180,0.28,'square',0.07,who==='player'?990:90);
   if(pScore>=TARGET||aScore>=TARGET){
     state='over';winner=pScore>=TARGET?'player':'ai';
-    if(winner==='player'){wins++;saveWins();beep(523,0.12);setTimeout(()=>beep(659,0.12),130);setTimeout(()=>beep(784,0.12),260);setTimeout(()=>beep(1047,0.3),390);}
-    else{setTimeout(()=>beep(220,0.3,'sawtooth',0.06,110),150);}
+    newRallyBest=maxRally>bestRally;
+    if(newRallyBest){bestRally=maxRally;saveRally();}
+    if(winner==='player'){wins++;saveWins();shake=Math.max(shake,0.5);beep(523,0.12);setTimeout(()=>beep(659,0.12),130);setTimeout(()=>beep(784,0.12),260);setTimeout(()=>beep(1047,0.3),390);}
+    else{shake=Math.max(shake,0.7);hitFlash=0.5;hitFlashCol='#ff3b5c';setTimeout(()=>beep(220,0.3,'sawtooth',0.06,110),150);}
   }else{state='point';stateT=0.9;}
 }
 /* ---- update ---- */
@@ -102,9 +120,15 @@ function bounceOff(p,dir){
   ball.vx=Math.cos(ang)*ball.speed*dir;
   ball.vy=Math.sin(ang)*ball.speed;
   ball.x=dir>0?p.x+PW+ball.r:p.x-ball.r;
-  rally++;beep(440+Math.min(400,rally*22),0.06,'square',0.06);
+  rally++;if(rally>maxRally)maxRally=rally;
+  shake=Math.max(shake,0.12);burst(ball.x,ball.y,dir>0?ACC:ACC2,5);
+  beep(440+Math.min(400,rally*22),0.06,'square',0.06);
 }
 function update(dt){
+  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=140*dt;p.life-=dt;if(p.life<=0)parts.splice(i,1);}
+  if(shake>0)shake=Math.max(0,shake-dt*2.2);
+  if(hitFlash>0)hitFlash=Math.max(0,hitFlash-dt*3);
+  if(state==='play')matchTime+=dt;
   if(state==='title'){
     /* attract mode: ball bounces on its own */
     if(ball.vx===0)launchBall();
@@ -140,7 +164,7 @@ function drawDigit(n,x,y,s,color){
 }
 /* ---- draw ---- */
 function drawField(){
-  ctx.fillStyle='#0c0c16';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#0c0c16';ctx.fillRect(-24,-24,W+48,H+48);
   ctx.strokeStyle='rgba(0,240,255,.14)';ctx.lineWidth=1;
   for(let y=25;y<H;y+=50){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
   ctx.save();
@@ -170,11 +194,16 @@ function glowText(txt,x,y,size,color,blur){
   ctx.fillText(txt,x,y);ctx.restore();
 }
 function draw(){
+  ctx.save();
+  if(shake>0)ctx.translate((Math.random()-0.5)*shake*14,(Math.random()-0.5)*shake*14);
   drawField();
   drawDigit(pScore,W/2-140,26,10,ACC);
   drawDigit(aScore,W/2+100,26,10,ACC2);
   drawPaddle(player,ACC);drawPaddle(ai,ACC2);
   if(state!=='point'||Math.floor(stateT*8)%2===0)drawBall();
+  for(const p of parts){ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=p.col;ctx.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s);}
+  ctx.globalAlpha=1;
+  if(hitFlash>0){ctx.globalAlpha=hitFlash*0.5;ctx.fillStyle=hitFlashCol;ctx.fillRect(-24,-24,W+48,H+48);ctx.globalAlpha=1;}
   ctx.font='12px "Courier New",monospace';ctx.textAlign='left';ctx.fillStyle='#5a6288';
   ctx.fillText('WINS '+wins,14,H-12);
   ctx.textAlign='right';ctx.fillText('FIRST TO '+TARGET,W-14,H-12);
@@ -194,16 +223,39 @@ function draw(){
     if(winner==='player'){glowText('YOU WIN!',W/2,H/2-48,58,ACC,30);}
     else{glowText('AI WINS',W/2,H/2-48,58,ACC2,30);}
     glowText(pScore+' — '+aScore,W/2,H/2+14,40,'#fff',18);
-    glowText('TOTAL WINS: '+wins,W/2,H/2+58,18,'#c8d2ff',8);
-    if(Math.floor(performance.now()/450)%2===0)glowText('PRESS R OR TAP TO REMATCH',W/2,H/2+112,20,ACC,16);
+    if(newRallyBest)glowText('★ LONGEST RALLY '+maxRally+' — NEW BEST ★',W/2,H/2+56,17,'#ffd23f',14);
+    else glowText('LONGEST RALLY '+maxRally+'  ·  RECORD '+bestRally,W/2,H/2+56,15,'#c8d2ff',6);
+    glowText('MATCH TIME '+matchTime.toFixed(1)+'s   ·   TOTAL WINS '+wins,W/2,H/2+82,14,'#8fa0c8',5);
+    if(Math.floor(performance.now()/450)%2===0)glowText('PRESS R OR TAP TO REMATCH',W/2,H/2+128,20,ACC,16);
   }
+  ctx.restore();
 }
+/* ---- pause overlay ---- */
+function drawPauseOverlay(){
+  ctx.save();
+  ctx.fillStyle='rgba(8,8,16,0.74)';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.fillStyle=ACC;ctx.shadowColor=ACC;ctx.shadowBlur=26;
+  ctx.font='bold 52px "Courier New",monospace';ctx.fillText('PAUSED',W/2,H/2-6);
+  ctx.shadowBlur=0;ctx.fillStyle='#c7cbe8';ctx.font='bold 15px "Courier New",monospace';
+  ctx.fillText('P OR ⏸ TO RESUME',W/2,H/2+34);
+  ctx.restore();
+}
+/* ---- pause button + touch hint wiring ---- */
+(function(){
+  const b=document.getElementById('pauseBtn');
+  if(b){['pointerdown','mousedown','touchstart','pointerup','mouseup','touchend','click'].forEach(ev=>b.addEventListener(ev,e=>{e.stopPropagation();},{passive:false}));
+    b.addEventListener('click',()=>togglePause());}
+  try{if(matchMedia&&matchMedia('(pointer:coarse)').matches){const h=document.getElementById('touchHint');if(h){h.style.opacity='1';setTimeout(()=>{h.style.opacity='0';},4800);}}}catch(e){}
+})();
 /* ---- loop ---- */
 let last=0;
 function loop(t){
   requestAnimationFrame(loop);
   const dt=Math.min(0.033,(t-last)/1000||0);last=t;
-  update(dt);draw();
+  if(!paused)update(dt);
+  draw();
+  if(paused)drawPauseOverlay();
 }
 launchBall();
 requestAnimationFrame(loop);

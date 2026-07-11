@@ -587,9 +587,30 @@ const GAMES = [
   {s:'idle-dungeon',   t:'Idle Dungeon',     i:'🛌', g:'Idle RPG',       c:'rpg', neu:1, d:"Your three heroes grind while you are away. Prestige for permanent power."},
   {s:'cavern-quest',   t:'Cavern Quest',     i:'📜', g:'Text Adventure', c:'rpg', neu:1, d:"A branching cave saga with dice-roll fate and four different endings."},
   {s:'shadow-tower',   t:'Shadow Tower',     i:'🗼', g:'Roguelite',      c:'rpg', neu:1, d:"30 floors of card-drawn fate. Stack relics, slay the tower lords."},
+  {s:'idle-factory',   t:'Idle Factory',     i:'🏭', g:'Idle Sim',       c:'rpg', neu:1, d:"Belts, machines, multipliers — the factory grows while you dream."},
+  {s:'merchant-tycoon',t:'Trade Winds',      i:'🏺', g:'Trading RPG',    c:'rpg', neu:1, d:"Buy low in one port, sell high in the next — and dodge the pirates."},
+  {s:'card-battler',   t:'Spellstack',       i:'🎴', g:'Deckbuilder',    c:'rpg', neu:1, d:"Draft spells, battle fiends, build the deck that breaks the game."},
   // arcade
-  {s:'mega-tag',       t:'MEGA TAG',         i:'🌐', g:'MMO Tag',        c:'arcade', neu:1, d:"One global arena, everyone plays tag — live online count, AI fills the floor when humans sleep."},
+  // multiplayer
+  {s:'mega-tag',       t:'MEGA TAG',         i:'🌐', g:'MMO Tag',        c:'mp', neu:1, d:"One global arena, everyone plays tag — live online count, AI fills the floor when humans sleep."},
+  {s:'mp-draw',        t:'Sketch Together',  i:'🖍️', g:'MMO Canvas',     c:'mp', neu:1, d:"One shared canvas for everyone online — doodle live with the whole internet."},
+  {s:'mp-clicker',     t:'Million Clicks',   i:'🖱️', g:'MMO Clicker',    c:'mp', neu:1, d:"Every click from everyone online lands on one glorious shared counter."},
+  {s:'mp-plaza',       t:'Pixel Plaza',      i:'🏙️', g:'MMO Hangout',    c:'mp', neu:1, d:"Stroll a cozy plaza, wave and chat with whoever is around — bots included."},
+  {s:'mp-race',        t:'Blob Racers',      i:'🏁', g:'MMO Racing',     c:'mp', neu:1, d:"A live race starts every 40 seconds — humans and AI on the same glowing track."},
+  {s:'mp-snake',       t:'Snake Royale',     i:'🐍', g:'MMO Snake',      c:'mp', neu:1, d:"Grow, cut off rivals, survive the shared pit. The AI snakes never sleep."},
+  {s:'mp-quiz',        t:'Quiz Royale',      i:'🎓', g:'MMO Trivia',     c:'mp', neu:1, d:"The same question hits everyone on the planet at the same moment. Be fastest."},
+  // arcade
   {s:'pong',           t:'Pong Duel',        i:'🏓', g:'Arcade',         c:'arcade', d:"First to 7 against a crafty AI paddle — and the ball only gets faster."},
+  {s:'pinball',        t:'Neon Pinball',     i:'⚡', g:'Pinball',        c:'arcade', neu:1, d:"Flippers, bumpers, ramps and multiball — keep the silver ball alive."},
+  {s:'pool-8ball',     t:'8-Ball Pool',      i:'🎱', g:'Pool vs AI',     c:'arcade', neu:1, d:"Real spin and rebounds. Sink your group, then call the eight."},
+  {s:'mini-golf',      t:'Mini Golf',        i:'⛳', g:'9 Holes',        c:'arcade', neu:1, d:"Bank shots, windmills and water hazards — par the whole course."},
+  {s:'bowling',        t:'Bowling',          i:'🎳', g:'Physics',        c:'arcade', neu:1, d:"Ten frames, real pin physics — chase the perfect 300."},
+  {s:'centipede',      t:'Garden Centipede', i:'🐛', g:'Fixed Shooter',  c:'arcade', neu:1, d:"Blast the segmented beast as it snakes down through the mushrooms."},
+  {s:'defender',       t:'Star Defender',    i:'🛰️', g:'Side Shooter',   c:'arcade', neu:1, d:"Scroll, rescue, and blast — keep the colonists out of alien claws."},
+  {s:'tron-cycles',    t:'Light Cycles',     i:'🏍️', g:'Trail Duel',     c:'arcade', neu:1, d:"Box in the AI riders before your own light wall boxes you."},
+  {s:'bomber-lite',    t:'Blast Grid',       i:'🧨', g:'Maze Bomber',    c:'arcade', neu:1, d:"Drop bombs, snag power-ups, corner the AI in the rubble."},
+  {s:'qbert-hopper',   t:'Cube Hopper',      i:'🔶', g:'Isometric Hops', c:'arcade', neu:1, d:"Repaint the pyramid one diagonal hop at a time — mind the chasers."},
+  {s:'rhythm-tapper',  t:'Beat Lane',        i:'🎧', g:'Rhythm',         c:'arcade', neu:1, d:"Four lanes, falling notes, synthesized songs — nail the combo."},
   {s:'asteroids',      t:'Asteroid Storm',   i:'🚀', g:'Space Arcade',   c:'arcade', d:"Thrust, spin and blast your way through a shattering asteroid field."},
   {s:'flappy',         t:'Flappy Pixel',     i:'🐤', g:'One-Button',     c:'arcade', d:"One button. Endless pipes. Zero mercy. How far can you flap?"},
   {s:'runner',         t:'Pixel Runner',     i:'🏃', g:'Endless Runner', c:'arcade', d:"Jump and slide through an ever-faster gauntlet of obstacles."},
@@ -639,6 +660,11 @@ const GAMES = [
   {s:'binary-grid',    t:'Binary Grid',      i:'0️⃣', g:'Takuzu',         c:'puzzle', neu:1, d:"Balance the 0s and 1s — no triples, no twin rows."},
   {s:'untangle',       t:'Untangle',         i:'🪢', g:'Planarity',      c:'puzzle', neu:1, d:"Drag the knots apart until no two lines cross."},
   {s:'rush-hour',      t:'Gridlock',         i:'🚗', g:'Sliding Blocks', c:'puzzle', neu:1, d:"Slide the gridlock apart and spring the red car free."},
+  {s:'kakuro',         t:'Kakuro',           i:'#️⃣', g:'Cross Sums',     c:'puzzle', neu:1, d:"Crossword math: the clues are sums, the answers are digits."},
+  {s:'minesweeper-hex',t:'Hex Sweeper',      i:'🧿', g:'Hex Logic',      c:'puzzle', neu:1, d:"Minesweeper on honeycomb — six neighbors change everything."},
+  {s:'word-ladder',    t:'Word Ladder',      i:'🪜', g:'Word Puzzle',    c:'puzzle', neu:1, d:"Turn COLD into WARM one letter at a time — every rung a real word."},
+  {s:'columns-drop',   t:'Gem Columns',      i:'💠', g:'Match Drop',     c:'puzzle', neu:1, d:"Falling trios of gems — line up three any way they will fit."},
+  {s:'escape-room',    t:'Escape Room',      i:'🚪', g:'Point & Click',  c:'puzzle', neu:1, d:"Three locked rooms, hidden keys, and puzzles inside puzzles."},
   // board
   {s:'tictactoe',      t:'Tic-Tac-Toe Neon', i:'❌', g:'vs AI',          c:'board', d:"Three difficulties, from pushover to literally unbeatable."},
   {s:'connect-four',   t:'Connect Four',     i:'🔴', g:'vs AI',          c:'board', d:"Drop discs and out-think an AI that reads four moves ahead."},
@@ -646,6 +672,10 @@ const GAMES = [
   {s:'checkers',       t:'Checkers',         i:'🩸', g:'vs AI',          c:'board', d:"Forced captures, multi-jumps and kings. The AI shows no pity."},
   {s:'codebreaker',    t:'Codebreaker',      i:'🔐', g:'Deduction',      c:'board', d:"Crack the hidden color code in ten guesses using peg feedback."},
   {s:'peg-solitaire',  t:'Peg Solitaire',    i:'🕳️', g:'Solo Board',     c:'board', d:"Jump pegs to remove them. Can you finish with one, dead center?"},
+  {s:'chess',          t:'Chess',            i:'♟️', g:'vs AI',          c:'board', neu:1, d:"The real thing — full rules, castling, en passant, and a thinking AI."},
+  {s:'gomoku',         t:'Gomoku',           i:'⚪', g:'Five in a Row',  c:'board', neu:1, d:"Five stones in a row wins. The AI sees traps you don't."},
+  {s:'battleship',     t:'Battleship',       i:'🚢', g:'vs AI',          c:'board', neu:1, d:"Call your shots, sink the fleet, out-guess a hunting AI."},
+  {s:'air-hockey',     t:'Air Hockey',       i:'🏒', g:'vs AI',          c:'board', neu:1, d:"Fast pucks, real rebounds — first to seven against a sharp AI."},
   {s:'dominoes',       t:'Dominoes',         i:'🦴', g:'Tiles vs AI',    c:'board', neu:1, d:"Match the bones, manage the boneyard, block your rival."},
   {s:'backgammon',     t:'Backgammon',       i:'🔻', g:'Classic vs AI',  c:'board', neu:1, d:"Race, hit, and bear off — the oldest board game, full rules."},
   {s:'yahtzee',        t:'Yahtzee Dice',     i:'🎲', g:'Dice vs AI',     c:'board', neu:1, d:"Three rolls, thirteen boxes, and an AI filling its card beside you."},
@@ -674,6 +704,9 @@ const GAMES = [
   {s:'keno',           t:'Keno',             i:'🔮', g:'Lottery',        c:'casino', neu:1, d:"Pick your lucky spots and watch twenty balls decide."},
   {s:'bingo',          t:'Bingo Hall',       i:'🅱️', g:'Bingo',          c:'casino', neu:1, d:"Race three AI daubers to the blackout. Do not miss a call!"},
   {s:'war-cards',      t:'Card War',         i:'♠️', g:'Card Battle',    c:'casino', neu:1, d:"Flip for glory — ties mean W-A-R and the stakes explode."},
+  {s:'spider-solitaire',t:'Spider Solitaire',i:'🕷️', g:'Card Classic',   c:'casino', neu:1, d:"The two-suit tower of patience, with full drag-and-drop."},
+  {s:'freecell',       t:'FreeCell',         i:'🆓', g:'Card Classic',   c:'casino', neu:1, d:"Every deal is winnable — if you can think far enough ahead."},
+  {s:'mahjong-solitaire',t:'Mahjong Solitaire',i:'🀄',g:'Tile Match',    c:'casino', neu:1, d:"Clear the turtle, pair by pair. Free tiles only!"},
   // 3d
   {s:'dice-3d',        t:'Dice Roller 3D',   i:'🎲', g:'3D Physics',     c:'3d', x3d:1, d:"Toss up to six tumbling dice across the felt and read the total."},
   {s:'maze-3d',        t:'Maze Runner 3D',   i:'🌀', g:'3D Maze',        c:'3d', x3d:1, d:"First-person neon labyrinths that grow with every escape."},
@@ -688,6 +721,9 @@ const GAMES = [
   {s:'skyward-3d',     t:'Skyward',          i:'🌄', g:'Endless Flight',  c:'3d', x3d:1, neu:1, d:"Soar an infinite sunlit world — dive through rings, chase the horizon forever."},
   {s:'wavefarer-3d',   t:'Wavefarer',        i:'⛵', g:'Endless Sailing', c:'3d', x3d:1, neu:1, d:"Ride real rolling swells from dusk into night — thread the gates, outrun the storm."},
   {s:'character-forge-3d', t:'Character Forge', i:'🦸', g:'3D Creator',   c:'3d', x3d:1, neu:1, d:"Sculpt your hero from dozens of options, watch it dance, export a real 3D model file."},
+  {s:'kart-3d',        t:'Kart Dash 3D',     i:'🛞', g:'3D Racing',      c:'3d', x3d:1, neu:1, d:"Drift a neon kart around the circuit against AI rivals."},
+  {s:'snake-3d',       t:'Snake 3D',         i:'🪱', g:'3D Classic',     c:'3d', x3d:1, neu:1, d:"The classic, coiled into a glowing 3D arena with a chase camera."},
+  {s:'breakout-3d',    t:'Breakout 3D',      i:'🎾', g:'3D Bricks',      c:'3d', x3d:1, neu:1, d:"Smash through walls of glass bricks in full 3D."},
 ];
 
 const TOOLS = [
@@ -703,6 +739,9 @@ const TOOLS = [
   {s:'decision-wheel', t:'Decision Wheel',   i:'🎠', g:'Chooser',     c:'prod', neu:1, d:"Cannot decide? Load the wheel and give it a spin."},
   {s:'expense-tracker',t:'Expense Tracker',  i:'💸', g:'Money',       c:'prod', neu:1, d:"Log spends and let the donut chart tell the truth."},
   {s:'markdown-pad',   t:'Markdown Pad',     i:'📝', g:'Editor',      c:'prod', neu:1, d:"Type markdown left, watch it render right."},
+  {s:'team-picker',    t:'Team Picker',      i:'👥', g:'Groups',      c:'prod', neu:1, d:"Paste names, get fair random teams — no arguments."},
+  {s:'bracket-maker',  t:'Tournament Bracket',i:'🏆',g:'Events',      c:'prod', neu:1, d:"Seed the players, run the bracket, crown a champion."},
+  {s:'breathe',        t:'Breathe',          i:'🫁', g:'Wellness',    c:'prod', neu:1, d:"Guided box-breathing with a calming glow. Four minutes to reset."},
   // text
   {s:'word-counter',   t:'Word Counter',     i:'✍️', g:'Text Stats',  c:'text', neu:1, d:"Words, sentences, reading time and keyword frequency, live."},
   {s:'case-converter', t:'Case Converter',   i:'🔠', g:'Text',        c:'text', neu:1, d:"Ten cases, one paste, instant copy."},
@@ -712,6 +751,13 @@ const TOOLS = [
   {s:'base64-tool',    t:'Base64 Tool',      i:'🔗', g:'Encode',      c:'text', neu:1, d:"Base64, URI and hex — both directions, unicode-safe."},
   {s:'regex-tester',   t:'Regex Tester',     i:'🧪', g:'Dev',         c:'text', neu:1, d:"Live-highlight your pattern against real text."},
   {s:'morse-code',     t:'Morse Translator', i:'📡', g:'Translator',  c:'text', neu:1, d:"Text to dits and dahs — with sound, light and tap input."},
+  {s:'html-sandbox',   t:'Code Sandbox',     i:'🧑‍💻', g:'Dev',         c:'text', neu:1, d:"HTML, CSS and JS panes with a live preview — a pocket codepen."},
+  {s:'js-console',     t:'JS Console',       i:'📟', g:'Dev',         c:'text', neu:1, d:"Run JavaScript instantly and inspect whatever comes back."},
+  {s:'jwt-decoder',    t:'JWT Decoder',      i:'🪪', g:'Dev',         c:'text', neu:1, d:"Paste a token, read its claims — nothing leaves the page."},
+  {s:'table-markdown', t:'Table to Markdown',i:'📋', g:'Text',        c:'text', neu:1, d:"Paste a spreadsheet table, get clean Markdown back."},
+  {s:'keycode-inspector',t:'Keycode Inspector',i:'🔍',g:'Dev',        c:'text', neu:1, d:"Press any key — see key, code and modifiers live."},
+  {s:'http-status',    t:'HTTP Status Codes',i:'🚦', g:'Reference',   c:'text', neu:1, d:"Every status code, what it really means, and the teapot."},
+  {s:'text-cleaner',   t:'Text Cleaner',     i:'🧹', g:'Text',        c:'text', neu:1, d:"Strip weird formatting, dedupe and sort lines, squash spaces."},
   // numbers
   {s:'retro-calc',     t:'Retro Calculator', i:'🧮', g:'Calculator',  c:'num', d:"A chunky 80s LCD calculator with memory keys and a history tape."},
   {s:'unit-converter', t:'Unit Converter',   i:'📏', g:'Converter',   c:'num', neu:1, d:"Length, weight, temperature and more — live in both directions."},
@@ -722,6 +768,9 @@ const TOOLS = [
   {s:'number-base',    t:'Base Converter',   i:'🔟', g:'Dev',         c:'num', neu:1, d:"Dec, bin, oct and hex linked live — click the bits yourself."},
   {s:'interest-calc',  t:'Interest Calculator',i:'📈',g:'Finance',    c:'num', neu:1, d:"Compound growth charted year by year, contributions included."},
   {s:'unix-time',      t:'Epoch Converter',  i:'🕰️', g:'Dev Time',    c:'num', neu:1, d:"Epoch to human and back, ticking live."},
+  {s:'loan-calculator',t:'Loan Calculator',  i:'🏦', g:'Finance',     c:'num', neu:1, d:"Payments, interest split, and the full amortization table."},
+  {s:'unit-price',     t:'Deal Compare',     i:'🛒', g:'Shopping',    c:'num', neu:1, d:"Which pack is actually cheaper? Price-per-unit tells the truth."},
+  {s:'date-toolkit',   t:'Date Toolkit',     i:'📆', g:'Dates',       c:'num', neu:1, d:"Add days, count workdays, week numbers — date math solved."},
   // design
   {s:'pixel-painter',  t:'Pixel Painter',    i:'🎨', g:'Art Tool',    c:'design', d:"Draw sprites with palettes, fill, mirror mode — export to PNG."},
   {s:'color-picker',   t:'Color Studio',     i:'🖌️', g:'Color',       c:'design', neu:1, d:"Pick, tweak and copy colors with shades and harmonies."},
@@ -732,6 +781,11 @@ const TOOLS = [
   {s:'char-map',       t:'Character Map',    i:'✳️', g:'Symbols',     c:'design', neu:1, d:"Every arrow, star and box-drawing glyph, one click to copy."},
   {s:'ascii-art',      t:'ASCII Banner',     i:'🅰️', g:'Text Art',    c:'design', neu:1, d:"Turn any word into a giant pixel-font banner."},
   {s:'qr-maker',       t:'QR Maker',         i:'🔳', g:'QR',          c:'design', neu:1, d:"Type anything, get a scannable code, download the PNG."},
+  {s:'image-resizer',  t:'Image Resizer',    i:'🖼️', g:'Images',      c:'design', neu:1, d:"Resize, crop and compress images — all local, nothing uploaded."},
+  {s:'image-filters',  t:'Photo Filters',    i:'🎞️', g:'Images',      c:'design', neu:1, d:"Brightness, duotone, pixelate, vignette — export the edit."},
+  {s:'meme-maker',     t:'Meme Maker',       i:'😂', g:'Images',      c:'design', neu:1, d:"Top text, bottom text, instant classic — download the PNG."},
+  {s:'collage-maker',  t:'Collage Maker',    i:'🧩', g:'Images',      c:'design', neu:1, d:"Drop photos into layouts and export one picture."},
+  {s:'icon-maker',     t:'Icon Maker',       i:'🔰', g:'Images',      c:'design', neu:1, d:"Turn an emoji or letters into crisp icons, every size at once."},
   // audio & visual
   {s:'synth-piano',    t:'Synth Piano',      i:'🎹', g:'Instrument',  c:'av', d:"Two playable octaves, four waveforms, and glowing keys."},
   {s:'drum-machine',   t:'Drum Machine',     i:'🥁', g:'Sequencer',   c:'av', d:"A 16-step, 8-track sequencer with fully synthesized drums."},
@@ -751,6 +805,9 @@ const TOOLS = [
   {s:'tuner',          t:'Instrument Tuner', i:'🎸', g:'Tuner',       c:'av', neu:1, d:"A cents-accurate mic tuner with a needle gauge and reference tones."},
   {s:'chord-lab',      t:'Chord Lab',        i:'🎶', g:'Chords',      c:'av', neu:1, d:"Every chord on a piano — played, inverted, and looped into progressions."},
   {s:'dj-pads',        t:'DJ Pads',          i:'🎛️', g:'Launchpad',   c:'av', neu:1, d:"Sixteen synthesized pads, keyboard-mapped — record and replay your set."},
+  {s:'screen-recorder',t:'Screen Recorder',  i:'📹', g:'Recorder',    c:'av', neu:1, d:"Record your screen (mic optional) straight to a video file — all local."},
+  {s:'webcam-booth',   t:'Photo Booth',      i:'📸', g:'Camera',      c:'av', neu:1, d:"Webcam filters and a classic four-shot photo strip to download."},
+  {s:'audio-recorder', t:'Voice Recorder',   i:'🎙️', g:'Recorder',    c:'av', neu:1, d:"One-tap mic recording with waveform trim and WAV download."},
   // data & misc
   {s:'stopwatch',      t:'Stopwatch + Timer',i:'⏱️', g:'Timing',      c:'data', neu:1, d:"Laps with deltas, plus a ring-countdown timer."},
   {s:'password-gen',   t:'Password Generator',i:'🔑',g:'Security',    c:'data', neu:1, d:"Strong passwords and passphrases with entropy math."},
@@ -762,10 +819,15 @@ const TOOLS = [
   {s:'csv-viewer',     t:'CSV Viewer',       i:'🗄️', g:'Data',        c:'data', neu:1, d:"Paste CSV, get a sortable table with instant stats."},
   {s:'text-speech',    t:'Text to Speech',   i:'🗣️', g:'Speech',      c:'data', neu:1, d:"Your browser reads anything aloud, any voice."},
   {s:'screen-info',    t:'Device Dashboard', i:'🖥️', g:'System',      c:'data', neu:1, d:"Everything your device will admit about itself."},
+  {s:'chart-maker',    t:'Chart Maker',      i:'🥧', g:'Data',        c:'data', neu:1, d:"Paste numbers, pick bar, line or pie — download the chart."},
+  {s:'hash-tool',      t:'Hash Generator',   i:'🔒', g:'Security',    c:'data', neu:1, d:"SHA hashes for any text or file, computed locally."},
+  {s:'uuid-gen',       t:'UUID Generator',   i:'🧬', g:'Dev',         c:'data', neu:1, d:"Batch v4 UUIDs with one-click copy, plus an inspector."},
+  {s:'cron-explainer', t:'Cron Explainer',   i:'⏲️', g:'Dev',         c:'data', neu:1, d:"Paste a cron line, get plain English and the next ten runs."},
+  {s:'json-csv',       t:'JSON ⇄ CSV',       i:'🔁', g:'Data',        c:'data', neu:1, d:"Convert both directions, nested fields flattened properly."},
 ];
 
 const GAME_CATS = [
-  ['all','All'], ['arcade','Arcade'], ['action','Action'], ['puzzle','Puzzle'], ['rpg','RPG'],
+  ['all','All'], ['mp','Multiplayer'], ['arcade','Arcade'], ['action','Action'], ['puzzle','Puzzle'], ['rpg','RPG'],
   ['board','Board'], ['words','Words'], ['casino','Cards'], ['3d','3D'],
 ];
 const TOOL_CATS = [
@@ -1073,7 +1135,7 @@ document.querySelectorAll('.hero-nav a[href="#games"], .hero-nav a[href="#tools"
 const tickerItems = [
   `${GAMES.length} GAMES + ${TOOLS.length} TOOLS LOADED`,
   'NEW: RPG QUARTER — DUNGEONS, MONSTERS, GLADIATORS & IDLE HEROES',
-  'NEW: MEGA TAG — MASSIVELY MULTIPLAYER TAG IN ONE GLOBAL ARENA', 'NEW: THE MUSIC LAB — DANCING AVATAR, VOCAL REMOVER, SLOWED+REVERB, DJ PADS & MORE', 'NEW: SKYWARD — ENDLESS 3D FLIGHT', 'NEW: WAVEFARER — SAIL THE INFINITE SWELL', 'NEW: CHARACTER FORGE — BUILD A HERO, EXPORT THE MODEL', 'NEW: VISUALIZER STUDIO — MAKE MUSIC VIDEOS WITH TIMED LYRICS', 'THIRTEEN GAMES IN FULL 3D',
+  'NEW: THE MULTIPLAYER WING — TAG, RACING, SNAKE ROYALE, QUIZ, PLAZA, SHARED CANVAS & MILLION CLICKS', 'NEW: 60 MORE GAMES & TOOLS — CHESS, PINBALL, 8-BALL, DECKBUILDER, ESCAPE ROOM, CODE SANDBOX…', 'NEW: THE MUSIC LAB — DANCING AVATAR, VOCAL REMOVER, SLOWED+REVERB, DJ PADS & MORE', 'NEW: SKYWARD — ENDLESS 3D FLIGHT', 'NEW: WAVEFARER — SAIL THE INFINITE SWELL', 'NEW: CHARACTER FORGE — BUILD A HERO, EXPORT THE MODEL', 'NEW: VISUALIZER STUDIO — MAKE MUSIC VIDEOS WITH TIMED LYRICS', 'THIRTEEN GAMES IN FULL 3D',
   'HOVER ANY CARD TO PREVIEW 5 SCREENSHOTS', 'HIGH SCORES SAVED IN YOUR BROWSER',
   'THE OLD ARCADE LIVES — 11 ORIGINAL CLASSICS INSIDE', 'NO DOWNLOADS · NO ACCOUNTS · NO ADS',
   'TRY THE KONAMI CODE ↑↑↓↓←→←→BA',

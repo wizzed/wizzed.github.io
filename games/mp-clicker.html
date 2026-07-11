@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MILLION CLICKS — One Giant Shared Button · Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0f0f1a; }
+  body { font-family: 'Courier New', ui-monospace, monospace; color: #e8eeff; touch-action: manipulation; }
+  canvas { display: block; }
+  #cv { position: fixed; inset: 0; }
+  .back {
+    position: fixed; top: 10px; left: 12px; z-index: 40;
+    padding: 6px 12px; font-size: 13px; letter-spacing: 1px;
+    color: #e8eeff; text-decoration: none;
+    background: rgba(10,14,26,.6); border: 1px solid rgba(255,255,255,.25); border-radius: 4px;
+  }
+  .back:hover { border-color: #ffce3a; color: #ffe27a; }
+
+  #status {
+    position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 25; display: flex; gap: 8px; align-items: center;
+    background: rgba(8,12,24,.75); border: 1px solid #4a3a12; border-radius: 999px;
+    padding: 7px 15px; backdrop-filter: blur(5px); white-space: nowrap;
+  }
+  #status .dot { width: 10px; height: 10px; border-radius: 50%; background: #666; }
+  #status .dot.live { background: #ffce3a; box-shadow: 0 0 10px #ffce3a; animation: pulse 1.6s ease-in-out infinite; }
+  #status .dot.off { background: #ff9d3c; box-shadow: 0 0 10px #ff9d3c; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+  #status b { color: #ffe27a; font-weight: normal; }
+  #status .ai-b { color: #9d6bff; }
+  #status span { font-size: 12px; letter-spacing: 1px; }
+
+  #namebar {
+    position: fixed; top: 46px; left: 12px; z-index: 30;
+    display: flex; gap: 6px; align-items: center;
+    background: rgba(8,12,24,.8); border: 1px solid #4a3a12; border-radius: 10px;
+    padding: 6px 9px; backdrop-filter: blur(5px);
+  }
+  #nameInput {
+    width: 108px; font: inherit; font-size: 12.5px;
+    background: #1a1405; color: #ffe27a; border: 1px solid #5a4818;
+    border-radius: 5px; padding: 4px 7px;
+  }
+  #namebar label { font-size: 10.5px; letter-spacing: 1px; color: #a8944e; }
+
+  #panel {
+    position: fixed; top: 46px; right: 12px; z-index: 20;
+    width: 194px; background: rgba(8,12,24,.8);
+    border: 1px solid #4a3a12; border-radius: 10px;
+    padding: 9px 11px; backdrop-filter: blur(5px); font-size: 12px;
+  }
+  #panel h3 { font-size: 10px; letter-spacing: 2px; color: #a8944e; margin-bottom: 6px; }
+  .prow {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 0; border-bottom: 1px dashed rgba(74,58,18,.4);
+    white-space: nowrap; overflow: hidden;
+  }
+  .prow:last-child { border-bottom: none; }
+  .prow .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .prow .sc { color: #ffce3a; font-weight: bold; }
+  .prow.me .nm { color: #ffe27a; }
+  .aitag {
+    font-size: 9px; letter-spacing: 1px; color: #cbb2ff;
+    background: rgba(157,107,255,.18); border: 1px solid #9d6bff;
+    border-radius: 4px; padding: 0 4px;
+  }
+  #stats {
+    position: fixed; bottom: 14px; left: 14px; z-index: 20;
+    background: rgba(8,12,24,.8); border: 1px solid #4a3a12; border-radius: 10px;
+    padding: 10px 14px; backdrop-filter: blur(5px); font-size: 13px; line-height: 1.7;
+  }
+  #stats b { color: #ffce3a; font-weight: normal; }
+  #stats .big { font-size: 22px; color: #ffe27a; text-shadow: 0 0 12px rgba(255,206,58,.6); }
+  #hint {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    z-index: 15; font-size: 11.5px; color: #a8944e; letter-spacing: 1px;
+    text-shadow: 0 1px 4px rgba(0,0,0,.8); pointer-events: none; text-align: center; max-width: 60vw;
+  }
+  #milestone {
+    position: fixed; top: 26%; left: 50%; transform: translateX(-50%);
+    z-index: 22; font-size: clamp(20px, 5vw, 42px); font-weight: bold; letter-spacing: 3px;
+    color: #ffce3a; text-shadow: 0 0 30px rgba(255,206,58,.9), 0 2px 6px rgba(0,0,0,.8);
+    opacity: 0; transition: opacity .3s; pointer-events: none; text-align: center;
+  }
+  #milestone.show { opacity: 1; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<canvas id="cv"></canvas>
+
+<div id="status">
+  <span class="dot" id="connDot"></span>
+  <span id="connTxt">connecting…</span>
+  <span>·</span>
+  <span>ONLINE <b id="onlineN">1</b></span>
+  <span>(<b id="humanN">1</b> human · <b class="ai-b" id="aiN">0</b> AI)</span>
+</div>
+
+<div id="namebar">
+  <label>NAME</label>
+  <input id="nameInput" maxlength="14">
+</div>
+
+<div id="panel">
+  <h3>CLICKERS ONLINE</h3>
+  <div id="plist"></div>
+</div>
+
+<div id="stats">
+  YOUR SESSION <span class="big" id="myClicks">0</span><br>
+  COMBINED CPS <b id="cps">0.0</b> · LIFETIME <b id="life">0</b>
+</div>
+
+<div id="hint">SPACE or click/tap the button · counter tallies everyone online right now · 🤖 = AI clickers</div>
+<div id="milestone"></div>
+
+<script>
+'use strict';
+(function () {
+  const SAVE_KEY = 'wizzed-mp-clicker';
+
+  // ================================================================
+  //  Minimal MQTT 3.1.1 client over WebSocket (public brokers, QoS 0)
+  // ================================================================
+  class TinyMQTT {
+    constructor(urls, clientId) {
+      this.urls = urls; this.urlIdx = 0;
+      this.clientId = clientId;
+      this.ws = null; this.buf = new Uint8Array(0);
+      this.connected = false;
+      this.onmessage = null; this.onstatus = null;
+      this.pingTimer = null; this.dead = false;
+      this.connect();
+    }
+    connect() {
+      if (this.dead) return;
+      const url = this.urls[this.urlIdx % this.urls.length];
+      try { this.ws = new WebSocket(url, 'mqtt'); }
+      catch (e) { this.retry(); return; }
+      this.ws.binaryType = 'arraybuffer';
+      const connectTimeout = setTimeout(() => { try { this.ws.close(); } catch (e) {} }, 6000);
+      this.ws.onopen = () => {
+        const cid = this.enc(this.clientId);
+        const varh = new Uint8Array([0, 4, 77, 81, 84, 84, 4, 0x02, 0, 60]);
+        this.send(0x10, this.cat(varh, cid));
+      };
+      this.ws.onmessage = e => { clearTimeout(connectTimeout); this.feed(new Uint8Array(e.data)); };
+      this.ws.onclose = () => { clearTimeout(connectTimeout); this.onDown(); };
+      this.ws.onerror = () => {};
+    }
+    onDown() {
+      this.connected = false;
+      clearInterval(this.pingTimer);
+      if (this.onstatus) this.onstatus(false);
+      this.retry();
+    }
+    retry() {
+      if (this.dead) return;
+      this.urlIdx++;
+      clearTimeout(this.retryT);
+      this.retryT = setTimeout(() => this.connect(), 2500);
+    }
+    close() { this.dead = true; clearInterval(this.pingTimer); try { this.ws.close(); } catch (e) {} }
+    enc(str) {
+      const b = new TextEncoder().encode(str);
+      const out = new Uint8Array(b.length + 2);
+      out[0] = b.length >> 8; out[1] = b.length & 255; out.set(b, 2);
+      return out;
+    }
+    cat(...arrs) {
+      const len = arrs.reduce((a, b) => a + b.length, 0);
+      const out = new Uint8Array(len);
+      let o = 0;
+      for (const a of arrs) { out.set(a, o); o += a.length; }
+      return out;
+    }
+    remLen(n) {
+      const out = [];
+      do { let d = n % 128; n = Math.floor(n / 128); if (n > 0) d |= 128; out.push(d); } while (n > 0);
+      return new Uint8Array(out);
+    }
+    send(type, body) {
+      if (!this.ws || this.ws.readyState !== 1) return;
+      this.ws.send(this.cat(new Uint8Array([type]), this.remLen(body.length), body));
+    }
+    subscribe(filter) {
+      const pid = new Uint8Array([0, 7]);
+      this.send(0x82, this.cat(pid, this.enc(filter), new Uint8Array([0])));
+    }
+    publish(topic, payloadStr) {
+      if (!this.connected) return;
+      const pl = new TextEncoder().encode(payloadStr);
+      this.send(0x30, this.cat(this.enc(topic), pl));
+    }
+    feed(chunk) {
+      this.buf = this.cat(this.buf, chunk);
+      for (;;) {
+        if (this.buf.length < 2) return;
+        let mul = 1, len = 0, pos = 1, ok = false;
+        for (; pos < Math.min(this.buf.length, 5); pos++) {
+          len += (this.buf[pos] & 127) * mul;
+          mul *= 128;
+          if ((this.buf[pos] & 128) === 0) { ok = true; pos++; break; }
+        }
+        if (!ok) return;
+        const total = pos + len;
+        if (this.buf.length < total) return;
+        this.handle(this.buf[0] >> 4, this.buf.slice(pos, total));
+        this.buf = this.buf.slice(total);
+      }
+    }
+    handle(type, body) {
+      if (type === 2) {
+        if (body[1] === 0) {
+          this.connected = true;
+          this.pingTimer = setInterval(() => this.send(0xC0, new Uint8Array(0)), 25000);
+          if (this.onstatus) this.onstatus(true);
+        } else this.retry();
+      } else if (type === 3) {
+        const tlen = (body[0] << 8) | body[1];
+        const topic = new TextDecoder().decode(body.slice(2, 2 + tlen));
+        const payload = new TextDecoder().decode(body.slice(2 + tlen));
+        if (this.onmessage) this.onmessage(topic, payload);
+      }
+    }
+  }
+
+  // ================================================================
+  //  Million Clicks
+  // ================================================================
+  const qsBroker = new URLSearchParams(location.search).get('broker');
+  const BROKERS = qsBroker ? [qsBroker] : [
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://test.mosquitto.org:8081',
+  ];
+  const ROOM = 'wizzed/mp-clicker/v1/main';
+  const myId = 'p' + Math.random().toString(36).slice(2, 10);
+
+  const NAMES1 = ['Neon','Turbo','Pixel','Cosmic','Disco','Rapid','Mega','Hyper','Retro','Furious','Astro','Funky'];
+  const NAMES2 = ['Thumb','Finger','Tapper','Masher','Clicker','Spark','Nova','Digit','Blitz','Byte','Storm','Fury'];
+  const rndName = () => NAMES1[Math.random()*NAMES1.length|0] + NAMES2[Math.random()*NAMES2.length|0];
+
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') || {}; } catch (e) {}
+
+  const me = { i: myId, n: (saved.name || rndName()).slice(0, 14), c: 0, ai: 0 };
+  let lifetime = saved.life || 0;
+  const peers = new Map();  // id -> {n,c,ai,seen,cps,prevC}
+  const bots = new Map();   // id -> bot clicker (host only)
+  let online = false;
+
+  // click ring/timestamp buffers for cps
+  let myClickTimes = [];      // ms timestamps of my clicks (last 1.5s)
+  const rings = [];           // visual pulses {r,max,life,col,ai}
+  const particles = [];       // {x,y,vx,vy,life,col}
+  const floats = [];          // {x,y,vy,life,txt,col}
+  const confetti = [];        // {x,y,vx,vy,life,col,rot,vr}
+
+  // button physics
+  const btn = { scale: 1, targetScale: 1, glow: 0, wob: 0 };
+
+  document.getElementById('life').textContent = lifetime.toLocaleString();
+
+  const nameInput = document.getElementById('nameInput');
+  nameInput.value = me.n;
+  nameInput.addEventListener('input', e => { me.n = (e.target.value || 'Clicker').slice(0, 14); persist(); });
+  function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ name: me.n, life: lifetime })); } catch (e) {} }
+
+  // ---- audio ----
+  let actx = null;
+  function ensureAudio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
+  function bleep(freq, dur, type) {
+    if (!actx) return;
+    try {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = type || 'square'; o.frequency.value = freq;
+      g.gain.value = 0.06; o.connect(g); g.connect(actx.destination);
+      o.start(); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + (dur || 0.08));
+      o.stop(actx.currentTime + (dur || 0.08));
+    } catch (e) {}
+  }
+
+  // ---- networking ----
+  const mq = new TinyMQTT(BROKERS, 'wz-' + myId);
+  mq.onstatus = up => {
+    online = up;
+    const dot = document.getElementById('connDot'), txt = document.getElementById('connTxt');
+    if (up) { dot.className = 'dot live'; txt.textContent = 'LIVE — global button'; mq.subscribe(ROOM + '/p/#'); }
+    else { dot.className = 'dot off'; txt.textContent = 'OFFLINE — clicking with bots'; }
+  };
+  mq.onmessage = (topic, payload) => {
+    try {
+      const m = JSON.parse(payload);
+      if (!m || !m.i || m.i === myId) return;
+      if (bots.has(m.i)) return;
+      const prev = peers.get(m.i);
+      const prevC = prev ? prev.c : m.c;
+      m.seen = performance.now();
+      m.prevC = prevC;
+      peers.set(m.i, m);
+      const delta = m.c - prevC;
+      if (delta > 0 && delta < 60) spawnPulse(delta, m.ai, false);
+    } catch (e) {}
+  };
+
+  // publish presence ~5.5Hz with my session count + cps
+  setInterval(() => {
+    if (!online) return;
+    mq.publish(ROOM + '/p/' + myId, JSON.stringify({ i: me.i, n: me.n, c: me.c, ai: 0, cps: myCps() }));
+  }, 180);
+  setInterval(() => {
+    const now = performance.now();
+    for (const [id, p] of peers) if (now - p.seen > 6000) peers.delete(id);
+  }, 1000);
+
+  function myCps() {
+    const now = performance.now();
+    myClickTimes = myClickTimes.filter(t => now - t < 1000);
+    return myClickTimes.length;
+  }
+
+  // ---- clicking ----
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  function resize() { cv.width = innerWidth; cv.height = innerHeight; }
+  addEventListener('resize', resize); resize();
+  function btnGeom() {
+    const cx = cv.width / 2, cy = cv.height / 2;
+    const R = Math.max(70, Math.min(cv.width, cv.height) * 0.26);
+    return { cx, cy, R };
+  }
+
+  function doClick(fromBtn) {
+    ensureAudio();
+    me.c++;
+    lifetime++;
+    myClickTimes.push(performance.now());
+    persist();
+    btn.scale = 0.82; btn.glow = 1; btn.wob = 1;
+    spawnPulse(1, false, true);
+    bleep(620 + Math.random() * 80, 0.05, 'square');
+    checkMilestone();
+    document.getElementById('myClicks').textContent = me.c.toLocaleString();
+    document.getElementById('life').textContent = lifetime.toLocaleString();
+  }
+
+  function spawnPulse(count, ai, mine) {
+    const g = btnGeom();
+    const col = mine ? '#ffce3a' : (ai ? '#9d6bff' : '#3affc0');
+    rings.push({ r: g.R * 0.7, max: g.R * (1.6 + Math.min(count, 20) * 0.08), life: 1, col });
+    const n = Math.min(mine ? 14 : 6, 4 + count);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 260;
+      particles.push({ x: g.cx, y: g.cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, col });
+    }
+    if (mine) floats.push({ x: g.cx + (Math.random() - 0.5) * 60, y: g.cy - g.R * 0.5, vy: -90, life: 1, txt: '+1', col: '#ffe27a' });
+  }
+
+  let lastMilestone = 0;
+  const MILES = [100, 1000, 10000, 100000];
+  function checkMilestone() {
+    for (const m of MILES) {
+      if (me.c === m) {
+        showMilestone(m.toLocaleString() + ' CLICKS! 🎉');
+        burstConfetti();
+        bleep(880, 0.16, 'triangle');
+        setTimeout(() => bleep(1180, 0.16, 'triangle'), 120);
+      }
+    }
+  }
+  let msT;
+  function showMilestone(txt) {
+    const el = document.getElementById('milestone');
+    el.textContent = txt; el.classList.add('show');
+    clearTimeout(msT); msT = setTimeout(() => el.classList.remove('show'), 2400);
+  }
+  function burstConfetti() {
+    const cols = ['#ffce3a','#ff2d78','#3affc0','#00e5ff','#9d6bff','#ff7ac0','#9dff4d'];
+    for (let i = 0; i < 140; i++) {
+      confetti.push({
+        x: cv.width / 2 + (Math.random() - 0.5) * 120, y: cv.height / 2,
+        vx: (Math.random() - 0.5) * 520, vy: -220 - Math.random() * 380,
+        life: 1, col: cols[i % cols.length], rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 12,
+        w: 5 + Math.random() * 6, h: 8 + Math.random() * 8,
+      });
+    }
+  }
+
+  function pointInButton(x, y) {
+    const g = btnGeom();
+    return Math.hypot(x - g.cx, y - g.cy) <= g.R;
+  }
+  cv.addEventListener('pointerdown', e => {
+    // clicking anywhere counts; button gets extra squash
+    doClick(pointInButton(e.clientX, e.clientY));
+  });
+  addEventListener('keydown', e => {
+    if (e.target === nameInput) return;
+    if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); doClick(true); }
+  });
+
+  // ================================================================
+  //  AI clicker bots (host = lexicographically-lowest human id)
+  // ================================================================
+  const BOT_TARGET = 4;
+  function humanIds() {
+    const ids = [myId];
+    for (const [id, p] of peers) if (!p.ai) ids.push(id);
+    return ids.sort();
+  }
+  function iAmHost() { return humanIds()[0] === myId; }
+  const BOTNAMES = ['ClickTron','AutoTapper','BotThumb','MashBot','Clickzilla','TapMatic','DigiFinger','ClickWork'];
+
+  function botNeeded() {
+    if (!iAmHost()) return 0;
+    return Math.max(0, BOT_TARGET - humanIds().length);
+  }
+  function manageBots() {
+    if (!iAmHost()) { bots.clear(); return; }
+    const need = botNeeded();
+    while (bots.size > need) { const k = bots.keys().next().value; bots.delete(k); }
+    while (bots.size < need) {
+      const bid = 'ai' + Math.random().toString(36).slice(2, 8);
+      const used = new Set([...bots.values()].map(b => b.n));
+      const free = BOTNAMES.filter(n => !used.has('🤖 ' + n));
+      const nm = free.length ? free[Math.random() * free.length | 0] : 'ClickTron' + bots.size;
+      bots.set(bid, {
+        i: bid, n: '🤖 ' + nm, ai: 1, c: 0,
+        burst: 0, cool: 0.5 + Math.random() * 1.5, rate: 0, cps: 0, ct: [],
+      });
+    }
+  }
+  function simBots(dt) {
+    if (!iAmHost()) return;
+    const now = performance.now();
+    for (const b of bots.values()) {
+      b.cool -= dt;
+      if (b.burst > 0) {
+        // in a burst: click at humanlike rate 5-9/s
+        b.rate += dt;
+        const interval = 1 / (5 + Math.random() * 4);
+        while (b.rate >= interval) {
+          b.rate -= interval; b.c++; b.burst--;
+          b.ct.push(now);
+          spawnPulse(1, true, false);
+          if (b.burst <= 0) break;
+        }
+        if (b.burst <= 0) b.cool = 0.8 + Math.random() * 2.4;
+      } else if (b.cool <= 0) {
+        b.burst = 4 + (Math.random() * 12 | 0);
+        b.rate = 0;
+      }
+      b.ct = b.ct.filter(t => now - t < 1000);
+      b.cps = b.ct.length;
+    }
+  }
+  setInterval(() => {
+    if (!online || !iAmHost()) return;
+    for (const b of bots.values()) {
+      mq.publish(ROOM + '/p/' + b.i, JSON.stringify({ i: b.i, n: b.n, c: b.c, ai: 1, cps: b.cps }));
+    }
+  }, 200);
+
+  // ================================================================
+  //  Render loop
+  // ================================================================
+  let last = performance.now();
+  function frame(now) {
+    let dt = (now - last) / 1000; last = now;
+    if (dt > 0.06) dt = 0.06;
+
+    manageBots();
+    simBots(dt);
+
+    // button physics
+    btn.targetScale = 1;
+    btn.scale += (btn.targetScale - btn.scale) * Math.min(1, dt * 14);
+    btn.glow = Math.max(0, btn.glow - dt * 2.2);
+    btn.wob = Math.max(0, btn.wob - dt * 3);
+
+    // particles / rings / floats / confetti
+    for (const r of rings) { r.r += (r.max - r.r) * Math.min(1, dt * 6); r.life -= dt * 1.6; }
+    for (let i = rings.length - 1; i >= 0; i--) if (rings[i].life <= 0) rings.splice(i, 1);
+    for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.92; p.vy = p.vy * 0.92 + 260 * dt; p.life -= dt * 1.7; }
+    for (let i = particles.length - 1; i >= 0; i--) if (particles[i].life <= 0) particles.splice(i, 1);
+    for (const f of floats) { f.y += f.vy * dt; f.vy *= 0.96; f.life -= dt * 1.1; }
+    for (let i = floats.length - 1; i >= 0; i--) if (floats[i].life <= 0) floats.splice(i, 1);
+    for (const c of confetti) { c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 620 * dt; c.rot += c.vr * dt; c.life -= dt * 0.5; }
+    for (let i = confetti.length - 1; i >= 0; i--) if (confetti[i].life <= 0 || confetti[i].y > cv.height + 30) confetti.splice(i, 1);
+
+    draw(now / 1000);
+    updateHud();
+    requestAnimationFrame(frame);
+  }
+
+  function draw(t) {
+    const W = cv.width, H = cv.height;
+    const g = btnGeom();
+    // bg gradient
+    const bg = ctx.createRadialGradient(g.cx, g.cy, 0, g.cx, g.cy, Math.max(W, H) * 0.7);
+    bg.addColorStop(0, '#141024'); bg.addColorStop(1, '#0a0c18');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+    // rotating rays behind button
+    ctx.save();
+    ctx.translate(g.cx, g.cy);
+    ctx.rotate(t * 0.15);
+    for (let i = 0; i < 16; i++) {
+      ctx.rotate(Math.PI / 8);
+      ctx.fillStyle = 'rgba(255,206,58,0.04)';
+      ctx.beginPath(); ctx.moveTo(0, 0);
+      ctx.lineTo(Math.max(W, H), -40); ctx.lineTo(Math.max(W, H), 40); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+
+    // rings
+    for (const r of rings) {
+      ctx.beginPath(); ctx.arc(g.cx, g.cy, r.r, 0, Math.PI * 2);
+      ctx.strokeStyle = r.col; ctx.globalAlpha = Math.max(0, r.life) * 0.5; ctx.lineWidth = 3;
+      ctx.stroke(); ctx.globalAlpha = 1;
+    }
+
+    // the button
+    const R = g.R * btn.scale;
+    const wob = Math.sin(t * 40) * btn.wob * 4;
+    const grad = ctx.createRadialGradient(g.cx - R * 0.3, g.cy - R * 0.35, R * 0.1, g.cx, g.cy, R);
+    grad.addColorStop(0, '#ffe9a0'); grad.addColorStop(0.45, '#ffce3a'); grad.addColorStop(1, '#c8890a');
+    ctx.shadowColor = '#ffce3a'; ctx.shadowBlur = 30 + btn.glow * 40;
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(g.cx, g.cy + wob, R, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    // inner ring
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(g.cx, g.cy + wob, R * 0.82, 0, Math.PI * 2); ctx.stroke();
+    // label
+    ctx.fillStyle = '#3a2400'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold ' + Math.round(R * 0.28) + 'px Courier New';
+    ctx.fillText('CLICK', g.cx, g.cy + wob - R * 0.06);
+    ctx.font = 'bold ' + Math.round(R * 0.5) + 'px Courier New';
+    ctx.fillText('!', g.cx, g.cy + wob + R * 0.24);
+    ctx.textBaseline = 'alphabetic';
+
+    // particles
+    for (const p of particles) {
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.col;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 3 * p.life + 1, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // floats
+    ctx.textAlign = 'center'; ctx.font = 'bold 18px Courier New';
+    for (const f of floats) {
+      ctx.globalAlpha = Math.max(0, f.life); ctx.fillStyle = f.col;
+      ctx.fillText(f.txt, f.x, f.y);
+    }
+    ctx.globalAlpha = 1;
+    // confetti
+    for (const c of confetti) {
+      ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot);
+      ctx.globalAlpha = Math.max(0, Math.min(1, c.life * 1.5)); ctx.fillStyle = c.col;
+      ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h); ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  let combinedShown = 0;
+  let hudT = 0;
+  function updateHud() {
+    const now = performance.now();
+    if (now - hudT < 250) return;
+    hudT = now;
+    let humans = 1, ais = 0, combinedCps = myCps(), totalClicks = me.c;
+    for (const p of peers.values()) {
+      (p.ai ? ais++ : humans++);
+      combinedCps += (p.cps || 0);
+      totalClicks += (p.c || 0);
+    }
+    for (const b of bots.values()) { ais++; combinedCps += (b.cps || 0); totalClicks += b.c; }
+    document.getElementById('onlineN').textContent = (humans + ais).toLocaleString();
+    document.getElementById('humanN').textContent = humans;
+    document.getElementById('aiN').textContent = ais;
+    combinedShown += (combinedCps - combinedShown) * 0.4;
+    document.getElementById('cps').textContent = combinedShown.toFixed(1);
+
+    const rows = [{ i: myId, n: me.n, c: me.c, ai: 0, me: true }];
+    for (const p of peers.values()) rows.push({ i: p.i, n: p.n, c: p.c, ai: p.ai });
+    for (const b of bots.values()) rows.push({ i: b.i, n: b.n, c: b.c, ai: 1 });
+    rows.sort((a, b) => (b.c || 0) - (a.c || 0));
+    document.getElementById('plist').innerHTML = rows.slice(0, 10).map(p => `
+      <div class="prow${p.me ? ' me' : ''}">
+        <span class="nm">${esc(p.n || '???')}</span>
+        ${p.ai ? '<span class="aitag">AI</span>' : ''}
+        <span class="sc">${(p.c || 0).toLocaleString()}</span>
+      </div>`).join('');
+  }
+  function esc(s) { return String(s).replace(/[<>&]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m])); }
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

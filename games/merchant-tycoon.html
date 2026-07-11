@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trade Winds — Wizzed Arcade</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:#0f0f1a;color:#dfeaff;font-family:'Courier New',ui-monospace,monospace;overflow:hidden}
+:root{--acc:#3fd0ff;--gold:#ffd166}
+a.back{position:fixed;top:10px;left:12px;z-index:80;color:#8890b0;text-decoration:none;font-size:13px;letter-spacing:1px;padding:4px 9px;border:1px solid rgba(136,144,176,.35);background:rgba(15,15,26,.8);border-radius:4px}
+a.back:hover{color:var(--acc);border-color:var(--acc);text-shadow:0 0 8px var(--acc)}
+#wrap{display:flex;flex-direction:column;height:100vh}
+#hud{display:flex;gap:14px;align-items:center;padding:8px 12px 8px 96px;background:linear-gradient(180deg,#132033,#0d1626);border-bottom:1px solid rgba(63,208,255,.25);flex-wrap:wrap;flex:0 0 auto}
+.hs{display:flex;flex-direction:column;line-height:1.05}
+.hs b{font-size:19px;color:var(--acc);text-shadow:0 0 8px rgba(63,208,255,.4)}
+.hs.g b{color:var(--gold);text-shadow:0 0 8px rgba(255,209,102,.5)}
+.hs span{font-size:10px;color:#7f93b8;letter-spacing:1px}
+#main{display:flex;flex:1 1 auto;min-height:0}
+#mapWrap{flex:1 1 48%;min-width:0;position:relative;background:#0a1220;border-right:1px solid rgba(63,208,255,.2);display:flex;align-items:center;justify-content:center}
+#map{max-width:100%;max-height:100%;image-rendering:pixelated;cursor:pointer}
+#panel{flex:1 1 52%;min-width:0;overflow-y:auto;padding:8px 10px 30px;background:#0c141f}
+#panel::-webkit-scrollbar{width:8px}#panel::-webkit-scrollbar-thumb{background:#22344a;border-radius:4px}
+.portName{font-size:18px;color:var(--acc);text-shadow:0 0 10px rgba(63,208,255,.4);letter-spacing:1px;margin-bottom:2px}
+.spec{font-size:11px;color:#8fa6c8;margin-bottom:6px}
+.news{font-size:11px;color:#ffb0c8;background:rgba(255,80,120,.08);border:1px solid rgba(255,80,120,.3);border-radius:5px;padding:5px 8px;margin-bottom:8px;min-height:26px;line-height:1.4}
+.news b{color:#ff7ba0}
+.amtsel{display:flex;gap:5px;margin-bottom:8px;align-items:center;font-size:11px;color:#8fa6c8}
+.amtsel button{font-family:inherit;border:1px solid rgba(120,140,180,.4);background:#152234;color:#cfe0f5;padding:3px 9px;border-radius:5px;cursor:pointer;font-size:12px}
+.amtsel button.on{border-color:var(--acc);color:var(--acc);box-shadow:0 0 8px rgba(63,208,255,.35)}
+table.mk{width:100%;border-collapse:collapse;font-size:12px}
+table.mk th{color:#7f93b8;font-size:10px;letter-spacing:1px;text-align:right;padding:3px 4px;border-bottom:1px solid rgba(120,140,180,.2)}
+table.mk th.l{text-align:left}
+table.mk td{padding:4px;text-align:right;border-bottom:1px solid rgba(120,140,180,.08)}
+table.mk td.l{text-align:left}
+.gname{color:#eaf2ff}
+.gicon{font-size:15px;margin-right:4px}
+.price.up{color:#5fffa0}.price.down{color:#ff7b7b}.price.mid{color:#dfeaff}
+.trend{font-size:10px;color:#7f93b8;margin-left:3px}
+.tbtn{font-family:inherit;font-size:11px;padding:3px 7px;border-radius:5px;cursor:pointer;border:1px solid;background:#152234;margin-left:2px}
+.tbtn.buy{border-color:rgba(95,255,160,.4);color:#7fffb0}
+.tbtn.buy:hover:not(:disabled){box-shadow:0 0 8px rgba(95,255,160,.4)}
+.tbtn.sell{border-color:rgba(255,150,90,.4);color:#ffb488}
+.tbtn.sell:hover:not(:disabled){box-shadow:0 0 8px rgba(255,150,90,.4)}
+.tbtn:disabled{opacity:.3;cursor:not-allowed}
+.sect{font-size:11px;letter-spacing:2px;color:#6f84a8;margin:12px 2px 6px;text-transform:uppercase;border-top:1px solid rgba(120,140,180,.15);padding-top:8px}
+.dests{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.dest{border:1px solid rgba(120,140,180,.3);background:#132234;border-radius:6px;padding:6px 8px;cursor:pointer;font-size:12px;text-align:left;color:#dfeaff;font-family:inherit;transition:.1s}
+.dest:hover{border-color:var(--acc);box-shadow:0 0 8px rgba(63,208,255,.3)}
+.dest.here{opacity:.45;cursor:default;border-style:dashed}
+.dest small{display:block;color:#8fa6c8;font-size:10px}
+.yard{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.up{border:1px solid rgba(157,107,255,.4);background:#1a1633;border-radius:6px;padding:7px 6px;text-align:center;font-size:11px;color:#c9b3ff;cursor:pointer;font-family:inherit;line-height:1.3}
+.up:hover:not(:disabled){box-shadow:0 0 8px rgba(157,107,255,.4);border-color:#9d6bff}
+.up:disabled{opacity:.4;cursor:not-allowed}
+.up b{color:#e0d4ff;font-size:12px}.up small{display:block;color:#ffd166;font-size:10px;margin-top:2px}
+/* overlays */
+.overlay{position:fixed;inset:0;z-index:70;background:rgba(6,10,18,.94);display:flex;align-items:center;justify-content:center;text-align:center;padding:20px}
+.card{background:linear-gradient(180deg,#122033,#0b1420);border:2px solid var(--acc);border-radius:14px;padding:24px 28px;max-width:460px}
+.card h1{font-size:38px;color:var(--acc);text-shadow:0 0 18px rgba(63,208,255,.6),3px 3px 0 #0a3a52;letter-spacing:3px;margin-bottom:4px}
+.card .sub{color:var(--gold);letter-spacing:3px;margin-bottom:16px;font-size:13px}
+.card p{color:#aebcd8;line-height:1.6;font-size:13px;margin-bottom:14px}
+.card .keys{font-size:12px;color:#8fa6c8;margin-bottom:16px;line-height:1.7}
+.card .keys b{color:var(--acc)}
+.pulse{display:inline-block;color:#fff;border:2px solid var(--acc);padding:11px 24px;border-radius:8px;font-size:15px;letter-spacing:2px;cursor:pointer;animation:pl 1.2s infinite}
+@keyframes pl{0%,100%{box-shadow:0 0 8px rgba(63,208,255,.4)}50%{box-shadow:0 0 22px rgba(63,208,255,.8)}}
+.choices{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+.choices button{font-family:inherit;font-size:13px;padding:10px 18px;border-radius:8px;cursor:pointer;color:#fff;background:#152234;border:2px solid var(--acc)}
+.choices button:hover:not(:disabled){box-shadow:0 0 14px rgba(63,208,255,.5)}
+.choices button:disabled{opacity:.35;cursor:not-allowed}
+.choices button.danger{border-color:#ff5a7a}.choices button.danger:hover{box-shadow:0 0 14px rgba(255,90,122,.5)}
+.choices button.gold{border-color:var(--gold)}.choices button.gold:hover{box-shadow:0 0 14px rgba(255,209,102,.5)}
+#toast{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:75;background:rgba(15,20,30,.96);border:1px solid var(--acc);color:var(--acc);padding:8px 16px;border-radius:20px;font-size:12px;letter-spacing:.5px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90%;text-align:center}
+.win h1{color:var(--gold);text-shadow:0 0 18px rgba(255,209,102,.6),3px 3px 0 #6a4a0a}
+.win .card{border-color:var(--gold)}
+@media(max-width:640px){#main{flex-direction:column}#mapWrap{flex:0 0 170px;border-right:none;border-bottom:1px solid rgba(63,208,255,.2)}#hud{padding-left:12px;padding-top:34px}}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<div id="wrap">
+  <div id="hud">
+    <div class="hs g"><b id="goldV">500g</b><span>GOLD</span></div>
+    <div class="hs"><b id="dayV">1</b><span>DAY</span></div>
+    <div class="hs"><b id="holdV">0/20</b><span>HOLD</span></div>
+    <div class="hs"><b id="spdV">2</b><span>SPEED</span></div>
+    <div class="hs"><b id="canV">1</b><span>CANNONS</span></div>
+  </div>
+  <div id="main">
+    <div id="mapWrap"><canvas id="map" width="420" height="440"></canvas></div>
+    <div id="panel">
+      <div class="portName" id="portName">—</div>
+      <div class="spec" id="portSpec"></div>
+      <div class="news" id="news">Fair winds. The market is calm.</div>
+      <div class="amtsel">Trade qty:
+        <button data-a="1">1</button>
+        <button data-a="5">5</button>
+        <button data-a="25">25</button>
+        <button data-a="max">Max</button>
+      </div>
+      <table class="mk"><thead><tr><th class="l">Good</th><th>Price</th><th>Hold</th><th>Trade</th></tr></thead>
+        <tbody id="mkBody"></tbody></table>
+      <div class="sect">Set Sail &#9973;</div>
+      <div class="dests" id="dests"></div>
+      <div class="sect">Shipyard &#128736;</div>
+      <div class="yard" id="yard"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="title">
+  <div class="card">
+    <h1>TRADE WINDS</h1>
+    <div class="sub">&#9973; 6 PORTS &middot; 8 GOODS &middot; 100,000g TO WIN</div>
+    <p>Buy low, sail the seas, sell high. Dodge pirates, ride market swings and news events, upgrade your ship. First to 100,000 gold retires rich — in as few days as you can.</p>
+    <div class="keys"><b>Click</b> a port to sail &middot; <b>Buy/Sell</b> in the market &middot; <b>R</b> restart</div>
+    <div class="pulse" id="startBtn">CLICK / PRESS ENTER TO SET SAIL</div>
+  </div>
+</div>
+
+<div class="overlay" id="pirate" style="display:none">
+  <div class="card" style="border-color:#ff5a7a">
+    <h1 style="color:#ff5a7a;text-shadow:0 0 18px rgba(255,90,122,.6),3px 3px 0 #5a0a1a;font-size:30px">&#9760; PIRATES!</h1>
+    <p id="pirateMsg">A pirate sloop closes in on your laden ship...</p>
+    <div class="choices">
+      <button class="gold" id="pFlee">FLEE<br><small style="font-size:10px;color:#8fa6c8" id="fleeOdds"></small></button>
+      <button class="danger" id="pFight">FIGHT<br><small style="font-size:10px;color:#8fa6c8" id="fightOdds"></small></button>
+      <button id="pBribe">BRIBE<br><small style="font-size:10px;color:#8fa6c8" id="bribeOdds"></small></button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="result" style="display:none">
+  <div class="card"><h1 id="resTitle" style="font-size:26px">—</h1><p id="resMsg"></p>
+    <div class="pulse" id="resOk">CONTINUE</div></div>
+</div>
+
+<div class="overlay win" id="win" style="display:none">
+  <div class="card"><h1>&#9733; RICH! &#9733;</h1>
+    <p id="winMsg"></p>
+    <div class="keys">Best (fewest days): <b id="bestDays">—</b></div>
+    <div class="pulse" id="winRestart">NEW VOYAGE</div></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+(function(){
+const SAVE='wizzed-merchant-tycoon';
+const cvs=document.getElementById('map'), ctx=cvs.getContext('2d');
+const W=cvs.width, H=cvs.height;
+
+/* ---------- audio ---------- */
+let actx=null;
+function audio(){if(!actx){try{actx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}if(actx&&actx.state==='suspended')actx.resume();}
+function beep(f,d,type,v,f2){if(!actx)return;try{const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.type=type||'square';o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(Math.max(20,f2),t+d);g.gain.setValueAtTime(v||0.05,t);g.gain.exponentialRampToValueAtTime(0.0001,t+d);o.connect(g).connect(actx.destination);o.start(t);o.stop(t+d);}catch(e){}}
+function sfxBuy(){beep(520,0.06,'square',0.05,700);} function sfxSell(){beep(700,0.08,'triangle',0.05,900);}
+function sfxBad(){beep(180,0.14,'sawtooth',0.05,90);} function sfxGood(){beep(660,0.1,'triangle',0.05,990);}
+
+/* ---------- data ---------- */
+const GOODS=[
+ {name:'Grain', ic:'🌾', base:8},
+ {name:'Iron',  ic:'⛓️', base:20},
+ {name:'Tools', ic:'🔨', base:36},
+ {name:'Rum',   ic:'🍾', base:48},
+ {name:'Tea',   ic:'🍵', base:64},
+ {name:'Silk',  ic:'🧵', base:95},
+ {name:'Spice', ic:'🌶️', base:130},
+ {name:'Gems',  ic:'💎', base:320},
+];
+// ports: x,y on map (0..1), color, produce (cheap) & demand (pricey) good indices
+const PORTS=[
+ {name:'Port Vela',   x:0.16,y:0.22, col:'#5fd0ff', produce:[0,1], demand:[6,7]},
+ {name:'Saltmarsh',   x:0.5, y:0.13, col:'#8affc0', produce:[2,3], demand:[5,0]},
+ {name:'Goldhaven',   x:0.84,y:0.26, col:'#ffd166', produce:[7,6], demand:[1,2]},
+ {name:'Coral Bay',   x:0.8, y:0.68, col:'#ff8fd0', produce:[4,5], demand:[3,7]},
+ {name:'Ironreach',   x:0.46,y:0.82, col:'#ff9a6b', produce:[1,2], demand:[4,6]},
+ {name:'Mistral Cove',x:0.15,y:0.66, col:'#b58aff', produce:[3,5], demand:[0,1]},
+];
+const EVENTS=[
+ {g:6, up:true,  t:'Frost blights the {p} spice fields — Spice soars!'},
+ {g:6, up:false, t:'Bumper spice harvest floods {p} — Spice crashes.'},
+ {g:5, up:true,  t:'Silk caravans robbed near {p} — Silk spikes!'},
+ {g:7, up:true,  t:'A gem vein runs dry at {p} — Gems surge!'},
+ {g:3, up:true,  t:'Sailors on shore leave in {p} — Rum in demand!'},
+ {g:0, up:false, t:'Overflowing granaries in {p} — Grain dirt cheap.'},
+ {g:4, up:true,  t:'Nobles host a festival in {p} — Tea prices climb!'},
+ {g:2, up:false, t:'A smith guild dumps stock in {p} — Tools cheap.'},
+ {g:1, up:true,  t:'War rumors reach {p} — Iron demand jumps!'},
+ {g:5, up:false, t:'{p} weavers overproduce — Silk sags.'},
+];
+
+let S=null;
+function dist(a,b){const dx=(PORTS[a].x-PORTS[b].x)*10,dy=(PORTS[a].y-PORTS[b].y)*10;return Math.sqrt(dx*dx+dy*dy);}
+function targetMul(pi,gi){
+  const p=PORTS[pi]; let m=1;
+  if(p.produce.includes(gi))m=0.6; else if(p.demand.includes(gi))m=1.55; else m=1.0;
+  return m;
+}
+function freshState(){
+  const st={gold:500, day:1, at:0, hold:20, speed:2, cannons:1,
+    cargo:GOODS.map(()=>0),
+    pmul:PORTS.map((p,pi)=>GOODS.map((g,gi)=>targetMul(pi,gi))),
+    ptarget:PORTS.map((p,pi)=>GOODS.map((g,gi)=>targetMul(pi,gi))),
+    prev:PORTS.map(()=>GOODS.map(()=>1)),
+    upHold:0, upSpeed:0, upCan:0,
+    news:'Fair winds. The market is calm.',
+    over:false, won:false };
+  return st;
+}
+function price(pi,gi){ return Math.max(1, Math.round(GOODS[gi].base * S.pmul[pi][gi])); }
+function holdUsed(){ return S.cargo.reduce((a,b)=>a+b,0); }
+function priceClass(pi,gi){ const m=S.pmul[pi][gi]; return m>1.12?'up':m<0.9?'down':'mid'; }
+
+/* ---------- market drift ---------- */
+function driftDay(){
+  for(let pi=0;pi<PORTS.length;pi++){
+    for(let gi=0;gi<GOODS.length;gi++){
+      S.prev[pi][gi]=S.pmul[pi][gi];
+      // ease target back toward natural baseline
+      const nat=targetMul(pi,gi);
+      S.ptarget[pi][gi]+=(nat-S.ptarget[pi][gi])*0.14;
+      let m=S.pmul[pi][gi];
+      m+=(S.ptarget[pi][gi]-m)*0.22 + (Math.random()-0.5)*0.10;
+      m=Math.max(0.35, Math.min(2.4, m));
+      S.pmul[pi][gi]=m;
+    }
+  }
+  // random event
+  if(Math.random()<0.35){
+    const ev=EVENTS[(Math.random()*EVENTS.length)|0];
+    const pi=(Math.random()*PORTS.length)|0;
+    S.ptarget[pi][ev.g]=ev.up? Math.min(2.4, 1.9+Math.random()*0.4) : Math.max(0.35,0.5-Math.random()*0.12);
+    S.pmul[pi][ev.g]=S.ptarget[pi][ev.g];
+    S.news=ev.t.replace('{p}',PORTS[pi].name);
+  }
+}
+
+/* ---------- persistence (best only) ---------- */
+let best=0;
+function loadBest(){ try{ best=parseInt(localStorage.getItem(SAVE)||'0',10)||0; }catch(e){} }
+function saveBest(d){ try{ if(best===0||d<best){best=d; localStorage.setItem(SAVE,String(best));} }catch(e){} }
+
+/* ---------- trade ---------- */
+let amt=5;
+function tradeQty(pi,gi,buy){
+  if(amt==='max'){
+    if(buy){ const p=price(pi,gi); const bySpace=S.hold-holdUsed(); const byGold=Math.floor(S.gold/p); return Math.max(0,Math.min(bySpace,byGold)); }
+    else return S.cargo[gi];
+  }
+  return amt;
+}
+function buy(gi){
+  const pi=S.at, p=price(pi,gi); let q=tradeQty(pi,gi,true);
+  const space=S.hold-holdUsed(); q=Math.min(q, space, Math.floor(S.gold/p));
+  if(q<=0){ if(space<=0)toast('Hold is full — sell or upgrade.'); else toast('Not enough gold.'); sfxBad(); return; }
+  S.gold-=p*q; S.cargo[gi]+=q; sfxBuy(); renderMarket(); renderHud();
+}
+function sell(gi){
+  const pi=S.at, p=price(pi,gi); let q=tradeQty(pi,gi,false);
+  q=Math.min(q, S.cargo[gi]);
+  if(q<=0){ toast('You have no '+GOODS[gi].name+' to sell.'); sfxBad(); return; }
+  S.cargo[gi]-=q; S.gold+=p*q; sfxSell(); renderMarket(); renderHud();
+  checkWin();
+}
+
+/* ---------- sailing ---------- */
+let sailing=null; // {from,to,t,dur,days}
+function beginSail(to){
+  if(S.over||S.won) return;
+  if(to===S.at) return;
+  const d=dist(S.at,to);
+  const days=Math.max(1, Math.round(d/Math.max(1,S.speed)));
+  audio(); beep(300,0.12,'sine',0.05,420);
+  sailing={from:S.at,to:to,t:0,dur:0.9+days*0.12,days:days};
+}
+function arrive(){
+  const s=sailing; sailing=null;
+  // advance days + market
+  const prov=Math.min(S.gold, s.days*2);
+  S.gold-=prov;
+  for(let i=0;i<s.days;i++) driftDay();
+  S.day+=s.days; S.at=s.to;
+  renderAll();
+  // pirate check
+  const cargoVal=cargoValue();
+  let chance=0.10 + Math.min(0.35, cargoVal/40000) + s.days*0.02;
+  chance=Math.min(0.6, chance);
+  if(cargoVal>50 && Math.random()<chance){ triggerPirate(); }
+  else { toast('Arrived at '+PORTS[S.at].name+' — '+s.days+' day'+(s.days>1?'s':'')+' at sea.'); }
+  save();
+}
+function cargoValue(){ let v=0; for(let gi=0;gi<GOODS.length;gi++) v+=S.cargo[gi]*price(S.at,gi); return v; }
+
+/* ---------- pirates ---------- */
+function triggerPirate(){
+  const fleeP=Math.min(0.9, 0.35+S.speed*0.09);
+  const fightP=Math.min(0.92, 0.30+S.cannons*0.13);
+  const bribe=Math.max(30, Math.round(S.gold*0.18));
+  document.getElementById('fleeOdds').textContent=Math.round(fleeP*100)+'% escape';
+  document.getElementById('fightOdds').textContent=Math.round(fightP*100)+'% win';
+  document.getElementById('bribeOdds').textContent=bribe+'g';
+  document.getElementById('pBribe').disabled=(S.gold<bribe);
+  document.getElementById('pirateMsg').textContent='A pirate galley cuts across your wake off '+PORTS[S.at].name+'. Your hold is worth '+cargoValue()+'g. What do you do?';
+  document.getElementById('pirate').style.display='flex';
+  sfxBad();
+  window._pirate={fleeP,fightP,bribe};
+}
+function resolvePirate(kind){
+  const P=window._pirate; document.getElementById('pirate').style.display='none';
+  let title='', msg='';
+  if(kind==='flee'){
+    if(Math.random()<P.fleeP){ title='Escaped!'; msg='You catch the wind and slip away with your cargo intact.'; sfxGood(); }
+    else { const loss=Math.max(1,Math.round(holdUsed()*0.35)); stealCargo(loss); title='Boarded!'; msg='They overtake you and plunder part of your hold ('+loss+' units lost).'; sfxBad(); }
+  } else if(kind==='fight'){
+    if(Math.random()<P.fightP){ const loot=Math.round(80+Math.random()*220+S.cannons*40); S.gold+=loot; title='Victory!'; msg='Your cannons splinter their hull. You seize '+loot+'g in loot!'; sfxGood(); }
+    else { const dmg=Math.round(S.gold*0.25+40); S.gold=Math.max(0,S.gold-dmg); const loss=Math.max(1,Math.round(holdUsed()*0.25)); stealCargo(loss); title='Defeated!'; msg='They out-gun you: '+dmg+'g in repairs and '+loss+' units of cargo lost.'; sfxBad(); }
+  } else { // bribe
+    S.gold=Math.max(0,S.gold-P.bribe); title='Bought Off'; msg='You toss them '+P.bribe+'g and they sail on, grinning.'; beep(400,0.1,'triangle',0.05); }
+  renderAll();
+  showResult(title,msg);
+  checkWin();
+}
+function stealCargo(n){
+  let left=n;
+  while(left>0 && holdUsed()>0){
+    const idx=[]; for(let i=0;i<S.cargo.length;i++) if(S.cargo[i]>0)idx.push(i);
+    if(!idx.length)break;
+    const g=idx[(Math.random()*idx.length)|0]; S.cargo[g]--; left--;
+  }
+}
+
+/* ---------- upgrades ---------- */
+function upCostHold(){ return Math.round(200*Math.pow(1.7,S.upHold)); }
+function upCostSpeed(){ return Math.round(350*Math.pow(2.0,S.upSpeed)); }
+function upCostCan(){ return Math.round(300*Math.pow(1.9,S.upCan)); }
+function buyHold(){ const c=upCostHold(); if(S.upHold>=8){toast('Hold at max.');return;} if(S.gold<c){toast('Not enough gold.');sfxBad();return;} S.gold-=c;S.hold+=10;S.upHold++;sfxGood();renderAll(); }
+function buySpeed(){ const c=upCostSpeed(); if(S.upSpeed>=6){toast('Speed at max.');return;} if(S.gold<c){toast('Not enough gold.');sfxBad();return;} S.gold-=c;S.speed+=1;S.upSpeed++;sfxGood();renderAll(); }
+function buyCannon(){ const c=upCostCan(); if(S.upCan>=7){toast('Cannons at max.');return;} if(S.gold<c){toast('Not enough gold.');sfxBad();return;} S.gold-=c;S.cannons+=1;S.upCan++;sfxGood();renderAll(); }
+
+/* ---------- win ---------- */
+function checkWin(){
+  if(S.won) return;
+  if(S.gold>=100000){
+    S.won=true; saveBest(S.day);
+    document.getElementById('winMsg').textContent='You amassed '+S.gold+'g in '+S.day+' days across the seven ports. A legend of the trade winds!';
+    document.getElementById('bestDays').textContent=best>0?best+' days':'—';
+    document.getElementById('win').style.display='flex';
+    beep(523,0.12,'triangle',0.06);setTimeout(()=>beep(659,0.12,'triangle',0.06),120);setTimeout(()=>beep(784,0.2,'triangle',0.06),240);
+  }
+}
+
+/* ---------- render ---------- */
+function renderHud(){
+  document.getElementById('goldV').textContent=S.gold+'g';
+  document.getElementById('dayV').textContent=S.day;
+  document.getElementById('holdV').textContent=holdUsed()+'/'+S.hold;
+  document.getElementById('spdV').textContent=S.speed;
+  document.getElementById('canV').textContent=S.cannons;
+}
+function renderMarket(){
+  const pi=S.at;
+  document.getElementById('portName').textContent='⚓ '+PORTS[pi].name;
+  document.getElementById('portSpec').textContent='Produces '+PORTS[pi].produce.map(g=>GOODS[g].name).join(' & ')+' (cheap) · Craves '+PORTS[pi].demand.map(g=>GOODS[g].name).join(' & ')+' (dear)';
+  document.getElementById('news').innerHTML='📰 '+S.news;
+  const body=document.getElementById('mkBody'); body.innerHTML='';
+  for(let gi=0;gi<GOODS.length;gi++){
+    const p=price(pi,gi), cls=priceClass(pi,gi);
+    const prevP=Math.round(GOODS[gi].base*S.prev[pi][gi]);
+    const arrow=p>prevP?'▲':p<prevP?'▼':'▬';
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td class="l"><span class="gicon">'+GOODS[gi].ic+'</span><span class="gname">'+GOODS[gi].name+'</span></td>'+
+      '<td class="price '+cls+'">'+p+'g<span class="trend">'+arrow+'</span></td>'+
+      '<td>'+S.cargo[gi]+'</td>'+
+      '<td><button class="tbtn buy" data-b="'+gi+'">Buy</button><button class="tbtn sell" data-s="'+gi+'">Sell</button></td>';
+    body.appendChild(tr);
+  }
+  body.querySelectorAll('[data-b]').forEach(b=>b.addEventListener('click',()=>{audio();buy(+b.dataset.b);}));
+  body.querySelectorAll('[data-s]').forEach(b=>b.addEventListener('click',()=>{audio();sell(+b.dataset.s);}));
+  // disable states
+  body.querySelectorAll('.tbtn.buy').forEach((b,gi)=>{ b.disabled=(holdUsed()>=S.hold)||(S.gold<price(pi,gi)); });
+  body.querySelectorAll('.tbtn.sell').forEach((b)=>{ const g=+b.dataset.s; b.disabled=S.cargo[g]<=0; });
+}
+function renderDests(){
+  const el=document.getElementById('dests'); el.innerHTML='';
+  for(let pi=0;pi<PORTS.length;pi++){
+    const b=document.createElement('button'); b.className='dest'+(pi===S.at?' here':'');
+    const d=dist(S.at,pi); const days=pi===S.at?0:Math.max(1,Math.round(d/Math.max(1,S.speed)));
+    b.innerHTML='⚓ '+PORTS[pi].name+'<small>'+(pi===S.at?'you are here':days+' day'+(days>1?'s':'')+' · '+(days*2)+'g provisions')+'</small>';
+    if(pi!==S.at) b.addEventListener('click',()=>{ audio(); beginSail(pi); });
+    el.appendChild(b);
+  }
+}
+function renderYard(){
+  const el=document.getElementById('yard'); el.innerHTML='';
+  const items=[
+    {t:'+10 Hold', c:upCostHold(), max:S.upHold>=8, fn:buyHold, cur:'cap '+S.hold},
+    {t:'+1 Speed', c:upCostSpeed(),max:S.upSpeed>=6, fn:buySpeed, cur:'spd '+S.speed},
+    {t:'+1 Cannon',c:upCostCan(),  max:S.upCan>=7,  fn:buyCannon,cur:'cannons '+S.cannons},
+  ];
+  items.forEach(it=>{
+    const b=document.createElement('button'); b.className='up';
+    b.innerHTML='<b>'+it.t+'</b><small>'+(it.max?'MAX':it.c+'g')+'</small><span style="font-size:9px;color:#8fa6c8">'+it.cur+'</span>';
+    b.disabled=it.max||S.gold<it.c;
+    b.addEventListener('click',()=>{audio();it.fn();});
+    el.appendChild(b);
+  });
+}
+function renderAmt(){ document.querySelectorAll('.amtsel button').forEach(b=>{ b.classList.toggle('on', String(amt)===b.dataset.a || (amt==='max'&&b.dataset.a==='max')); }); }
+function renderAll(){ renderHud(); renderMarket(); renderDests(); renderYard(); renderAmt(); }
+
+/* ---------- canvas map ---------- */
+let mapT=0;
+function drawMap(dt){
+  mapT+=dt;
+  // sea
+  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#0d2036'); g.addColorStop(1,'#081522');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // subtle waves
+  ctx.strokeStyle='rgba(63,208,255,0.06)'; ctx.lineWidth=1;
+  for(let y=24;y<H;y+=26){ ctx.beginPath(); for(let x=0;x<=W;x+=8){ const yy=y+Math.sin((x*0.05)+mapT*1.2+y)*2.2; if(x===0)ctx.moveTo(x,yy);else ctx.lineTo(x,yy);} ctx.stroke(); }
+  // routes from current port
+  ctx.strokeStyle='rgba(120,150,190,0.18)'; ctx.lineWidth=1; ctx.setLineDash([3,5]);
+  for(let pi=0;pi<PORTS.length;pi++){ if(pi===S.at)continue; ctx.beginPath(); ctx.moveTo(PORTS[S.at].x*W,PORTS[S.at].y*H); ctx.lineTo(PORTS[pi].x*W,PORTS[pi].y*H); ctx.stroke(); }
+  ctx.setLineDash([]);
+  // ports
+  for(let pi=0;pi<PORTS.length;pi++){
+    const px=PORTS[pi].x*W, py=PORTS[pi].y*H; const here=pi===S.at;
+    // island blob
+    ctx.fillStyle='#1c2b1a'; ctx.beginPath(); ctx.ellipse(px,py+8,26,12,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#26351f'; ctx.beginPath(); ctx.ellipse(px,py+6,20,9,0,0,Math.PI*2); ctx.fill();
+    // buildings (pixel silhouette)
+    ctx.fillStyle=PORTS[pi].col;
+    ctx.save(); ctx.shadowColor=PORTS[pi].col; ctx.shadowBlur=here?14:6;
+    for(let b=0;b<3;b++){ const bx=px-12+b*10, bh=8+((pi*7+b*5)%9); ctx.fillRect(bx,py-bh, 7, bh); }
+    // flag
+    ctx.fillRect(px-1, py-22, 2, 12);
+    ctx.beginPath(); ctx.moveTo(px+1,py-22); ctx.lineTo(px+9,py-19); ctx.lineTo(px+1,py-16); ctx.fill();
+    ctx.restore();
+    // name
+    ctx.fillStyle=here?'#ffffff':'#b9c8de'; ctx.font=(here?'bold ':'')+'11px "Courier New",monospace'; ctx.textAlign='center';
+    ctx.fillText(PORTS[pi].name, px, py+24);
+    if(here){ ctx.strokeStyle='#ffd166'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(px,py-4,30+Math.sin(mapT*3)*2,0,Math.PI*2); ctx.stroke(); }
+  }
+  // ship
+  let sx,sy;
+  if(sailing){
+    const A=PORTS[sailing.from], B=PORTS[sailing.to];
+    const et=1-Math.pow(1-Math.min(1,sailing.t),2);
+    sx=(A.x+(B.x-A.x)*et)*W; sy=(A.y+(B.y-A.y)*et)*H - 6;
+    sailing.t+=dt/sailing.dur;
+    if(sailing.t>=1){ arrive(); }     // arrive() clears `sailing`
+  } else { sx=PORTS[S.at].x*W; sy=PORTS[S.at].y*H-14; }
+  drawShip(sx,sy);
+  // legend
+  ctx.fillStyle='rgba(63,208,255,0.85)'; ctx.font='bold 12px "Courier New",monospace'; ctx.textAlign='left';
+  ctx.fillText('🗺 THE SIX PORTS', 8, 16);
+}
+function drawShip(x,y){
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.fillStyle='#4a2d18'; ctx.beginPath(); ctx.moveTo(-9,0); ctx.lineTo(9,0); ctx.lineTo(6,5); ctx.lineTo(-6,5); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle='#caa77a'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-11); ctx.stroke();
+  ctx.fillStyle='#f0f0f0'; ctx.beginPath(); ctx.moveTo(0,-11); ctx.lineTo(7,-3); ctx.lineTo(0,-3); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#ffd166'; ctx.beginPath(); ctx.moveTo(0,-4); ctx.lineTo(-6,-2); ctx.lineTo(0,-1); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/* ---------- toast ---------- */
+let toastT=0;
+function toast(m){ const el=document.getElementById('toast'); el.textContent=m; el.style.opacity='1'; toastT=2.6; }
+
+function showResult(title,msg){
+  document.getElementById('resTitle').textContent=title;
+  document.getElementById('resMsg').textContent=msg;
+  document.getElementById('result').style.display='flex';
+}
+
+/* ---------- loop ---------- */
+let last=performance.now();
+function loop(now){ let dt=(now-last)/1000; last=now; if(dt>0.1)dt=0.1;
+  drawMap(dt);
+  toastT-=dt; if(toastT<=0){ const el=document.getElementById('toast'); if(el.style.opacity==='1')el.style.opacity='0'; }
+  requestAnimationFrame(loop);
+}
+
+/* ---------- save/restart ---------- */
+function save(){ try{ localStorage.setItem(SAVE+'-run', JSON.stringify(S)); }catch(e){} }
+function loadRun(){ try{ const r=localStorage.getItem(SAVE+'-run'); if(r){ const p=JSON.parse(r); if(p&&!p.won&&!p.over&&Array.isArray(p.cargo)){ S=p; return true; } } }catch(e){} return false; }
+function newGame(){ S=freshState(); save(); renderAll(); }
+
+/* ---------- events ---------- */
+function start(){
+  if(document.getElementById('title').style.display==='none')return;
+  document.getElementById('title').style.display='none';
+  audio(); beep(440,0.1,'triangle',0.05,660);
+  if(!loadRun()) newGame(); else renderAll();
+}
+document.getElementById('startBtn').addEventListener('click',start);
+document.getElementById('title').addEventListener('click',e=>{ if(e.target.closest('#title')) start(); });
+document.getElementById('pFlee').addEventListener('click',()=>{audio();resolvePirate('flee');});
+document.getElementById('pFight').addEventListener('click',()=>{audio();resolvePirate('fight');});
+document.getElementById('pBribe').addEventListener('click',()=>{audio();resolvePirate('bribe');});
+document.getElementById('resOk').addEventListener('click',()=>{ document.getElementById('result').style.display='none'; });
+document.getElementById('winRestart').addEventListener('click',()=>{ document.getElementById('win').style.display='none'; newGame(); });
+document.querySelectorAll('.amtsel button').forEach(b=>b.addEventListener('click',()=>{ amt=b.dataset.a==='max'?'max':(+b.dataset.a); renderAmt(); }));
+addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(document.getElementById('title').style.display!=='none'){ if(k==='enter'||k===' '){e.preventDefault();start();} return; }
+  if(k==='r'){ if(document.getElementById('win').style.display==='flex'){document.getElementById('win').style.display='none';} document.getElementById('result').style.display='none'; newGame(); toast('New voyage begun.'); }
+  else if(k==='enter'){ if(document.getElementById('result').style.display==='flex'){document.getElementById('result').style.display='none';} }
+});
+addEventListener('beforeunload',save);
+
+/* ---------- boot ---------- */
+loadBest();
+S=freshState();
+renderAll();
+loop(performance.now());
+})();
+</script>
+</body>
+</html>

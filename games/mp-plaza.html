@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PIXEL PLAZA — A Cozy Shared Hangout · Wizzed Arcade</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0f0f1a; }
+  body { font-family: 'Courier New', ui-monospace, monospace; color: #e8eeff; touch-action: none; }
+  canvas { display: block; }
+  #cv { position: fixed; inset: 0; }
+  .back {
+    position: fixed; top: 10px; left: 12px; z-index: 40;
+    padding: 6px 12px; font-size: 13px; letter-spacing: 1px;
+    color: #e8eeff; text-decoration: none;
+    background: rgba(10,14,26,.6); border: 1px solid rgba(255,255,255,.25); border-radius: 4px;
+  }
+  .back:hover { border-color: #7be0a4; color: #b6ffce; }
+
+  #status {
+    position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 25; display: flex; gap: 8px; align-items: center;
+    background: rgba(8,12,24,.75); border: 1px solid #1e4632; border-radius: 999px;
+    padding: 7px 15px; backdrop-filter: blur(5px); white-space: nowrap;
+  }
+  #status .dot { width: 10px; height: 10px; border-radius: 50%; background: #666; }
+  #status .dot.live { background: #7be0a4; box-shadow: 0 0 10px #7be0a4; animation: pulse 1.6s ease-in-out infinite; }
+  #status .dot.off { background: #ff9d3c; box-shadow: 0 0 10px #ff9d3c; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+  #status b { color: #b6ffce; font-weight: normal; }
+  #status .ai-b { color: #9d6bff; }
+  #status span { font-size: 12px; letter-spacing: 1px; }
+
+  #namebar {
+    position: fixed; top: 46px; left: 12px; z-index: 30;
+    display: flex; gap: 6px; align-items: center;
+    background: rgba(8,12,24,.8); border: 1px solid #1e4632; border-radius: 10px;
+    padding: 6px 9px; backdrop-filter: blur(5px);
+  }
+  #nameInput {
+    width: 104px; font: inherit; font-size: 12.5px;
+    background: #08170e; color: #b6ffce; border: 1px solid #205838;
+    border-radius: 5px; padding: 4px 7px;
+  }
+  #namebar label { font-size: 10.5px; letter-spacing: 1px; color: #6ea883; }
+
+  #panel {
+    position: fixed; top: 46px; right: 12px; z-index: 20;
+    width: 182px; background: rgba(8,12,24,.8);
+    border: 1px solid #1e4632; border-radius: 10px;
+    padding: 9px 11px; backdrop-filter: blur(5px); font-size: 12px;
+  }
+  #panel h3 { font-size: 10px; letter-spacing: 2px; color: #6ea883; margin-bottom: 6px; }
+  .prow {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 0; border-bottom: 1px dashed rgba(30,70,50,.5);
+    white-space: nowrap; overflow: hidden;
+  }
+  .prow:last-child { border-bottom: none; }
+  .prow .sw { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px; }
+  .prow .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .prow.me .nm { color: #b6ffce; }
+  .aitag {
+    font-size: 9px; letter-spacing: 1px; color: #cbb2ff;
+    background: rgba(157,107,255,.18); border: 1px solid #9d6bff;
+    border-radius: 4px; padding: 0 4px;
+  }
+
+  #chatlog {
+    position: fixed; bottom: 108px; right: 12px; z-index: 20;
+    width: 240px; max-width: 60vw; background: rgba(8,12,24,.72);
+    border: 1px solid #1e4632; border-radius: 10px;
+    padding: 8px 10px; backdrop-filter: blur(5px); font-size: 11.5px; line-height: 1.5;
+  }
+  #chatlog h3 { font-size: 10px; letter-spacing: 2px; color: #6ea883; margin-bottom: 5px; }
+  #chatlines { max-height: 132px; overflow: hidden; }
+  .cl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cl .who { color: #7be0a4; }
+  .cl .who.ai { color: #cbb2ff; }
+
+  #emotes {
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+    z-index: 30; display: flex; gap: 7px; align-items: center;
+    background: rgba(8,12,24,.86); border: 1px solid #1e4632; border-radius: 12px;
+    padding: 7px 10px; backdrop-filter: blur(6px); flex-wrap: wrap; justify-content: center;
+  }
+  .emo {
+    font-size: 18px; width: 36px; height: 32px; cursor: pointer; line-height: 1;
+    background: #0c1e14; border: 1px solid #205838; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .emo:hover { border-color: #7be0a4; box-shadow: 0 0 8px rgba(123,224,164,.5); }
+  #chatBtn {
+    font: inherit; font-size: 11px; letter-spacing: 1px; cursor: pointer;
+    background: #0c1e14; color: #b6ffce; border: 1px solid #205838; border-radius: 8px;
+    padding: 7px 11px; height: 32px;
+  }
+  #chatBtn:hover { border-color: #7be0a4; }
+
+  #chatbox {
+    position: fixed; bottom: 58px; left: 50%; transform: translateX(-50%);
+    z-index: 35; display: none; align-items: center; gap: 8px;
+    background: rgba(8,20,14,.95); border: 1px solid #7be0a4; border-radius: 10px;
+    padding: 8px 12px; box-shadow: 0 0 24px rgba(123,224,164,.35);
+  }
+  #chatbox.show { display: flex; }
+  #chatInput {
+    width: 260px; max-width: 60vw; font: inherit; font-size: 13px;
+    background: #06110b; color: #eafff2; border: 1px solid #205838; border-radius: 6px; padding: 6px 9px;
+  }
+  #chatbox .lbl { font-size: 10px; color: #6ea883; letter-spacing: 1px; }
+
+  #hint {
+    position: fixed; bottom: 58px; left: 50%; transform: translateX(-50%);
+    z-index: 15; font-size: 11px; color: #6ea883; letter-spacing: 1px;
+    text-shadow: 0 1px 4px rgba(0,0,0,.8); pointer-events: none; text-align: center; max-width: 92vw;
+  }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<canvas id="cv"></canvas>
+
+<div id="status">
+  <span class="dot" id="connDot"></span>
+  <span id="connTxt">connecting…</span>
+  <span>·</span>
+  <span>ONLINE <b id="onlineN">1</b></span>
+  <span>(<b id="humanN">1</b> human · <b class="ai-b" id="aiN">0</b> AI)</span>
+</div>
+
+<div id="namebar">
+  <label>NAME</label>
+  <input id="nameInput" maxlength="14">
+</div>
+
+<div id="panel">
+  <h3>IN THE PLAZA</h3>
+  <div id="plist"></div>
+</div>
+
+<div id="chatlog">
+  <h3>CHAT LOG</h3>
+  <div id="chatlines"></div>
+</div>
+
+<div id="chatbox">
+  <span class="lbl">SAY</span>
+  <input id="chatInput" maxlength="60" placeholder="type & press Enter…">
+</div>
+
+<div id="emotes">
+  <button class="emo" data-emo="👋" title="wave">👋</button>
+  <button class="emo" data-emo="❤️" title="heart">❤️</button>
+  <button class="emo" data-emo="😂" title="laugh">😂</button>
+  <button class="emo" data-emo="🕺" title="dance">🕺</button>
+  <button class="emo" data-emo="😮" title="shock">😮</button>
+  <button class="emo" data-emo="🎵" title="music">🎵</button>
+  <button id="chatBtn" title="Chat (Enter)">💬 CHAT</button>
+</div>
+
+<div id="hint">move: WASD / arrows / tap-to-walk · ENTER to chat · tap an emote to react · 🤖 = AI plaza-goers</div>
+
+<script>
+'use strict';
+(function () {
+  const SAVE_KEY = 'wizzed-mp-plaza';
+
+  // ================================================================
+  //  Minimal MQTT 3.1.1 client over WebSocket (public brokers, QoS 0)
+  // ================================================================
+  class TinyMQTT {
+    constructor(urls, clientId) {
+      this.urls = urls; this.urlIdx = 0;
+      this.clientId = clientId;
+      this.ws = null; this.buf = new Uint8Array(0);
+      this.connected = false;
+      this.onmessage = null; this.onstatus = null;
+      this.pingTimer = null; this.dead = false;
+      this.connect();
+    }
+    connect() {
+      if (this.dead) return;
+      const url = this.urls[this.urlIdx % this.urls.length];
+      try { this.ws = new WebSocket(url, 'mqtt'); }
+      catch (e) { this.retry(); return; }
+      this.ws.binaryType = 'arraybuffer';
+      const connectTimeout = setTimeout(() => { try { this.ws.close(); } catch (e) {} }, 6000);
+      this.ws.onopen = () => {
+        const cid = this.enc(this.clientId);
+        const varh = new Uint8Array([0, 4, 77, 81, 84, 84, 4, 0x02, 0, 60]);
+        this.send(0x10, this.cat(varh, cid));
+      };
+      this.ws.onmessage = e => { clearTimeout(connectTimeout); this.feed(new Uint8Array(e.data)); };
+      this.ws.onclose = () => { clearTimeout(connectTimeout); this.onDown(); };
+      this.ws.onerror = () => {};
+    }
+    onDown() {
+      this.connected = false;
+      clearInterval(this.pingTimer);
+      if (this.onstatus) this.onstatus(false);
+      this.retry();
+    }
+    retry() {
+      if (this.dead) return;
+      this.urlIdx++;
+      clearTimeout(this.retryT);
+      this.retryT = setTimeout(() => this.connect(), 2500);
+    }
+    close() { this.dead = true; clearInterval(this.pingTimer); try { this.ws.close(); } catch (e) {} }
+    enc(str) {
+      const b = new TextEncoder().encode(str);
+      const out = new Uint8Array(b.length + 2);
+      out[0] = b.length >> 8; out[1] = b.length & 255; out.set(b, 2);
+      return out;
+    }
+    cat(...arrs) {
+      const len = arrs.reduce((a, b) => a + b.length, 0);
+      const out = new Uint8Array(len);
+      let o = 0;
+      for (const a of arrs) { out.set(a, o); o += a.length; }
+      return out;
+    }
+    remLen(n) {
+      const out = [];
+      do { let d = n % 128; n = Math.floor(n / 128); if (n > 0) d |= 128; out.push(d); } while (n > 0);
+      return new Uint8Array(out);
+    }
+    send(type, body) {
+      if (!this.ws || this.ws.readyState !== 1) return;
+      this.ws.send(this.cat(new Uint8Array([type]), this.remLen(body.length), body));
+    }
+    subscribe(filter) {
+      const pid = new Uint8Array([0, 7]);
+      this.send(0x82, this.cat(pid, this.enc(filter), new Uint8Array([0])));
+    }
+    publish(topic, payloadStr) {
+      if (!this.connected) return;
+      const pl = new TextEncoder().encode(payloadStr);
+      this.send(0x30, this.cat(this.enc(topic), pl));
+    }
+    feed(chunk) {
+      this.buf = this.cat(this.buf, chunk);
+      for (;;) {
+        if (this.buf.length < 2) return;
+        let mul = 1, len = 0, pos = 1, ok = false;
+        for (; pos < Math.min(this.buf.length, 5); pos++) {
+          len += (this.buf[pos] & 127) * mul;
+          mul *= 128;
+          if ((this.buf[pos] & 128) === 0) { ok = true; pos++; break; }
+        }
+        if (!ok) return;
+        const total = pos + len;
+        if (this.buf.length < total) return;
+        this.handle(this.buf[0] >> 4, this.buf.slice(pos, total));
+        this.buf = this.buf.slice(total);
+      }
+    }
+    handle(type, body) {
+      if (type === 2) {
+        if (body[1] === 0) {
+          this.connected = true;
+          this.pingTimer = setInterval(() => this.send(0xC0, new Uint8Array(0)), 25000);
+          if (this.onstatus) this.onstatus(true);
+        } else this.retry();
+      } else if (type === 3) {
+        const tlen = (body[0] << 8) | body[1];
+        const topic = new TextDecoder().decode(body.slice(2, 2 + tlen));
+        const payload = new TextDecoder().decode(body.slice(2 + tlen));
+        if (this.onmessage) this.onmessage(topic, payload);
+      }
+    }
+  }
+
+  // ================================================================
+  //  Pixel Plaza
+  // ================================================================
+  const PW = 1200, PH = 800;
+  const qsBroker = new URLSearchParams(location.search).get('broker');
+  const BROKERS = qsBroker ? [qsBroker] : [
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://test.mosquitto.org:8081',
+  ];
+  const ROOM = 'wizzed/mp-plaza/v1/main';
+  const myId = 'p' + Math.random().toString(36).slice(2, 10);
+
+  const NAMES1 = ['Neon','Cozy','Pixel','Cosmic','Mellow','Sunny','Retro','Breezy','Astro','Fuzzy','Minty','Happy'];
+  const NAMES2 = ['Fox','Bean','Sprout','Ghost','Puff','Wisp','Sparrow','Nova','Pip','Bloom','Bramble','Star'];
+  const rndName = () => NAMES1[Math.random()*NAMES1.length|0] + NAMES2[Math.random()*NAMES2.length|0];
+
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}') || {}; } catch (e) {}
+
+  const me = {
+    i: myId, n: (saved.name || rndName()).slice(0, 14),
+    x: PW / 2 + (Math.random() - 0.5) * 200, y: PH / 2 + 120 + (Math.random() - 0.5) * 120,
+    c: Math.random() * 360 | 0, ai: 0, face: 1,
+  };
+  let target = null;               // tap-to-walk target
+  const peers = new Map();          // id -> {n,x,y,c,ai,seen,rx,ry,bubble,bubbleT,emote,emoteT,face}
+  const bots = new Map();           // id -> bot (host only)
+  const chatHist = [];              // {n, msg, ai}
+  let online = false;
+
+  const nameInput = document.getElementById('nameInput');
+  nameInput.value = me.n;
+  nameInput.addEventListener('input', e => { me.n = (e.target.value || 'Visitor').slice(0, 14); persist(); });
+  function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ name: me.n })); } catch (e) {} }
+
+  // ---- audio ----
+  let actx = null;
+  function ensureAudio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
+  function bleep(freq, dur, type) {
+    if (!actx) return;
+    try {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = type || 'sine'; o.frequency.value = freq;
+      g.gain.value = 0.05; o.connect(g); g.connect(actx.destination);
+      o.start(); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + (dur || 0.12));
+      o.stop(actx.currentTime + (dur || 0.12));
+    } catch (e) {}
+  }
+
+  // ---- networking ----
+  const mq = new TinyMQTT(BROKERS, 'wz-' + myId);
+  mq.onstatus = up => {
+    online = up;
+    const dot = document.getElementById('connDot'), txt = document.getElementById('connTxt');
+    if (up) { dot.className = 'dot live'; txt.textContent = 'LIVE — cozy plaza'; mq.subscribe(ROOM + '/#'); }
+    else { dot.className = 'dot off'; txt.textContent = 'OFFLINE — hanging with bots'; }
+  };
+  mq.onmessage = (topic, payload) => {
+    try {
+      const m = JSON.parse(payload);
+      if (!m || !m.i || m.i === myId) return;
+      if (bots.has(m.i)) return;
+      if (m.t === 'p') {
+        const prev = peers.get(m.i);
+        m.seen = performance.now();
+        m.rx = prev ? prev.rx : m.x; m.ry = prev ? prev.ry : m.y;
+        if (prev) { m.bubble = prev.bubble; m.bubbleT = prev.bubbleT; m.emote = prev.emote; m.emoteT = prev.emoteT; }
+        peers.set(m.i, m);
+      } else if (m.t === 'say') {
+        const p = peers.get(m.i);
+        const txt = String(m.msg || '').slice(0, 60);
+        if (p) { p.bubble = txt; p.bubbleT = performance.now(); }
+        else if (m.n) { /* still log even if presence not yet seen */ }
+        pushChat(m.n, txt, m.ai);
+        bleep(360, 0.06);
+      } else if (m.t === 'emo') {
+        const p = peers.get(m.i);
+        if (p) { p.emote = m.e; p.emoteT = performance.now(); }
+        bleep(520, 0.05);
+      }
+    } catch (e) {}
+  };
+
+  setInterval(() => {
+    if (!online) return;
+    mq.publish(ROOM + '/p/' + myId, JSON.stringify({
+      t: 'p', i: me.i, n: me.n, x: Math.round(me.x), y: Math.round(me.y), c: me.c, ai: 0, face: me.face,
+    }));
+  }, 180);
+  setInterval(() => {
+    const now = performance.now();
+    for (const [id, p] of peers) if (now - p.seen > 6000) peers.delete(id);
+  }, 1000);
+
+  function pushChat(n, msg, ai) {
+    chatHist.push({ n: n || '???', msg, ai: ai ? 1 : 0 });
+    while (chatHist.length > 8) chatHist.shift();
+    renderChatLog();
+  }
+  function renderChatLog() {
+    document.getElementById('chatlines').innerHTML = chatHist.map(c => `
+      <div class="cl"><span class="who${c.ai ? ' ai' : ''}">${esc(c.n)}${c.ai ? ' 🤖' : ''}:</span> ${esc(c.msg)}</div>`).join('');
+  }
+
+  function sendSay(txt) {
+    txt = txt.slice(0, 60);
+    if (!txt.trim()) return;
+    me.bubble = txt; me.bubbleT = performance.now();
+    pushChat(me.n, txt, 0);
+    if (online) mq.publish(ROOM + '/say/' + myId, JSON.stringify({ t: 'say', i: myId, n: me.n, msg: txt, ai: 0 }));
+    bleep(420, 0.06);
+  }
+  function sendEmote(e) {
+    me.emote = e; me.emoteT = performance.now();
+    if (online) mq.publish(ROOM + '/emo/' + myId, JSON.stringify({ t: 'emo', i: myId, e, ai: 0 }));
+    bleep(600, 0.05);
+  }
+
+  // ---- input ----
+  const keys = {};
+  const chatbox = document.getElementById('chatbox');
+  const chatInput = document.getElementById('chatInput');
+  function openChat() { chatbox.classList.add('show'); chatInput.focus(); }
+  function closeChat() { chatbox.classList.remove('show'); chatInput.value = ''; chatInput.blur(); }
+  document.getElementById('chatBtn').addEventListener('click', () => { ensureAudio(); if (chatbox.classList.contains('show')) closeChat(); else openChat(); });
+  chatInput.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { sendSay(chatInput.value); closeChat(); }
+    else if (e.key === 'Escape') closeChat();
+  });
+  document.querySelectorAll('.emo').forEach(b => b.addEventListener('click', () => { ensureAudio(); sendEmote(b.dataset.emo); }));
+
+  addEventListener('keydown', e => {
+    if (e.target === nameInput || e.target === chatInput) return;
+    ensureAudio();
+    if (e.key === 'Enter') { e.preventDefault(); openChat(); return; }
+    keys[e.key.toLowerCase()] = true;
+  });
+  addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+  // ---- view transform (fit plaza, letterbox) ----
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  let view = { scale: 1, ox: 0, oy: 0 };
+  function resize() {
+    cv.width = innerWidth; cv.height = innerHeight;
+    const s = Math.min(cv.width / PW, cv.height / PH);
+    view.scale = s; view.ox = (cv.width - PW * s) / 2; view.oy = (cv.height - PH * s) / 2;
+  }
+  addEventListener('resize', resize); resize();
+  function screenToWorld(sx, sy) { return { x: (sx - view.ox) / view.scale, y: (sy - view.oy) / view.scale }; }
+
+  cv.addEventListener('pointerdown', e => {
+    ensureAudio();
+    const w = screenToWorld(e.clientX, e.clientY);
+    target = { x: Math.max(20, Math.min(PW - 20, w.x)), y: Math.max(60, Math.min(PH - 20, w.y)) };
+  });
+
+  // ================================================================
+  //  AI plaza-goers (host = lexicographically-lowest human id)
+  // ================================================================
+  const BOT_TARGET = 5;
+  function humanIds() {
+    const ids = [myId];
+    for (const [id, p] of peers) if (!p.ai) ids.push(id);
+    return ids.sort();
+  }
+  function iAmHost() { return humanIds()[0] === myId; }
+  const BOTNAMES = ['PixelPal','CozyBot','StrollBot','BenchWarmer','PlazaGPT','WanderBot','SunbeamAI','FountainBot'];
+  const BOTLINES = [
+    'hi there! nice to see you 👋', 'what a lovely evening', 'the fountain is so pretty',
+    'anyone want to dance? 🕺', 'i love these string lights ✨', 'cozy vibes today',
+    'welcome to the plaza!', 'this bench is comfy', 'beep boop, having fun 🤖',
+    'the trees look great tonight', 'hope you\'re having a good day', 'let\'s hang out :)',
+  ];
+
+  function botNeeded() {
+    if (!iAmHost()) return 0;
+    return Math.max(0, BOT_TARGET - humanIds().length);
+  }
+  function manageBots() {
+    if (!iAmHost()) { bots.clear(); return; }
+    const need = botNeeded();
+    while (bots.size > need) { const k = bots.keys().next().value; bots.delete(k); }
+    while (bots.size < need) {
+      const bid = 'ai' + Math.random().toString(36).slice(2, 8);
+      const used = new Set([...bots.values()].map(b => b.n));
+      const free = BOTNAMES.filter(n => !used.has('🤖 ' + n));
+      const nm = free.length ? free[Math.random() * free.length | 0] : 'PixelPal' + bots.size;
+      bots.set(bid, {
+        i: bid, n: '🤖 ' + nm, ai: 1, face: 1,
+        x: PW / 2 + (Math.random() - 0.5) * 500, y: PH / 2 + (Math.random() - 0.5) * 300,
+        c: Math.random() * 360 | 0,
+        tx: 0, ty: 0, wait: Math.random() * 2, sit: 0,
+        sayCool: 4 + Math.random() * 8, emoCool: 5 + Math.random() * 8,
+        bubble: '', bubbleT: 0, emote: '', emoteT: 0,
+      });
+      const b = bots.get(bid); pickBotTarget(b);
+    }
+  }
+  const SEATS = [];
+  function pickBotTarget(b) {
+    if (Math.random() < 0.3 && SEATS.length) {
+      const s = SEATS[Math.random() * SEATS.length | 0];
+      b.tx = s.x + (Math.random() - 0.5) * 20; b.ty = s.y - 6; b.sit = 2 + Math.random() * 4;
+    } else {
+      b.tx = 80 + Math.random() * (PW - 160); b.ty = 120 + Math.random() * (PH - 200); b.sit = 0;
+    }
+  }
+  function simBots(dt) {
+    if (!iAmHost()) return;
+    const now = performance.now();
+    for (const b of bots.values()) {
+      const dx = b.tx - b.x, dy = b.ty - b.y, d = Math.hypot(dx, dy);
+      if (d > 4 && b.wait <= 0) {
+        const sp = 62;
+        b.x += dx / d * sp * dt; b.y += dy / d * sp * dt;
+        if (dx < -1) b.face = -1; else if (dx > 1) b.face = 1;
+      } else {
+        b.wait -= dt;
+        if (b.sit > 0) { b.sit -= dt; }
+        else if (b.wait <= 0) { b.wait = 0.6 + Math.random() * 2.5; pickBotTarget(b); }
+      }
+      b.sayCool -= dt; b.emoCool -= dt;
+      if (b.sayCool <= 0) {
+        b.sayCool = 8 + Math.random() * 12;
+        const line = BOTLINES[Math.random() * BOTLINES.length | 0];
+        b.bubble = line; b.bubbleT = now;
+        pushChat(b.n, line, 1);
+        if (online) mq.publish(ROOM + '/say/' + b.i, JSON.stringify({ t: 'say', i: b.i, n: b.n, msg: line, ai: 1 }));
+      }
+      if (b.emoCool <= 0) {
+        b.emoCool = 7 + Math.random() * 10;
+        const emos = ['👋','❤️','😂','🕺','🎵'];
+        b.emote = emos[Math.random() * emos.length | 0]; b.emoteT = now;
+        if (online) mq.publish(ROOM + '/emo/' + b.i, JSON.stringify({ t: 'emo', i: b.i, e: b.emote, ai: 1 }));
+      }
+    }
+  }
+  setInterval(() => {
+    if (!online || !iAmHost()) return;
+    for (const b of bots.values()) {
+      mq.publish(ROOM + '/p/' + b.i, JSON.stringify({
+        t: 'p', i: b.i, n: b.n, x: Math.round(b.x), y: Math.round(b.y), c: b.c, ai: 1, face: b.face,
+      }));
+    }
+  }, 200);
+
+  // ================================================================
+  //  Render loop
+  // ================================================================
+  let last = performance.now();
+  function frame(now) {
+    let dt = (now - last) / 1000; last = now;
+    if (dt > 0.06) dt = 0.06;
+
+    // move me
+    let dx = 0, dy = 0;
+    if (keys['w'] || keys['arrowup']) dy -= 1;
+    if (keys['s'] || keys['arrowdown']) dy += 1;
+    if (keys['a'] || keys['arrowleft']) dx -= 1;
+    if (keys['d'] || keys['arrowright']) dx += 1;
+    if (dx || dy) target = null;
+    if (!dx && !dy && target) {
+      const tx = target.x - me.x, ty = target.y - me.y, d = Math.hypot(tx, ty);
+      if (d > 3) { dx = tx / d; dy = ty / d; } else target = null;
+    }
+    if (dx || dy) {
+      const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
+      const sp = 150;
+      me.x = Math.max(20, Math.min(PW - 20, me.x + dx * sp * dt));
+      me.y = Math.max(60, Math.min(PH - 20, me.y + dy * sp * dt));
+      if (dx < -0.2) me.face = -1; else if (dx > 0.2) me.face = 1;
+    }
+
+    manageBots();
+    simBots(dt);
+
+    for (const p of peers.values()) {
+      p.rx += ((p.x) - (p.rx ?? p.x)) * Math.min(1, dt * 9);
+      p.ry += ((p.y) - (p.ry ?? p.y)) * Math.min(1, dt * 9);
+    }
+
+    draw(now / 1000);
+    updateHud();
+    requestAnimationFrame(frame);
+  }
+
+  function draw(t) {
+    const W = cv.width, H = cv.height;
+    ctx.fillStyle = '#0a0c18'; ctx.fillRect(0, 0, W, H);
+    ctx.save();
+    ctx.translate(view.ox, view.oy); ctx.scale(view.scale, view.scale);
+
+    drawPlaza(t);
+
+    // gather all avatars (me + peers + bots), depth-sort by y
+    const all = [{
+      i: myId, n: me.n, x: me.x, y: me.y, c: me.c, ai: 0, me: true, face: me.face,
+      bubble: me.bubble, bubbleT: me.bubbleT, emote: me.emote, emoteT: me.emoteT,
+    }];
+    for (const p of peers.values()) all.push({ i: p.i, n: p.n, x: p.rx ?? p.x, y: p.ry ?? p.y, c: p.c, ai: p.ai, face: p.face, bubble: p.bubble, bubbleT: p.bubbleT, emote: p.emote, emoteT: p.emoteT });
+    for (const b of bots.values()) all.push({ i: b.i, n: b.n, x: b.x, y: b.y, c: b.c, ai: 1, face: b.face, bubble: b.bubble, bubbleT: b.bubbleT, emote: b.emote, emoteT: b.emoteT });
+    all.sort((a, b) => a.y - b.y);
+    for (const a of all) drawAvatar(a, t);
+
+    ctx.restore();
+  }
+
+  function drawPlaza(t) {
+    // ground
+    const g = ctx.createLinearGradient(0, 0, 0, PH);
+    g.addColorStop(0, '#16233a'); g.addColorStop(1, '#101a2c');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, PW, PH);
+    // plaza tiles (radial from fountain)
+    const fx = PW / 2, fy = PH / 2;
+    ctx.strokeStyle = 'rgba(90,120,170,0.10)'; ctx.lineWidth = 2;
+    for (let r = 60; r < 900; r += 70) { ctx.beginPath(); ctx.arc(fx, fy, r, 0, Math.PI * 2); ctx.stroke(); }
+    for (let a = 0; a < 12; a++) {
+      ctx.beginPath(); ctx.moveTo(fx, fy);
+      ctx.lineTo(fx + Math.cos(a / 12 * Math.PI * 2) * 900, fy + Math.sin(a / 12 * Math.PI * 2) * 900); ctx.stroke();
+    }
+    // border wall
+    ctx.strokeStyle = '#7be0a4'; ctx.lineWidth = 4; ctx.strokeRect(4, 4, PW - 8, PH - 8);
+
+    // trees in corners
+    drawTree(90, 150, t); drawTree(PW - 90, 150, t);
+    drawTree(110, PH - 130, t); drawTree(PW - 110, PH - 130, t);
+
+    // benches (register seats once)
+    if (SEATS.length === 0) {
+      SEATS.push({ x: 300, y: 250 }, { x: 900, y: 250 }, { x: 300, y: 560 }, { x: 900, y: 560 });
+    }
+    drawBench(300, 250); drawBench(900, 250); drawBench(300, 560); drawBench(900, 560);
+
+    // fountain (animated)
+    drawFountain(fx, fy, t);
+
+    // string lights across the top
+    drawStringLights(t);
+  }
+
+  function drawTree(x, y, t) {
+    // trunk
+    ctx.fillStyle = '#5a3a22'; ctx.fillRect(x - 7, y, 14, 46);
+    // foliage
+    const sway = Math.sin(t * 1.3 + x) * 3;
+    const blobs = [[0, -30, 34], [-24, -14, 26], [24, -14, 26], [0, 2, 30]];
+    for (const [bx, by, br] of blobs) {
+      ctx.fillStyle = '#2f7d4f';
+      ctx.beginPath(); ctx.arc(x + bx + sway, y + by, br, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(123,224,164,0.35)';
+      ctx.beginPath(); ctx.arc(x + bx + sway - br * 0.3, y + by - br * 0.3, br * 0.4, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  function drawBench(x, y) {
+    ctx.fillStyle = '#6a4a2c';
+    ctx.fillRect(x - 42, y - 6, 84, 12);      // seat
+    ctx.fillRect(x - 42, y - 26, 84, 7);      // back
+    ctx.fillStyle = '#4a3320';
+    ctx.fillRect(x - 38, y + 6, 8, 16); ctx.fillRect(x + 30, y + 6, 8, 16); // legs
+    ctx.fillRect(x - 40, y - 26, 6, 22); ctx.fillRect(x + 34, y - 26, 6, 22);
+  }
+
+  function drawFountain(fx, fy, t) {
+    // basin
+    ctx.fillStyle = '#28405e';
+    ctx.beginPath(); ctx.ellipse(fx, fy, 74, 44, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#9fc4ff'; ctx.lineWidth = 4; ctx.stroke();
+    // water
+    ctx.fillStyle = '#3a6fb0';
+    ctx.beginPath(); ctx.ellipse(fx, fy, 62, 34, 0, 0, Math.PI * 2); ctx.fill();
+    // ripples
+    for (let i = 0; i < 3; i++) {
+      const rr = ((t * 26 + i * 22) % 62);
+      ctx.strokeStyle = 'rgba(180,220,255,' + (0.5 * (1 - rr / 62)) + ')';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(fx, fy, rr, rr * 0.55, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    // center pillar + spout
+    ctx.fillStyle = '#5a7aa0';
+    ctx.fillRect(fx - 8, fy - 34, 16, 30);
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 + t;
+      const ph = (t * 3 + i) % 1;
+      const px = fx + Math.cos(a) * ph * 26;
+      const py = fy - 34 - Math.sin(ph * Math.PI) * 30 + ph * ph * 30;
+      ctx.fillStyle = 'rgba(180,225,255,' + (1 - ph) + ')';
+      ctx.beginPath(); ctx.arc(px, py, 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  function drawStringLights(t) {
+    const cols = ['#ff6b8b', '#ffd166', '#7be0a4', '#6bb8ff', '#c86bff'];
+    const posts = [[40, 40], [PW / 2, 30], [PW - 40, 40]];
+    ctx.strokeStyle = '#26324a'; ctx.lineWidth = 3;
+    for (let s = 0; s < posts.length - 1; s++) {
+      const [x1, y1] = posts[s], [x2, y2] = posts[s + 1];
+      ctx.beginPath(); ctx.moveTo(x1, y1);
+      const midX = (x1 + x2) / 2, sag = 46;
+      ctx.quadraticCurveTo(midX, Math.max(y1, y2) + sag, x2, y2); ctx.stroke();
+      const N = 10;
+      for (let i = 1; i < N; i++) {
+        const tt = i / N;
+        const bx = (1 - tt) * (1 - tt) * x1 + 2 * (1 - tt) * tt * midX + tt * tt * x2;
+        const by = (1 - tt) * (1 - tt) * y1 + 2 * (1 - tt) * tt * (Math.max(y1, y2) + sag) + tt * tt * y2;
+        const tw = 0.55 + 0.45 * Math.sin(t * 3 + i + s * 4);
+        const col = cols[(i + s) % cols.length];
+        ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 10 * tw;
+        ctx.globalAlpha = 0.5 + 0.5 * tw;
+        ctx.beginPath(); ctx.arc(bx, by, 4, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  }
+
+  function drawAvatar(a, t) {
+    const x = a.x, y = a.y;
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath(); ctx.ellipse(x, y + 20, 13, 5, 0, 0, Math.PI * 2); ctx.fill();
+    const col = `hsl(${a.c},70%,60%)`;
+    const skin = '#f2c79a';
+    const bob = Math.sin(t * 6 + a.x) * 1.5;
+    // legs
+    ctx.fillStyle = '#2a2f45';
+    ctx.fillRect(x - 6, y + 8, 5, 12); ctx.fillRect(x + 1, y + 8, 5, 12);
+    // body
+    ctx.fillStyle = col;
+    ctx.shadowColor = col; ctx.shadowBlur = 8;
+    ctx.fillRect(x - 9, y - 8 + bob, 18, 18);
+    ctx.shadowBlur = 0;
+    // head
+    ctx.fillStyle = skin;
+    ctx.fillRect(x - 7, y - 22 + bob, 14, 14);
+    // hair
+    ctx.fillStyle = `hsl(${(a.c + 40) % 360},50%,30%)`;
+    ctx.fillRect(x - 7, y - 22 + bob, 14, 5);
+    // eyes (face direction)
+    ctx.fillStyle = '#1a1a2a';
+    const ex = a.face < 0 ? -3 : 1;
+    ctx.fillRect(x - 3 + ex, y - 15 + bob, 2, 2); ctx.fillRect(x + 2 + ex, y - 15 + bob, 2, 2);
+    // AI badge
+    if (a.ai) { ctx.font = '12px serif'; ctx.textAlign = 'center'; ctx.fillText('🤖', x + 14, y - 14 + bob); }
+    // name
+    ctx.font = 'bold 11px Courier New'; ctx.textAlign = 'center';
+    ctx.fillStyle = a.me ? '#b6ffce' : (a.ai ? '#cbb2ff' : 'rgba(232,238,255,0.9)');
+    ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 4;
+    ctx.fillText(a.n || '???', x, y + 34);
+    ctx.shadowBlur = 0;
+
+    // emote float
+    if (a.emote && performance.now() - a.emoteT < 2200) {
+      const age = (performance.now() - a.emoteT) / 2200;
+      ctx.globalAlpha = 1 - age;
+      ctx.font = '22px serif'; ctx.textAlign = 'center';
+      ctx.fillText(a.emote, x, y - 30 - age * 34);
+      ctx.globalAlpha = 1;
+    }
+    // speech bubble
+    if (a.bubble && performance.now() - a.bubbleT < 6000) {
+      drawBubble(x, y - 30 + bob, a.bubble);
+    }
+  }
+
+  function drawBubble(x, y, text) {
+    ctx.font = '12px Courier New'; ctx.textAlign = 'left';
+    const maxW = 180;
+    // wrap
+    const words = String(text).split(' ');
+    const lines = []; let cur = '';
+    for (const w of words) {
+      const test = cur ? cur + ' ' + w : w;
+      if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; } else cur = test;
+    }
+    if (cur) lines.push(cur);
+    let bw = 0;
+    for (const l of lines) bw = Math.max(bw, ctx.measureText(l).width);
+    bw += 16; const bh = lines.length * 15 + 10;
+    const bx = x - bw / 2, by = y - bh - 10;
+    ctx.fillStyle = 'rgba(245,250,255,0.95)';
+    roundRect(bx, by, bw, bh, 7); ctx.fill();
+    // tail
+    ctx.beginPath(); ctx.moveTo(x - 6, by + bh); ctx.lineTo(x + 6, by + bh); ctx.lineTo(x, by + bh + 8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#12203a';
+    for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], bx + 8, by + 15 + i * 15);
+  }
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  let hudT = 0;
+  function updateHud() {
+    const now = performance.now();
+    if (now - hudT < 450) return;
+    hudT = now;
+    let humans = 1, ais = 0;
+    for (const p of peers.values()) (p.ai ? ais++ : humans++);
+    ais += bots.size;
+    document.getElementById('onlineN').textContent = (humans + ais).toLocaleString();
+    document.getElementById('humanN').textContent = humans;
+    document.getElementById('aiN').textContent = ais;
+
+    const rows = [{ i: myId, n: me.n, c: me.c, ai: 0, me: true }];
+    for (const p of peers.values()) rows.push({ i: p.i, n: p.n, c: p.c, ai: p.ai });
+    for (const b of bots.values()) rows.push({ i: b.i, n: b.n, c: b.c, ai: 1 });
+    document.getElementById('plist').innerHTML = rows.slice(0, 10).map(p => `
+      <div class="prow${p.me ? ' me' : ''}">
+        <span class="sw" style="background:hsl(${p.c},70%,60%)"></span>
+        <span class="nm">${esc(p.n || '???')}</span>
+        ${p.ai ? '<span class="aitag">AI</span>' : ''}
+      </div>`).join('');
+  }
+  function esc(s) { return String(s).replace(/[<>&]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m])); }
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

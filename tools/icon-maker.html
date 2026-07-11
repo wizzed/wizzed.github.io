@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Icon Maker · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#9d6bff; --accent-soft:rgba(157,107,255,.45);
+  --panel:#17141f; --panel2:#120f19; --line:#332c46; --text:#eae2ff; --dim:#9d88c0;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{ background:var(--bg); color:var(--text); font-family:'Courier New', ui-monospace, monospace; overflow:hidden; }
+a.back{ position:fixed; top:10px; left:12px; z-index:200; color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px; border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9); }
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+.app{ display:flex; height:100vh; width:100vw; }
+.stage{ flex:1; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; min-width:0; background:radial-gradient(circle at 50% 40%,#191324,#0f0f1a 75%); overflow:auto; padding:44px 16px 16px; }
+.title{ position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:6; font-size:14px; letter-spacing:5px; color:var(--accent); pointer-events:none; text-shadow:0 0 8px var(--accent),0 0 24px var(--accent-soft); }
+.badge{ position:absolute; bottom:10px; left:50%; transform:translateX(-50%); z-index:6; font-size:10px; letter-spacing:1px; color:var(--dim); pointer-events:none; background:rgba(15,15,26,.8); padding:3px 10px; border:1px solid var(--line); white-space:nowrap; }
+.checker{ background:
+    linear-gradient(45deg,#22222e 25%,transparent 25%),
+    linear-gradient(-45deg,#22222e 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,#22222e 75%),
+    linear-gradient(-45deg,transparent 75%,#22222e 75%);
+  background-size:18px 18px; background-position:0 0,0 9px,9px -9px,-9px 0; }
+.bigwrap{ padding:14px; border:1px solid var(--line); box-shadow:0 0 30px rgba(157,107,255,.22); }
+#big{ display:block; width:256px; height:256px; image-rendering:auto; }
+.sizes{ display:flex; align-items:flex-end; gap:20px; flex-wrap:wrap; justify-content:center; }
+.sizecell{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+.sizecell .lbl{ font-size:10px; color:var(--dim); letter-spacing:1px; }
+.sizecell .frame{ padding:5px; border:1px solid var(--line); }
+.sizecell canvas{ display:block; }
+.panel{ width:290px; flex:none; height:100vh; overflow-y:auto; background:var(--panel); border-left:2px solid var(--line); padding:12px 12px 30px; display:flex; flex-direction:column; gap:12px; }
+.panel::-webkit-scrollbar{ width:8px; } .panel::-webkit-scrollbar-thumb{ background:var(--line); }
+.grp{ border:1px solid var(--line); background:var(--panel2); padding:9px 10px; }
+.grp h2{ font-size:10px; letter-spacing:2px; color:var(--accent); margin-bottom:8px; text-transform:uppercase; border-bottom:1px solid var(--line); padding-bottom:4px; }
+.row{ display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+.row:last-child{ margin-bottom:0; }
+.lbl{ font-size:10px; letter-spacing:1px; color:var(--dim); width:58px; flex:none; }
+.val{ font-size:10px; color:var(--accent); width:34px; text-align:right; flex:none; }
+button{ font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer; background:#120f19; color:var(--text); border:2px solid var(--line); padding:6px 6px; text-transform:uppercase; }
+button:hover{ border-color:var(--accent); text-shadow:0 0 6px var(--accent); }
+button:active{ transform:translateY(1px); }
+button.on{ color:#100; background:var(--accent); border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft); text-shadow:none; font-weight:bold; }
+button.prime{ color:#100; background:var(--accent); border-color:var(--accent); font-weight:bold; box-shadow:0 0 14px var(--accent-soft); text-shadow:none; }
+.grid4{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.emojis{ display:grid; grid-template-columns:repeat(6,1fr); gap:5px; }
+.emojis button{ font-size:16px; padding:5px 0; }
+input[type=text]{ font-family:inherit; font-size:20px; text-align:center; background:#0c0a12; color:var(--text); border:1px solid var(--line); padding:8px; width:100%; outline:none; letter-spacing:2px; }
+input[type=text]:focus{ border-color:var(--accent); }
+input[type=range]{ flex:1; -webkit-appearance:none; appearance:none; height:8px; min-width:40px; background:#0c0a12; border:1px solid var(--line); outline:none; cursor:pointer; }
+input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:15px; height:19px; background:var(--accent); border:2px solid #000; box-shadow:0 0 8px var(--accent); cursor:pointer; }
+input[type=range]::-moz-range-thumb{ width:13px; height:17px; border-radius:0; background:var(--accent); border:2px solid #000; cursor:pointer; }
+input[type=color]{ width:32px; height:26px; padding:0; border:2px solid var(--line); background:#120f19; cursor:pointer; flex:none; }
+.chk{ display:flex; align-items:center; gap:6px; font-size:10px; color:var(--dim); cursor:pointer; user-select:none; }
+.chk input{ accent-color:var(--accent); width:15px; height:15px; }
+.note{ font-size:9px; color:var(--dim); line-height:1.4; letter-spacing:.5px; margin-top:2px; }
+#dataOut{ font-size:9px; width:100%; height:44px; background:#0c0a12; color:var(--dim); border:1px solid var(--line); resize:none; padding:5px; margin-top:6px; word-break:break-all; }
+@media (max-width:760px){ .app{ flex-direction:column; } .stage{ height:46vh; flex:none; padding-top:40px; } .panel{ width:100%; height:54vh; border-left:none; border-top:2px solid var(--line); } #big{ width:180px; height:180px; } }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="title">ICON MAKER</div>
+    <div class="bigwrap checker"><canvas id="big" width="512" height="512"></canvas></div>
+    <div class="sizes" id="sizes"></div>
+    <div class="badge" id="badge">Design once — export 16→512px PNGs · everything renders locally</div>
+  </div>
+  <div class="panel">
+    <div class="grp">
+      <h2>Content</h2>
+      <div class="row"><input type="text" id="txtIn" value="🎮" maxlength="8" placeholder="emoji or letters"></div>
+      <div class="emojis">
+        <button data-emo="🎮">🎮</button><button data-emo="🚀">🚀</button><button data-emo="★">★</button>
+        <button data-emo="♥">♥</button><button data-emo="✦">✦</button><button data-emo="⚡">⚡</button>
+        <button data-emo="🌈">🌈</button><button data-emo="🔥">🔥</button><button data-emo="🎧">🎧</button>
+        <button data-emo="W">W</button><button data-emo="AB">AB</button><button data-emo="XYZ">XYZ</button>
+      </div>
+      <div class="note">Type an emoji or up to ~3 letters. Letters use the foreground color; emoji keep their own colors.</div>
+    </div>
+
+    <div class="grp">
+      <h2>Shape</h2>
+      <div class="grid4">
+        <button data-shape="rounded" class="on">Rounded</button>
+        <button data-shape="circle">Circle</button>
+        <button data-shape="squircle">Squircle</button>
+        <button data-shape="square">Square</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <h2>Background</h2>
+      <div class="row">
+        <div style="display:flex;flex:1;gap:0;">
+          <button id="fillSolid" class="on" style="flex:1;border-right:none;">Solid</button>
+          <button id="fillGrad" style="flex:1;">Gradient</button>
+        </div>
+      </div>
+      <div class="row"><span class="lbl">Color 1</span><input type="color" id="c1" value="#9d6bff"><span class="lbl" id="c2lbl" style="width:auto;">Color 2</span><input type="color" id="c2" value="#ff4fd8"></div>
+    </div>
+
+    <div class="grp">
+      <h2>Foreground</h2>
+      <div class="row"><span class="lbl">Color</span><input type="color" id="fg" value="#ffffff"></div>
+      <div class="row"><span class="lbl">Weight</span>
+        <div style="display:flex;flex:1;gap:0;">
+          <button data-wt="400" style="flex:1;border-right:none;">Reg</button>
+          <button data-wt="700" class="on" style="flex:1;border-right:none;">Bold</button>
+          <button data-wt="900" style="flex:1;">Black</button>
+        </div>
+      </div>
+      <div class="row"><span class="lbl">Padding</span><input type="range" id="padR" min="4" max="40" value="18"><span class="val" id="padV">18</span></div>
+    </div>
+
+    <div class="grp">
+      <h2>Ring</h2>
+      <div class="row"><label class="chk"><input type="checkbox" id="ringOn"> Add ring</label></div>
+      <div class="row"><span class="lbl">Width</span><input type="range" id="ringW" min="1" max="12" value="5"><span class="val" id="ringWV">5</span><input type="color" id="ringC" value="#ffffff"></div>
+    </div>
+
+    <div class="grp">
+      <h2>Export</h2>
+      <button class="prime" id="dlBtn" style="width:100%;margin-bottom:6px;">⬇ Download All PNGs</button>
+      <div class="grid4">
+        <button id="copyBtn">📋 Copy Data URL</button>
+        <button id="dlFav">⬇ favicon 32</button>
+      </div>
+      <textarea id="dataOut" readonly placeholder="Data URL appears here after Copy…"></textarea>
+      <div class="note">Downloads 16 / 32 / 64 / 128 / 256 / 512 px plus a favicon-ready 32px, one after another. 100% local.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var SLUG='wizzed-icon-maker';
+  var badge=document.getElementById('badge');
+  var big=document.getElementById('big');
+
+  var st={
+    text:'🎮', shape:'rounded', fill:'solid', c1:'#9d6bff', c2:'#ff4fd8',
+    fg:'#ffffff', weight:'700', padding:18, ring:false, ringW:5, ringColor:'#ffffff'
+  };
+
+  function save(){ try{ localStorage.setItem(SLUG,JSON.stringify(st)); }catch(e){} }
+  function load(){ try{ var s=JSON.parse(localStorage.getItem(SLUG)||'{}'); for(var k in st){ if(s[k]!==undefined) st[k]=s[k]; } }catch(e){} }
+
+  // ---------- shape paths ----------
+  function roundRectPath(ctx,x,y,w,h,r){ r=Math.min(r,w/2,h/2); ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+  function squirclePath(ctx,cx,cy,r,n){ ctx.beginPath(); var steps=72; for(var i=0;i<=steps;i++){ var t=i/steps*2*Math.PI; var ct=Math.cos(t), sn=Math.sin(t); var x=Math.pow(Math.abs(ct),2/n)*r*(ct<0?-1:1); var y=Math.pow(Math.abs(sn),2/n)*r*(sn<0?-1:1); if(i===0) ctx.moveTo(cx+x,cy+y); else ctx.lineTo(cx+x,cy+y); } ctx.closePath(); }
+  function shapePath(ctx,size,inset){
+    inset=inset||0; var s=size-inset*2, o=inset;
+    if(st.shape==='circle'){ ctx.beginPath(); ctx.arc(size/2,size/2,s/2,0,Math.PI*2); ctx.closePath(); }
+    else if(st.shape==='squircle'){ squirclePath(ctx,size/2,size/2,s/2,4); }
+    else if(st.shape==='square'){ ctx.beginPath(); ctx.rect(o,o,s,s); ctx.closePath(); }
+    else { roundRectPath(ctx,o,o,s,s,size*0.22); }
+  }
+
+  // ---------- draw ----------
+  function fitFont(ctx,text,box,weight){
+    var size=box; ctx.textAlign='center'; ctx.textBaseline='middle';
+    for(var i=0;i<80;i++){ ctx.font=weight+' '+size+'px "Arial Black", Arial, "Segoe UI Emoji", sans-serif'; var m=ctx.measureText(text); if(m.width<=box || size<=6) break; size-=Math.max(2,size*0.06); }
+    return size;
+  }
+  function drawIcon(ctx,size){
+    ctx.clearRect(0,0,size,size);
+    // background
+    ctx.save(); shapePath(ctx,size,0);
+    if(st.fill==='gradient'){ var g=ctx.createLinearGradient(0,0,size,size); g.addColorStop(0,st.c1); g.addColorStop(1,st.c2); ctx.fillStyle=g; }
+    else ctx.fillStyle=st.c1;
+    ctx.fill(); ctx.restore();
+    // ring
+    if(st.ring){ ctx.save(); shapePath(ctx,size,0); ctx.clip(); ctx.lineWidth=size*(st.ringW/100)*2; ctx.strokeStyle=st.ringColor; shapePath(ctx,size,0); ctx.stroke(); ctx.restore(); }
+    // glyph
+    var text=(st.text||'').trim(); if(!text) return;
+    var pad=st.padding/100; var box=size*(1-2*pad);
+    ctx.save();
+    var fs=fitFont(ctx,text,box,st.weight);
+    ctx.fillStyle=st.fg; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font=st.weight+' '+fs+'px "Arial Black", Arial, "Segoe UI Emoji", sans-serif';
+    ctx.fillText(text,size/2,size/2+fs*0.04);
+    ctx.restore();
+  }
+
+  // ---------- previews ----------
+  var SMALL=[128,64,32,16];
+  var smallCanvases={};
+  function buildSizes(){
+    var wrap=document.getElementById('sizes'); wrap.innerHTML='';
+    SMALL.forEach(function(s){
+      var cell=document.createElement('div'); cell.className='sizecell';
+      var lbl=document.createElement('div'); lbl.className='lbl'; lbl.textContent=s+'px';
+      var frame=document.createElement('div'); frame.className='frame checker';
+      var cv=document.createElement('canvas'); cv.width=s; cv.height=s; cv.style.width=s+'px'; cv.style.height=s+'px';
+      frame.appendChild(cv); cell.appendChild(frame); cell.appendChild(lbl); wrap.appendChild(cell);
+      smallCanvases[s]=cv;
+    });
+  }
+  function renderAll(){
+    drawIcon(big.getContext('2d'),512);
+    SMALL.forEach(function(s){ drawIcon(smallCanvases[s].getContext('2d'),s); });
+  }
+
+  // ---------- export ----------
+  function makeCanvas(size){ var c=document.createElement('canvas'); c.width=size; c.height=size; drawIcon(c.getContext('2d'),size); return c; }
+  function trigger(blob,name){ var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(url); },2000); }
+  function downloadAll(){
+    var sizes=[16,32,64,128,256,512], i=0;
+    badge.textContent='Downloading '+sizes.length+' sizes + favicon…';
+    function step(){
+      if(i>=sizes.length){ makeCanvas(32).toBlob(function(b){ if(b) trigger(b,'favicon-32.png'); badge.textContent='Done — check your downloads folder'; },'image/png'); return; }
+      var s=sizes[i++]; makeCanvas(s).toBlob(function(b){ if(b) trigger(b,'icon-'+s+'.png'); setTimeout(step,400); },'image/png');
+    }
+    step();
+  }
+  function copyDataURL(){
+    var url=makeCanvas(256).toDataURL('image/png');
+    document.getElementById('dataOut').value=url;
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(function(){ badge.textContent='Data URL copied to clipboard'; },function(){ badge.textContent='Data URL ready — select & copy below'; }); }
+    else{ document.getElementById('dataOut').select(); badge.textContent='Data URL ready — select & copy below'; }
+  }
+
+  // ---------- wiring ----------
+  var txt=document.getElementById('txtIn');
+  txt.addEventListener('input',function(){ st.text=this.value; renderAll(); save(); });
+  document.querySelectorAll('[data-emo]').forEach(function(b){ b.addEventListener('click',function(){ st.text=b.getAttribute('data-emo'); txt.value=st.text; renderAll(); save(); }); });
+  document.querySelectorAll('[data-shape]').forEach(function(b){ b.addEventListener('click',function(){ st.shape=b.getAttribute('data-shape'); document.querySelectorAll('[data-shape]').forEach(function(x){ x.classList.toggle('on',x===b); }); renderAll(); save(); }); });
+  function setFill(f){ st.fill=f; document.getElementById('fillSolid').classList.toggle('on',f==='solid'); document.getElementById('fillGrad').classList.toggle('on',f==='gradient'); document.getElementById('c2').style.opacity=f==='gradient'?'1':'0.35'; document.getElementById('c2lbl').style.opacity=f==='gradient'?'1':'0.35'; renderAll(); save(); }
+  document.getElementById('fillSolid').addEventListener('click',function(){ setFill('solid'); });
+  document.getElementById('fillGrad').addEventListener('click',function(){ setFill('gradient'); });
+  document.getElementById('c1').addEventListener('input',function(){ st.c1=this.value; renderAll(); save(); });
+  document.getElementById('c2').addEventListener('input',function(){ st.c2=this.value; renderAll(); save(); });
+  document.getElementById('fg').addEventListener('input',function(){ st.fg=this.value; renderAll(); save(); });
+  document.querySelectorAll('[data-wt]').forEach(function(b){ b.addEventListener('click',function(){ st.weight=b.getAttribute('data-wt'); document.querySelectorAll('[data-wt]').forEach(function(x){ x.classList.toggle('on',x===b); }); renderAll(); save(); }); });
+  document.getElementById('padR').addEventListener('input',function(){ st.padding=parseInt(this.value,10); document.getElementById('padV').textContent=this.value; renderAll(); save(); });
+  document.getElementById('ringOn').addEventListener('change',function(){ st.ring=this.checked; renderAll(); save(); });
+  document.getElementById('ringW').addEventListener('input',function(){ st.ringW=parseInt(this.value,10); document.getElementById('ringWV').textContent=this.value; renderAll(); save(); });
+  document.getElementById('ringC').addEventListener('input',function(){ st.ringColor=this.value; renderAll(); save(); });
+  document.getElementById('dlBtn').addEventListener('click',downloadAll);
+  document.getElementById('dlFav').addEventListener('click',function(){ makeCanvas(32).toBlob(function(b){ if(b) trigger(b,'favicon-32.png'); badge.textContent='favicon-32.png downloaded'; },'image/png'); });
+  document.getElementById('copyBtn').addEventListener('click',copyDataURL);
+
+  // ---------- init ----------
+  load();
+  txt.value=st.text;
+  document.querySelectorAll('[data-shape]').forEach(function(x){ x.classList.toggle('on',x.getAttribute('data-shape')===st.shape); });
+  document.querySelectorAll('[data-wt]').forEach(function(x){ x.classList.toggle('on',x.getAttribute('data-wt')===st.weight); });
+  document.getElementById('c1').value=st.c1; document.getElementById('c2').value=st.c2;
+  document.getElementById('fg').value=st.fg; document.getElementById('ringC').value=st.ringColor;
+  document.getElementById('padR').value=st.padding; document.getElementById('padV').textContent=st.padding;
+  document.getElementById('ringW').value=st.ringW; document.getElementById('ringWV').textContent=st.ringW;
+  document.getElementById('ringOn').checked=st.ring;
+  buildSizes();
+  setFill(st.fill);
+  renderAll();
+})();
+</script>
+</body>
+</html>

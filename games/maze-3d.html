@@ -68,6 +68,35 @@
     background: rgba(80,240,255,0.35); box-shadow: 0 0 14px #4ff3ff88;
   }
   @media (pointer: coarse) { #joystick { display: block; } }
+  #ui-controls { position: fixed; bottom: 12px; right: 12px; z-index: 45; display: flex; gap: 8px; }
+  #ui-controls button {
+    font-family: inherit; font-size: 15px; line-height: 1; cursor: pointer;
+    min-width: 38px; height: 34px; padding: 0 10px; border-radius: 8px;
+    color: #9fd8ff; background: rgba(10,10,28,0.7); border: 1px solid #23234a;
+  }
+  #ui-controls button:hover { color: #4ff3ff; border-color: #4ff3ff; }
+  #ui-controls button:active { transform: scale(.94); }
+  #qualBtn { font-weight: bold; letter-spacing: 1px; font-size: 13px; }
+  #pause-ov {
+    position: fixed; inset: 0; z-index: 48; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(8,8,22,0.6); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  }
+  #pause-ov .pbox {
+    text-align: center; background: rgba(10,10,30,0.88); border: 1px solid #3a2a7a;
+    border-radius: 14px; padding: 24px 36px; box-shadow: 0 0 40px rgba(80,40,255,0.25);
+  }
+  #pause-ov h2 { font-size: 30px; letter-spacing: 4px; color: #4ff3ff; text-shadow: 0 0 18px #00c8ff; margin-bottom: 8px; }
+  #pause-ov p { font-size: 12px; color: #8fa2d8; margin-bottom: 16px; }
+  #pause-ov button {
+    font-family: inherit; font-size: 15px; font-weight: bold; letter-spacing: 2px;
+    padding: 10px 26px; border: none; border-radius: 8px; cursor: pointer;
+    background: #29e6a7; color: #0a0a18; box-shadow: 0 0 18px #29e6a788;
+  }
+  @media (max-width: 560px) {
+    #minimap { width: 100px; height: 100px; }
+    #hud { gap: 10px; font-size: 11px; padding: 6px 10px; }
+  }
 </style>
 </head>
 <body>
@@ -97,6 +126,17 @@
     <p class="big" id="win-stats"></p>
     <p id="win-sub"></p>
     <button id="next-btn">NEXT MAZE →</button>
+  </div>
+</div>
+<div id="ui-controls">
+  <button id="pauseBtn" title="Pause (P)" aria-label="Pause">⏸</button>
+  <button id="qualBtn" title="Graphics quality (HI / LO)">HI</button>
+</div>
+<div id="pause-ov">
+  <div class="pbox">
+    <h2>PAUSED</h2>
+    <p>press P or tap resume to continue</p>
+    <button id="resume-btn">▶ RESUME</button>
   </div>
 </div>
 <script src="../lib/three.min.js"></script>
@@ -140,6 +180,62 @@ addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
+
+// ── Pause + quality (polish) ───────────────────────────────────────────────
+let paused = false;
+const pauseBtn = document.getElementById('pauseBtn');
+const qualBtn = document.getElementById('qualBtn');
+const pauseOv = document.getElementById('pause-ov');
+const Q_KEY = 'wizzed-maze-3d-q';
+let quality = localStorage.getItem(Q_KEY) === 'LO' ? 'LO' : 'HI';
+function applyQuality() {
+  const lo = quality === 'LO';
+  renderer.setPixelRatio(lo ? Math.min(devicePixelRatio, 2) * 0.5 : Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  qualBtn.textContent = quality;
+  qualBtn.style.opacity = lo ? '0.7' : '1';
+}
+qualBtn.addEventListener('click', () => { quality = quality === 'HI' ? 'LO' : 'HI'; localStorage.setItem(Q_KEY, quality); applyQuality(); });
+applyQuality();
+function setPaused(p) {
+  if (!playing || won) return;
+  if (paused === p) return;
+  paused = p;
+  pauseOv.style.display = paused ? 'flex' : 'none';
+  pauseBtn.textContent = paused ? '▶' : '⏸';
+}
+pauseBtn.addEventListener('click', () => setPaused(!paused));
+document.getElementById('resume-btn').addEventListener('click', () => setPaused(false));
+// auto-pause (freezes sim) when the tab / app is backgrounded
+document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
+
+// ── Fireflies (cheap additive drifting motes) ──────────────────────────────
+const FN = 34, FRANGE = 11;
+const flyGeo = new THREE.BufferGeometry();
+const flyPos = new Float32Array(FN * 3);
+const flyHome = [];
+for (let i = 0; i < FN; i++) {
+  flyHome.push({ x: (Math.random() - 0.5) * FRANGE * 2, z: (Math.random() - 0.5) * FRANGE * 2, ph: Math.random() * 6.28, sp: 0.5 + Math.random() * 0.9, yb: 0.7 + Math.random() * 2.0 });
+}
+flyGeo.setAttribute('position', new THREE.BufferAttribute(flyPos, 3));
+const flyMat = new THREE.PointsMaterial({ color: 0xffe27a, size: 0.18, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
+const fireflies = new THREE.Points(flyGeo, flyMat);
+fireflies.frustumCulled = false;
+scene.add(fireflies);
+function updateFireflies(t) {
+  for (let i = 0; i < FN; i++) {
+    const h = flyHome[i];
+    while (h.x - player.x > FRANGE) h.x -= FRANGE * 2;
+    while (h.x - player.x < -FRANGE) h.x += FRANGE * 2;
+    while (h.z - player.z > FRANGE) h.z -= FRANGE * 2;
+    while (h.z - player.z < -FRANGE) h.z += FRANGE * 2;
+    flyPos[i * 3]     = h.x + Math.sin(t * h.sp + h.ph) * 1.5;
+    flyPos[i * 3 + 1] = h.yb + Math.sin(t * h.sp * 1.4 + h.ph) * 0.5;
+    flyPos[i * 3 + 2] = h.z + Math.cos(t * h.sp * 0.9 + h.ph) * 1.5;
+  }
+  flyGeo.attributes.position.needsUpdate = true;
+  flyMat.opacity = 0.5 + 0.35 * (0.5 + 0.5 * Math.sin(t * 2.5));
+}
 
 // lights
 scene.add(new THREE.AmbientLight(0x2a2a55, 1.4));
@@ -330,8 +426,10 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') {
     level = 1; N = 15;
     document.getElementById('win-ov').style.display = 'none';
+    paused = false; pauseOv.style.display = 'none'; pauseBtn.textContent = '⏸';
     buildMaze();
   }
+  if (e.code === 'KeyP') setPaused(!paused);
   if ((e.code === 'Enter' || e.code === 'Space')) {
     if (!playing) startGame();
     else if (won) nextLevel();
@@ -361,6 +459,7 @@ addEventListener('pointerdown', e => {
   }
 });
 addEventListener('pointermove', e => {
+  if (paused) return;
   if (e.pointerId === joyId) updateJoy(e);
   else if (e.pointerId === lookId) {
     player.yaw -= (e.clientX - lookX) * 0.0042;
@@ -389,6 +488,7 @@ function updateJoy(e) {
 function startGame() {
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   playing = true;
+  paused = false; pauseOv.style.display = 'none'; pauseBtn.textContent = '⏸';
   document.getElementById('start-ov').style.display = 'none';
 }
 function winLevel() {
@@ -410,6 +510,7 @@ function nextLevel() {
   level++;
   N = Math.min(25, N + 2);
   document.getElementById('win-ov').style.display = 'none';
+  paused = false; pauseOv.style.display = 'none'; pauseBtn.textContent = '⏸';
   buildMaze();
 }
 document.getElementById('start-btn').addEventListener('click', startGame);
@@ -446,9 +547,13 @@ function drawMap() {
 
 // ── Loop ───────────────────────────────────────────────────────────────────
 buildMaze();
+if (window.matchMedia && matchMedia('(pointer: coarse)').matches) {
+  document.getElementById('hint').textContent = 'left stick to move · drag right side to look · M map';
+}
 let lastT = 0;
 function loop(ts) {
   requestAnimationFrame(loop);
+  if (paused) { lastT = ts; renderer.render(scene, camera); return; }
   const t = ts / 1000;
   const dt = Math.min((ts - lastT) / 1000, 0.05);
   lastT = ts;
@@ -505,9 +610,13 @@ function loop(ts) {
   }
 
   torch.position.set(player.x, EYE + 0.4, player.z);
+  updateFireflies(t);
   document.getElementById('time').textContent = fmt(timeSec);
   const parEl = document.getElementById('par');
-  parEl.className = timeSec > parSec ? 'over' : '';
+  // inline style is needed here: #par carries an inline colour that would out-specify the .over class
+  const overPar = timeSec > parSec;
+  parEl.style.color = overPar ? '#ff5577' : '#7fdba0';
+  parEl.style.textShadow = overPar ? '0 0 10px #ff2255' : '';
 
   if (showMap) drawMap();
   renderer.render(scene, camera);

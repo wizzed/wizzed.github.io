@@ -29,12 +29,17 @@
     font-size:11px;color:#4a7a88;letter-spacing:1px;z-index:5;white-space:nowrap;
     text-shadow:0 0 6px rgba(34,211,238,.3);
   }
+  #pauseBtn{position:fixed;top:10px;right:12px;z-index:11;width:40px;height:32px;color:#22d3ee;background:rgba(15,15,26,.75);border:1px solid rgba(34,211,238,.45);font-size:15px;line-height:1;cursor:pointer;border-radius:4px;font-family:inherit}
+  #pauseBtn:hover{box-shadow:0 0 10px rgba(34,211,238,.5)}
+  #touchHint{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);z-index:11;color:#bff6ff;background:rgba(15,15,26,.9);border:1px solid rgba(34,211,238,.45);padding:8px 15px;border-radius:20px;font-size:12px;letter-spacing:1px;opacity:0;transition:opacity .5s;pointer-events:none;white-space:nowrap}
 </style>
 </head>
 <body>
 <a class="back" href="../index.html">&larr; Arcade</a>
+<button id="pauseBtn" aria-label="Pause">&#9208;</button>
+<div id="touchHint">DRAG ANYWHERE TO STEER YOUR SHIP</div>
 <canvas id="g" width="800" height="500"></canvas>
-<div class="hint">ARROWS / WASD to fly &middot; drag on mobile &middot; R restart</div>
+<div class="hint">ARROWS / WASD to fly &middot; drag on mobile &middot; P pause &middot; R restart</div>
 <script>
 'use strict';
 const cvs=document.getElementById('g'),ctx=cvs.getContext('2d');
@@ -52,6 +57,7 @@ let meteors=[],pickups=[],particles=[],popups=[],stars=[];
 let spawnT=0,pickupT=5;
 let shield=0,slowT=0,invuln=0,shake=0;
 let nearMisses=0;
+let paused=false,hitFlash=0,hitFlashCol='#f87171',newBest=false;
 
 /* ---------- audio ---------- */
 let AC=null;
@@ -106,16 +112,19 @@ function startGame(){
   gt=0;elapsed=0;score=0;nearMisses=0;
   meteors=[];pickups=[];particles=[];popups=[];
   ship.x=W/2;ship.y=H-80;
-  shield=0;slowT=0;invuln=0;shake=0;
+  shield=0;slowT=0;invuln=0;shake=0;hitFlash=0;newBest=false;
   spawnT=0.3;pickupT=5;
   keys={};touchTarget=null;
   sfx(440,0.1,'square',0.1,220);
 }
+function canPause(){return state==='play';}
+function togglePause(){if(!paused&&!canPause())return;paused=!paused;const b=document.getElementById('pauseBtn');if(b)b.innerHTML=paused?'&#9654;':'&#9208;';initAudio();sfx(paused?300:560,0.08,'square',0.09,paused?-80:120);}
 
 /* ---------- update ---------- */
 function update(dt){
   gt+=dt;
   if(shake>0)shake=Math.max(0,shake-dt*2);
+  if(hitFlash>0)hitFlash=Math.max(0,hitFlash-dt*3);
   for(const p of popups)p.t-=dt;
   popups=popups.filter(p=>p.t>0);
 
@@ -208,15 +217,16 @@ function update(dt){
       if(shield>0){
         shield=0;invuln=1.2;m.dead=true;
         boom(m.x,m.y,'#22d3ee',26,260);
-        shake=0.55;
+        shake=0.55;hitFlash=0.35;hitFlashCol='#22d3ee';
         popups.push({x:ship.x,y:ship.y-24,text:'SHIELD DOWN!',t:1,color:'#22d3ee'});
         sfx(180,0.35,'sawtooth',0.16,-100);
       }else{
         boom(ship.x,ship.y,'#f87171',40,300);
         boom(ship.x,ship.y,'#facc15',26,200);
-        shake=0.9;
+        shake=0.9;hitFlash=0.6;hitFlashCol='#f87171';
         state='gameover';
         score=Math.floor(score);
+        newBest=score>best&&score>0;
         if(score>best){best=score;localStorage.setItem('wizzed-meteor-dodge',best);}
         sfx(300,0.6,'sawtooth',0.2,-260);
         sfx(150,0.9,'square',0.16,-110);
@@ -366,6 +376,10 @@ function draw(){
     ctx.fillStyle='rgba(167,139,250,0.08)';
     ctx.fillRect(0,0,W,H);
   }
+  if(hitFlash>0){
+    ctx.globalAlpha=hitFlash*0.5;ctx.fillStyle=hitFlashCol;
+    ctx.fillRect(-20,-20,W+40,H+40);ctx.globalAlpha=1;
+  }
 
   /* HUD */
   ctx.font='bold 15px "Courier New",monospace';
@@ -420,13 +434,21 @@ function draw(){
     ctx.fillStyle='#f87171';
     ctx.shadowColor='#f87171';ctx.shadowBlur=24;
     ctx.font='bold 46px "Courier New",monospace';
-    ctx.fillText('SHIP DESTROYED',W/2,190);
+    ctx.fillText('SHIP DESTROYED',W/2,186);
     ctx.shadowBlur=0;
     ctx.fillStyle='#bdf3ff';
     ctx.font='bold 18px "Courier New",monospace';
-    ctx.fillText('SCORE '+Math.floor(score)+'   •   NEAR-MISSES '+nearMisses,W/2,246);
-    ctx.fillStyle='#facc15';
-    ctx.fillText('BEST '+best,W/2,278);
+    ctx.fillText('SCORE '+Math.floor(score),W/2,232);
+    if(newBest){
+      ctx.fillStyle='#facc15';ctx.shadowColor='#facc15';ctx.shadowBlur=12;
+      ctx.fillText('★ NEW BEST ★',W/2,262);ctx.shadowBlur=0;
+    }else{
+      ctx.fillStyle='#facc15';
+      ctx.fillText('BEST '+best,W/2,262);
+    }
+    ctx.fillStyle='#6aa5b5';
+    ctx.font='bold 13px "Courier New",monospace';
+    ctx.fillText('SURVIVED '+elapsed.toFixed(1)+'s   ·   NEAR-MISSES '+nearMisses,W/2,288);
     if(Math.floor(gt*2)%2===0){
       ctx.fillStyle='#fff';
       ctx.font='bold 15px "Courier New",monospace';
@@ -440,6 +462,8 @@ function draw(){
 window.addEventListener('keydown',e=>{
   const k=e.key;
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(k))e.preventDefault();
+  if(k==='p'||k==='P'){togglePause();return;}
+  if(paused)return;
   if(state==='title'||state==='gameover'){
     if(k==='Enter'||k===' '||k==='r'||k==='R'){initAudio();startGame();}
     return;
@@ -462,8 +486,9 @@ function canvasPos(e){
   return {x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H};
 }
 window.addEventListener('pointerdown',e=>{
-  if(e.target.closest&&e.target.closest('a'))return;
+  if(e.target.closest&&e.target.closest('a,button'))return;
   e.preventDefault();
+  if(paused)return;
   initAudio();
   if(state==='title'||state==='gameover'){startGame();return;}
   touchTarget=canvasPos(e);
@@ -483,12 +508,31 @@ function fit(){
 window.addEventListener('resize',fit);
 fit();
 
+/* ---- pause overlay + wiring ---- */
+function drawPauseOverlay(){
+  ctx.save();
+  ctx.fillStyle='rgba(8,8,16,0.74)';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.fillStyle='#22d3ee';ctx.shadowColor='#22d3ee';ctx.shadowBlur=26;
+  ctx.font='bold 50px "Courier New",monospace';ctx.fillText('PAUSED',W/2,H/2-6);
+  ctx.shadowBlur=0;ctx.fillStyle='#bdf3ff';ctx.font='bold 15px "Courier New",monospace';
+  ctx.fillText('P OR ⏸ TO RESUME',W/2,H/2+34);
+  ctx.restore();
+}
+(function(){
+  const b=document.getElementById('pauseBtn');
+  if(b){['pointerdown','mousedown','touchstart','pointerup','mouseup','touchend','click'].forEach(ev=>b.addEventListener(ev,e=>{e.stopPropagation();},{passive:false}));
+    b.addEventListener('click',()=>togglePause());}
+  try{if(matchMedia&&matchMedia('(pointer:coarse)').matches){const h=document.getElementById('touchHint');if(h){h.style.opacity='1';setTimeout(()=>{h.style.opacity='0';},4800);}}}catch(e){}
+})();
+
 let last=performance.now();
 function loop(now){
   const dt=Math.min(0.05,(now-last)/1000);
   last=now;
-  update(dt);
+  if(!paused)update(dt);
   draw();
+  if(paused)drawPauseOverlay();
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);

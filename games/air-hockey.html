@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Air Hockey — Wizzed Arcade</title>
+<style>
+  :root{ --accent:#ff3d81; --you:#25d0ff; --ai:#ff5a3c; }
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ min-height:100%; }
+  body{ background:#0f0f1a; color:#ffd6e6; font-family:'Courier New',ui-monospace,monospace; display:flex; flex-direction:column; align-items:center; min-height:100vh; padding:6px 10px 12px; overflow-x:hidden; }
+  a.back{ position:fixed; top:10px; left:12px; z-index:60; color:#7f7fa8; text-decoration:none; font-size:12px; letter-spacing:1px; padding:4px 9px; border:1px solid #26264a; border-radius:6px; background:rgba(15,15,26,.85); }
+  a.back:hover{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 8px rgba(255,61,129,.4); }
+  h1{ margin-top:2px; font-size:clamp(16px,3.4vmin,24px); letter-spacing:5px; color:#ffe3ee; text-shadow:0 0 8px var(--accent),0 0 22px rgba(255,61,129,.5); }
+  .topbar{ display:flex; gap:10px; align-items:center; margin:5px 0 4px; flex-wrap:wrap; justify-content:center; }
+  .chip{ background:#241020; border:1px solid #4a2038; border-radius:8px; padding:3px 12px; font-size:11px; letter-spacing:1px; color:#d79ab6; }
+  .chip b{ font-size:20px; }
+  .chip.you b{ color:var(--you); text-shadow:0 0 8px var(--you); }
+  .chip.ai b{ color:var(--ai); text-shadow:0 0 8px var(--ai); }
+  button,select{ font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer; background:#241020; color:var(--accent); border:1px solid #6a2a48; padding:5px 10px; border-radius:6px; }
+  button:hover,select:hover{ border-color:var(--accent); box-shadow:0 0 8px rgba(255,61,129,.35); }
+  select{ color:#ffd6e6; }
+  .stagewrap{ position:relative; }
+  canvas{ display:block; border-radius:12px; touch-action:none; box-shadow:0 0 22px rgba(255,61,129,.25); background:#0a0a14; }
+  .hint{ font-size:10px; color:#8a5f76; text-align:center; letter-spacing:1px; margin-top:5px; }
+  .rec{ font-size:11px; color:#d79ab6; text-align:center; margin-top:2px; }
+  .rec span{ color:var(--accent); }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>AIR HOCKEY</h1>
+<div class="topbar">
+  <span class="chip you">YOU <b id="scYou">0</b></span>
+  <span class="chip ai">AI <b id="scAi">0</b></span>
+  <select id="diff" title="Difficulty">
+    <option value="easy">Easy</option>
+    <option value="normal" selected>Normal</option>
+    <option value="hard">Hard</option>
+  </select>
+  <button id="newBtn">NEW</button>
+</div>
+<div class="stagewrap"><canvas id="cv"></canvas></div>
+<div class="rec">First to 7 wins · Games won — You <span id="rW">0</span> · AI <span id="rL">0</span></div>
+<div class="hint">Move mallet with mouse / finger. Click or SPACE to serve · R = new game</div>
+
+<script>
+const W=360, H=560;
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const KEY='wizzed-air-hockey';
+const GOALW=150, MID=H/2;
+const FRICTION=0.993, REST=0.92, MAXP=23;
+const STEP=1000/60;
+
+let puck={x:W/2,y:H/2,vx:0,vy:0,r:15};
+let player={x:W/2,y:H*0.78,vx:0,vy:0,r:24,tx:W/2,ty:H*0.78};
+let ai={x:W/2,y:H*0.16,vx:0,vy:0,r:24,tx:W/2,ty:H*0.16,timer:0};
+let scoreP=0, scoreA=0, state='title', goalTimer=0, flash=0, flashSide='', serveConceder='player';
+let trail=[], winsP=0, winsL=0;
+let scale=1;
+
+/* audio */
+let AC=null;
+function beep(f,d,t,v){ try{ if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)(); const o=AC.createOscillator(),g=AC.createGain(); o.type=t||'square'; o.frequency.value=f; o.connect(g); g.connect(AC.destination); const n=AC.currentTime; g.gain.setValueAtTime(0.0001,n); g.gain.exponentialRampToValueAtTime(v||0.12,n+0.008); g.gain.exponentialRampToValueAtTime(0.0001,n+(d||0.08)); o.start(n); o.stop(n+(d||0.08)+0.02);}catch(e){} }
+let lastWall=0;
+function sWall(sp){ const now=performance.now(); if(now-lastWall<40)return; lastWall=now; beep(180+sp*8,0.05,'square',Math.min(0.14,0.03+sp*0.006)); }
+function sHit(sp){ beep(320+sp*10,0.06,'triangle',Math.min(0.16,0.05+sp*0.006)); }
+function sGoal(){ beep(160,0.25,'sawtooth',0.18); [520,660,780].forEach((f,i)=>setTimeout(()=>beep(f,0.12,'square',0.13),i*70)); }
+function sWin(){ [523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>beep(f,0.15,'triangle',0.16),i*110)); }
+function sLose(){ [440,349,294,220].forEach((f,i)=>setTimeout(()=>beep(f,0.18,'sawtooth',0.14),i*130)); }
+function resumeAudio(){ if(AC&&AC.state==='suspended')AC.resume(); }
+
+/* sizing */
+function resize(){
+  const availH=Math.max(260, Math.min(window.innerHeight-150, 620));
+  const availW=Math.max(200, Math.min(window.innerWidth-20, 480));
+  let dispH=availH, dispW=dispH*(W/H);
+  if(dispW>availW){ dispW=availW; dispH=dispW*(H/W); }
+  const dpr=Math.min(2, window.devicePixelRatio||1);
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  cv.style.width=dispW+'px'; cv.style.height=dispH+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+/* input */
+function pointerToLogical(e){
+  const rect=cv.getBoundingClientRect();
+  const cx=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+  const cy=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;
+  return { x:cx/rect.width*W, y:cy/rect.height*H };
+}
+function onMove(e){
+  const p=pointerToLogical(e);
+  player.tx=p.x; player.ty=p.y;
+  if(e.cancelable)e.preventDefault();
+}
+cv.addEventListener('mousemove',onMove);
+cv.addEventListener('touchmove',onMove,{passive:false});
+cv.addEventListener('touchstart',e=>{ resumeAudio(); onMove(e); startOrServe(); },{passive:false});
+cv.addEventListener('mousedown',()=>{ resumeAudio(); startOrServe(); });
+document.addEventListener('keydown',e=>{
+  if(e.key===' '||e.key==='Enter'){ resumeAudio(); startOrServe(); e.preventDefault(); }
+  else if(e.key==='r'||e.key==='R'){ resumeAudio(); newGame(); }
+});
+function startOrServe(){
+  if(state==='title'){ state='playing'; resetPuck(Math.random()<0.5?'player':'ai'); }
+  else if(state==='over'){ newGame(); }
+}
+
+/* game flow */
+function newGame(){ scoreP=0; scoreA=0; state='title'; trail=[]; puck.x=W/2; puck.y=H/2; puck.vx=0; puck.vy=0; updateScore(); }
+function resetPuck(conceder){
+  puck.x=W/2; puck.y=H/2;
+  const dir = conceder==='ai'? -1 : 1;
+  puck.vx=(Math.random()-0.5)*3; puck.vy=dir*(2.4+Math.random()*1.4);
+  trail=[];
+}
+function inOpening(x){ return Math.abs(x-W/2) < GOALW/2; }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+
+function difficulty(){ return document.getElementById('diff').value; }
+function aiSpeed(){
+  const d=difficulty(); const base = d==='easy'?5.2 : d==='normal'?7.2 : 9.4;
+  return base + (scoreP+scoreA)*0.28;
+}
+function aiReaction(){
+  const d=difficulty(); const base = d==='easy'?200 : d==='normal'?125 : 75;
+  return Math.max(45, base - (scoreP+scoreA)*6);
+}
+
+function updatePlayerMallet(){
+  let nx=clamp(player.tx, player.r, W-player.r);
+  let ny=clamp(player.ty, MID+player.r*0.1, H-player.r);
+  player.vx=nx-player.x; player.vy=ny-player.y;
+  player.x=nx; player.y=ny;
+}
+function computeAITarget(){
+  if(puck.y < MID + 30){
+    // attack: line up behind the puck aiming at player's goal (bottom center)
+    const gx=W/2, gy=H+40;
+    const ang=Math.atan2(gy-puck.y, gx-puck.x);
+    ai.tx=puck.x - Math.cos(ang)*(puck.r+ai.r)*0.7;
+    ai.ty=puck.y - Math.sin(ang)*(puck.r+ai.r)*0.7;
+  } else {
+    // defend: sit on defensive line, track/predict puck x
+    let px=puck.x;
+    if(puck.vy<0){ // puck heading toward AI: predict crossing x
+      const t=(MID*0.5 - puck.y)/(puck.vy||-0.001);
+      if(t>0&&t<60) px=puck.x + puck.vx*t;
+    }
+    ai.tx=clamp(px, ai.r, W-ai.r);
+    ai.ty=H*0.13;
+  }
+}
+function updateAI(){
+  ai.timer-=STEP;
+  if(ai.timer<=0){ computeAITarget(); ai.timer=aiReaction(); }
+  const dx=ai.tx-ai.x, dy=ai.ty-ai.y, d=Math.hypot(dx,dy), spd=aiSpeed();
+  let nx,ny;
+  if(d>spd){ nx=ai.x+dx/d*spd; ny=ai.y+dy/d*spd; } else { nx=ai.tx; ny=ai.ty; }
+  nx=clamp(nx, ai.r, W-ai.r); ny=clamp(ny, ai.r, MID-ai.r*0.1);
+  ai.vx=nx-ai.x; ai.vy=ny-ai.y; ai.x=nx; ai.y=ny;
+}
+function malletHit(m){
+  const dx=puck.x-m.x, dy=puck.y-m.y, dist=Math.hypot(dx,dy), mind=puck.r+m.r;
+  if(dist<mind && dist>0.0001){
+    const nx=dx/dist, ny=dy/dist, overlap=mind-dist;
+    puck.x+=nx*overlap; puck.y+=ny*overlap;
+    const rvx=puck.vx-m.vx, rvy=puck.vy-m.vy, along=rvx*nx+rvy*ny;
+    if(along<0){ const j=-(1.6)*along; puck.vx+=j*nx; puck.vy+=j*ny; }
+    puck.vx+=m.vx*0.45; puck.vy+=m.vy*0.45;
+    const sp=Math.hypot(puck.vx,puck.vy);
+    if(sp>MAXP){ puck.vx*=MAXP/sp; puck.vy*=MAXP/sp; }
+    sHit(sp);
+    return true;
+  }
+  return false;
+}
+function physics(){
+  updatePlayerMallet();
+  updateAI();
+  const speed=Math.hypot(puck.vx,puck.vy);
+  const steps=Math.min(10, Math.max(1, Math.ceil(speed/(puck.r*0.7))));
+  for(let s=0;s<steps;s++){
+    puck.x+=puck.vx/steps; puck.y+=puck.vy/steps;
+    if(puck.x-puck.r<0){ puck.x=puck.r; puck.vx=Math.abs(puck.vx)*REST; sWall(Math.abs(puck.vx)); }
+    else if(puck.x+puck.r>W){ puck.x=W-puck.r; puck.vx=-Math.abs(puck.vx)*REST; sWall(Math.abs(puck.vx)); }
+    if(puck.y-puck.r<0){
+      if(inOpening(puck.x)){ if(puck.y<0){ goal('player'); return; } }
+      else { puck.y=puck.r; puck.vy=Math.abs(puck.vy)*REST; sWall(Math.abs(puck.vy)); }
+    } else if(puck.y+puck.r>H){
+      if(inOpening(puck.x)){ if(puck.y>H){ goal('ai'); return; } }
+      else { puck.y=H-puck.r; puck.vy=-Math.abs(puck.vy)*REST; sWall(Math.abs(puck.vy)); }
+    }
+    malletHit(player); malletHit(ai);
+  }
+  puck.vx*=FRICTION; puck.vy*=FRICTION;
+  if(Math.hypot(puck.vx,puck.vy)<0.03){ puck.vx=0; puck.vy=0; }
+}
+function goal(who){
+  if(who==='player'){ scoreP++; flashSide='top'; } else { scoreA++; flashSide='bottom'; }
+  flash=1; sGoal(); updateScore();
+  puck.vx=0; puck.vy=0;
+  if(scoreP>=7||scoreA>=7){
+    state='over';
+    if(scoreP>=7){ winsP++; sWin(); } else { winsL++; sLose(); }
+    saveRec(); updateScore();
+    return;
+  }
+  serveConceder = who==='player'?'ai':'player';
+  state='goal'; goalTimer=1000;
+}
+function afterGoal(){ resetPuck(serveConceder); state='playing'; }
+
+/* rendering */
+function drawTable(){
+  ctx.clearRect(0,0,W,H);
+  // felt
+  ctx.fillStyle='#0c0c1a'; roundRect(2,2,W-4,H-4,14); ctx.fill();
+  // border glow
+  ctx.lineWidth=3; ctx.strokeStyle='rgba(255,61,129,.55)'; ctx.shadowColor='rgba(255,61,129,.7)'; ctx.shadowBlur=14;
+  roundRect(2,2,W-4,H-4,14); ctx.stroke(); ctx.shadowBlur=0;
+  // center line + circle
+  ctx.strokeStyle='rgba(255,61,129,.28)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(6,MID); ctx.lineTo(W-6,MID); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W/2,MID,52,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W/2,MID,4,0,Math.PI*2); ctx.fillStyle='rgba(255,61,129,.4)'; ctx.fill();
+  // goals
+  drawGoal(0,'top'); drawGoal(H,'bottom');
+}
+function drawGoal(y,side){
+  const on=(flash>0 && ((flashSide==='top'&&side==='top')||(flashSide==='bottom'&&side==='bottom')));
+  ctx.save();
+  ctx.strokeStyle= side==='top'? 'rgba(255,90,60,.9)':'rgba(37,208,255,.9)';
+  ctx.shadowColor=ctx.strokeStyle; ctx.shadowBlur=on?26:12; ctx.lineWidth=on?7:5;
+  ctx.beginPath(); ctx.moveTo(W/2-GOALW/2, y===0?4:H-4); ctx.lineTo(W/2+GOALW/2, y===0?4:H-4); ctx.stroke();
+  ctx.restore();
+}
+function drawTrail(){
+  for(let i=0;i<trail.length;i++){
+    const a=(i+1)/trail.length; const t=trail[i];
+    ctx.beginPath(); ctx.arc(t.x,t.y,puck.r*a*0.9,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,225,77,'+(a*0.28)+')'; ctx.fill();
+  }
+}
+function drawMallet(m,color,glow){
+  ctx.save(); ctx.shadowColor=glow; ctx.shadowBlur=16;
+  const g=ctx.createRadialGradient(m.x-m.r*0.3,m.y-m.r*0.3,m.r*0.2,m.x,m.y,m.r);
+  g.addColorStop(0,'#ffffff'); g.addColorStop(0.25,color); g.addColorStop(1,'#10101a');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(m.x,m.y,m.r,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0; ctx.lineWidth=3; ctx.strokeStyle=glow; ctx.beginPath(); ctx.arc(m.x,m.y,m.r*0.55,0,Math.PI*2); ctx.stroke();
+  ctx.restore();
+}
+function drawPuck(){
+  ctx.save(); ctx.shadowColor='rgba(255,225,77,.9)'; ctx.shadowBlur=18;
+  const g=ctx.createRadialGradient(puck.x-4,puck.y-4,2,puck.x,puck.y,puck.r);
+  g.addColorStop(0,'#fffbe0'); g.addColorStop(0.6,'#ffe14d'); g.addColorStop(1,'#c79a10');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(puck.x,puck.y,puck.r,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+function drawText(){
+  if(state==='title'){
+    overlayBox('AIR HOCKEY','Tap / Space to serve','First to 7 goals wins');
+  } else if(state==='over'){
+    const won=scoreP>=7;
+    overlayBox(won?'YOU WIN!':'AI WINS', won?('Final '+scoreP+' – '+scoreA):('Final '+scoreP+' – '+scoreA), 'Tap / Space / R to play again');
+  } else if(state==='goal'){
+    ctx.save(); ctx.textAlign='center';
+    ctx.fillStyle= flashSide==='top'? '#ff5a3c':'#25d0ff';
+    ctx.shadowColor=ctx.fillStyle; ctx.shadowBlur=20;
+    ctx.font='bold 40px Courier New';
+    ctx.fillText('GOAL!', W/2, MID+14);
+    ctx.restore();
+  }
+}
+function overlayBox(t,a,b){
+  ctx.save(); ctx.textAlign='center';
+  ctx.fillStyle='rgba(8,8,18,.62)'; roundRect(30,MID-96,W-60,192,14); ctx.fill();
+  ctx.fillStyle='#ffe3ee'; ctx.shadowColor='rgba(255,61,129,.8)'; ctx.shadowBlur=16; ctx.font='bold 30px Courier New';
+  ctx.fillText(t, W/2, MID-34);
+  ctx.shadowBlur=0; ctx.fillStyle='#ffb8d2'; ctx.font='16px Courier New'; ctx.fillText(a, W/2, MID+4);
+  ctx.fillStyle='#c98fac'; ctx.font='13px Courier New'; ctx.fillText(b, W/2, MID+40);
+  ctx.restore();
+}
+function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+function draw(){
+  drawTable();
+  if(state==='playing'||state==='goal'){ drawTrail(); }
+  drawMallet(ai,'#ff5a3c','rgba(255,90,60,.7)');
+  drawMallet(player,'#25d0ff','rgba(37,208,255,.7)');
+  if(state!=='goal') drawPuck();
+  drawText();
+}
+
+/* loop */
+let last=0, acc=0, stallMs=0;
+function loop(t){
+  if(!last)last=t; let dt=t-last; last=t; if(dt>100)dt=100;
+  if(state==='playing'){
+    acc+=dt;
+    let guard=0;
+    while(acc>=STEP && guard<6){ physics(); acc-=STEP; guard++; if(state!=='playing')break; }
+    if(acc>STEP*3)acc=0;
+    trail.push({x:puck.x,y:puck.y}); if(trail.length>14)trail.shift();
+    // anti-stall: if the puck sits dead for too long, take a neutral face-off
+    if(Math.hypot(puck.vx,puck.vy)<0.06){ stallMs+=dt; if(stallMs>3000){ resetPuck(Math.random()<0.5?'player':'ai'); stallMs=0; } }
+    else stallMs=0;
+  } else if(state==='goal'){
+    goalTimer-=dt; if(goalTimer<=0) afterGoal();
+  }
+  if(flash>0) flash-=dt/500; if(flash<0)flash=0;
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function updateScore(){
+  document.getElementById('scYou').textContent=scoreP;
+  document.getElementById('scAi').textContent=scoreA;
+  document.getElementById('rW').textContent=winsP;
+  document.getElementById('rL').textContent=winsL;
+}
+function loadRec(){ try{ const r=JSON.parse(localStorage.getItem(KEY)); if(r&&typeof r.winsP==='number'){ winsP=r.winsP; winsL=r.winsL; } }catch(e){} }
+function saveRec(){ try{ localStorage.setItem(KEY,JSON.stringify({winsP,winsL})); }catch(e){} }
+
+document.getElementById('newBtn').addEventListener('click',()=>{ resumeAudio(); newGame(); });
+document.getElementById('diff').addEventListener('change',()=>{});
+window.addEventListener('resize',resize);
+document.body.addEventListener('pointerdown',resumeAudio,{once:true});
+
+resize(); loadRec(); updateScore(); newGame(); requestAnimationFrame(loop);
+</script>
+</body>
+</html>

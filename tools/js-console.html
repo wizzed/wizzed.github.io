@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JS Console · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#3ddc84; --accent-soft:rgba(61,220,132,.4);
+  --panel:#141422; --line:#26263e; --text:#e6ffe9; --dim:#7f9b86;
+  --err:#ff5470; --warn:#ffd166; --info:#4da6ff; --val:#c792ea;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow:hidden; display:flex; flex-direction:column;
+}
+a.back{
+  position:fixed; top:8px; left:10px; z-index:200;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.92);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ display:flex; align-items:baseline; gap:12px; padding:8px 12px 8px 92px; border-bottom:2px solid var(--line); background:#0c0c16; flex-wrap:wrap; }
+h1{ font-size:clamp(15px,2.4vw,22px); letter-spacing:3px; color:var(--accent); text-shadow:0 0 6px var(--accent), 0 0 22px var(--accent-soft); }
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:1px; }
+header .spacer{ margin-left:auto; }
+button{
+  font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--dim); border:1px solid var(--line); padding:5px 9px;
+}
+button:hover{ color:var(--accent); border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); }
+button.prime{ color:#06180d; background:var(--accent); border-color:var(--accent); font-weight:bold; box-shadow:0 0 12px var(--accent-soft); }
+#out{ flex:1; overflow:auto; padding:8px 0; font-size:12.5px; line-height:1.5; }
+.entry{ border-bottom:1px solid rgba(255,255,255,.03); }
+.cmd{ display:flex; gap:8px; padding:5px 12px; color:#d8ffe4; background:rgba(61,220,132,.05); white-space:pre-wrap; word-break:break-word; }
+.cmd .car{ color:var(--accent); flex-shrink:0; font-weight:bold; }
+.cmd .ms{ margin-left:auto; color:var(--dim); font-size:10px; opacity:.7; flex-shrink:0; align-self:center; }
+.logline{ display:flex; gap:8px; padding:2px 12px 2px 26px; white-space:pre-wrap; word-break:break-word; }
+.logline .tag{ flex-shrink:0; opacity:.55; }
+.logline.log{ color:#cfe8ff; }
+.logline.info{ color:var(--info); }
+.logline.warn{ color:var(--warn); background:rgba(255,209,102,.05); }
+.logline.error{ color:var(--err); background:rgba(255,84,112,.06); }
+.result{ display:flex; gap:8px; padding:3px 12px 5px 26px; color:var(--val); white-space:pre-wrap; word-break:break-word; }
+.result .tag{ color:var(--val); opacity:.8; flex-shrink:0; }
+.result.err{ color:var(--err); } .result.err .tag{ color:var(--err); }
+.welcome{ padding:6px 12px; color:var(--dim); font-size:11px; letter-spacing:1px; }
+.welcome b{ color:var(--accent); }
+.chips{ display:flex; gap:6px; flex-wrap:wrap; padding:6px 12px; border-top:1px solid var(--line); background:#0b0b14; }
+.chips span.lbl{ font-size:9px; color:var(--dim); letter-spacing:2px; align-self:center; }
+.chip{ font-size:10px; color:var(--info); border:1px solid var(--line); background:#121220; padding:3px 7px; cursor:pointer; letter-spacing:.5px; white-space:nowrap; }
+.chip:hover{ border-color:var(--info); box-shadow:0 0 8px rgba(77,166,255,.3); }
+.inputbar{ display:flex; gap:8px; align-items:stretch; padding:8px 12px 10px; border-top:2px solid var(--line); background:#0a0a12; }
+.inputbar .car{ color:var(--accent); font-weight:bold; align-self:flex-start; padding-top:9px; font-size:14px; }
+#input{
+  flex:1; resize:none; min-height:38px; max-height:180px;
+  background:#08080f; color:var(--text); border:1px solid var(--line);
+  font-family:inherit; font-size:13px; line-height:1.5; padding:8px 10px; outline:none; tab-size:2;
+}
+#input:focus{ border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft) inset; }
+.inputbar .side{ display:flex; flex-direction:column; gap:6px; }
+.inputbar .side button{ flex:1; }
+.inputbar .hint{ font-size:9px; color:var(--dim); text-align:center; letter-spacing:1px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Arcade</a>
+<header>
+  <h1>JS CONSOLE</h1>
+  <span class="sub">sandboxed REPL &middot; runs 100% locally in your browser</span>
+  <span class="spacer"></span>
+  <button type="button" id="btnClear">CLEAR</button>
+</header>
+<div id="out"></div>
+<div class="chips" id="chips">
+  <span class="lbl">INSERT</span>
+</div>
+<div class="inputbar">
+  <span class="car">&gt;</span>
+  <textarea id="input" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="type JS &mdash; Enter runs, Shift+Enter newline, ↑ recalls history"></textarea>
+  <div class="side">
+    <button type="button" id="btnRun" class="prime">&#9654; RUN</button>
+    <span class="hint">↑ history</span>
+  </div>
+</div>
+<iframe id="sbx" sandbox="allow-scripts" style="display:none" title="sandbox"></iframe>
+<script>
+"use strict";
+var LS_KEY="wizzed-js-console";
+var out=document.getElementById("out");
+var input=document.getElementById("input");
+var sbx=document.getElementById("sbx");
+
+var histArr=[];
+try{
+  var s=JSON.parse(localStorage.getItem(LS_KEY)||"null");
+  if(s && Array.isArray(s.history)) histArr=s.history.filter(function(x){return typeof x==="string";}).slice(-120);
+}catch(e){}
+var histIdx=histArr.length;
+var draft="";
+
+function saveHist(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({history:histArr.slice(-120)})); }catch(e){} }
+
+var CHIPS=[
+  ["Date.now()","Date.now()"],
+  ["squares","[1,2,3,4,5].map(n => n*n)"],
+  ["sum","[10,20,30].reduce((a,b)=>a+b, 0)"],
+  ["range","Array.from({length:5}, (_,i) => i)"],
+  ["random","Math.floor(Math.random()*100)"],
+  ["JSON","JSON.stringify({hi:'wizzed', n:42}, null, 2)"],
+  ["typeof","typeof (()=>{})"],
+  ["Object","Object.entries({a:1, b:2})"]
+];
+var chipsEl=document.getElementById("chips");
+CHIPS.forEach(function(c){
+  var b=document.createElement("span"); b.className="chip"; b.textContent=c[0]; b.title=c[1];
+  b.addEventListener("click",function(){
+    input.value=input.value?(input.value.replace(/\s+$/,"")+"\n"+c[1]):c[1];
+    autoGrow(); input.focus();
+  });
+  chipsEl.appendChild(b);
+});
+
+function el(cls,txt){ var d=document.createElement("div"); d.className=cls; if(txt!=null) d.textContent=txt; return d; }
+
+function renderCmd(code, ms){
+  var entry=el("entry");
+  var cmd=el("cmd");
+  var car=document.createElement("span"); car.className="car"; car.textContent=">";
+  var body=document.createElement("span"); body.textContent=code; body.style.flex="1";
+  cmd.appendChild(car); cmd.appendChild(body);
+  if(ms!=null){ var m=document.createElement("span"); m.className="ms"; m.textContent=ms+" ms"; cmd.appendChild(m); }
+  entry.appendChild(cmd);
+  return entry;
+}
+function addLogTo(entry, type, text){
+  var line=el("logline "+type);
+  var tag=document.createElement("span"); tag.className="tag";
+  tag.textContent=type==="error"?"✖":(type==="warn"?"⚠":(type==="info"?"ℹ":"›"));
+  var b=document.createElement("span"); b.textContent=text; b.style.flex="1";
+  line.appendChild(tag); line.appendChild(b);
+  entry.appendChild(line);
+}
+function addResultTo(entry, text, isErr){
+  var r=el("result"+(isErr?" err":""));
+  var tag=document.createElement("span"); tag.className="tag"; tag.textContent=isErr?"✖":"⟵";
+  var b=document.createElement("span"); b.textContent=text; b.style.flex="1";
+  r.appendChild(tag); r.appendChild(b);
+  entry.appendChild(r);
+}
+function scrollBottom(){ out.scrollTop=out.scrollHeight; }
+
+// ---- pretty demo entries so the page is populated instantly ----
+function seedDemo(){
+  var w=el("welcome");
+  w.innerHTML="<b>JS Console</b> ready. Expressions echo their value; console.log / warn / error are captured. Nothing you type ever leaves this page.";
+  out.appendChild(w);
+  var e1=renderCmd("[1,2,3,4,5].map(n => n*n)", 0);
+  addResultTo(e1, "[1, 4, 9, 16, 25]", false);
+  out.appendChild(e1);
+  var e2=renderCmd("console.log('hello', {arcade:true}); Date.now()", 0);
+  addLogTo(e2, "log", "hello {\n  arcade: true\n}");
+  addResultTo(e2, String(Date.now()), false);
+  out.appendChild(e2);
+  var e3=renderCmd("notDefined + 1", 0);
+  addResultTo(e3, "ReferenceError: notDefined is not defined", true);
+  out.appendChild(e3);
+  scrollBottom();
+}
+seedDemo();
+
+// ---- sandbox bootstrap ----
+var runSeq=0, pending={};
+var BOOT=[
+'"use strict";',
+'function ser(a,depth){',
+'  try{',
+'    if(a===undefined)return "undefined";',
+'    if(a===null)return "null";',
+'    var t=typeof a;',
+'    if(t==="string")return depth===0?a:JSON.stringify(a);',
+'    if(t==="number"||t==="boolean")return String(a);',
+'    if(t==="bigint")return String(a)+"n";',
+'    if(t==="symbol")return a.toString();',
+'    if(t==="function")return "\\u0192 "+(a.name||"anonymous")+"()";',
+'    var seen=[];',
+'    function walk(v,d){',
+'      if(v===null)return "null";',
+'      var vt=typeof v;',
+'      if(vt==="string")return JSON.stringify(v);',
+'      if(vt==="number"||vt==="boolean")return String(v);',
+'      if(vt==="bigint")return String(v)+"n";',
+'      if(vt==="function")return "\\u0192 "+(v.name||"anonymous")+"()";',
+'      if(vt==="undefined")return "undefined";',
+'      if(vt==="symbol")return v.toString();',
+'      if(vt==="object"){',
+'        if(seen.indexOf(v)>=0)return "[Circular]";',
+'        if(d>5)return Array.isArray(v)?"[…]":"{…}";',
+'        seen.push(v);',
+'        var pad=new Array(d+2).join("  "), pad2=new Array(d+1).join("  ");',
+'        if(Array.isArray(v)){',
+'          if(v.length===0)return "[]";',
+'          var parts=v.map(function(x){return pad+walk(x,d+1);});',
+'          return "[\\n"+parts.join(",\\n")+"\\n"+pad2+"]";',
+'        }',
+'        var keys=Object.keys(v);',
+'        var tag=(v.constructor&&v.constructor.name&&v.constructor.name!=="Object")?v.constructor.name+" ":"";',
+'        if(keys.length===0)return tag+"{}";',
+'        var kp=keys.map(function(k){return pad+k+": "+walk(v[k],d+1);});',
+'        return tag+"{\\n"+kp.join(",\\n")+"\\n"+pad2+"}";',
+'      }',
+'      return String(v);',
+'    }',
+'    return walk(a,0);',
+'  }catch(e){ try{return String(a);}catch(_){return "[Unserializable]";} }',
+'}',
+'function send(id,logs,value,error,ms){parent.postMessage({__result:true,id:id,logs:logs,value:value,error:error,ms:ms},"*");}',
+'window.addEventListener("message",function(ev){',
+'  var d=ev.data; if(!d||!d.__run)return;',
+'  var logs=[];',
+'  var methods=["log","info","warn","error"];',
+'  var orig={};',
+'  methods.forEach(function(m){orig[m]=console[m];console[m]=function(){',
+'    var parts=[]; for(var i=0;i<arguments.length;i++)parts.push(ser(arguments[i],0));',
+'    logs.push({type:m,text:parts.join(" ")});',
+'  };});',
+'  var value=null, error=null, t0=performance.now();',
+'  var code=d.code;',
+'  try{',
+'    var r;',
+'    try{ r=(0,eval)(code); }',
+'    catch(se){',
+'      if(se instanceof SyntaxError){ r=(0,eval)("("+code+")"); }',
+'      else throw se;',
+'    }',
+'    if(r!==undefined) value=ser(r,1);',
+'  }catch(err){',
+'    var msg=(err&&err.name?err.name+": ":"")+(err&&err.message?err.message:String(err));',
+'    var ln=null; if(err&&err.stack){var mm=/<anonymous>:(\\d+):(\\d+)/.exec(err.stack); if(mm)ln=mm[1];}',
+'    error=msg+(ln?" (line "+ln+")":"");',
+'  }',
+'  var ms=Math.max(0,Math.round((performance.now()-t0)*100)/100);',
+'  methods.forEach(function(m){console[m]=orig[m];});',
+'  send(d.id,logs,value,error,ms);',
+'});',
+'parent.postMessage({__ready:true},"*");'
+].join("\n");
+
+var sbxReady=false, queue=[];
+sbx.srcdoc="<!doctype html><html><head><meta charset=utf-8></head><body><script>"+BOOT+"<\/script></body></html>";
+
+window.addEventListener("message",function(ev){
+  var d=ev.data; if(!d) return;
+  if(d.__ready){ sbxReady=true; queue.forEach(function(c){ sbx.contentWindow.postMessage(c,"*"); }); queue=[]; return; }
+  if(d.__result){
+    var p=pending[d.id]; if(!p) return; delete pending[d.id];
+    var entry=p.entry;
+    // ms into cmd
+    var msEl=entry.querySelector(".cmd .ms"); if(msEl) msEl.textContent=d.ms+" ms";
+    (d.logs||[]).forEach(function(l){ addLogTo(entry, l.type, l.text); });
+    if(d.error){ addResultTo(entry, d.error, true); }
+    else if(d.value!=null){ addResultTo(entry, d.value, false); }
+    else if(!(d.logs&&d.logs.length)){ addResultTo(entry, "undefined", false); }
+    scrollBottom();
+  }
+});
+
+function run(code){
+  code=code.replace(/\s+$/,"");
+  if(!code) return;
+  var entry=renderCmd(code, "…");
+  out.appendChild(entry);
+  scrollBottom();
+  if(histArr[histArr.length-1]!==code){ histArr.push(code); }
+  histIdx=histArr.length; draft="";
+  saveHist();
+  var id=++runSeq;
+  pending[id]={entry:entry};
+  var msg={__run:true, id:id, code:code};
+  if(sbxReady && sbx.contentWindow){ sbx.contentWindow.postMessage(msg,"*"); }
+  else queue.push(msg);
+}
+
+function autoGrow(){
+  input.style.height="auto";
+  input.style.height=Math.min(180, Math.max(38, input.scrollHeight))+"px";
+}
+input.addEventListener("input", autoGrow);
+
+input.addEventListener("keydown",function(ev){
+  if(ev.key==="Enter" && !ev.shiftKey){
+    ev.preventDefault();
+    var v=input.value;
+    input.value=""; autoGrow();
+    run(v);
+    return;
+  }
+  if(ev.key==="Tab"){
+    ev.preventDefault();
+    var s=input.selectionStart, e=input.selectionEnd, val=input.value;
+    input.value=val.slice(0,s)+"  "+val.slice(e);
+    input.selectionStart=input.selectionEnd=s+2;
+    return;
+  }
+  if(ev.key==="ArrowUp"){
+    var beforeCaret=input.value.slice(0, input.selectionStart);
+    if(beforeCaret.indexOf("\n")<0){ // first line
+      ev.preventDefault();
+      if(histIdx===histArr.length) draft=input.value;
+      if(histIdx>0){ histIdx--; input.value=histArr[histIdx]; autoGrow();
+        input.selectionStart=input.selectionEnd=input.value.length; }
+    }
+    return;
+  }
+  if(ev.key==="ArrowDown"){
+    var afterCaret=input.value.slice(input.selectionEnd);
+    if(afterCaret.indexOf("\n")<0){ // last line
+      ev.preventDefault();
+      if(histIdx<histArr.length){ histIdx++;
+        input.value=histIdx===histArr.length?draft:histArr[histIdx];
+        autoGrow(); input.selectionStart=input.selectionEnd=input.value.length; }
+    }
+    return;
+  }
+});
+
+document.getElementById("btnRun").addEventListener("click",function(){
+  var v=input.value; input.value=""; autoGrow(); run(v); input.focus();
+});
+document.getElementById("btnClear").addEventListener("click",function(){
+  out.innerHTML=""; var w=el("welcome");
+  w.innerHTML="<b>Cleared.</b> Type an expression and press Enter.";
+  out.appendChild(w); input.focus();
+});
+
+autoGrow();
+input.focus();
+</script>
+</body>
+</html>

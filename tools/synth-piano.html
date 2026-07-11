@@ -110,6 +110,11 @@ canvas#viz{ display:block; width:100%; height:140px; }
     </div>
     <button id="sustainBtn">SUSTAIN [SPACE]</button>
     <button id="demoBtn">&#9654; DEMO SONG</button>
+    <button id="recBtn">&#9679; REC</button>
+    <button id="playRecBtn">&#9654; PLAY REC</button>
+    <button id="clearRecBtn">CLR REC</button>
+    <button id="delayBtn">DELAY</button>
+    <div class="ctl">WET <input type="range" id="wet" min="0" max="100" value="35"><b id="wetVal">35%</b></div>
   </div>
   <div id="vizWrap"><canvas id="viz"></canvas></div>
   <div id="keyboard"></div>
@@ -125,15 +130,21 @@ var NOTE_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 var KEYMAP={'a':0,'w':1,'s':2,'e':3,'d':4,'f':5,'t':6,'g':7,'y':8,'h':9,'u':10,'j':11,
             'k':12,'o':13,'l':14,'p':15,';':16};
 
-var settings={wave:'sawtooth',attack:15,release:400,volume:60,octave:4,sustain:false};
+var settings={wave:'sawtooth',attack:15,release:400,volume:60,octave:4,sustain:false,delayOn:false,delayWet:35};
 try{
   var raw=localStorage.getItem(LS_KEY);
   if(raw){ var o=JSON.parse(raw); if(o&&typeof o==='object') settings=Object.assign(settings,o); }
 }catch(e){}
 function persist(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(settings)); }catch(e){} }
 
+/* ---------- performance recorder (separate slot, same wizzed- prefix) ---------- */
+var REC_KEY='wizzed-synth-piano-rec';
+var recording=false, replaying=false, recStart=0, recEvents=[], replayTimers=[];
+function saveRecording(){ try{ localStorage.setItem(REC_KEY,JSON.stringify(recEvents)); }catch(e){} }
+function loadRecording(){ try{ var r=localStorage.getItem(REC_KEY); return r?JSON.parse(r):null; }catch(e){ return null; } }
+
 /* ---------- audio ---------- */
-var actx=null, master=null;
+var actx=null, master=null, delayNode=null, delayFb=null, delayWet=null;
 function ensureAudio(){
   if(!actx){
     var AC=window.AudioContext||window.webkitAudioContext;
@@ -142,6 +153,14 @@ function ensureAudio(){
     master.gain.value=settings.volume/100*0.6;
     var comp=actx.createDynamicsCompressor();
     master.connect(comp); comp.connect(actx.destination);
+    /* feedback delay — parallel wet-only send; the dry path above is untouched */
+    delayNode=actx.createDelay(1.0);
+    delayNode.delayTime.value=0.22;
+    delayFb=actx.createGain(); delayFb.gain.value=0.35;
+    delayWet=actx.createGain(); delayWet.gain.value=settings.delayOn?settings.delayWet/100:0;
+    master.connect(delayNode);
+    delayNode.connect(delayFb); delayFb.connect(delayNode);
+    delayNode.connect(delayWet); delayWet.connect(comp);
   }
   if(actx.state==='suspended') actx.resume();
 }
@@ -165,6 +184,7 @@ function noteOn(i,vel){
   osc.start();
   voices[i]={osc:osc,g:g,held:true};
   keyEls[i]&&keyEls[i].classList.add('active');
+  if(recording&&!replaying) recEvents.push({i:i,on:1,v:peak,t:performance.now()-recStart});
 }
 function releaseVoice(i){
   var v=voices[i];
@@ -181,6 +201,7 @@ function releaseVoice(i){
 function noteOff(i){
   var v=voices[i];
   if(!v) return;
+  if(recording&&!replaying) recEvents.push({i:i,on:0,t:performance.now()-recStart});
   v.held=false;
   if(settings.sustain) return; /* pedal holds it */
   releaseVoice(i);
@@ -295,6 +316,9 @@ var atk=document.getElementById('atk'), rel=document.getElementById('rel'), vol=
 var atkVal=document.getElementById('atkVal'), relVal=document.getElementById('relVal'), volVal=document.getElementById('volVal');
 var octVal=document.getElementById('octVal');
 var sustainBtn=document.getElementById('sustainBtn');
+var delayBtn=document.getElementById('delayBtn');
+var wet=document.getElementById('wet'), wetVal=document.getElementById('wetVal');
+var recBtn=document.getElementById('recBtn'), playRecBtn=document.getElementById('playRecBtn'), clearRecBtn=document.getElementById('clearRecBtn');
 
 function syncUI(){
   waveSel.value=settings.wave;
@@ -303,6 +327,8 @@ function syncUI(){
   vol.value=settings.volume; volVal.textContent=settings.volume+'%';
   octVal.textContent='C'+settings.octave;
   sustainBtn.classList.toggle('on',settings.sustain);
+  wet.value=settings.delayWet; wetVal.textContent=settings.delayWet+'%';
+  delayBtn.classList.toggle('on',settings.delayOn);
 }
 waveSel.addEventListener('change',function(){ settings.wave=this.value; persist(); });
 atk.addEventListener('input',function(){ settings.attack=+this.value; atkVal.textContent=settings.attack+'ms'; persist(); });
@@ -327,6 +353,66 @@ function setSustain(v){
   persist();
 }
 sustainBtn.addEventListener('click',function(){ setSustain(!settings.sustain); });
+
+/* ---------- delay effect ---------- */
+function applyDelay(){ if(delayWet) delayWet.gain.value=settings.delayOn?settings.delayWet/100:0; }
+delayBtn.addEventListener('click',function(){
+  ensureAudio();
+  settings.delayOn=!settings.delayOn;
+  delayBtn.classList.toggle('on',settings.delayOn);
+  applyDelay(); persist();
+});
+wet.addEventListener('input',function(){
+  settings.delayWet=+this.value; wetVal.textContent=settings.delayWet+'%';
+  applyDelay(); persist();
+});
+
+/* ---------- record / play / clear ---------- */
+function updateRecUI(){
+  recBtn.classList.toggle('on',recording);
+  recBtn.innerHTML=recording?'&#9632; STOP REC':'&#9679; REC';
+  playRecBtn.classList.toggle('on',replaying);
+  playRecBtn.innerHTML=replaying?'&#9632; STOP':'&#9654; PLAY REC';
+}
+function stopReplay(){
+  replayTimers.forEach(clearTimeout); replayTimers=[];
+  replaying=false;
+  for(var k in voices) releaseVoice(parseInt(k,10));
+  updateRecUI();
+}
+function startReplay(){
+  var data=loadRecording();
+  if(!data||!data.length) return;
+  ensureAudio();
+  if(recording){ recording=false; saveRecording(); }
+  replaying=true;
+  for(var k in voices) releaseVoice(parseInt(k,10));
+  replayTimers=[];
+  data.forEach(function(ev){
+    replayTimers.push(setTimeout(function(){
+      if(ev.on) noteOn(ev.i,ev.v); else noteOff(ev.i);
+    },Math.max(0,ev.t)));
+  });
+  var lastT=data[data.length-1].t||0;
+  replayTimers.push(setTimeout(stopReplay,lastT+800));
+  updateRecUI();
+}
+recBtn.addEventListener('click',function(){
+  ensureAudio();
+  if(recording){ recording=false; saveRecording(); updateRecUI(); return; }
+  if(replaying) stopReplay();
+  recEvents=[]; recStart=performance.now(); recording=true;
+  updateRecUI();
+});
+playRecBtn.addEventListener('click',function(){
+  if(replaying){ stopReplay(); return; }
+  startReplay();
+});
+clearRecBtn.addEventListener('click',function(){
+  if(replaying) stopReplay();
+  recEvents=[]; try{ localStorage.removeItem(REC_KEY); }catch(e){}
+  updateRecUI();
+});
 
 /* ---------- demo song (Ode to Joy) ---------- */
 var demoBtn=document.getElementById('demoBtn');
@@ -406,6 +492,7 @@ function frame(){
 /* ---------- init ---------- */
 buildKeys();
 syncUI();
+updateRecUI();
 /* pre-paint viz so it isn't pitch black on load */
 (function(){
   vctx.fillStyle='#0a0a14';

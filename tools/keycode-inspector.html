@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keycode Inspector · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#00e5ff; --soft:rgba(0,229,255,.4);
+  --panel:#0b1518; --line:#154a52; --text:#d4fbff; --dim:#6fb3bd; --hot:#ff2d78; --ok:#00ff9c;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:10px 12px 40px;
+}
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:linear-gradient(rgba(0,229,255,.03) 1px,transparent 1px),
+             linear-gradient(90deg,rgba(0,229,255,.03) 1px,transparent 1px);
+  background-size:30px 30px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:60;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:4px 8px 2px; position:relative; z-index:1; }
+h1{ display:inline-block; font-size:clamp(18px,3vw,26px); letter-spacing:4px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--soft); }
+header .sub{ font-size:10px; color:var(--dim); letter-spacing:2px; margin-top:2px; }
+main{ max-width:1000px; margin:8px auto 0; position:relative; z-index:1; display:flex; flex-direction:column; gap:12px; }
+.panel{
+  background:var(--panel); border:2px solid var(--line);
+  box-shadow:0 0 22px rgba(0,229,255,.07); padding:12px 14px;
+}
+.lbl{ font-size:10px; letter-spacing:3px; color:var(--dim); margin-bottom:8px; text-transform:uppercase; }
+.lbl b{ color:var(--accent); font-weight:normal; text-shadow:0 0 6px var(--soft); }
+.hero{ text-align:center; }
+.bigkey{
+  font-size:clamp(46px,13vw,92px); line-height:1.05; color:var(--accent);
+  text-shadow:0 0 18px var(--soft),0 0 42px var(--soft); letter-spacing:2px; word-break:break-word; min-height:1.1em;
+}
+.hint{ font-size:12px; color:var(--dim); letter-spacing:1px; margin-top:2px; }
+.fields{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:12px; }
+@media(max-width:640px){ .fields{ grid-template-columns:repeat(2,1fr); } }
+.fld{ border:1px solid var(--line); background:#08120f00; background:rgba(0,229,255,.03); padding:8px 10px; text-align:center; }
+.fld .k{ font-size:9px; letter-spacing:1.5px; color:var(--dim); text-transform:uppercase; }
+.fld .k .dep{ color:var(--hot); }
+.fld .v{ font-size:clamp(16px,3vw,24px); color:var(--accent); text-shadow:0 0 8px var(--soft); margin-top:3px; word-break:break-all; min-height:1.1em; }
+.mods{ display:flex; gap:8px; justify-content:center; margin-top:12px; flex-wrap:wrap; }
+.mod{ font-size:12px; letter-spacing:1px; padding:6px 14px; border:2px solid var(--line); color:var(--dim); background:#0a1517; }
+.mod.on{ color:#04141a; background:var(--accent); border-color:var(--accent); box-shadow:0 0 16px var(--soft); text-shadow:none; }
+.hist{ display:flex; gap:6px; flex-wrap:wrap; }
+.hist .hk{ border:1px solid var(--line); background:#0a1517; padding:5px 9px; font-size:12px; min-width:34px; text-align:center; }
+.hist .hk b{ color:var(--accent); text-shadow:0 0 6px var(--soft); }
+.hist .hk small{ display:block; color:var(--dim); font-size:9px; }
+.kbwrap{ overflow-x:auto; padding-bottom:6px; }
+.kb{ width:760px; margin:0 auto; display:flex; flex-direction:column; gap:6px; }
+.krow{ display:flex; gap:6px; }
+.key{
+  flex:0 0 auto; height:42px; display:flex; align-items:center; justify-content:center;
+  font-size:11px; color:var(--dim); background:#0c1a1d; border:1px solid var(--line);
+  border-radius:4px; user-select:none; position:relative; text-align:center; line-height:1.1; padding:0 2px;
+  transition:background .05s, color .05s, box-shadow .1s;
+}
+.key.active{ color:#04141a; background:var(--accent); border-color:var(--accent); box-shadow:0 0 16px var(--soft); transform:translateY(1px); }
+.key .cnt{ position:absolute; top:1px; right:3px; font-size:8px; color:var(--hot); }
+.gallery{ display:flex; gap:8px; flex-wrap:wrap; }
+.gk{ border:1px solid var(--line); background:#0a1517; padding:6px 10px; font-size:12px; color:var(--text); }
+.gk b{ color:var(--accent); }
+.note{ font-size:11px; color:var(--dim); letter-spacing:.5px; margin-top:8px; line-height:1.5; }
+.note code{ color:var(--accent); }
+.btnrow{ display:flex; gap:8px; }
+button.btn{ font-family:inherit; font-size:10px; letter-spacing:1px; cursor:pointer; text-transform:uppercase; color:var(--accent); background:#0a1517; border:1px solid var(--line); padding:6px 10px; }
+button.btn:hover{ border-color:var(--accent); box-shadow:0 0 10px var(--soft); }
+.priv{ text-align:center; font-size:10px; color:var(--dim); letter-spacing:1px; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>KEYCODE INSPECTOR</h1>
+  <div class="sub">PRESS ANY KEY · SEE key / code / keyCode / location LIVE</div>
+</header>
+<main>
+  <div class="panel hero">
+    <div class="bigkey" id="bigkey">Space</div>
+    <div class="hint" id="hint">Press any key on your keyboard — the details light up here.</div>
+    <div class="fields">
+      <div class="fld"><div class="k">event.key</div><div class="v" id="fKey">" "</div></div>
+      <div class="fld"><div class="k">event.code</div><div class="v" id="fCode">Space</div></div>
+      <div class="fld"><div class="k">keyCode <span class="dep">(deprecated)</span></div><div class="v" id="fKc">32</div></div>
+      <div class="fld"><div class="k">location</div><div class="v" id="fLoc">Standard</div></div>
+    </div>
+    <div class="mods" id="mods">
+      <div class="mod" data-m="ctrl">Ctrl</div>
+      <div class="mod" data-m="shift">Shift</div>
+      <div class="mod" data-m="alt">Alt</div>
+      <div class="mod" data-m="meta">Meta ⌘</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="lbl">Recent <b>keys</b> — last 10</div>
+    <div class="hist" id="hist"></div>
+  </div>
+
+  <div class="panel">
+    <div class="lbl">Keyboard <b>heatmap</b> — every key you press lights up &amp; counts</div>
+    <div class="kbwrap"><div class="kb" id="kb"></div></div>
+    <div class="btnrow" style="margin-top:8px;"><button class="btn" id="resetHeat">↺ Reset heatmap</button></div>
+  </div>
+
+  <div class="panel">
+    <div class="lbl">Special-key <b>gallery</b></div>
+    <div class="gallery" id="gallery"></div>
+    <div class="note">
+      Arrow keys report <code>ArrowUp/Down/Left/Right</code>. Numpad keys share a <code>code</code> prefix of <code>Numpad</code> and <code>location = 3</code>. <b>Media keys</b> (play, volume, next-track) often fire <code>MediaPlayPause</code>, <code>AudioVolumeUp</code>, etc., but many OSes intercept them before the browser sees the event, so they may not appear here.
+    </div>
+  </div>
+  <div class="priv">100% local — key events are read in your browser only and never transmitted.</div>
+</main>
+
+<script>
+"use strict";
+var $=function(id){return document.getElementById(id);};
+
+/* ---------- keyboard layout ---------- */
+var U=44; // px per unit including gap approximation
+function k(code,label,units){ return {code:code,label:label,u:units||1}; }
+var ROWS=[
+  [k('Escape','Esc'),k('F1','F1'),k('F2','F2'),k('F3','F3'),k('F4','F4'),k('F5','F5'),k('F6','F6'),k('F7','F7'),k('F8','F8'),k('F9','F9'),k('F10','F10'),k('F11','F11'),k('F12','F12')],
+  [k('Backquote','` ~'),k('Digit1','1'),k('Digit2','2'),k('Digit3','3'),k('Digit4','4'),k('Digit5','5'),k('Digit6','6'),k('Digit7','7'),k('Digit8','8'),k('Digit9','9'),k('Digit0','0'),k('Minus','- _'),k('Equal','= +'),k('Backspace','⌫ Bksp',2)],
+  [k('Tab','Tab',1.5),k('KeyQ','Q'),k('KeyW','W'),k('KeyE','E'),k('KeyR','R'),k('KeyT','T'),k('KeyY','Y'),k('KeyU','U'),k('KeyI','I'),k('KeyO','O'),k('KeyP','P'),k('BracketLeft','[ {'),k('BracketRight','] }'),k('Backslash','\\ |',1.5)],
+  [k('CapsLock','Caps',1.8),k('KeyA','A'),k('KeyS','S'),k('KeyD','D'),k('KeyF','F'),k('KeyG','G'),k('KeyH','H'),k('KeyJ','J'),k('KeyK','K'),k('KeyL','L'),k('Semicolon','; :'),k('Quote','\' "'),k('Enter','⏎ Enter',2.2)],
+  [k('ShiftLeft','⇧ Shift',2.3),k('KeyZ','Z'),k('KeyX','X'),k('KeyC','C'),k('KeyV','V'),k('KeyB','B'),k('KeyN','N'),k('KeyM','M'),k('Comma',', <'),k('Period','. >'),k('Slash','/ ?'),k('ShiftRight','⇧ Shift',2.7)],
+  [k('ControlLeft','Ctrl',1.4),k('MetaLeft','⌘',1.2),k('AltLeft','Alt',1.2),k('Space','Space',6),k('AltRight','Alt',1.2),k('MetaRight','⌘',1.2),k('ControlRight','Ctrl',1.4)]
+];
+var ARROWS=[k('ArrowLeft','←'),k('ArrowUp','↑'),k('ArrowDown','↓'),k('ArrowRight','→')];
+var heat={}; // code -> count
+var keyEls={}; // code -> element
+
+function buildKeyboard(){
+  var kb=$('kb'); kb.innerHTML='';
+  ROWS.forEach(function(row){
+    var rd=document.createElement('div'); rd.className='krow';
+    row.forEach(function(key){
+      var el=document.createElement('div'); el.className='key';
+      el.style.width=(key.u*U-6)+'px';
+      el.innerHTML='<span>'+escapeHtml(key.label)+'</span>';
+      keyEls[key.code]=el; rd.appendChild(el);
+    });
+    kb.appendChild(rd);
+  });
+  // arrow cluster row
+  var ar=document.createElement('div'); ar.className='krow'; ar.style.justifyContent='flex-end';
+  ARROWS.forEach(function(key){
+    var el=document.createElement('div'); el.className='key'; el.style.width=(U-6)+'px';
+    el.innerHTML='<span>'+escapeHtml(key.label)+'</span>';
+    keyEls[key.code]=el; ar.appendChild(el);
+  });
+  $('kb').appendChild(ar);
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+/* ---------- display ---------- */
+var LOC=['Standard','Left','Right','Numpad'];
+function keyDisplay(e){
+  var kk=e.key;
+  if(kk===' ') return 'Space';
+  if(kk==='Spacebar') return 'Space';
+  return kk;
+}
+function showEvent(e){
+  $('bigkey').textContent=keyDisplay(e);
+  $('hint').textContent='code corresponds to the physical key; key is the produced character.';
+  $('fKey').textContent = e.key===' ' ? '" " (space)' : JSON.stringify(e.key);
+  $('fCode').textContent = e.code || '(none)';
+  $('fKc').textContent = e.keyCode;
+  $('fLoc').textContent = (LOC[e.location]||'?')+' ('+e.location+')';
+}
+function updateMods(e){
+  setMod('ctrl', e.ctrlKey); setMod('shift', e.shiftKey); setMod('alt', e.altKey); setMod('meta', e.metaKey);
+}
+function setMod(m,on){ var el=document.querySelector('.mod[data-m="'+m+'"]'); if(el) el.classList.toggle('on', on); }
+
+/* ---------- history ---------- */
+var keyHist=[];
+function pushHistory(e){
+  keyHist.unshift({key:keyDisplay(e), code:e.code||''});
+  if(keyHist.length>10) keyHist.pop();
+  renderHistory();
+}
+function renderHistory(){
+  $('hist').innerHTML=keyHist.map(function(h){
+    return '<div class="hk"><b>'+escapeHtml(h.key)+'</b><small>'+escapeHtml(h.code)+'</small></div>';
+  }).join('') || '<div class="hk" style="color:var(--dim)">— none yet —</div>';
+}
+
+/* ---------- heatmap ---------- */
+function bump(code){
+  heat[code]=(heat[code]||0)+1;
+  var el=keyEls[code]; if(el){ renderHeat(code); }
+  persist();
+}
+function renderHeat(code){
+  var el=keyEls[code]; if(!el) return;
+  var c=heat[code]||0;
+  var span=el.querySelector('.cnt');
+  if(c>0){
+    if(!span){ span=document.createElement('span'); span.className='cnt'; el.appendChild(span); }
+    span.textContent=c;
+    var a=Math.min(.15+c*0.12,.75);
+    el.style.background='rgba(0,229,255,'+a+')';
+    el.style.color = a>0.4 ? '#04141a' : 'var(--text)';
+  } else {
+    if(span) span.remove(); el.style.background=''; el.style.color='';
+  }
+}
+function renderAllHeat(){ for(var code in keyEls) renderHeat(code); }
+
+/* ---------- events ---------- */
+var NAV={ 'Space':1,'Tab':1,'ArrowUp':1,'ArrowDown':1,'ArrowLeft':1,'ArrowRight':1,'Backspace':1,'Home':1,'End':1,'PageUp':1,'PageDown':1 };
+function onKeyDown(e){
+  if(NAV[e.code] && !e.ctrlKey && !e.metaKey && !e.altKey){ e.preventDefault(); }
+  showEvent(e); updateMods(e);
+  if(!e.repeat){ pushHistory(e); bump(e.code); }
+  var el=keyEls[e.code]; if(el) el.classList.add('active');
+}
+function onKeyUp(e){
+  updateMods(e);
+  var el=keyEls[e.code]; if(el) el.classList.remove('active');
+}
+function clearActive(){
+  for(var c in keyEls) keyEls[c].classList.remove('active');
+  setMod('ctrl',false); setMod('shift',false); setMod('alt',false); setMod('meta',false);
+}
+
+/* ---------- gallery ---------- */
+var GALLERY=[
+  ['Enter','Enter'],['Escape','Escape'],['Space',' '],['Tab','Tab'],['Backspace','Backspace'],
+  ['ArrowUp','↑'],['ArrowDown','↓'],['ArrowLeft','←'],['ArrowRight','→'],
+  ['Shift','⇧'],['Control','Ctrl'],['Alt','Alt'],['Meta','⌘'],['CapsLock','Caps']
+];
+function renderGallery(){
+  $('gallery').innerHTML=GALLERY.map(function(g){
+    return '<div class="gk"><b>'+escapeHtml(g[1])+'</b> · '+escapeHtml(g[0])+'</div>';
+  }).join('');
+}
+
+/* ---------- persist ---------- */
+function persist(){ try{ localStorage.setItem('wizzed-keycode-inspector', JSON.stringify({heat:heat})); }catch(e){} }
+function restore(){
+  try{ var raw=localStorage.getItem('wizzed-keycode-inspector'); if(raw){ var s=JSON.parse(raw); if(s&&s.heat) heat=s.heat; } }catch(e){}
+}
+
+/* ---------- init ---------- */
+(function init(){
+  buildKeyboard();
+  restore();
+  // demo warmth so the heatmap looks alive at load
+  if(Object.keys(heat).length===0){ heat={KeyW:5,KeyA:4,KeyS:4,KeyD:5,Space:9,Enter:3,ArrowUp:2,ShiftLeft:2}; }
+  renderAllHeat();
+  renderGallery();
+  keyHist=[{key:'Enter',code:'Enter'},{key:'a',code:'KeyA'},{key:'Shift',code:'ShiftLeft'},{key:'1',code:'Digit1'}];
+  renderHistory();
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+  window.addEventListener('blur', clearActive);
+  $('resetHeat').addEventListener('click', function(){ heat={}; renderAllHeat(); persist(); });
+})();
+</script>
+</body>
+</html>

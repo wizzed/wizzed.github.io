@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Resizer · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#00e5ff; --accent2:#00b3cc; --accent-soft:rgba(0,229,255,.45);
+  --panel:#161623; --panel2:#12121e; --line:#2c2c46; --text:#e6f9ff; --dim:#7fa6b3;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Courier New', ui-monospace, monospace;
+  overflow:hidden;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:200;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+.app{ display:flex; height:100vh; width:100vw; }
+.stage{
+  flex:1; position:relative; display:flex; align-items:center; justify-content:center;
+  background:
+    linear-gradient(45deg,#14141f 25%,transparent 25%),
+    linear-gradient(-45deg,#14141f 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,#14141f 75%),
+    linear-gradient(-45deg,transparent 75%,#14141f 75%);
+  background-size:24px 24px; background-position:0 0,0 12px,12px -12px,-12px 0;
+  overflow:hidden; min-width:0;
+}
+#preview{ display:block; box-shadow:0 0 0 1px #000,0 0 30px rgba(0,229,255,.25); cursor:crosshair; }
+.stage.dragover::after{
+  content:'DROP IMAGE'; position:absolute; inset:14px; z-index:5;
+  border:3px dashed var(--accent); color:var(--accent); font-size:26px; letter-spacing:6px;
+  display:flex; align-items:center; justify-content:center; background:rgba(0,229,255,.06);
+}
+.title{
+  position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:6;
+  font-size:14px; letter-spacing:5px; color:var(--accent); pointer-events:none;
+  text-shadow:0 0 8px var(--accent),0 0 24px var(--accent-soft);
+}
+.badge{
+  position:absolute; bottom:10px; left:50%; transform:translateX(-50%); z-index:6;
+  font-size:10px; letter-spacing:1px; color:var(--dim); pointer-events:none;
+  background:rgba(15,15,26,.8); padding:3px 10px; border:1px solid var(--line); white-space:nowrap;
+}
+.panel{
+  width:288px; flex:none; height:100vh; overflow-y:auto;
+  background:var(--panel); border-left:2px solid var(--line);
+  padding:12px 12px 30px; display:flex; flex-direction:column; gap:12px;
+}
+.panel::-webkit-scrollbar{ width:8px; } .panel::-webkit-scrollbar-thumb{ background:var(--line); }
+.grp{ border:1px solid var(--line); background:var(--panel2); padding:9px 10px; }
+.grp h2{
+  font-size:10px; letter-spacing:2px; color:var(--accent); margin-bottom:8px;
+  text-transform:uppercase; border-bottom:1px solid var(--line); padding-bottom:4px;
+}
+.row{ display:flex; align-items:center; gap:6px; margin-bottom:7px; flex-wrap:wrap; }
+.row:last-child{ margin-bottom:0; }
+.lbl{ font-size:10px; letter-spacing:1px; color:var(--dim); }
+button{
+  font-family:inherit; font-size:11px; letter-spacing:1px; cursor:pointer;
+  background:#121220; color:var(--text); border:2px solid var(--line); padding:6px 8px;
+  text-transform:uppercase; flex:1; white-space:nowrap;
+}
+button:hover{ border-color:var(--accent); text-shadow:0 0 6px var(--accent); }
+button:active{ transform:translateY(1px); }
+button.on{ color:#001; background:var(--accent); border-color:var(--accent); box-shadow:0 0 12px var(--accent-soft); text-shadow:none; font-weight:bold; }
+button.wide{ flex:none; width:100%; }
+button.prime{ color:#001; background:var(--accent); border-color:var(--accent); font-weight:bold; box-shadow:0 0 14px var(--accent-soft); text-shadow:none; }
+input[type=number],input[type=text]{
+  font-family:inherit; font-size:12px; background:#0c0c16; color:var(--text);
+  border:1px solid var(--line); padding:5px 6px; width:74px; outline:none;
+}
+input[type=number]:focus,input[type=text]:focus{ border-color:var(--accent); }
+input[type=range]{
+  flex:1; -webkit-appearance:none; appearance:none; height:8px; min-width:60px;
+  background:#0c0c16; border:1px solid var(--line); outline:none; cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:15px; height:19px; background:var(--accent); border:2px solid #000; box-shadow:0 0 8px var(--accent); cursor:pointer; }
+input[type=range]::-moz-range-thumb{ width:13px; height:17px; border-radius:0; background:var(--accent); border:2px solid #000; cursor:pointer; }
+.chk{ display:flex; align-items:center; gap:5px; font-size:10px; color:var(--dim); cursor:pointer; user-select:none; }
+.chk input{ accent-color:var(--accent); width:15px; height:15px; }
+.dims{ font-size:11px; line-height:1.6; letter-spacing:1px; }
+.dims b{ color:var(--accent); }
+.arrow{ color:var(--dim); }
+select{ font-family:inherit; font-size:11px; background:#0c0c16; color:var(--text); border:1px solid var(--line); padding:5px; outline:none; cursor:pointer; }
+.est{ font-size:11px; color:var(--accent); letter-spacing:1px; }
+.note{ font-size:9px; color:var(--dim); line-height:1.4; letter-spacing:.5px; }
+.seg{ display:flex; gap:0; }
+.seg button{ border-right:none; }
+.seg button:last-child{ border-right:2px solid var(--line); }
+.seg button.on{ border-color:var(--accent); }
+@media (max-width:760px){
+  .app{ flex-direction:column; }
+  .stage{ height:46vh; flex:none; }
+  .panel{ width:100%; height:54vh; border-left:none; border-top:2px solid var(--line); }
+}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="title">IMAGE RESIZER</div>
+    <canvas id="preview"></canvas>
+    <div class="badge" id="badge">Drop, paste, or load an image · everything stays on your device</div>
+  </div>
+  <div class="panel">
+    <div class="grp">
+      <h2>Source</h2>
+      <div class="row">
+        <button class="wide" id="loadBtn">📂 Load Image</button>
+      </div>
+      <div class="row">
+        <button id="pasteBtn">📋 Paste</button>
+        <button id="demoBtn">✦ Demo</button>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" hidden>
+      <div class="note">Files never leave your browser — 100% local processing.</div>
+    </div>
+
+    <div class="grp">
+      <h2>Dimensions</h2>
+      <div class="dims" id="dimsReadout">
+        Source <b id="srcDim">–</b><br>
+        Output <span class="arrow">→</span> <b id="outDim">–</b>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <div class="seg" style="flex:1;">
+          <button id="mPx" class="on">Pixels</button>
+          <button id="mPct">Percent</button>
+        </div>
+      </div>
+      <div id="pxControls">
+        <div class="row">
+          <span class="lbl">W</span><input type="number" id="wIn" min="1" max="20000">
+          <span class="lbl">H</span><input type="number" id="hIn" min="1" max="20000">
+        </div>
+      </div>
+      <div id="pctControls" style="display:none;">
+        <div class="row">
+          <span class="lbl">Scale</span>
+          <input type="range" id="pctRange" min="5" max="400" value="100">
+          <span id="pctVal" style="font-size:11px;color:var(--accent);width:42px;text-align:right;">100%</span>
+        </div>
+        <div class="row">
+          <button id="p25">25%</button><button id="p50">50%</button>
+          <button id="p200">200%</button>
+        </div>
+      </div>
+      <div class="row">
+        <label class="chk"><input type="checkbox" id="lockChk" checked> Lock aspect ratio</label>
+      </div>
+      <div class="row">
+        <button id="resetDims">Reset to source</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <h2>Transform</h2>
+      <div class="row">
+        <button id="rotL">↺ 90°</button>
+        <button id="rotR">↻ 90°</button>
+      </div>
+      <div class="row">
+        <button id="flipH">⇋ Flip H</button>
+        <button id="flipV">⇅ Flip V</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <h2>Crop</h2>
+      <div class="row">
+        <button id="cropToggle">✂ Start Crop</button>
+      </div>
+      <div class="row" id="cropActions" style="display:none;">
+        <button id="cropApply" class="prime">Apply</button>
+        <button id="cropCancel">Cancel</button>
+      </div>
+      <div class="note">Drag a box on the image. Rule-of-thirds guides help you frame it.</div>
+    </div>
+
+    <div class="grp">
+      <h2>Export</h2>
+      <div class="row">
+        <span class="lbl">Format</span>
+        <div class="seg" style="flex:1;">
+          <button id="fPng" class="on">PNG</button>
+          <button id="fJpg">JPEG</button>
+        </div>
+      </div>
+      <div class="row" id="qualityRow" style="display:none;">
+        <span class="lbl">Quality</span>
+        <input type="range" id="qRange" min="10" max="100" value="90">
+        <span id="qVal" style="font-size:11px;color:var(--accent);width:38px;text-align:right;">90%</span>
+      </div>
+      <div class="row"><span class="est" id="estSize">Estimated size: …</span></div>
+      <div class="row">
+        <button class="prime wide" id="exportBtn">⬇ Download Image</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var SLUG='wizzed-image-resizer';
+  var stage=document.getElementById('stage');
+  var preview=document.getElementById('preview');
+  var pctx=preview.getContext('2d');
+  var badge=document.getElementById('badge');
+
+  // src canvas holds the working image at native resolution
+  var src=document.createElement('canvas');
+  var sctx=src.getContext('2d');
+
+  var state={
+    mode:'px',           // px | pct
+    lock:true,
+    outW:0, outH:0,
+    pct:100,
+    fmt:'png',
+    quality:0.9,
+    cropping:false
+  };
+
+  // ---- persistence ----
+  function saveSettings(){
+    try{
+      localStorage.setItem(SLUG, JSON.stringify({
+        mode:state.mode, lock:state.lock, fmt:state.fmt, quality:state.quality
+      }));
+    }catch(e){}
+  }
+  function loadSettings(){
+    try{
+      var s=JSON.parse(localStorage.getItem(SLUG)||'{}');
+      if(s.mode) state.mode=s.mode;
+      if(typeof s.lock==='boolean') state.lock=s.lock;
+      if(s.fmt) state.fmt=s.fmt;
+      if(typeof s.quality==='number') state.quality=s.quality;
+    }catch(e){}
+  }
+
+  // ---- demo scene ----
+  function drawDemo(){
+    var w=640,h=440;
+    src.width=w; src.height=h;
+    var g=sctx.createLinearGradient(0,0,w,h);
+    g.addColorStop(0,'#12123a'); g.addColorStop(.5,'#5b1e7a'); g.addColorStop(1,'#0b6b7a');
+    sctx.fillStyle=g; sctx.fillRect(0,0,w,h);
+    // sun
+    var sun=sctx.createRadialGradient(150,120,10,150,120,110);
+    sun.addColorStop(0,'#ffe36b'); sun.addColorStop(1,'rgba(255,120,60,0)');
+    sctx.fillStyle=sun; sctx.beginPath(); sctx.arc(150,120,110,0,7); sctx.fill();
+    // grid horizon
+    sctx.strokeStyle='rgba(0,229,255,.55)'; sctx.lineWidth=1.5;
+    for(var i=0;i<=12;i++){ var x=i/12*w; sctx.beginPath(); sctx.moveTo(x,h*0.6); sctx.lineTo(w/2+(x-w/2)*3,h); sctx.stroke(); }
+    for(var j=0;j<8;j++){ var y=h*0.6+Math.pow(j/8,2)*h*0.4; sctx.beginPath(); sctx.moveTo(0,y); sctx.lineTo(w,y); sctx.stroke(); }
+    // color bars
+    var cols=['#ff4fd8','#00e5ff','#00ff9c','#ffd166','#ff6b35','#9d6bff'];
+    for(var k=0;k<cols.length;k++){ sctx.fillStyle=cols[k]; sctx.fillRect(w-70,20+k*40,50,32); }
+    // shapes
+    sctx.fillStyle='rgba(255,255,255,.9)'; sctx.beginPath(); sctx.arc(470,150,34,0,7); sctx.fill();
+    sctx.fillStyle='#ff4fd8'; sctx.beginPath(); sctx.moveTo(360,90); sctx.lineTo(420,90); sctx.lineTo(390,42); sctx.closePath(); sctx.fill();
+    // text
+    sctx.fillStyle='#fff'; sctx.font='bold 40px Courier New'; sctx.textAlign='center';
+    sctx.fillText('RESIZE ME', w/2, h*0.52);
+    sctx.font='16px Courier New'; sctx.fillStyle='#bfefff';
+    sctx.fillText('640 × 440 demo scene', w/2, h*0.52+26);
+    onSourceChanged(true);
+  }
+
+  // ---- source management ----
+  function setSourceFromImage(img){
+    src.width=img.naturalWidth||img.width;
+    src.height=img.naturalHeight||img.height;
+    sctx.clearRect(0,0,src.width,src.height);
+    sctx.drawImage(img,0,0);
+    onSourceChanged(true);
+  }
+
+  function onSourceChanged(resetOut){
+    if(resetOut){ state.outW=src.width; state.outH=src.height; state.pct=100; }
+    clampOut();
+    layout();
+    syncInputs();
+    scheduleEstimate();
+  }
+
+  function clampOut(){
+    state.outW=Math.max(1,Math.round(state.outW));
+    state.outH=Math.max(1,Math.round(state.outH));
+  }
+
+  // ---- layout / preview render ----
+  var view={scale:1,dispW:0,dispH:0};
+  var crop={x:0,y:0,w:0,h:0,active:false,dragging:false,sx:0,sy:0};
+
+  function layout(){
+    if(!src.width) return;
+    var pad=28;
+    var availW=stage.clientWidth-pad*2;
+    var availH=stage.clientHeight-pad*2;
+    if(availW<40) availW=40; if(availH<40) availH=40;
+    var scale=Math.min(availW/src.width, availH/src.height, 1.6);
+    view.scale=scale;
+    view.dispW=Math.max(1,Math.round(src.width*scale));
+    view.dispH=Math.max(1,Math.round(src.height*scale));
+    preview.width=view.dispW; preview.height=view.dispH;
+    render();
+  }
+
+  function render(){
+    if(!src.width) return;
+    pctx.imageSmoothingEnabled=true; pctx.imageSmoothingQuality='high';
+    pctx.clearRect(0,0,preview.width,preview.height);
+    pctx.drawImage(src,0,0,preview.width,preview.height);
+    if(state.cropping){
+      // dim outside
+      pctx.save();
+      pctx.fillStyle='rgba(9,9,18,.62)';
+      pctx.fillRect(0,0,preview.width,preview.height);
+      var c=crop;
+      if(c.w>2&&c.h>2){
+        pctx.clearRect(c.x,c.y,c.w,c.h);
+        pctx.drawImage(src, c.x/view.scale, c.y/view.scale, c.w/view.scale, c.h/view.scale, c.x,c.y,c.w,c.h);
+        // thirds
+        pctx.strokeStyle='rgba(0,229,255,.85)'; pctx.lineWidth=1;
+        pctx.strokeRect(c.x+.5,c.y+.5,c.w,c.h);
+        pctx.strokeStyle='rgba(0,229,255,.4)';
+        pctx.beginPath();
+        pctx.moveTo(c.x+c.w/3,c.y); pctx.lineTo(c.x+c.w/3,c.y+c.h);
+        pctx.moveTo(c.x+2*c.w/3,c.y); pctx.lineTo(c.x+2*c.w/3,c.y+c.h);
+        pctx.moveTo(c.x,c.y+c.h/3); pctx.lineTo(c.x+c.w,c.y+c.h/3);
+        pctx.moveTo(c.x,c.y+2*c.h/3); pctx.lineTo(c.x+c.w,c.y+2*c.h/3);
+        pctx.stroke();
+        // corner handles
+        pctx.fillStyle='#00e5ff';
+        var hs=5;
+        [[c.x,c.y],[c.x+c.w,c.y],[c.x,c.y+c.h],[c.x+c.w,c.y+c.h]].forEach(function(p){
+          pctx.fillRect(p[0]-hs,p[1]-hs,hs*2,hs*2);
+        });
+        // size label
+        var pw=Math.round(c.w/view.scale), ph=Math.round(c.h/view.scale);
+        pctx.font='11px Courier New'; pctx.textAlign='left';
+        pctx.fillStyle='#001'; pctx.fillRect(c.x, c.y-16<0?c.y+2:c.y-16, 74,14);
+        pctx.fillStyle='#00e5ff'; pctx.fillText(pw+'×'+ph, c.x+3, (c.y-16<0?c.y+13:c.y-5));
+      }
+      pctx.restore();
+    }
+  }
+
+  // ---- crop interactions ----
+  function evtPos(e){
+    var r=preview.getBoundingClientRect();
+    var cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    var cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    return {x:Math.max(0,Math.min(preview.width,cx)), y:Math.max(0,Math.min(preview.height,cy))};
+  }
+  function cropDown(e){
+    if(!state.cropping) return;
+    e.preventDefault();
+    var p=evtPos(e);
+    crop.dragging=true; crop.sx=p.x; crop.sy=p.y;
+    crop.x=p.x; crop.y=p.y; crop.w=0; crop.h=0;
+    render();
+  }
+  function cropMove(e){
+    if(!state.cropping||!crop.dragging) return;
+    e.preventDefault();
+    var p=evtPos(e);
+    crop.x=Math.min(crop.sx,p.x); crop.y=Math.min(crop.sy,p.y);
+    crop.w=Math.abs(p.x-crop.sx); crop.h=Math.abs(p.y-crop.sy);
+    render();
+  }
+  function cropUp(){ crop.dragging=false; }
+  preview.addEventListener('mousedown',cropDown);
+  window.addEventListener('mousemove',cropMove);
+  window.addEventListener('mouseup',cropUp);
+  preview.addEventListener('touchstart',cropDown,{passive:false});
+  window.addEventListener('touchmove',cropMove,{passive:false});
+  window.addEventListener('touchend',cropUp);
+
+  // ---- transforms ----
+  function rotate(dir){
+    var tmp=document.createElement('canvas');
+    tmp.width=src.height; tmp.height=src.width;
+    var t=tmp.getContext('2d');
+    t.translate(tmp.width/2,tmp.height/2);
+    t.rotate(dir*Math.PI/2);
+    t.drawImage(src,-src.width/2,-src.height/2);
+    src.width=tmp.width; src.height=tmp.height;
+    sctx.clearRect(0,0,src.width,src.height); sctx.drawImage(tmp,0,0);
+    onSourceChanged(true);
+    badge.textContent='Rotated '+(dir>0?'90° right':'90° left');
+  }
+  function flip(h){
+    var tmp=document.createElement('canvas');
+    tmp.width=src.width; tmp.height=src.height;
+    var t=tmp.getContext('2d');
+    t.translate(h?tmp.width:0, h?0:tmp.height);
+    t.scale(h?-1:1, h?1:-1);
+    t.drawImage(src,0,0);
+    sctx.clearRect(0,0,src.width,src.height); sctx.drawImage(tmp,0,0);
+    render(); scheduleEstimate();
+    badge.textContent=h?'Flipped horizontally':'Flipped vertically';
+  }
+
+  function applyCrop(){
+    if(crop.w<3||crop.h<3){ endCrop(); return; }
+    var sx=Math.round(crop.x/view.scale), sy=Math.round(crop.y/view.scale);
+    var sw=Math.round(crop.w/view.scale), sh=Math.round(crop.h/view.scale);
+    sw=Math.max(1,Math.min(sw,src.width-sx)); sh=Math.max(1,Math.min(sh,src.height-sy));
+    var tmp=document.createElement('canvas'); tmp.width=sw; tmp.height=sh;
+    tmp.getContext('2d').drawImage(src,sx,sy,sw,sh,0,0,sw,sh);
+    src.width=sw; src.height=sh; sctx.clearRect(0,0,sw,sh); sctx.drawImage(tmp,0,0);
+    endCrop();
+    onSourceChanged(true);
+    badge.textContent='Cropped to '+sw+'×'+sh;
+  }
+  function startCrop(){
+    state.cropping=true; crop.w=0; crop.h=0;
+    document.getElementById('cropToggle').style.display='none';
+    document.getElementById('cropActions').style.display='flex';
+    preview.style.cursor='crosshair';
+    render();
+    badge.textContent='Drag a box to crop';
+  }
+  function endCrop(){
+    state.cropping=false;
+    document.getElementById('cropToggle').style.display='';
+    document.getElementById('cropActions').style.display='none';
+    render();
+  }
+
+  // ---- dimensions logic ----
+  function syncInputs(){
+    document.getElementById('srcDim').textContent=src.width+' × '+src.height+' px';
+    document.getElementById('outDim').textContent=state.outW+' × '+state.outH+' px';
+    document.getElementById('wIn').value=state.outW;
+    document.getElementById('hIn').value=state.outH;
+    var pct=src.width?Math.round(state.outW/src.width*100):100;
+    document.getElementById('pctRange').value=Math.max(5,Math.min(400,pct));
+    document.getElementById('pctVal').textContent=pct+'%';
+  }
+  function setW(v){
+    v=Math.max(1,Math.round(v));
+    if(state.lock&&src.width){ state.outH=Math.max(1,Math.round(v*src.height/src.width)); }
+    state.outW=v; clampOut(); syncInputs(); scheduleEstimate();
+  }
+  function setH(v){
+    v=Math.max(1,Math.round(v));
+    if(state.lock&&src.height){ state.outW=Math.max(1,Math.round(v*src.width/src.height)); }
+    state.outH=v; clampOut(); syncInputs(); scheduleEstimate();
+  }
+  function setPct(p){
+    p=Math.max(5,Math.min(400,Math.round(p)));
+    state.pct=p;
+    state.outW=Math.max(1,Math.round(src.width*p/100));
+    state.outH=Math.max(1,Math.round(src.height*p/100));
+    syncInputs(); scheduleEstimate();
+  }
+
+  // ---- export & estimate ----
+  function makeExportCanvas(){
+    var c=document.createElement('canvas');
+    c.width=state.outW; c.height=state.outH;
+    var x=c.getContext('2d');
+    x.imageSmoothingEnabled=true; x.imageSmoothingQuality='high';
+    if(state.fmt==='jpg'){ x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); }
+    x.drawImage(src,0,0,c.width,c.height);
+    return c;
+  }
+  var estTimer=null;
+  function scheduleEstimate(){
+    if(estTimer) clearTimeout(estTimer);
+    document.getElementById('estSize').textContent='Estimated size: …';
+    estTimer=setTimeout(doEstimate,220);
+  }
+  function fmtBytes(b){
+    if(b<1024) return b+' B';
+    if(b<1048576) return (b/1024).toFixed(1)+' KB';
+    return (b/1048576).toFixed(2)+' MB';
+  }
+  function doEstimate(){
+    try{
+      var c=makeExportCanvas();
+      var type=state.fmt==='jpg'?'image/jpeg':'image/png';
+      c.toBlob(function(blob){
+        if(blob) document.getElementById('estSize').textContent='Estimated size: '+fmtBytes(blob.size)+' ('+state.outW+'×'+state.outH+')';
+      }, type, state.quality);
+    }catch(e){ document.getElementById('estSize').textContent='Estimated size: n/a'; }
+  }
+  function doExport(){
+    var c=makeExportCanvas();
+    var type=state.fmt==='jpg'?'image/jpeg':'image/png';
+    var ext=state.fmt==='jpg'?'jpg':'png';
+    c.toBlob(function(blob){
+      if(!blob) return;
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url; a.download='resized-'+state.outW+'x'+state.outH+'.'+ext;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); },1500);
+      badge.textContent='Downloaded '+fmtBytes(blob.size)+' '+ext.toUpperCase();
+    }, type, state.quality);
+  }
+
+  // ---- file / paste / drop ----
+  function handleFile(file){
+    if(!file||!/^image\//.test(file.type)) return;
+    var reader=new FileReader();
+    reader.onload=function(){
+      var img=new Image();
+      img.onload=function(){ setSourceFromImage(img); badge.textContent='Loaded '+img.naturalWidth+'×'+img.naturalHeight+' image'; };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  document.getElementById('fileInput').addEventListener('change',function(e){ if(e.target.files[0]) handleFile(e.target.files[0]); e.target.value=''; });
+  document.getElementById('loadBtn').addEventListener('click',function(){ document.getElementById('fileInput').click(); });
+  document.getElementById('demoBtn').addEventListener('click',function(){ drawDemo(); badge.textContent='Demo scene loaded'; });
+  document.getElementById('pasteBtn').addEventListener('click',function(){
+    if(navigator.clipboard&&navigator.clipboard.read){
+      navigator.clipboard.read().then(function(items){
+        for(var i=0;i<items.length;i++){
+          var t=items[i].types.find(function(x){return x.indexOf('image/')===0;});
+          if(t){ items[i].getType(t).then(function(b){ handleFile(new File([b],'paste',{type:b.type})); }); return; }
+        }
+        badge.textContent='No image found on clipboard';
+      }).catch(function(){ badge.textContent='Clipboard blocked — try Ctrl+V or Load'; });
+    } else badge.textContent='Use Ctrl+V to paste an image';
+  });
+  window.addEventListener('paste',function(e){
+    var items=(e.clipboardData||{}).items||[];
+    for(var i=0;i<items.length;i++){ if(items[i].type.indexOf('image/')===0){ handleFile(items[i].getAsFile()); e.preventDefault(); return; } }
+  });
+  ['dragenter','dragover'].forEach(function(ev){ stage.addEventListener(ev,function(e){ e.preventDefault(); stage.classList.add('dragover'); }); });
+  ['dragleave','drop'].forEach(function(ev){ stage.addEventListener(ev,function(e){ e.preventDefault(); if(ev==='drop'||e.target===stage) stage.classList.remove('dragover'); }); });
+  stage.addEventListener('drop',function(e){ e.preventDefault(); stage.classList.remove('dragover'); if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+  // ---- control wiring ----
+  document.getElementById('wIn').addEventListener('input',function(){ var v=parseInt(this.value,10); if(v>0) setW(v); });
+  document.getElementById('hIn').addEventListener('input',function(){ var v=parseInt(this.value,10); if(v>0) setH(v); });
+  document.getElementById('pctRange').addEventListener('input',function(){ setPct(parseInt(this.value,10)); });
+  document.getElementById('p25').addEventListener('click',function(){ setPct(25); });
+  document.getElementById('p50').addEventListener('click',function(){ setPct(50); });
+  document.getElementById('p200').addEventListener('click',function(){ setPct(200); });
+  document.getElementById('resetDims').addEventListener('click',function(){ state.outW=src.width; state.outH=src.height; syncInputs(); scheduleEstimate(); });
+  document.getElementById('lockChk').addEventListener('change',function(){ state.lock=this.checked; saveSettings(); });
+
+  function setMode(m){
+    state.mode=m;
+    document.getElementById('mPx').classList.toggle('on',m==='px');
+    document.getElementById('mPct').classList.toggle('on',m==='pct');
+    document.getElementById('pxControls').style.display=m==='px'?'':'none';
+    document.getElementById('pctControls').style.display=m==='pct'?'':'none';
+    saveSettings();
+  }
+  document.getElementById('mPx').addEventListener('click',function(){ setMode('px'); });
+  document.getElementById('mPct').addEventListener('click',function(){ setMode('pct'); });
+
+  document.getElementById('rotL').addEventListener('click',function(){ rotate(-1); });
+  document.getElementById('rotR').addEventListener('click',function(){ rotate(1); });
+  document.getElementById('flipH').addEventListener('click',function(){ flip(true); });
+  document.getElementById('flipV').addEventListener('click',function(){ flip(false); });
+
+  document.getElementById('cropToggle').addEventListener('click',startCrop);
+  document.getElementById('cropApply').addEventListener('click',applyCrop);
+  document.getElementById('cropCancel').addEventListener('click',endCrop);
+
+  function setFmt(f){
+    state.fmt=f;
+    document.getElementById('fPng').classList.toggle('on',f==='png');
+    document.getElementById('fJpg').classList.toggle('on',f==='jpg');
+    document.getElementById('qualityRow').style.display=f==='jpg'?'flex':'none';
+    saveSettings(); scheduleEstimate();
+  }
+  document.getElementById('fPng').addEventListener('click',function(){ setFmt('png'); });
+  document.getElementById('fJpg').addEventListener('click',function(){ setFmt('jpg'); });
+  document.getElementById('qRange').addEventListener('input',function(){
+    state.quality=parseInt(this.value,10)/100;
+    document.getElementById('qVal').textContent=this.value+'%';
+    saveSettings(); scheduleEstimate();
+  });
+  document.getElementById('exportBtn').addEventListener('click',doExport);
+
+  window.addEventListener('resize',layout);
+
+  // ---- init ----
+  loadSettings();
+  setMode(state.mode);
+  setFmt(state.fmt);
+  document.getElementById('lockChk').checked=state.lock;
+  document.getElementById('qRange').value=Math.round(state.quality*100);
+  document.getElementById('qVal').textContent=Math.round(state.quality*100)+'%';
+  drawDemo();
+})();
+</script>
+</body>
+</html>

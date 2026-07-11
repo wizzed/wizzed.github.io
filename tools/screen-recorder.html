@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Screen Recorder · Wizzed Arcade</title>
+<style>
+:root{
+  --bg:#0f0f1a; --accent:#ff3b5c; --accent-soft:rgba(255,59,92,.42);
+  --panel:#16121a; --line:#37243066; --text:#ffe6ec; --dim:#c78a99;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  background:
+    radial-gradient(900px 500px at 80% -10%, rgba(255,59,92,.10), transparent 60%),
+    radial-gradient(700px 500px at -5% 110%, rgba(157,107,255,.10), transparent 60%),
+    var(--bg);
+  color:var(--text); font-family:'Courier New', ui-monospace, monospace;
+  overflow-x:hidden; padding:0 0 30px;
+}
+a.back{
+  position:fixed; top:10px; left:12px; z-index:80;
+  color:var(--dim); text-decoration:none; font-size:12px; letter-spacing:1px;
+  border:1px solid var(--line); padding:3px 8px; background:rgba(15,15,26,.9);
+}
+a.back:hover{ color:var(--accent); border-color:var(--accent); text-shadow:0 0 8px var(--accent); }
+header{ text-align:center; padding:12px 8px 6px; }
+h1{
+  display:inline-block; font-size:clamp(18px,3.4vw,30px); letter-spacing:5px; color:var(--accent);
+  text-shadow:0 0 6px var(--accent), 0 0 26px var(--accent-soft);
+}
+header .sub{ font-size:11px; color:var(--dim); letter-spacing:2px; margin-top:3px; }
+main{ max-width:1040px; margin:6px auto 0; padding:0 12px; display:flex; flex-direction:column; gap:12px; }
+.grid{ display:grid; grid-template-columns:1.55fr .95fr; gap:12px; align-items:start; }
+@media(max-width:820px){ .grid{ grid-template-columns:1fr; } }
+.panel{
+  background:var(--panel); border:2px solid var(--line); padding:12px 14px;
+  box-shadow:0 0 0 1px #000, 0 0 22px rgba(255,59,92,.07);
+}
+.panel h2{ font-size:12px; letter-spacing:3px; color:var(--dim); margin-bottom:10px; text-transform:uppercase; }
+.stage{
+  position:relative; width:100%; aspect-ratio:16/9; background:#08060a;
+  border:2px solid var(--line); overflow:hidden; box-shadow:0 0 24px rgba(0,0,0,.6) inset;
+}
+#demoCanvas,#preview{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+#preview{ object-fit:contain; background:#000; visibility:hidden; }
+.badge{
+  position:absolute; top:10px; left:10px; z-index:5; display:flex; align-items:center; gap:7px;
+  background:rgba(8,6,10,.72); border:1px solid var(--line); padding:5px 10px; font-size:12px; letter-spacing:2px;
+}
+.dot{ width:11px; height:11px; border-radius:50%; background:#5a3a44; }
+.dot.live{ background:var(--accent); box-shadow:0 0 10px var(--accent); animation:blink 1s steps(2,end) infinite; }
+@keyframes blink{ 50%{ opacity:.25; } }
+.timer{
+  position:absolute; top:10px; right:10px; z-index:5; font-size:26px; letter-spacing:3px;
+  color:#fff; background:rgba(8,6,10,.72); border:1px solid var(--line); padding:3px 12px;
+  text-shadow:0 0 12px var(--accent-soft);
+}
+.centerhint{
+  position:absolute; inset:0; z-index:4; display:flex; align-items:center; justify-content:center;
+  text-align:center; color:var(--dim); font-size:12px; letter-spacing:2px; pointer-events:none; padding:20px;
+  text-shadow:0 1px 6px #000;
+}
+.flash{ position:absolute; inset:0; z-index:9; background:#fff; opacity:0; pointer-events:none; }
+.controls{ display:flex; flex-wrap:wrap; gap:9px; margin-top:12px; }
+button, label.tgl{
+  font-family:inherit; font-size:12px; letter-spacing:1px; cursor:pointer;
+  background:#120e14; color:var(--text); border:2px solid var(--line); padding:9px 13px;
+  text-transform:uppercase; display:inline-flex; align-items:center; gap:7px;
+}
+button:hover{ border-color:var(--accent); text-shadow:0 0 6px var(--accent); }
+button:active{ transform:translateY(1px); }
+button:disabled{ opacity:.35; cursor:not-allowed; }
+button.primary{ color:#180307; background:var(--accent); border-color:var(--accent); box-shadow:0 0 14px var(--accent-soft); text-shadow:none; font-weight:bold; }
+button.big{ font-size:14px; padding:11px 16px; }
+.tgl{ user-select:none; }
+.tgl input{ display:none; }
+.tgl .box{ width:15px; height:15px; border:2px solid var(--line); display:inline-block; position:relative; }
+.tgl input:checked + .box{ background:var(--accent); border-color:var(--accent); box-shadow:0 0 8px var(--accent); }
+.opts{ display:flex; flex-direction:column; gap:12px; }
+.optrow{ display:flex; flex-direction:column; gap:7px; }
+.optrow .lbl{ font-size:10px; letter-spacing:2px; color:var(--dim); }
+.seg{ display:flex; gap:6px; flex-wrap:wrap; }
+.seg button{ flex:1 1 auto; justify-content:center; }
+.seg button.on{ color:#180307; background:var(--accent); border-color:var(--accent); box-shadow:0 0 10px var(--accent-soft); text-shadow:none; }
+.toggles{ display:flex; flex-direction:column; gap:9px; }
+.note{
+  font-size:11px; line-height:1.6; color:var(--dim); letter-spacing:.5px;
+  border-left:3px solid var(--accent); padding:8px 10px; background:rgba(255,59,92,.05); margin-top:6px;
+}
+.note b{ color:var(--text); }
+.fmt{ font-size:11px; color:var(--dim); letter-spacing:1px; margin-top:8px; }
+.fmt b{ color:var(--accent); text-shadow:0 0 8px var(--accent-soft); }
+.status{ font-size:11px; letter-spacing:1px; color:var(--dim); margin-top:8px; min-height:16px; }
+.status.err{ color:#ff8a5c; }
+.rec-list{ display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+.rec-item{ display:flex; align-items:center; gap:10px; background:#0d0a10; border:1px solid var(--line); padding:8px 10px; }
+.rec-item video{ width:112px; height:63px; background:#000; border:1px solid var(--line); object-fit:cover; }
+.rec-meta{ flex:1; min-width:0; }
+.rec-meta .n{ font-size:12px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rec-meta .d{ font-size:10px; color:var(--dim); letter-spacing:1px; margin-top:3px; }
+.rec-item .dl{ font-size:11px; padding:6px 9px; }
+.empty{ font-size:11px; color:var(--dim); letter-spacing:1px; text-align:center; padding:14px 6px; border:1px dashed var(--line); }
+.how{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:4px; }
+@media(max-width:520px){ .how{ grid-template-columns:1fr; } }
+.step{ background:#0d0a10; border:1px solid var(--line); padding:10px; }
+.step .num{ color:var(--accent); font-size:18px; text-shadow:0 0 10px var(--accent-soft); }
+.step .t{ font-size:12px; color:var(--text); margin:4px 0 3px; letter-spacing:1px; }
+.step .x{ font-size:10.5px; color:var(--dim); line-height:1.5; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<header>
+  <h1>SCREEN RECORDER</h1>
+  <div class="sub">CAPTURE · MIC MIX · PAUSE · DOWNLOAD — 100% LOCAL</div>
+</header>
+<main>
+  <div class="grid">
+    <div class="panel">
+      <h2>Live Preview</h2>
+      <div class="stage" id="stage">
+        <canvas id="demoCanvas"></canvas>
+        <video id="preview" playsinline muted></video>
+        <div class="badge"><span class="dot" id="recDot"></span><span id="recLabel">DEMO PREVIEW</span></div>
+        <div class="timer" id="timer">00:00</div>
+        <div class="centerhint" id="hint">Hit <b style="color:var(--accent)">START CAPTURE</b> to pick a screen, window, or tab.<br>Nothing is uploaded — recording happens entirely in your browser.</div>
+        <div class="flash" id="flash"></div>
+      </div>
+      <div class="controls">
+        <button id="startBtn" class="primary big">● START CAPTURE</button>
+        <button id="pauseBtn" class="big" disabled>❚❚ PAUSE</button>
+        <button id="stopBtn" class="big" disabled>■ STOP</button>
+        <button id="dlBtn" class="big" disabled>⬇ DOWNLOAD</button>
+      </div>
+      <div class="fmt" id="fmtLine">Output format: <b id="fmtName">detecting…</b></div>
+      <div class="status" id="status">Idle — configure your capture on the right, then press start.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Capture Options</h2>
+      <div class="opts">
+        <div class="optrow">
+          <span class="lbl">PREFERRED SURFACE</span>
+          <div class="seg" id="surfaceSeg">
+            <button data-s="monitor" class="on">🖥 SCREEN</button>
+            <button data-s="window">🪟 WINDOW</button>
+            <button data-s="browser">🌐 TAB</button>
+          </div>
+        </div>
+        <div class="optrow">
+          <span class="lbl">AUDIO SOURCES (MIXED)</span>
+          <div class="toggles">
+            <label class="tgl"><input type="checkbox" id="micTgl"><span class="box"></span> 🎤 Microphone <span style="color:var(--dim);font-size:10px">(getUserMedia)</span></label>
+            <label class="tgl"><input type="checkbox" id="sysTgl" checked><span class="box"></span> 🔊 System / Tab audio</label>
+          </div>
+        </div>
+        <div class="optrow">
+          <span class="lbl">FRAME RATE</span>
+          <div class="seg" id="fpsSeg">
+            <button data-f="24">24</button>
+            <button data-f="30" class="on">30</button>
+            <button data-f="60">60</button>
+          </div>
+        </div>
+        <div class="note">
+          <b>Your privacy is protected.</b> Screen, mic and system audio are recorded and encoded <b>locally in this tab</b>. No frame ever leaves your device — there is no server, no upload, no account.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>This Session's Recordings</h2>
+    <div class="rec-list" id="recList">
+      <div class="empty" id="recEmpty">No recordings yet — your captures will appear here with instant playback and a download button.</div>
+    </div>
+  </div>
+
+  <div class="panel" id="howPanel">
+    <h2>How It Works</h2>
+    <div class="how">
+      <div class="step"><div class="num">1</div><div class="t">Choose a source</div><div class="x">Pick your whole screen, a single window, or one browser tab. Your browser shows its own secure picker — this tool only suggests a preference.</div></div>
+      <div class="step"><div class="num">2</div><div class="t">Add audio (optional)</div><div class="x">Toggle the microphone and/or system audio. When both are on they are mixed together with the Web Audio API into a single track.</div></div>
+      <div class="step"><div class="num">3</div><div class="t">Record, pause, resume</div><div class="x">A live timer and blinking dot show you're rolling. Pause and resume as many times as you like — the clip stays continuous.</div></div>
+      <div class="step"><div class="num">4</div><div class="t">Download</div><div class="x">Stop to finish. The clip is saved as MP4 where your browser supports it, otherwise WebM — either plays everywhere and is 100% yours.</div></div>
+    </div>
+  </div>
+</main>
+
+<script>
+"use strict";
+const SLUG='wizzed-screen-recorder';
+const $=id=>document.getElementById(id);
+
+/* ---------- settings persistence ---------- */
+const settings={ surface:'monitor', mic:false, sys:true, fps:30 };
+function saveSettings(){ try{ localStorage.setItem(SLUG, JSON.stringify(settings)); }catch(e){} }
+function loadSettings(){
+  try{
+    const s=JSON.parse(localStorage.getItem(SLUG)||'{}');
+    if(['monitor','window','browser'].includes(s.surface)) settings.surface=s.surface;
+    if(typeof s.mic==='boolean') settings.mic=s.mic;
+    if(typeof s.sys==='boolean') settings.sys=s.sys;
+    if([24,30,60].includes(s.fps)) settings.fps=s.fps;
+  }catch(e){}
+}
+
+/* ---------- mime selection ---------- */
+function pickMime(){
+  const cands=[
+    'video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1',
+    'video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'
+  ];
+  if(!window.MediaRecorder) return {mime:'',ext:'webm',ok:false};
+  for(const c of cands){
+    try{ if(MediaRecorder.isTypeSupported(c)) return {mime:c, ext:c.indexOf('mp4')>=0?'mp4':'webm', ok:true}; }catch(e){}
+  }
+  return {mime:'',ext:'webm',ok:true};
+}
+const CHOSEN=pickMime();
+
+/* ---------- demo preview animation ---------- */
+const demoCv=$('demoCanvas'), dctx=demoCv.getContext('2d');
+let demoRAF=0, demoT=0, demoOn=true;
+function sizeDemo(){
+  const r=demoCv.getBoundingClientRect();
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  demoCv.width=Math.max(2,Math.floor(r.width*dpr));
+  demoCv.height=Math.max(2,Math.floor(r.height*dpr));
+  dctx.setTransform(dpr,0,0,dpr,0,0);
+}
+function drawDemo(){
+  if(!demoOn) return;
+  demoT+=1;
+  const r=demoCv.getBoundingClientRect(); const W=r.width, H=r.height;
+  // desktop gradient
+  const g=dctx.createLinearGradient(0,0,W,H);
+  g.addColorStop(0,'#1a0f18'); g.addColorStop(.5,'#201324'); g.addColorStop(1,'#160a14');
+  dctx.fillStyle=g; dctx.fillRect(0,0,W,H);
+  // faint grid
+  dctx.strokeStyle='rgba(255,59,92,.06)'; dctx.lineWidth=1; dctx.beginPath();
+  for(let x=0;x<W;x+=34){ dctx.moveTo(x+.5,0); dctx.lineTo(x+.5,H); }
+  for(let y=0;y<H;y+=34){ dctx.moveTo(0,y+.5); dctx.lineTo(W,y+.5); }
+  dctx.stroke();
+  // mock window (code editor)
+  const wx=W*0.08, wy=H*0.16, ww=W*0.56, wh=H*0.62;
+  win(wx,wy,ww,wh,'main.js');
+  dctx.save(); dctx.beginPath(); dctx.rect(wx,wy+26,ww,wh-26); dctx.clip();
+  dctx.font='11px Courier New';
+  const lines=['function record(){','  const s = capture();','  mix(mic, system);','  encode(s, "mp4");','  return download;','}'];
+  for(let i=0;i<lines.length;i++){
+    dctx.fillStyle= i%3===0?'#ff6f88': i%3===1?'#9d8bff':'#8ad9c4';
+    dctx.fillText(lines[i], wx+14, wy+50+i*17);
+  }
+  const cy=wy+50+(Math.floor(demoT/22)%6)*17;
+  if(Math.floor(demoT/16)%2===0){ dctx.fillStyle='#ff3b5c'; dctx.fillRect(wx+14+((Math.floor(demoT/22)%6===5)?110:120),cy-9,7,12); }
+  dctx.restore();
+  // mock window 2 (chart-ish)
+  const bx=W*0.5, by=H*0.34, bw=W*0.42, bh=H*0.5;
+  win(bx,by,bw,bh,'metrics');
+  dctx.save(); dctx.beginPath(); dctx.rect(bx,by+26,bw,bh-26); dctx.clip();
+  const bars=6, pad=14, avail=bw-pad*2, bwid=avail/bars*0.62;
+  for(let i=0;i<bars;i++){
+    const h=(0.4+0.55*Math.abs(Math.sin(demoT*0.03+i*0.9)))*(bh-52);
+    const x=bx+pad+i*(avail/bars);
+    dctx.fillStyle= i%2? 'rgba(157,107,255,.75)':'rgba(255,59,92,.8)';
+    dctx.fillRect(x, by+bh-14-h, bwid, h);
+  }
+  dctx.restore();
+  // moving cursor
+  const px=W*0.5+Math.cos(demoT*0.02)*W*0.28, py=H*0.55+Math.sin(demoT*0.025)*H*0.22;
+  dctx.fillStyle='#fff'; dctx.strokeStyle='#180307'; dctx.lineWidth=1.5;
+  dctx.beginPath(); dctx.moveTo(px,py); dctx.lineTo(px,py+15); dctx.lineTo(px+4,py+11); dctx.lineTo(px+8,py+18); dctx.lineTo(px+10,py+17); dctx.lineTo(px+6,py+10); dctx.lineTo(px+11,py+10); dctx.closePath();
+  dctx.fill(); dctx.stroke();
+  // scanline sweep
+  const sy=(demoT*1.4)%H;
+  dctx.fillStyle='rgba(255,255,255,.03)'; dctx.fillRect(0,sy,W,2);
+  demoRAF=requestAnimationFrame(drawDemo);
+}
+function win(x,y,w,h,title){
+  dctx.fillStyle='rgba(10,7,12,.92)'; dctx.fillRect(x,y,w,h);
+  dctx.strokeStyle='rgba(255,59,92,.35)'; dctx.lineWidth=1.5; dctx.strokeRect(x+.5,y+.5,w-1,h-1);
+  dctx.fillStyle='rgba(40,24,34,.95)'; dctx.fillRect(x,y,w,24);
+  ['#ff5f57','#febc2e','#28c840'].forEach((c,i)=>{ dctx.fillStyle=c; dctx.beginPath(); dctx.arc(x+12+i*15,y+12,4,0,7); dctx.fill(); });
+  dctx.fillStyle='#c78a99'; dctx.font='11px Courier New'; dctx.textAlign='left'; dctx.fillText(title, x+62, y+16);
+}
+function startDemo(){ demoOn=true; sizeDemo(); if(!demoRAF) demoRAF=requestAnimationFrame(drawDemo); }
+function stopDemo(){ demoOn=false; if(demoRAF){ cancelAnimationFrame(demoRAF); demoRAF=0; } }
+
+/* ---------- recording ---------- */
+let displayStream=null, micStream=null, audioCtx=null, recorder=null;
+let chunks=[], recording=false, paused=false, lastBlob=null, lastExt='webm';
+let startMs=0, elapsedMs=0, timerRAF=0;
+
+function fmtTime(ms){
+  const t=Math.floor(ms/1000); const m=Math.floor(t/60), s=t%60;
+  return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+function tickTimer(){
+  if(!recording){ return; }
+  const now=paused? elapsedMs : elapsedMs+(performance.now()-startMs);
+  $('timer').textContent=fmtTime(now);
+  timerRAF=requestAnimationFrame(tickTimer);
+}
+function setStatus(msg,err){ const el=$('status'); el.textContent=msg; el.classList.toggle('err',!!err); }
+
+async function startCapture(){
+  if(recording) return;
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia){
+    setStatus('Screen capture is not available in this browser. See the How It Works panel below.',true);
+    return;
+  }
+  setStatus('Requesting screen… choose a source in the browser dialog.');
+  try{
+    const vc={ frameRate:{ ideal:settings.fps }, displaySurface:settings.surface };
+    displayStream=await navigator.mediaDevices.getDisplayMedia({ video:vc, audio:settings.sys });
+  }catch(e){
+    setStatus('Capture was cancelled or blocked. You can try again any time — nothing was recorded.',true);
+    return;
+  }
+  // mic
+  micStream=null;
+  if(settings.mic){
+    try{ micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}}); }
+    catch(e){ setStatus('Recording without microphone (mic access was denied).'); }
+  }
+  // build final stream
+  let finalStream;
+  const videoTrack=displayStream.getVideoTracks()[0];
+  const sysAudio=displayStream.getAudioTracks();
+  if(micStream || sysAudio.length){
+    try{
+      audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      const dest=audioCtx.createMediaStreamDestination();
+      if(sysAudio.length){ audioCtx.createMediaStreamSource(new MediaStream([sysAudio[0]])).connect(dest); }
+      if(micStream){ audioCtx.createMediaStreamSource(micStream).connect(dest); }
+      finalStream=new MediaStream([videoTrack, ...dest.stream.getAudioTracks()]);
+    }catch(e){
+      finalStream=new MediaStream([videoTrack, ...sysAudio, ...(micStream?micStream.getAudioTracks():[])]);
+    }
+  }else{
+    finalStream=new MediaStream([videoTrack]);
+  }
+  // preview
+  stopDemo();
+  const pv=$('preview'); pv.srcObject=displayStream; pv.style.visibility='visible'; pv.muted=true;
+  try{ await pv.play(); }catch(e){}
+  $('hint').style.display='none';
+  // recorder
+  chunks=[];
+  try{
+    recorder = CHOSEN.mime ? new MediaRecorder(finalStream,{mimeType:CHOSEN.mime}) : new MediaRecorder(finalStream);
+  }catch(e){
+    try{ recorder=new MediaRecorder(finalStream); }catch(e2){ setStatus('MediaRecorder failed to start on this stream.',true); cleanupStreams(); return; }
+  }
+  lastExt=CHOSEN.ext;
+  recorder.ondataavailable=ev=>{ if(ev.data && ev.data.size) chunks.push(ev.data); };
+  recorder.onstop=finishRecording;
+  recorder.start(1000);
+  // stop when user ends sharing from browser UI
+  videoTrack.addEventListener('ended',()=>{ if(recording) stopCapture(); });
+  recording=true; paused=false; elapsedMs=0; startMs=performance.now();
+  $('recDot').classList.add('live'); $('recLabel').textContent='REC';
+  $('startBtn').disabled=true; $('pauseBtn').disabled=false; $('stopBtn').disabled=false; $('dlBtn').disabled=true;
+  const src={monitor:'screen',window:'window',browser:'tab'}[settings.surface]||'screen';
+  const parts=[]; if(settings.sys && sysAudio.length) parts.push('system audio'); if(micStream) parts.push('mic');
+  setStatus('Recording '+src+(parts.length?' + '+parts.join(' + '):' (no audio track available)')+'…');
+  tickTimer();
+}
+function togglePause(){
+  if(!recording || !recorder) return;
+  if(!paused){
+    try{ recorder.pause(); }catch(e){}
+    paused=true; elapsedMs+=performance.now()-startMs;
+    $('pauseBtn').innerHTML='▶ RESUME'; $('recLabel').textContent='PAUSED'; $('recDot').classList.remove('live');
+    setStatus('Paused. Resume to keep recording into the same clip.');
+    cancelAnimationFrame(timerRAF);
+  }else{
+    try{ recorder.resume(); }catch(e){}
+    paused=false; startMs=performance.now();
+    $('pauseBtn').innerHTML='❚❚ PAUSE'; $('recLabel').textContent='REC'; $('recDot').classList.add('live');
+    setStatus('Recording resumed…'); tickTimer();
+  }
+}
+function stopCapture(){
+  if(!recording) return;
+  if(!paused) elapsedMs+=performance.now()-startMs;
+  recording=false; paused=false;
+  cancelAnimationFrame(timerRAF);
+  try{ recorder.stop(); }catch(e){ finishRecording(); }
+}
+function cleanupStreams(){
+  if(displayStream){ displayStream.getTracks().forEach(t=>t.stop()); }
+  if(micStream){ micStream.getTracks().forEach(t=>t.stop()); }
+  if(audioCtx){ try{ audioCtx.close(); }catch(e){} audioCtx=null; }
+  displayStream=null; micStream=null;
+}
+function finishRecording(){
+  const type = CHOSEN.mime || (chunks[0] && chunks[0].type) || ('video/'+lastExt);
+  lastBlob = chunks.length? new Blob(chunks,{type}) : null;
+  cleanupStreams();
+  const pv=$('preview'); pv.srcObject=null; pv.style.visibility='hidden';
+  startDemo();
+  $('recDot').classList.remove('live'); $('recLabel').textContent='DEMO PREVIEW';
+  $('startBtn').disabled=false; $('pauseBtn').disabled=true; $('pauseBtn').innerHTML='❚❚ PAUSE'; $('stopBtn').disabled=true;
+  const dur=$('timer').textContent;
+  if(lastBlob){
+    $('dlBtn').disabled=false;
+    setStatus('Saved a '+ (lastBlob.size/1048576).toFixed(1) +' MB clip ('+lastExt.toUpperCase()+'). Download it or grab it from the list below.');
+    addRecording(lastBlob, dur, lastExt);
+  }else{
+    setStatus('Recording stopped, but no data was captured.',true);
+  }
+  $('timer').textContent='00:00';
+}
+function downloadLast(){
+  if(!lastBlob) return;
+  const name='screen-'+stamp()+'.'+lastExt;
+  saveBlob(lastBlob,name);
+}
+function stamp(){
+  const d=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());
+}
+function saveBlob(blob,name){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+
+/* ---------- recordings list ---------- */
+let recCount=0;
+function addRecording(blob,dur,ext){
+  const empty=$('recEmpty'); if(empty) empty.remove();
+  recCount++;
+  const url=URL.createObjectURL(blob);
+  const item=document.createElement('div'); item.className='rec-item';
+  const v=document.createElement('video'); v.src=url; v.controls=true; v.playsInline=true; v.muted=true;
+  const meta=document.createElement('div'); meta.className='rec-meta';
+  meta.innerHTML='<div class="n">Recording '+recCount+' · '+ext.toUpperCase()+'</div><div class="d">'+dur+' · '+(blob.size/1048576).toFixed(1)+' MB · '+new Date().toLocaleTimeString()+'</div>';
+  const dl=document.createElement('button'); dl.className='dl'; dl.textContent='⬇';
+  dl.title='Download'; dl.addEventListener('click',()=>saveBlob(blob,'screen-'+stamp()+'.'+ext));
+  item.appendChild(v); item.appendChild(meta); item.appendChild(dl);
+  $('recList').prepend(item);
+}
+
+/* ---------- option UI ---------- */
+function syncOptUI(){
+  document.querySelectorAll('#surfaceSeg button').forEach(b=>b.classList.toggle('on',b.dataset.s===settings.surface));
+  document.querySelectorAll('#fpsSeg button').forEach(b=>b.classList.toggle('on',+b.dataset.f===settings.fps));
+  $('micTgl').checked=settings.mic; $('sysTgl').checked=settings.sys;
+}
+$('surfaceSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; settings.surface=b.dataset.s; syncOptUI(); saveSettings(); });
+$('fpsSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; settings.fps=+b.dataset.f; syncOptUI(); saveSettings(); });
+$('micTgl').addEventListener('change',e=>{ settings.mic=e.target.checked; saveSettings(); });
+$('sysTgl').addEventListener('change',e=>{ settings.sys=e.target.checked; saveSettings(); });
+$('startBtn').addEventListener('click',startCapture);
+$('pauseBtn').addEventListener('click',togglePause);
+$('stopBtn').addEventListener('click',stopCapture);
+$('dlBtn').addEventListener('click',downloadLast);
+
+window.addEventListener('resize',()=>{ if(demoOn) sizeDemo(); });
+
+/* ---------- boot ---------- */
+loadSettings(); syncOptUI();
+$('fmtName').textContent = CHOSEN.mime ? (CHOSEN.ext.toUpperCase()+'  ('+CHOSEN.mime.replace('video/','')+')') : (window.MediaRecorder?'WebM (default)':'unavailable');
+if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia){
+  setStatus('This browser can\'t capture the screen — the guide below explains what a supported browser will do.',true);
+  $('startBtn').disabled=true;
+}
+startDemo();
+</script>
+</body>
+</html>

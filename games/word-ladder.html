@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Word Ladder — Wizzed Arcade</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  :root{--neon:#b06bff;--neon2:#d9b3ff;--good:#48f0a0;--bad:#ff5e7a;--gold:#ffd166;}
+  html,body{height:100%;}
+  body{background:#0f0f1a;background-image:radial-gradient(ellipse at 50% -10%,rgba(176,107,255,.12),transparent 60%);
+    color:#e4d8ff;font-family:'Courier New',ui-monospace,monospace;display:flex;flex-direction:column;align-items:center;
+    min-height:100%;padding:6px 8px 20px;overflow-x:hidden;user-select:none;-webkit-user-select:none;touch-action:manipulation;}
+  a.back{position:fixed;top:10px;left:12px;z-index:60;color:#7a7a9a;text-decoration:none;font-size:13px;
+    padding:4px 8px;border:1px solid #2a2a4a;border-radius:6px;background:rgba(15,15,26,.8);}
+  a.back:hover{color:var(--neon);border-color:var(--neon);}
+  h1{margin:4px 0 0;font-size:clamp(20px,5vmin,30px);letter-spacing:6px;color:var(--neon);
+    text-shadow:0 0 8px var(--neon),0 0 26px rgba(176,107,255,.5);}
+  .sub{color:#6a4a9a;font-size:10px;letter-spacing:3px;margin-bottom:6px;text-align:center;}
+  .panel{width:100%;max-width:460px;}
+  .hidden{display:none!important;}
+  .tiles{display:flex;gap:6px;justify-content:center;}
+  .tile{width:clamp(40px,13vw,54px);height:clamp(44px,14vw,58px);border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-size:clamp(22px,7vw,30px);font-weight:bold;background:#1a1428;border:2px solid #33244a;color:#e4d8ff;}
+  .tile.start{border-color:#48f0a0;color:#8affc4;box-shadow:0 0 10px rgba(72,240,160,.3);}
+  .tile.goal{border-color:var(--gold);color:var(--gold);box-shadow:0 0 10px rgba(255,209,102,.3);}
+  .tile.rung{border-color:#6a4a9a;color:var(--neon2);}
+  .tile.chg{border-color:var(--neon);color:#fff;background:#2a1a44;box-shadow:0 0 12px rgba(176,107,255,.5);}
+  .tile.sel{border-color:var(--neon);box-shadow:0 0 0 2px var(--neon),0 0 14px rgba(176,107,255,.6);}
+  .tile.hintfill{border-color:var(--gold);color:var(--gold);background:#2a2410;}
+  .tile.pop{animation:pop .22s ease;}
+  @keyframes pop{0%{transform:scale(.6);opacity:.3}100%{transform:scale(1);opacity:1}}
+  /* title */
+  #title{text-align:center;}
+  #title .demo{margin:14px 0;display:flex;flex-direction:column;gap:5px;align-items:center;}
+  #title .arrow{color:#6a4a9a;font-size:12px;}
+  .startbtn{margin-top:10px;font-size:15px;color:var(--neon2);animation:blink 1.1s infinite;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+  /* play */
+  .hud{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:4px 0 8px;}
+  .stat{background:#150f22;border:2px solid #2e2145;border-radius:8px;padding:2px 8px;min-width:52px;text-align:center;}
+  .stat .lbl{display:block;font-size:8px;letter-spacing:1px;color:#6a4a9a;}
+  .stat .val{display:block;font-size:15px;font-weight:bold;color:var(--neon2);}
+  #ladder{display:flex;flex-direction:column;gap:5px;align-items:center;max-height:40vh;overflow-y:auto;padding:4px 0;margin-bottom:6px;}
+  #ladder::-webkit-scrollbar{width:6px;} #ladder::-webkit-scrollbar-thumb{background:#33244a;border-radius:3px;}
+  .msg{height:20px;text-align:center;font-size:13px;letter-spacing:1px;margin:4px 0;color:#8a7aaa;}
+  .msg.good{color:var(--good);} .msg.bad{color:var(--bad);}
+  .kbd{display:flex;flex-direction:column;gap:5px;align-items:center;margin-top:8px;}
+  .krow{display:flex;gap:4px;justify-content:center;}
+  .key{min-width:26px;height:38px;padding:0 6px;border-radius:6px;background:#1a1428;border:1.5px solid #33244a;color:#d9c8ff;
+    font-family:inherit;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .key:hover{border-color:var(--neon);} .key.wide{min-width:60px;font-size:12px;}
+  .key:active{background:#2a1a44;}
+  button{font-family:inherit;font-size:12px;letter-spacing:1px;cursor:pointer;background:#150f22;color:var(--neon);
+    border:2px solid #2e2145;border-radius:8px;padding:6px 10px;}
+  button:hover{border-color:var(--neon);box-shadow:0 0 10px rgba(176,107,255,.35);}
+  .btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px;}
+  .hint{color:#6a4a9a;font-size:11px;letter-spacing:1px;text-align:center;margin-top:8px;line-height:1.5;}
+  .hint b{color:var(--neon2);}
+  /* list */
+  #list{max-height:66vh;overflow-y:auto;}
+  .pcard{display:flex;align-items:center;gap:8px;background:#150f22;border:2px solid #2e2145;border-radius:8px;padding:7px 10px;margin-bottom:6px;cursor:pointer;}
+  .pcard:hover{border-color:var(--neon);}
+  .pcard .w{font-weight:bold;color:var(--neon2);letter-spacing:2px;}
+  .pcard .p{margin-left:auto;font-size:11px;color:#6a4a9a;}
+  .pcard .sol{color:var(--good);font-size:13px;}
+  #winMsg{text-align:center;margin:8px 0;}
+  #winMsg .big{font-size:22px;letter-spacing:2px;}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Arcade</a>
+<h1>WORD LADDER</h1>
+<div class="sub">CHANGE ONE LETTER AT A TIME · EVERY RUNG A REAL WORD</div>
+
+<div id="title" class="panel">
+  <div class="demo" id="demo"></div>
+  <div style="color:#8a7aaa;font-size:12px;line-height:1.6;margin-top:6px">Turn <b style="color:#8affc4">START</b> into <b style="color:#ffd166">GOAL</b> one letter per step.<br>Beat par. Use hints if you're stuck.</div>
+  <div class="startbtn">▶ CLICK / TAP or press ENTER</div>
+  <div class="btns"><button id="btnListT">☰ ALL PUZZLES</button></div>
+</div>
+
+<div id="play" class="panel hidden">
+  <div class="hud">
+    <div class="stat"><span class="lbl">PUZZLE</span><span class="val" id="hPz">—</span></div>
+    <div class="stat"><span class="lbl">PAR</span><span class="val" id="hPar">—</span></div>
+    <div class="stat"><span class="lbl">STEPS</span><span class="val" id="hSteps">0</span></div>
+    <div class="stat"><span class="lbl">HINTS</span><span class="val" id="hHints">0</span></div>
+    <div class="stat"><span class="lbl">BEST</span><span class="val" id="hBest">—</span></div>
+  </div>
+  <div id="ladder"></div>
+  <div class="tiles" id="work"></div>
+  <div class="msg" id="msg">edit one letter, then press ENTER</div>
+  <div id="winMsg" class="hidden"></div>
+  <div class="kbd" id="kbd"></div>
+  <div class="btns">
+    <button id="btnHint">💡 HINT</button>
+    <button id="btnUndo">↶ UNDO</button>
+    <button id="btnRestart">↻ RESTART</button>
+    <button id="btnList">☰ LIST</button>
+  </div>
+  <div class="hint">Type letters to edit the working word · <b>Enter</b> submit · <b>Backspace</b> reset a tile · click a tile to pick it · use the <b>buttons</b> below for hint / undo / restart</div>
+</div>
+
+<div id="list" class="panel hidden">
+  <div class="sub" style="margin:6px 0">SELECT A PUZZLE — <span id="solvedCt"></span></div>
+  <div id="listItems"></div>
+  <div class="btns"><button id="btnCloseList">‹ BACK</button></div>
+</div>
+
+<script>
+(function(){
+"use strict";
+const SLUG='wizzed-word-ladder';
+const DICTSTR="ableablyacheachyacidacreactsaddsadosafaragedagesagogahemaideaidsailsaimsairyajarakinalasalesalgaallyalmsaloealsoaltoalumamidamokampsanewanteantsapesapexapseaquaarcharcsareaaresariaaridarmsarmyartsartyashyasksatomatopauntauraautoavidavowawayawedawesawlsaxesaxisaxleayesbabebabybackbadebagsbailbaitbakebaldbalebalkballbalmbandbanebangbankbarbbardbarebarfbarkbarnbarsbasebashbaskbassbastbatebathbatsbaudbawlbaysbeadbeakbeambeanbearbeatbeaubeckbedsbeefbeenbeepbeerbeesbeetbegsbellbeltbendbentbergbestbetabevybiasbibsbidebidsbikebilebilkbillbindbinsbirdbirrbitebitsblabblahblebbledblewblipblobblocblogblotblowblubblueblurboarboasboatbobsbodebodybogsboilbolaboldboleboltbombbondbonebongbonkbonybookboomboonboorboosbootborebornbossbothbotsboutbowlbowsboxyboysbradbraebragbranbrasbratbraybredbrewbriebrigbrimbritbrowbrrrbubsbuckbudsbuffbugsbulbbulkbullbumpbumsbungbunkbunsbuntbuoyburgburlburnburpburrbursburybushbustbusybuttbuysbuzzbyesbytecabscafecagecakecalfcallcalmcamecampcanecanscantcapecapscardcarecarkcarpcarscartcasecashcaskcastcatscavecavycawscedecellcentchapcharchatchefchewchicchinchipchitchopchowchubchugchumcitecitycladclamclanclapclawclayclefclipclodclogclopclotclubcluecoalcoatcoaxcocacockcodacodecoedcogscoifcoilcoincokecolacoldcolecoltcomacombcomeconeconkconsconycookcoolcooncoopcooscootcopecopscopycordcorecorkcorncostcosycotscoupcovecowscozycrabcragcramcrapcrawcrewcribcropcrowcrudcruxcubecubscuedcuescuffcullcultcumscuntcupscurbcurdcurecurlcurscurtcuspcusscutecutscyandabsdadodadsdaftdaisdaledamedamndampdamsdankdaredarkdarndartdashdatadatedaubdawndaysdazedeaddeafdealdeandeardebtdeckdeeddeemdeepdeerdeftdefydejadelldemodensdentdenydeskdialdicedieddiesdietdigsdikedilldimedimsdinedingdinsdintdipsdiredirtdiscdishdiskdivadivedockdocsdododoerdoesdoffdogedogsdoledolldoltdomedonadonedongdonsdoomdoordopedorkdormdorydosedostdotedotsdourdovedowndozedrabdragdramdrawdraydrewdripdropdrubdrugdrumdrysdualdubsduckductdudedudsduelduesduetduffdukedulldulydumbdumpdunedungdunkdunnduosdupeduskdustdutydyeddyerdyeseachearlearnearseaseeasteasyeatsebbsechoecrueddyedgeedgyediteelseeryeggsegoselksellselmselseemitemusendsenvyepicerasergoerrseuroeveneverevesevilewerewesexamexecexesexitexpoeyedeyesfacefactfadefadsfailfainfairfakefallfamefangfansfarefarmfarofartfastfatefatsfaunfavefawnfazefearfeatfedsfeedfeelfeesfeetfellfeltfendfensfernfessfestfetsfeudfiatfibsfieffifefigsfilefillfilmfindfinefinkfinsfirefirmfirsfishfistfitsfivefizzflabflagflakflanflapflatflawflaxflayfleafledfleeflewflexflipflitflocfloeflogflopflowflubflueflusfluxfoalfoamfobsfocifoesfogsfoilfoldfolkfondfontfoodfoolfootfopsforafordforeforkformfortfoulfourfowlfoxyfoysfratfrayfreefretfrigfrogfromfuelfullfumefundfunkfurlfursfuryfusefussfutzfuzzgabsgaffgagsgaingaitgalagalegallgalsgamegamsganggaolgapegapsgarbgarsgashgaspgategavegawkgaysgazegeargeekgeldgelsgemsgenegentgermgetsgheegibegiftgigsgildgillgiltgimpginsgirdgirlgirtgistgivegladglamgleeglenglibglobglomglopglowglueglumglutgnargnatgnawgoadgoalgoatgobsgodsgoesgoldgolfgonegonggoodgoofgookgoongoopgoregorygoshgothgoutgowngrabgradgramgrangraygrewgreygridgrimgringripgritgroggrowgrubgrumguffgulfgullgulpgumsgunsgurugushgustgutsguysgybegymsgyregyrohackhafthagshailhairhajihakehalehalfhallhalohalthamshandhanghankhardhareharkharmharpharthashhasphatehatshaulhavehawkhawshayshazehazyheadhealheaphearheatheckheedheelheftheirheldhellhelmhelphemehemphemshensherbherdhereherohershewnhewshickhidehiedhieshighhikehildhillhilthindhinthipshirehisshitshivehoarhoaxhobohobshockhodshoedhoeshogsholdholeholyhomehonehonkhoodhoofhookhoophoothopehopshornhosehosthotshourhovehowlhubshuedhueshuffhugehugshulahulkhullhumphumshunghunkhunthurlhurthushhuskhutshymnhypeibexibisicedicesickyiconideaidesidleidlyidoliffyigluikonillsimamimpsinchinfoinksinkyinnsintoionsiotairisirksironisleitchitemjabsjackjadejagsjailjambjamsjapejarsjavajawsjaysjazzjeanjeepjeerjelljerkjestjetsjibejibsjigsjiltjinxjivejobsjockjogsjohnjoinjokejoltjoshjotsjowljoysjudojugsjujujukejumpjunkjuryjustjutejutskalekaonkartkayokeelkeenkeepkegskelpkenskeptkerbkeyskickkidskillkilnkiltkindkinekingkinkkinskisskitekithkitskiwikneeknewknitknobknotknowkohlkolakookkudokudulabslacelacklacyladeladsladylagslaidlainlairlakelamblamelamplandlanelapslardlarklashlasslastlatelathlatslavalavelawnlawslayslazelazyleadleafleakleanleapleasleekleerleesleftlegslendlenslentlesslestletslevyliarlicelicklidsliedlieflienlieslifeliftlikeliltlilylimblimelimnlimolimplinelinklinolintlionlipsliralirelisplistliveloadloafloamloanlobelobslocilocklocolodeloftlogologsloinlolllonelonglookloomloonlooplootlopelopslordlorelornloselosslostlotsloudloutlovelowsluaulubelucklugslukelulllululumplunglurelurklushlustlutelynxmacemackmademagemagimaidmailmaimmainmakemalemallmaltmamamanemanymapsmaremarkmarsmartmashmaskmassmastmatemathmatsmaulmawsmayomazemeadmealmeanmeatmeekmeetmeldmeltmemomendmenumeowmeremesameshmessmetsmewlmewsmicamicemildmilemilkmillmilsmiltmimemindmineminiminkmintminxmiremissmistmitemittmoanmoatmobsmockmodemodsmojomoldmolemoltmomsmonkmonomoodmoonmoormoosmootmopemopsmoremornmorsmossmostmotemothmotsmovemownmowsmuchmuckmuffmugsmulemullmumsmumumuonmushmuskmussmustmutemuttmynamythnabsnagsnailnamenapenapsnardnarynavenavynaysneapnearneatneckneedneonnerdnessnestnetsnewsnewtnextnibsnicenicknilsninenipsnitsnodenodsnoelnoesnoilnonenooknoonnoornopenormnosenosynotenounnovanubsnukenullnumbnunsnutsoafsoaksoarsoathoatsobeyoboeoddsodesodorogleogreoilsoilyoinkokayokraoldsoldyoleoomenomitonceonesonlyontoonusonyxoohsoopsoozeoozyopalopenoptsopusoralorbsorcaoresorzoouchoursoustoutsovalovenoverovumowedowesowlsownsoxenpacepackpactpadspagepaidpailpainpairpalepallpalmpalspanepangpanspantpapapapspareparkparspartpashpasspastpatepathpatspavepawlpawnpawspayspeakpealpeanpearpeaspeatpeckpedspeekpeelpeenpeeppeerpeespegspeltpenspentpeonpepsperkpermpertpesopestpetspewspicapickpicspiedpierpiespigspikepilepillpimppinepingpinkpinspintpinypipepipspitapithpitspityplanplatplaypleaplebpledplodplopplotplowploypludplugplumpluspockpodspoempoetpogopokepokypolepollpolopomppondponepongponypoodpoohpoolpooppoorpopepopsporeporkpornportposeposhpostposypotspourpoutpowsprampratpraypreppreyprigprimprodprofprompropprosprowpubspuckpuffpugspukepullpulppumapumppunspuntpunypupapupspurepurlpurrpushpussputsputtpyrepyroquadquayquidquipquitquizracerackracyraftrageragsraidrailrainrakerampramsrandrangrankrantrapsraptrarerashrasprateratsraverawsraysrazerazzreadrealreamreaprearredsreedreefreekreelrefsreinrelyremsrendrentrestrevsribsricerichrickrideridsriferiffriftrigsrilerillrimerimsrimyrindringrinkriotriperipsriseriskriteritzroadroamroanroarroberobsrockroderodsroesroilrolerollromproodroofrookroomrootroperopyroserosyrotaroterotsroueroutrouxroverowsruberubsrubyruckruderuedruesruffrugsruinrulerumprumsrunerungrunsruntruserushruskrustrutssacksacssafesagasagesagosagssaidsailsakesalesaltsamesandsanesangsanksapssarisashsasssatesavesawnsawssaysscabscadscamscanscarscatscudscumscutsealseamsearseasseatsectseedseekseemseenseepseerseesselfsellsemisenasendsentseptseraserfsetssewnsewssexyshadshagshahshamshayshedshimshinshipshitshivshodshoeshooshopshotshowshrishunshutsibssicksidesiftsighsignsilksillsilosiltsinesingsinksinssipssiresirssitesitssizeskidskimskinskipskitskyeslabslagslamslapslatslawslaysledslewslidslimslipslitslobsloeslogslopslotslowslugslumslurslutsmogsmugsmutsnagsnapsnipsnitsnobsnotsnowsnubsnugsoaksoapsoarsobssocksodasofasoftsoilsoldsolesolosomesongsonssoonsootsopssorasoresortsotssouksoulsoupsoursownsowssoyaspansparspasspatspayspecspedspewspinspitspotspryspudspunspurstabstagstarstatstaystemstepstewstirstopstowstubstudstumstunstyesubssuchsucksudssuedsuersuessuetsuitsulksumosumpsumssungsunksunssupssuresurfswabswagswamswanswapswatswayswigswimswobswopswotswumsynctabstacktacotacttadstagstailtaketaletalktalltametamptangtanktanstapetapstaretarntarotarptarstarttasktatstaustauttaxataxiteaktealteamtearteasteattechteedteemteenteestelltemptendtenstenttermterntesttextthanthatthawtheethemthenthewtheythinthisthouthruthudthugthustickticstidetidytiedtiertiestifftiketiletilltilstilttimetinetingtinstinttinytipstiretoadtobytodstodytoedtoestofutogatogstoiltoketoldtoletolltombtometomstonetongtonstooktooltoontoottopetopstoretorntorstorttorytosstotetotstourtouttowntowstoystramtraptraytreetrektrettreytrigtrimtriotriptrodtrottroytruetsartubatubetubstucktufftufttugstuistuletunatunetunsturdturfturntushtusktutstututwattweetwigtwintwittwostyketypetypotyreuglyulnaumboundounituntouponureaurgeurnsuseduserusesvainvalevampvanevansvaryvasevastvatsvealveerveilveinvendventverbveryvestvetovetsvialvibeviceviedviesviewvilevinevinoviolvisavisevivavoidvolevoltvotevowswackwadewadiwadswaftwagewagswaifwailwaitwakewalewalkwallwalswandwanewantwardwarewarmwarnwarpwarswartwarywashwaspwattwavewavywaxywaysweakwealweanwearwebswedsweedweekweepweftweirweldwellweltwendwentweptwerewertwestwetswhamwhatwhenwhetwhewwheywhimwhinwhipwhirwhitwhizwhoawhomwhopwickwidewifewigswildwilewillwiltwilywimpwindwinewingwinkwinowinswipewirewirywisewishwispwistwithwitswivewoeswokewoldwolfwombwondwontwoodwoofwoolwooswordworeworkwormwornwortwovewowswrapwrenwritwyndyackyaksyaldyamsyangyankyapsyardyarnyawlyawnyawsyeahyearyeasyellyelpyensyetiyewsyipsyogayogiyokeyolkyoreyouryowlyuckyuleyups";
+const PAIRS=[{"start":"MILK","goal":"WINE","par":3},{"start":"HATE","goal":"LOVE","par":3},{"start":"LEAD","goal":"GOLD","par":3},{"start":"CATS","goal":"DOGS","par":3},{"start":"BIRD","goal":"WING","par":3},{"start":"WEST","goal":"EAST","par":3},{"start":"DICE","goal":"LUCK","par":3},{"start":"COLD","goal":"WARM","par":4},{"start":"DARK","goal":"LAMP","par":4},{"start":"HERO","goal":"FAME","par":4},{"start":"GIFT","goal":"GIVE","par":4},{"start":"CORN","goal":"MEAL","par":4},{"start":"HILL","goal":"PEAK","par":4},{"start":"HEAD","goal":"TAIL","par":5},{"start":"WORD","goal":"GAME","par":5},{"start":"FIRE","goal":"HEAT","par":5},{"start":"HARD","goal":"EASY","par":5},{"start":"SICK","goal":"CURE","par":5},{"start":"BOAT","goal":"SHIP","par":5},{"start":"MOON","goal":"STAR","par":5},{"start":"SEED","goal":"TREE","par":5},{"start":"HAND","goal":"FOOT","par":5},{"start":"KING","goal":"LORD","par":5},{"start":"DAWN","goal":"DUSK","par":5},{"start":"GRAY","goal":"BLUE","par":5},{"start":"WAVE","goal":"SURF","par":5},{"start":"COOK","goal":"MEAL","par":5},{"start":"BOOK","goal":"PAGE","par":5},{"start":"BEAR","goal":"CLAW","par":5},{"start":"CASH","goal":"COIN","par":5},{"start":"TENT","goal":"CAMP","par":5},{"start":"DESK","goal":"BOOK","par":5},{"start":"BALL","goal":"GOAL","par":5},{"start":"PAWN","goal":"KING","par":5},{"start":"CARD","goal":"DECK","par":5},{"start":"FISH","goal":"HOOK","par":6},{"start":"POOR","goal":"RICH","par":6},{"start":"WALK","goal":"JUMP","par":6},{"start":"WORK","goal":"PLAY","par":6},{"start":"DEEP","goal":"DIVE","par":6},{"start":"GATE","goal":"DOOR","par":6},{"start":"ROAD","goal":"PATH","par":6},{"start":"LIFE","goal":"DEAD","par":6},{"start":"SALT","goal":"SOUR","par":6},{"start":"FAST","goal":"SLOW","par":6},{"start":"COAL","goal":"FUEL","par":6},{"start":"SHOE","goal":"SOCK","par":6},{"start":"RING","goal":"BELL","par":6},{"start":"LOCK","goal":"KEYS","par":6},{"start":"DUCK","goal":"SWAN","par":6},{"start":"WINE","goal":"BEER","par":6},{"start":"FARM","goal":"CROP","par":6},{"start":"MINE","goal":"COAL","par":6},{"start":"TEAM","goal":"GAME","par":6},{"start":"RAIN","goal":"SNOW","par":7},{"start":"WOLF","goal":"LAMB","par":7},{"start":"NUMB","goal":"SORE","par":7},{"start":"FROG","goal":"TOAD","par":7},{"start":"BLUE","goal":"PINK","par":8},{"start":"MIND","goal":"IDEA","par":8}];
+
+// build dict set
+const DICT=new Set();
+for(let i=0;i<DICTSTR.length;i+=4) DICT.add(DICTSTR.substr(i,4).toUpperCase());
+
+// persistence
+let saved={}; try{saved=JSON.parse(localStorage.getItem(SLUG))||{};}catch(e){saved={};}
+function save(){ try{localStorage.setItem(SLUG,JSON.stringify(saved));}catch(e){} }
+
+// audio
+let AC=null;
+function ac(){ if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;}} if(AC&&AC.state==='suspended')AC.resume(); return AC; }
+function beep(f,d,t,v){ const a=ac(); if(!a)return; const o=a.createOscillator(),g=a.createGain(); o.type=t||'square'; o.frequency.value=f; o.connect(g); g.connect(a.destination); const n=a.currentTime; g.gain.setValueAtTime(0.0001,n); g.gain.exponentialRampToValueAtTime(v||0.1,n+0.008); g.gain.exponentialRampToValueAtTime(0.0001,n+(d||0.08)); o.start(n); o.stop(n+(d||0.08)+0.02); }
+
+// BFS shortest path
+function bfs(start,goal){
+  if(start===goal)return[start];
+  const prev=new Map([[start,null]]); const q=[start]; let qi=0;
+  while(qi<q.length){
+    const w=q[qi++];
+    if(w===goal)break;
+    for(let i=0;i<4;i++){ for(let c=65;c<=90;c++){ const ch=String.fromCharCode(c); if(ch===w[i])continue;
+      const nw=w.slice(0,i)+ch+w.slice(i+1); if(DICT.has(nw)&&!prev.has(nw)){ prev.set(nw,w); q.push(nw); } } }
+  }
+  if(!prev.has(goal))return null;
+  const path=[]; let cur=goal; while(cur!==null){ path.unshift(cur); cur=prev.get(cur); } return path;
+}
+
+// state
+let pz=0, start='', goal='', par=0, started=false;
+let ladder=[], used=new Set(), steps=0, hints=0, working=[], sel=0, done=false;
+
+function loadPuzzle(i){
+  started=true;
+  pz=i; const P=PAIRS[i]; start=P.start; goal=P.goal; par=P.par;
+  ladder=[start]; used=new Set([start]); steps=0; hints=0; done=false;
+  working=start.split(''); sel=0;
+  document.getElementById('hPz').textContent=(i+1);
+  document.getElementById('hPar').textContent=par;
+  const rec=saved[i];
+  document.getElementById('hBest').textContent=(rec&&rec.best)?rec.best:'—';
+  document.getElementById('winMsg').classList.add('hidden');
+  setMsg('edit one letter, then press ENTER','');
+  renderAll();
+}
+
+function setMsg(t,cls){ const m=document.getElementById('msg'); m.textContent=t; m.className='msg'+(cls?' '+cls:''); }
+
+function tileEl(ch,cls){ const d=document.createElement('div'); d.className='tile'+(cls?' '+cls:''); d.textContent=ch; return d; }
+
+function renderLadder(){
+  const el=document.getElementById('ladder'); el.innerHTML='';
+  ladder.forEach((w,idx)=>{
+    const row=document.createElement('div'); row.className='tiles';
+    const prev=idx>0?ladder[idx-1]:null;
+    for(let i=0;i<4;i++){
+      let cls = idx===0?'start':'rung';
+      const t=tileEl(w[i],cls);
+      if(prev && w[i]!==prev[i]) t.classList.add('chg');
+      row.appendChild(t);
+    }
+    el.appendChild(row);
+    if(idx<ladder.length-1 || true){ /* connectors optional */ }
+  });
+  // goal row (ghost) unless already reached
+  if(ladder[ladder.length-1]!==goal){
+    const arrow=document.createElement('div'); arrow.className='arrow'; arrow.style.color='#4a3a6a'; arrow.textContent='▼';
+    el.appendChild(arrow);
+    const row=document.createElement('div'); row.className='tiles'; row.style.opacity='.85';
+    for(let i=0;i<4;i++) row.appendChild(tileEl(goal[i],'goal'));
+    el.appendChild(row);
+  }
+  el.scrollTop=el.scrollHeight;
+}
+function renderWork(){
+  const el=document.getElementById('work'); el.innerHTML='';
+  const last=ladder[ladder.length-1];
+  for(let i=0;i<4;i++){
+    const t=tileEl(working[i]);
+    if(i===sel) t.classList.add('sel');
+    if(working[i]!==last[i]) t.classList.add('chg');
+    (function(idx){ t.addEventListener('click',()=>{ ac(); sel=idx; renderWork(); }); })(i);
+    el.appendChild(t);
+  }
+}
+function renderHud(){ document.getElementById('hSteps').textContent=steps; document.getElementById('hHints').textContent=hints; }
+function renderAll(){ renderLadder(); renderWork(); renderHud(); }
+
+function typeLetter(ch){
+  if(done)return;
+  working[sel]=ch; sel=Math.min(3,sel+1); renderWork();
+  beep(500+sel*40,0.03,'sine',0.05);
+}
+function backspace(){
+  if(done)return;
+  const last=ladder[ladder.length-1];
+  working[sel]=last[sel]; sel=Math.max(0,sel-1); renderWork();
+  beep(300,0.03,'sine',0.05);
+}
+function submit(){
+  if(done)return;
+  const last=ladder[ladder.length-1];
+  const w=working.join('');
+  let diff=0; for(let i=0;i<4;i++) if(w[i]!==last[i])diff++;
+  if(diff===0){ setMsg('change one letter first','bad'); shake(); return; }
+  if(diff>1){ setMsg('change exactly ONE letter','bad'); shake(); return; }
+  if(!DICT.has(w)){ setMsg('"'+w+'" is not in the word list','bad'); shake(); beep(160,0.15,'sawtooth',0.1); return; }
+  if(used.has(w)){ setMsg('"'+w+'" already used','bad'); shake(); return; }
+  ladder.push(w); used.add(w); steps++;
+  working=w.split(''); sel=0;
+  beep(660,0.06,'square',0.09);
+  if(w===goal){ win(); }
+  else { setMsg('nice — '+ (bfsRemain()) ,'good'); renderAll(); }
+}
+function bfsRemain(){
+  const path=bfs(ladder[ladder.length-1],goal);
+  if(!path)return 'keep going';
+  const n=path.length-1;
+  return n===0?'':(n+' step'+(n>1?'s':'')+' left (optimal)');
+}
+function shake(){ const el=document.getElementById('work'); el.style.transition='transform .05s'; let k=0; const iv=setInterval(()=>{ el.style.transform='translateX('+((k%2)?-6:6)+'px)'; k++; if(k>5){clearInterval(iv);el.style.transform='';} },40); }
+
+function win(){
+  done=true;
+  const overPar=steps-par;
+  let grade, gc;
+  if(steps<=par && hints===0){ grade='PERFECT!'; gc='#ffd166'; }
+  else if(steps<=par+1 && hints<=1){ grade='GREAT'; gc='#48f0a0'; }
+  else { grade='SOLVED'; gc='#b06bff'; }
+  const rec=saved[pz]||{best:1e9,solved:false};
+  const eff=steps+hints; // effective score, lower better
+  if(eff<(rec.best||1e9)) rec.best=eff;
+  rec.solved=true; saved[pz]=rec; save();
+  const wm=document.getElementById('winMsg'); wm.classList.remove('hidden');
+  wm.innerHTML='<div class="big" style="color:'+gc+'">'+grade+'</div>'+
+    '<div style="color:#8a7aaa;font-size:12px;margin-top:2px">'+steps+' steps · par '+par+' · '+hints+' hint'+(hints===1?'':'s')+
+    ' · best '+rec.best+'</div>'+
+    '<div class="btns" style="margin-top:8px"><button id="btnNext">NEXT PUZZLE ▶</button></div>';
+  document.getElementById('btnNext').addEventListener('click',()=>{ ac(); loadPuzzle((pz+1)%PAIRS.length); });
+  renderAll();
+  beep(660,0.1,'square',0.12); setTimeout(()=>beep(880,0.1,'square',0.12),110); setTimeout(()=>beep(1100,0.16,'square',0.12),230);
+}
+
+function doHint(){
+  if(done)return;
+  const path=bfs(ladder[ladder.length-1],goal);
+  if(!path||path.length<2){ setMsg('no path from here — undo a step','bad'); return; }
+  const next=path[1];
+  working=next.split(''); sel=0; hints++;
+  renderWork(); renderHud();
+  setMsg('hint: try '+next+' (press ENTER)','good');
+  // flash hint tiles
+  const el=document.getElementById('work');
+  Array.from(el.children).forEach(t=>{ t.classList.add('hintfill'); });
+  beep(880,0.08,'triangle',0.08);
+}
+function doUndo(){
+  if(done)return;
+  if(ladder.length<=1){ setMsg('nothing to undo','bad'); return; }
+  const removed=ladder.pop(); used.delete(removed); steps=Math.max(0,steps-1);
+  working=ladder[ladder.length-1].split(''); sel=0;
+  setMsg('undid a step','');
+  renderAll(); beep(300,0.06,'sine',0.06);
+}
+
+// screens
+function show(id){ ['title','play','list'].forEach(s=>document.getElementById(s).classList.toggle('hidden',s!==id)); }
+function firstUnsolved(){ for(let i=0;i<PAIRS.length;i++) if(!(saved[i]&&saved[i].solved)) return i; return 0; }
+
+// list
+function buildList(){
+  const el=document.getElementById('listItems'); el.innerHTML='';
+  let sc=0;
+  PAIRS.forEach((P,i)=>{
+    const rec=saved[i]; if(rec&&rec.solved)sc++;
+    const card=document.createElement('div'); card.className='pcard';
+    card.innerHTML='<span class="w">'+P.start+'</span><span style="color:#4a3a6a">→</span><span class="w">'+P.goal+'</span>'+
+      '<span class="p">par '+P.par+(rec&&rec.solved?' · best '+rec.best:'')+'</span>'+
+      (rec&&rec.solved?'<span class="sol">✓</span>':'');
+    card.addEventListener('click',()=>{ ac(); loadPuzzle(i); show('play'); });
+    el.appendChild(card);
+  });
+  document.getElementById('solvedCt').textContent=sc+' / '+PAIRS.length+' solved';
+}
+
+// keyboard on-screen
+function buildKbd(){
+  const rows=['QWERTYUIOP','ASDFGHJKL','ZXCVBNM'];
+  const kbd=document.getElementById('kbd'); kbd.innerHTML='';
+  rows.forEach((r,ri)=>{
+    const row=document.createElement('div'); row.className='krow';
+    if(ri===2){ const k=document.createElement('button'); k.className='key wide'; k.textContent='⌫'; k.addEventListener('click',()=>{ac();backspace();}); row.appendChild(k); }
+    for(const ch of r){ const k=document.createElement('button'); k.className='key'; k.textContent=ch; k.addEventListener('click',()=>{ac();typeLetter(ch);}); row.appendChild(k); }
+    if(ri===2){ const k=document.createElement('button'); k.className='key wide'; k.textContent='ENTER'; k.addEventListener('click',()=>{ac();submit();}); row.appendChild(k); }
+    kbd.appendChild(row);
+  });
+}
+
+// title demo
+function buildDemo(){
+  const words=['COLD','CORD','WORD','WARD','WARM'];
+  const el=document.getElementById('demo'); el.innerHTML='';
+  words.forEach((w,idx)=>{
+    const row=document.createElement('div'); row.className='tiles';
+    for(let i=0;i<4;i++){
+      let cls = idx===0?'start':(idx===words.length-1?'goal':'rung');
+      const t=tileEl(w[i],cls);
+      if(idx>0 && w[i]!==words[idx-1][i]) t.classList.add('chg');
+      t.style.animationDelay=(idx*0.12+i*0.03)+'s'; t.classList.add('pop');
+      row.appendChild(t);
+    }
+    el.appendChild(row);
+    if(idx<words.length-1){ const a=document.createElement('div'); a.className='arrow'; a.textContent='↓'; el.appendChild(a); }
+  });
+}
+
+// input
+document.addEventListener('keydown',(e)=>{
+  if(!document.getElementById('title').classList.contains('hidden')){
+    if(e.key==='Enter'||e.key===' '){ e.preventDefault(); ac(); loadPuzzle(firstUnsolved()); show('play'); }
+    return;
+  }
+  if(document.getElementById('play').classList.contains('hidden'))return;
+  // letter keys type into the word, so hint/undo/restart are on-screen buttons (see below)
+  if(/^[a-zA-Z]$/.test(e.key)){ typeLetter(e.key.toUpperCase()); }
+  else if(e.key==='Enter'){ e.preventDefault(); submit(); }
+  else if(e.key==='Backspace'){ e.preventDefault(); backspace(); }
+  else if(e.key==='ArrowLeft'){ e.preventDefault(); sel=Math.max(0,sel-1); renderWork(); }
+  else if(e.key==='ArrowRight'){ e.preventDefault(); sel=Math.min(3,sel+1); renderWork(); }
+});
+document.getElementById('title').addEventListener('click',(e)=>{ if(e.target.closest('button'))return; ac(); loadPuzzle(firstUnsolved()); show('play'); });
+
+document.getElementById('btnHint').addEventListener('click',()=>{ac();doHint();});
+document.getElementById('btnUndo').addEventListener('click',()=>{ac();doUndo();});
+document.getElementById('btnRestart').addEventListener('click',()=>{ac();loadPuzzle(pz);});
+document.getElementById('btnList').addEventListener('click',()=>{ac();buildList();show('list');});
+document.getElementById('btnListT').addEventListener('click',(e)=>{e.stopPropagation();ac();buildList();show('list');});
+document.getElementById('btnCloseList').addEventListener('click',()=>{ ac(); show(started?'play':'title'); });
+
+// init
+buildDemo(); buildKbd();
+})();
+</script>
+</html>

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>COLOR LENS — Point At Anything, It Names The Color · Wizzed Arcade</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #0f0f1a; }
+  body { font-family: 'Courier New', monospace; color: #e8e6ff; user-select: none; -webkit-user-select: none; }
+  #video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #cv { position: fixed; inset: 0; width: 100%; height: 100%; }
+  #back {
+    position: fixed; top: 10px; left: 10px; z-index: 30;
+    color: #b9b4e8; text-decoration: none; font-size: 13px; letter-spacing: 1px;
+    border: 1px solid #3c3760; background: rgba(15,15,26,0.75); padding: 6px 12px; border-radius: 8px;
+  }
+  #readout {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 20;
+    display: flex; align-items: center; gap: 12px; max-width: 94vw;
+    background: rgba(15,15,26,0.82); border: 1px solid #3c3760; border-radius: 14px;
+    padding: 10px 16px;
+  }
+  #swatch {
+    width: 52px; height: 52px; border-radius: 12px; flex: 0 0 auto;
+    border: 2px solid rgba(255,255,255,0.6); box-shadow: 0 0 18px rgba(0,0,0,0.5);
+    background: #555;
+  }
+  #names { text-align: left; min-width: 0; }
+  #cname { font-size: clamp(17px, 4.6vw, 24px); font-weight: bold; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #cdesc { font-size: 12px; color: #b9b4e8; letter-spacing: 1px; margin-top: 2px; }
+  #cvals { font-size: 11px; color: #8d87bb; letter-spacing: 1px; margin-top: 3px; }
+  #bar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 25;
+    display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap;
+    padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+    background: linear-gradient(transparent, rgba(15,15,26,0.92) 35%);
+  }
+  #bar button {
+    font-family: inherit; font-size: 13px; letter-spacing: 1px;
+    color: #e8e6ff; background: rgba(30,26,58,0.85); border: 1px solid #3c3760;
+    padding: 10px 14px; border-radius: 10px;
+  }
+  #bar button.on { border-color: #ffd166; color: #ffd166; }
+  #bar button.big { font-weight: bold; border-color: #00e5ff; color: #00e5ff; }
+  #hist {
+    position: fixed; bottom: 74px; left: 50%; transform: translateX(-50%); z-index: 22;
+    display: flex; gap: 6px; padding: 6px; border-radius: 12px;
+    background: rgba(15,15,26,0.6); max-width: 94vw; overflow-x: auto;
+  }
+  #hist:empty { display: none; }
+  #hist .chip {
+    width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto;
+    border: 1px solid rgba(255,255,255,0.35); position: relative; cursor: pointer;
+  }
+  #toast {
+    position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%); z-index: 26;
+    font-size: 12px; letter-spacing: 1px; color: #0f0f1a; background: #ffd166;
+    padding: 7px 14px; border-radius: 9px; opacity: 0; transition: opacity .25s; pointer-events: none;
+    font-weight: bold;
+  }
+  #toast.show { opacity: 1; }
+  #overlay {
+    position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 20px;
+    background: radial-gradient(ellipse at 50% 40%, rgba(30,26,58,0.94), rgba(10,10,20,0.97));
+  }
+  #overlay.hide { display: none; }
+  #overlay h1 { font-size: clamp(32px, 8.5vw, 58px); letter-spacing: 6px; color: #fff; margin-bottom: 8px;
+    text-shadow: 0 0 14px #ff2d78, 0 0 28px #ffd166, 0 0 46px #00e5ff; }
+  #overlay .sub { color: #b9b4e8; font-size: 14px; letter-spacing: 1px; line-height: 1.9; margin-bottom: 24px; max-width: 470px; }
+  #overlay .sub b { color: #ffd166; }
+  #overlay .go {
+    font-family: inherit; font-size: 16px; letter-spacing: 3px; font-weight: bold;
+    color: #0f0f1a; background: linear-gradient(135deg, #ff8fb8, #ffd166, #7dffc8); border: 0;
+    padding: 15px 40px; border-radius: 12px; cursor: pointer; box-shadow: 0 0 30px rgba(255,209,102,0.4);
+  }
+  #overlay .priv { margin-top: 22px; font-size: 11px; color: #8d87bb; letter-spacing: 1px; max-width: 430px; line-height: 1.8; }
+  #overlay .err { color: #ff5c8a; font-size: 13px; margin-top: 14px; display: none; }
+</style>
+</head>
+<body>
+<video id="video" autoplay playsinline muted></video>
+<canvas id="cv"></canvas>
+<a id="back" href="../index.html">← Arcade</a>
+<div id="readout">
+  <div id="swatch"></div>
+  <div id="names">
+    <div id="cname">—</div>
+    <div id="cdesc">point the ring at anything</div>
+    <div id="cvals"></div>
+  </div>
+</div>
+<div id="hist"></div>
+<div id="toast"></div>
+<div id="bar">
+  <button id="grabBtn" class="big">📌 CAPTURE</button>
+  <button id="speakBtn">🔊 SPEAK: OFF</button>
+  <button id="copyBtn">📋 COPY HEX</button>
+  <button id="flipBtn">🔄 FLIP</button>
+</div>
+<div id="overlay">
+  <h1>COLOR LENS</h1>
+  <div class="sub">
+    what color IS that, actually?<br>
+    point your camera at anything — a wall, a leaf, that sweater —<br>
+    and the lens <b>names the color</b>, live: <b>Crimson</b>, <b>Sage</b>, <b>Mustard</b>, <b>Teal</b>…<br>
+    plus the exact hex to take home. 📌 capture builds a palette,<br>
+    🔊 speak mode says names out loud.
+  </div>
+  <button class="go" id="goBtn">📷 START THE LENS</button>
+  <div class="err" id="errMsg">Camera unavailable. Check permissions and try again.</div>
+  <div class="priv"><b>Everything stays on your device.</b> Only the pixels inside the ring are read, live in your browser. Nothing is photographed, saved, or uploaded.</div>
+</div>
+<script>
+(() => {
+'use strict';
+const video = document.getElementById('video');
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+function resize() { cv.width = innerWidth; cv.height = innerHeight; }
+addEventListener('resize', resize); resize();
+
+// ================================================================
+//  Named colors — human-friendly names, nearest match in Lab space
+// ================================================================
+const NAMES = [
+  ['000000','Black'],['1a1a1a','Charcoal Black'],['333333','Dark Charcoal'],['4d4d4d','Graphite'],
+  ['666666','Slate Gray'],['808080','Gray'],['999999','Stone Gray'],['b3b3b3','Silver'],
+  ['cccccc','Light Gray'],['e6e6e6','Pearl Gray'],['f5f5f5','Off White'],['ffffff','White'],
+  ['fffff0','Ivory'],['fdf5e6','Old Lace'],['faf0e6','Linen'],['f5f5dc','Beige'],
+  ['ff0000','Red'],['dc143c','Crimson'],['b22222','Firebrick'],['8b0000','Dark Red'],
+  ['800000','Maroon'],['cd5c5c','Indian Red'],['f08080','Light Coral'],['fa8072','Salmon'],
+  ['e9967a','Dark Salmon'],['ffa07a','Light Salmon'],['ff6347','Tomato'],['ff4500','Orange Red'],
+  ['ff7f50','Coral'],['ff8c00','Dark Orange'],['ffa500','Orange'],['ff9966','Apricot'],
+  ['ffb347','Pastel Orange'],['cc5500','Burnt Orange'],['e97451','Terracotta'],['b7410e','Rust'],
+  ['ffd700','Gold'],['ffc40c','Mikado Yellow'],['ffff00','Yellow'],['ffea00','Lemon'],
+  ['fada5e','Naples Yellow'],['ffdb58','Mustard'],['f0e130','Dandelion'],['eee8aa','Pale Goldenrod'],
+  ['bdb76b','Dark Khaki'],['f0e68c','Khaki'],['fffacd','Lemon Chiffon'],['ffefd5','Papaya Whip'],
+  ['ffe4b5','Moccasin'],['ffdead','Navajo White'],['f5deb3','Wheat'],['deb887','Burlywood'],
+  ['d2b48c','Tan'],['bc8f8f','Rosy Brown'],['c19a6b','Camel'],['a0785a','Chamoisee'],
+  ['8b4513','Saddle Brown'],['a0522d','Sienna'],['d2691e','Chocolate'],['cd853f','Peru'],
+  ['964b00','Brown'],['654321','Dark Brown'],['3d2b1f','Bistre'],['704214','Sepia'],
+  ['adff2f','Green Yellow'],['7fff00','Chartreuse'],['9acd32','Yellow Green'],['6b8e23','Olive Drab'],
+  ['808000','Olive'],['556b2f','Dark Olive'],['00ff00','Lime'],['32cd32','Lime Green'],
+  ['98fb98','Pale Green'],['90ee90','Light Green'],['00fa9a','Spring Green'],['3cb371','Medium Sea Green'],
+  ['2e8b57','Sea Green'],['228b22','Forest Green'],['008000','Green'],['006400','Dark Green'],
+  ['9dc183','Sage'],['4f7942','Fern Green'],['355e3b','Hunter Green'],['50c878','Emerald'],
+  ['00a86b','Jade'],['29ab87','Jungle Green'],['a7f432','Green Lizard'],['d0f0c0','Tea Green'],
+  ['ace1af','Celadon'],['8fbc8f','Dark Sea Green'],['66cdaa','Aquamarine'],['7fffd4','Light Aquamarine'],
+  ['40e0d0','Turquoise'],['48d1cc','Medium Turquoise'],['00ced1','Dark Turquoise'],['20b2aa','Light Sea Green'],
+  ['008080','Teal'],['008b8b','Dark Cyan'],['00ffff','Cyan'],['e0ffff','Light Cyan'],
+  ['afeeee','Pale Turquoise'],['5f9ea0','Cadet Blue'],['b0e0e6','Powder Blue'],['add8e6','Light Blue'],
+  ['87ceeb','Sky Blue'],['87cefa','Light Sky Blue'],['00bfff','Deep Sky Blue'],['1e90ff','Dodger Blue'],
+  ['6495ed','Cornflower Blue'],['4682b4','Steel Blue'],['4169e1','Royal Blue'],['0000ff','Blue'],
+  ['0000cd','Medium Blue'],['00008b','Dark Blue'],['000080','Navy'],['191970','Midnight Blue'],
+  ['0047ab','Cobalt'],['007fff','Azure'],['0f52ba','Sapphire'],['4d4dff','Neon Blue'],
+  ['7b68ee','Medium Slate Blue'],['6a5acd','Slate Blue'],['483d8b','Dark Slate Blue'],['7c5cff','Iris'],
+  ['9370db','Medium Purple'],['8a2be2','Blue Violet'],['9400d3','Dark Violet'],['9932cc','Dark Orchid'],
+  ['ba55d3','Medium Orchid'],['800080','Purple'],['4b0082','Indigo'],['6b3fa0','Royal Purple'],
+  ['da70d6','Orchid'],['ee82ee','Violet'],['dda0dd','Plum'],['d8bfd8','Thistle'],
+  ['e6e6fa','Lavender'],['c8a2c8','Lilac'],['b284be','African Violet'],['df73ff','Heliotrope'],
+  ['ff00ff','Magenta'],['ff77ff','Fuchsia Pink'],['c71585','Medium Violet Red'],['db7093','Pale Violet Red'],
+  ['ff69b4','Hot Pink'],['ff1493','Deep Pink'],['ffc0cb','Pink'],['ffb6c1','Light Pink'],
+  ['f19cbb','Amaranth Pink'],['fc8eac','Flamingo'],['e75480','Dark Pink'],['de5d83','Blush'],
+  ['ffe4e1','Misty Rose'],['f4c2c2','Baby Pink'],['e30b5d','Raspberry'],['c32148','Bright Maroon'],
+  ['e0115f','Ruby'],['ab4e52','Rose Vale'],['905d5d','Rose Taupe'],['997a8d','Mountbatten Pink'],
+];
+function hex2rgb(h) { return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
+function rgb2lab(r, g, b) {
+  let [x, y, z] = [r / 255, g / 255, b / 255].map(v => v > 0.04045 ? Math.pow((v + 0.055) / 1.055, 2.4) : v / 12.92);
+  const X = (x * 0.4124 + y * 0.3576 + z * 0.1805) / 0.95047;
+  const Y = (x * 0.2126 + y * 0.7152 + z * 0.0722) / 1.0;
+  const Z = (x * 0.0193 + y * 0.1192 + z * 0.9505) / 1.08883;
+  const f = t => t > 0.008856 ? Math.cbrt(t) : (7.787 * t) + 16 / 116;
+  const [fx, fy, fz] = [f(X), f(Y), f(Z)];
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+const LABS = NAMES.map(([h, n]) => ({ n, h, lab: rgb2lab(...hex2rgb(h)) }));
+function nearestName(r, g, b) {
+  const lab = rgb2lab(r, g, b);
+  let bestD = 1e9, best = LABS[0];
+  for (const c of LABS) {
+    const d = (lab[0] - c.lab[0]) ** 2 + (lab[1] - c.lab[1]) ** 2 + (lab[2] - c.lab[2]) ** 2;
+    if (d < bestD) { bestD = d; best = c; }
+  }
+  return { name: best.n, dist: Math.sqrt(bestD) };
+}
+function rgb2hsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+  if (mx === mn) return { h: 0, s: 0, l };
+  const dd = mx - mn;
+  const s = l > 0.5 ? dd / (2 - mx - mn) : dd / (mx + mn);
+  let h;
+  if (mx === r) h = ((g - b) / dd + (g < b ? 6 : 0)) * 60;
+  else if (mx === g) h = ((b - r) / dd + 2) * 60;
+  else h = ((r - g) / dd + 4) * 60;
+  return { h, s, l };
+}
+function describe(r, g, b) {
+  const { h, s, l } = rgb2hsl(r, g, b);
+  if (l < 0.09) return 'basically black';
+  if (l > 0.93 && s < 0.2) return 'basically white';
+  if (s < 0.09) return l < 0.4 ? 'a dark gray' : l > 0.7 ? 'a light gray' : 'a mid gray';
+  const fam = h < 14 ? 'red' : h < 40 ? 'orange' : h < 68 ? 'yellow' : h < 160 ? 'green'
+    : h < 200 ? 'cyan' : h < 255 ? 'blue' : h < 290 ? 'purple' : h < 335 ? 'pink' : 'red';
+  const lum = l < 0.22 ? 'very dark ' : l < 0.38 ? 'dark ' : l > 0.82 ? 'very light ' : l > 0.65 ? 'light ' : '';
+  const sat = s > 0.78 ? 'vivid ' : s < 0.28 ? 'muted ' : '';
+  return 'a ' + lum + sat + fam;
+}
+
+// ================================================================
+//  Camera + sampling
+// ================================================================
+const proc = document.createElement('canvas');
+proc.width = 48; proc.height = 48;
+const pctx = proc.getContext('2d', { willReadFrequently: true });
+let camReady = false, facing = 'environment', frozen = false;
+
+function sampleRing() {
+  if (!camReady || video.readyState < 2) return null;
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const s = Math.min(vw, vh) * 0.16;
+  pctx.drawImage(video, (vw - s) / 2, (vh - s) / 2, s, s, 0, 0, 48, 48);
+  const d = pctx.getImageData(0, 0, 48, 48).data;
+  // trimmed mean: sort by luminance, drop the darkest/brightest 20% (shadows/glare)
+  const px = [];
+  for (let i = 0; i < 48 * 48; i++) px.push([d[i * 4], d[i * 4 + 1], d[i * 4 + 2]]);
+  px.sort((a, b2) => (a[0] * 0.3 + a[1] * 0.59 + a[2] * 0.11) - (b2[0] * 0.3 + b2[1] * 0.59 + b2[2] * 0.11));
+  const lo = px.length * 0.2 | 0, hi = px.length * 0.8 | 0;
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let i = lo; i < hi; i++) { r += px[i][0]; g += px[i][1]; b += px[i][2]; n++; }
+  return { r: r / n, g: g / n, b: b / n };
+}
+
+// ================================================================
+//  Readout with anti-flicker hysteresis
+// ================================================================
+let cur = { r: 128, g: 128, b: 128 };
+let shownName = '', candidate = '', candN = 0;
+const hex = c => '#' + [c.r, c.g, c.b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+function updateReadout() {
+  const c = cur;
+  const { name } = nearestName(c.r, c.g, c.b);
+  if (name !== shownName) {
+    if (name === candidate) { candN++; if (candN >= 3) { shownName = name; candN = 0; announce(name); } }
+    else { candidate = name; candN = 1; }
+  } else candN = 0;
+  const hx = hex(c);
+  const { h, s, l } = rgb2hsl(c.r, c.g, c.b);
+  document.getElementById('swatch').style.background = hx;
+  document.getElementById('cname').textContent = shownName || name;
+  document.getElementById('cdesc').textContent = describe(c.r, c.g, c.b);
+  document.getElementById('cvals').textContent =
+    hx.toUpperCase() + ' · RGB ' + [c.r, c.g, c.b].map(Math.round).join(',') +
+    ' · HSL ' + Math.round(h) + '°,' + Math.round(s * 100) + '%,' + Math.round(l * 100) + '%';
+}
+
+// ---- speech ----
+let speak = false, lastSpoken = '', speakT = 0;
+document.getElementById('speakBtn').addEventListener('click', () => {
+  speak = !speak;
+  const b = document.getElementById('speakBtn');
+  b.textContent = speak ? '🔊 SPEAK: ON' : '🔊 SPEAK: OFF';
+  b.classList.toggle('on', speak);
+  if (speak) announce(shownName || 'speak mode on', true);
+});
+function announce(name, force) {
+  if (!speak || !('speechSynthesis' in window)) return;
+  const now = performance.now();
+  if (!force && (name === lastSpoken || now - speakT < 1200)) return;
+  lastSpoken = name; speakT = now;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(name);
+    u.rate = 1.05;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+// ---- toast ----
+let toastT;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 1500);
+}
+
+// ---- capture history ----
+const hist = [];
+document.getElementById('grabBtn').addEventListener('click', () => {
+  const hx = hex(cur);
+  const { name } = nearestName(cur.r, cur.g, cur.b);
+  hist.unshift({ hx, name });
+  if (hist.length > 10) hist.pop();
+  renderHist();
+  announce(name, true);
+  toast('📌 ' + name + ' ' + hx.toUpperCase());
+  navigator.vibrate && navigator.vibrate(30);
+});
+function renderHist() {
+  document.getElementById('hist').innerHTML = hist.map((c, i) =>
+    `<div class="chip" style="background:${c.hx}" title="${c.name} ${c.hx}" data-i="${i}"></div>`).join('');
+  document.querySelectorAll('#hist .chip').forEach(el => el.addEventListener('click', () => {
+    const c = hist[+el.dataset.i];
+    copyText(c.hx.toUpperCase());
+    toast('📋 ' + c.name + ' ' + c.hx.toUpperCase() + ' copied');
+  }));
+}
+function copyText(t) {
+  try { navigator.clipboard.writeText(t); } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = t; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e2) {}
+    ta.remove();
+  }
+}
+document.getElementById('copyBtn').addEventListener('click', () => {
+  copyText(hex(cur).toUpperCase());
+  toast('📋 ' + hex(cur).toUpperCase() + ' copied');
+});
+
+// ---- camera ----
+async function startCam() {
+  if (video.srcObject) for (const t of video.srcObject.getTracks()) t.stop();
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false,
+  });
+  video.srcObject = stream;
+  video.style.transform = facing === 'user' ? 'scaleX(-1)' : 'none';
+  await video.play();
+  camReady = true;
+}
+document.getElementById('flipBtn').addEventListener('click', async () => {
+  facing = facing === 'environment' ? 'user' : 'environment';
+  try { await startCam(); } catch (e) {}
+});
+document.getElementById('goBtn').addEventListener('click', async () => {
+  try { if (!camReady) await startCam(); } catch (e) {
+    try { facing = 'user'; await startCam(); } catch (e2) {
+      document.getElementById('errMsg').style.display = 'block';
+      return;
+    }
+  }
+  document.getElementById('overlay').classList.add('hide');
+});
+
+// ================================================================
+//  Loop — sample, smooth, draw the ring
+// ================================================================
+let sampleT = 0, last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  sampleT -= dt;
+  if (sampleT <= 0) {
+    sampleT = 0.12;
+    const c = sampleRing();
+    if (c) {
+      cur.r += (c.r - cur.r) * 0.45;
+      cur.g += (c.g - cur.g) * 0.45;
+      cur.b += (c.b - cur.b) * 0.45;
+      updateReadout();
+    }
+  }
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  if (camReady) {
+    const cx = cv.width / 2, cy = cv.height / 2;
+    const R = Math.min(cv.width, cv.height) * 0.13;
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = hex(cur);
+    ctx.shadowColor = hex(cur); ctx.shadowBlur = 20;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.29); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 2;
+    for (const a of [0, 0.5, 1, 1.5]) {
+      const a0 = a * Math.PI;
+      ctx.beginPath(); ctx.arc(cx, cy, R + 10, a0 - 0.12, a0 + 0.12); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(cx - 7, cy); ctx.lineTo(cx + 7, cy);
+    ctx.moveTo(cx, cy - 7); ctx.lineTo(cx, cy + 7); ctx.stroke();
+  }
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # 🎮 Wizzed Arcade — Game & Tool Catalog
 
-A complete reference to everything in the arcade. **137 games** and **91 tools**, plus **11 preserved classics** in [The Old Arcade](old.html).
+A complete reference to everything in the arcade. **140 games** and **92 tools**, plus **11 preserved classics** in [The Old Arcade](old.html).
 
 Every entry is a single standalone HTML file — no build step, no dependencies (except the 3D games, which load `lib/three.min.js`). Open any file directly in a browser, or browse them all from [`index.html`](index.html). Each game/tool has 5 preview screenshots under `shots/<slug>/1..5.jpg`.
 
@@ -17,20 +17,20 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🎮 Massively Multiplayer | 7 |
 | 🎮 RPG & Adventure | 11 |
 | 🎮 Arcade | 30 |
-| 🎮 Action & Shooter | 11 |
-| 🎮 Puzzle | 22 |
+| 🎮 Action & Shooter | 13 |
+| 🎮 Puzzle | 23 |
 | 🎮 Board & Strategy | 13 |
 | 🎮 Word, Trivia & Number | 11 |
 | 🎮 Cards & Casino | 15 |
 | 🎮 3D | 17 |
-| **Games total** | **137** |
+| **Games total** | **140** |
 | 🛠️ Productivity | 14 |
 | 🛠️ Text & Dev | 15 |
 | 🛠️ Numbers & Calculators | 12 |
-| 🛠️ Design & Color | 14 |
+| 🛠️ Design & Color | 15 |
 | 🛠️ Audio & Visual | 21 |
 | 🛠️ Data & Utilities | 15 |
-| **Tools total** | **91** |
+| **Tools total** | **92** |
 | 📺 Old Arcade classics | 11 |
 
 ---
@@ -102,10 +102,11 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🛰️ **Star Defender** `NEW` | Side Shooter | [`games/defender.html`](games/defender.html) | Scroll, rescue, and blast — keep the colonists out of alien claws. |
 | 🏗️ **Tower Stack** | Timing | [`games/tower-stack.html`](games/tower-stack.html) | Drop blocks with perfect timing and stack a tower to the sky. |
 
-### Action & Shooter  (11)
+### Action & Shooter  (13)
 
 | Game | Genre | File | Description |
 | --- | --- | --- | --- |
+| 🍉 **Air Slice** `NEW` | 📱 Camera Action | [`games/air-slice.html`](games/air-slice.html) | Wave your real hand through your camera to slice flying fruit — no touching the screen. |
 | 🔫 **Blob Blaster** | Arena Survival | [`games/blob-blaster.html`](games/blob-blaster.html) | Swarms close in. Level up, pick upgrades, and hold out as long as you can. |
 | 🏹 **Bullseye Archery** | Skill Shot | [`games/archery.html`](games/archery.html) | Draw, judge the wind, and loose. Ten arrows to prove your aim. |
 | 💥 **Cannon Siege** `NEW` | Artillery | [`games/cannon-siege.html`](games/cannon-siege.html) | Angle, power, wind — crater the terrain and out-shell the enemy. |
@@ -114,11 +115,12 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🍉 **Fruit Slicer** | Slicing | [`games/fruit-slice.html`](games/fruit-slice.html) | Swipe glowing blade trails through flying fruit — but never the bombs. |
 | 🛡️ **Missile Defense** | Defense | [`games/missile-command.html`](games/missile-command.html) | Six cities. Endless missile rain. Your blasts are all that stand between. |
 | 👾 **Star Squadron** | Wave Shooter | [`games/star-squadron.html`](games/star-squadron.html) | Swooping formations, dive-bombers and a boss every third wave. |
+| 🗿 **STATUE!** `NEW` | 📱 Camera Party | [`games/statue-freeze.html`](games/statue-freeze.html) | Red light, green light — the camera is the referee. Dance, freeze, don't twitch! |
 | 🪖 **Tank Arena** | Top-Down | [`games/tank-battle.html`](games/tank-battle.html) | Out-drive and out-shoot AI tanks with ricocheting shells. |
 | 👽 **UFO Rancher** `NEW` | Arcade Action | [`games/ufo-abduct.html`](games/ufo-abduct.html) | Beam up the livestock before the farmers and jets ruin your harvest. |
 | 🔨 **Whack-a-Mole** | Reflex | [`games/whack-a-mole.html`](games/whack-a-mole.html) | Faster and faster they pop. Watch for the golden mole! |
 
-### Puzzle  (22)
+### Puzzle  (23)
 
 | Game | Genre | File | Description |
 | --- | --- | --- | --- |
@@ -127,6 +129,7 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🧩 **Block Fit** `NEW` | Block Puzzle | [`games/blocks-fill.html`](games/blocks-fill.html) | Fit the tray pieces, clear rows and boxes, survive the board. |
 | 🌉 **Bridges** `NEW` | Logic | [`games/bridges.html`](games/bridges.html) | Connect every island — counts must match, bridges never cross. |
 | 🌈 **Color Flood** `NEW` | Flood Fill | [`games/color-flood.html`](games/color-flood.html) | Flood the board into one color before your moves run dry. |
+| 🌈 **Color Quest** `NEW` | 📱 Camera Hunt | [`games/color-quest.html`](games/color-quest.html) | A real-world scavenger hunt: the game names a color, you run and point your camera at it. |
 | 🚪 **Escape Room** `NEW` | Point & Click | [`games/escape-room.html`](games/escape-room.html) | Three locked rooms, hidden keys, and puzzles inside puzzles. |
 | 💠 **Gem Columns** `NEW` | Match Drop | [`games/columns-drop.html`](games/columns-drop.html) | Falling trios of gems — line up three any way they will fit. |
 | 💎 **Gem Crush** | Match-3 | [`games/gem-crush.html`](games/gem-crush.html) | Swap gems, chain cascades, chase the target before moves run out. |
@@ -283,7 +286,7 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🍽️ **Tip + Split** `NEW` | Money | [`tools/tip-split.html`](tools/tip-split.html) | Tip, total and per-person — with rounding that makes sense. |
 | 📏 **Unit Converter** `NEW` | Converter | [`tools/unit-converter.html`](tools/unit-converter.html) | Length, weight, temperature and more — live in both directions. |
 
-### Design & Color  (14)
+### Design & Color  (15)
 
 | Tool | Genre | File | Description |
 | --- | --- | --- | --- |
@@ -295,6 +298,7 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🌅 **Gradient Maker** `NEW` | CSS | [`tools/gradient-maker.html`](tools/gradient-maker.html) | Multi-stop gradients with the CSS ready to copy. |
 | 🔰 **Icon Maker** `NEW` | Images | [`tools/icon-maker.html`](tools/icon-maker.html) | Turn an emoji or letters into crisp icons, every size at once. |
 | 🖼️ **Image Resizer** `NEW` | Images | [`tools/image-resizer.html`](tools/image-resizer.html) | Resize, crop and compress images — all local, nothing uploaded. |
+| ✨ **Light Writer** `NEW` | 📱 Camera | [`tools/light-writer.html`](tools/light-writer.html) | Wave a flashlight in front of your camera and draw glowing letters in thin air — live light painting. |
 | 😂 **Meme Maker** `NEW` | Images | [`tools/meme-maker.html`](tools/meme-maker.html) | Top text, bottom text, instant classic — download the PNG. |
 | 🌈 **Palette Generator** `NEW` | Color | [`tools/palette-gen.html`](tools/palette-gen.html) | Smash space for palettes, lock the keepers. |
 | 🎞️ **Photo Filters** `NEW` | Images | [`tools/image-filters.html`](tools/image-filters.html) | Brightness, duotone, pixelate, vignette — export the edit. |
@@ -375,11 +379,12 @@ The original eleven, preserved exactly as they were. Reachable from [`old.html`]
 
 
 - **`index.html`** — the frontpage. A sticky bar at the top toggles between the **Games** and **Tools** views and holds the category filter chips, search box, and a **light/dark theme toggle** (defaults to your system preference, saved in `localStorage`; the Old Arcade shares the same preference). Hover any card to preview its 5 screenshots (cross-faded, flicker-free).
-- **`games/`** — the 137 games. **`tools/`** — the 91 tools. **`games/old/`** — the 11 classics.
+- **`games/`** — the 140 games. **`tools/`** — the 92 tools. **`games/old/`** — the 11 classics.
 - **`old.html`** — landing page for The Old Arcade.
 - **`shots/<slug>/1..5.jpg`** — five gameplay screenshots per entry, captured at 800×500. The frontpage cycles through them on hover.
 - **`lib/three.min.js`** — three.js r160 (UMD), used by the 3D games, Groove Dancer, and the frontpage hero.
 - The **Massively Multiplayer** games (`mega-tag`, `mp-draw`, `mp-clicker`, `mp-plaza`, `mp-race`, `mp-snake`, `mp-quiz`) run serverless over public MQTT-over-WebSocket brokers (no accounts — see `private.md` for infrastructure notes and how to point any of them at your own broker via `?broker=`); AI bots fill the world when humans are scarce, every bot is badged 🤖, and the live online count always shows humans vs AI. **Late joiners get the current shared state** (the drawing canvas, the global click total, chat history, eaten food) via MQTT retained snapshots — the world persists even after everyone leaves.
+- The **📱 Camera** pages (`games/air-slice.html`, `games/statue-freeze.html`, `games/color-quest.html`, `tools/light-writer.html`) use the camera as a *controller* — motion detection by frame differencing, hue matching, and brightest-point tracking, all computed live in the browser. Nothing is recorded or uploaded; built for phones, work with any webcam.
 - **Character Forge** (`games/character-forge-3d.html`) exports standard **`.glb`** model files; **Groove Dancer** (`tools/groove-dancer.html`) reuses your saved Forge hero.
 - **Visualizer Studio** (`tools/visualizer-studio.html`) exports MP4/WEBM music videos at 720p/1080p/4K/square/vertical; the audio tools (cutter, slowed+reverb, vocal remover) export 16-bit WAV.
 

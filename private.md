@@ -1,4 +1,4 @@
-# private.md — MEGA TAG infrastructure notes
+# private.md — multiplayer infrastructure notes (MEGA TAG + the mp-* games)
 
 > ⚠️ **This repo is public** (it's a GitHub Pages site), so treat this file as
 > documentation, not a vault. There are currently **zero secrets in here — and
@@ -6,9 +6,11 @@
 > broker, keep the credentials in a password manager and only note *where*
 > they live here.
 
-## What MEGA TAG uses today (no accounts, no credentials)
+## What the multiplayer games use today (no accounts, no credentials)
 
-The multiplayer transport is **MQTT over WebSocket to free public brokers**.
+All seven massively-multiplayer games (`mega-tag`, `mp-draw`, `mp-clicker`,
+`mp-plaza`, `mp-race`, `mp-snake`, `mp-quiz`) share the same transport:
+**MQTT over WebSocket to free public brokers**.
 No signup was needed; nothing was provisioned; there is nothing to leak.
 
 | Purpose | Endpoint | Provider | Cost / account |
@@ -17,20 +19,46 @@ No signup was needed; nothing was provisioned; there is nothing to leak.
 | Fallback 1 | `wss://broker.hivemq.com:8884/mqtt` | HiveMQ public sandbox | free · none |
 | Fallback 2 | `wss://test.mosquitto.org:8081` | Eclipse Mosquitto test | free · none |
 
-- The game tries them in order and reconnects with fallback rotation.
+- Each game tries them in order and reconnects with fallback rotation.
 - If none are reachable, it drops into **OFFLINE mode** (AI bots only) and says so in the status pill.
-- The MQTT client is hand-written inside `games/mega-tag.html` (MQTT 3.1.1, QoS 0, keepalive 60s) — no external libraries.
+- The MQTT client is hand-written inside each game file (MQTT 3.1.1, QoS 0,
+  keepalive, retain flag on state topics) — no external libraries.
 
 ## Topic namespace
 
 ```
-wizzed/megatag/v2/main/s/<playerId>   ← each client publishes its own state (~7 Hz JSON)
+wizzed/megatag/v2/main/s/<playerId>       ← MEGA TAG player state (~7 Hz JSON)
+wizzed/<slug>/v1/main/p|s/<playerId>      ← other games' player state (~5.5 Hz JSON)
+wizzed/<slug>/v1/main/seg/<playerId>      ← mp-draw stroke segments (events)
+wizzed/<slug>/v1/main/say|emo/<playerId>  ← mp-plaza chat / emotes (events)
+wizzed/<slug>/v1/main/state/<what>        ← RETAINED shared-state snapshots (see below)
 ```
 
-State payload: `{i, n, x, y, c, it, itS, ai, s}` — id, name, position, hue, is-IT flag,
-IT-claim timestamp (latest claim wins), AI flag, score. Peers not heard from for 6s are pruned.
-Bots are simulated by the **bot host** (the human with the lexicographically-lowest id)
-and published with `ai: 1`, so every client agrees on who is a robot.
+Player state payloads carry id, name, position, AI flag, score etc. Peers not
+heard from for 6s are pruned. Bots are simulated by the **bot host** (the human
+with the lexicographically-lowest id) and published with `ai: 1`, so every
+client agrees on who is a robot.
+
+## Late-joiner sync (retained state snapshots)
+
+Games with shared world state publish it as **MQTT retained messages** — the
+broker stores the last message per topic and replays it to every new
+subscriber, so someone joining later (even after everyone left) resumes from
+the current state instead of a blank world. The bot host publishes these on a
+short interval, only when the state changed:
+
+| Topic (under `wizzed/<slug>/v1/main/`) | Game | Payload |
+| --- | --- | --- |
+| `state/canvas` | mp-draw | `{t:'snap', i, ts, d}` — downscaled PNG data-URL of the whole canvas (≤ ~110 KB, every 5s) |
+| `state/total` | mp-clicker | `{t:'tot', i, tot, ts}` — all-time global click total (max-merge, every 2.5s) |
+| `state/chat` | mp-plaza | `{t:'chat', i, hist, ts}` — last 8 chat lines (every 1.5s) |
+| `state/food` | mp-snake | `{t:'food', i, fm, fe, ts}` — eaten pellet indices for the current food-minute (every 2s) |
+
+mega-tag / mp-race / mp-quiz need no retained state: everything a late joiner
+needs (who is IT, positions, scores, the wall-clock round/question index) is
+re-derivable from the continuous ~5–7 Hz player publishes within ~200 ms.
+mp-snake peers additionally piggy-back the pellets they personally ate
+(`fm`/`fe`) on their regular state messages so live players converge too.
 
 ## Important caveats (public sandbox brokers)
 

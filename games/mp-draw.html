@@ -219,10 +219,10 @@
       const pid = new Uint8Array([0, 7]);
       this.send(0x82, this.cat(pid, this.enc(filter), new Uint8Array([0])));
     }
-    publish(topic, payloadStr) {
+    publish(topic, payloadStr, retain) {
       if (!this.connected) return;
       const pl = new TextEncoder().encode(payloadStr);
-      this.send(0x30, this.cat(this.enc(topic), pl));
+      this.send(retain ? 0x31 : 0x30, this.cat(this.enc(topic), pl));
     }
     feed(chunk) {
       this.buf = this.cat(this.buf, chunk);
@@ -300,9 +300,11 @@
   const layerOthers = makeLayer();  // peers + bots
   const layerMine = makeLayer();    // my own ink (clearable)
 
+  let canvasDirty = false;   // any ink baked since the last shared snapshot
   function bakeSeg(mine, seg) {
     const pts = seg.pts;
     if (!pts || !pts.length) return;
+    canvasDirty = true;
     const lay = mine ? layerMine.x : layerOthers.x;
     if (seg.er) {
       // eraser removes ink on BOTH layers locally
@@ -387,6 +389,7 @@
   function syncColors() { [...colorsEl.children].forEach((c, i) => c.classList.toggle('on', i === colorIdx)); }
   document.getElementById('clearBtn').addEventListener('click', () => {
     layerMine.x.clearRect(0, 0, WORLD_W, WORLD_H);
+    canvasDirty = true;
     toast('Cleared your ink ✏️');
     bleep(300, 0.08);
   });
@@ -433,9 +436,43 @@
       } else if (m.t === 'seg') {
         bakeSeg(false, m);
         pingActivity(m.pts[m.pts.length - 1]);
+      } else if (m.t === 'snap') {
+        applySnapshot(m);
       }
     } catch (e) {}
   };
+
+  // ---- late-joiner sync: the host keeps a retained canvas snapshot on the
+  // broker, so anyone who subscribes later starts from the current artwork
+  // instead of a blank world ----
+  const SNAP_TOPIC = ROOM + '/state/canvas';
+  let snapApplied = false;   // only ever restore once, right after joining
+  function publishSnapshot() {
+    if (!online || !iAmHost() || !canvasDirty) return;
+    canvasDirty = false;
+    try {
+      for (const [sw, sh] of [[750, 500], [500, 333], [375, 250]]) {
+        const c = document.createElement('canvas');
+        c.width = sw; c.height = sh;
+        const x = c.getContext('2d');
+        x.drawImage(layerOthers.c, 0, 0, sw, sh);
+        x.drawImage(layerMine.c, 0, 0, sw, sh);
+        const d = c.toDataURL('image/png');
+        if (d.length < 110000) {
+          mq.publish(SNAP_TOPIC, JSON.stringify({ t: 'snap', i: myId, ts: Date.now(), d }), true);
+          return;
+        }
+      }
+    } catch (e) {}
+  }
+  setInterval(publishSnapshot, 5000);
+  function applySnapshot(m) {
+    if (snapApplied || typeof m.d !== 'string' || !m.d.startsWith('data:image/')) return;
+    snapApplied = true;
+    const img = new Image();
+    img.onload = () => { layerOthers.x.drawImage(img, 0, 0, WORLD_W, WORLD_H); };
+    img.src = m.d;
+  }
 
   // publish presence ~5.5Hz
   setInterval(() => {

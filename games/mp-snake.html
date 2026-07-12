@@ -191,10 +191,10 @@
       const pid = new Uint8Array([0, 7]);
       this.send(0x82, this.cat(pid, this.enc(filter), new Uint8Array([0])));
     }
-    publish(topic, payloadStr) {
+    publish(topic, payloadStr, retain) {
       if (!this.connected) return;
       const pl = new TextEncoder().encode(payloadStr);
-      this.send(0x30, this.cat(this.enc(topic), pl));
+      this.send(retain ? 0x31 : 0x30, this.cat(this.enc(topic), pl));
     }
     feed(chunk) {
       this.buf = this.cat(this.buf, chunk);
@@ -289,6 +289,12 @@
   const FOOD_N = 220;
   let food = []; // {x,y,r,hue,eaten}
   let foodMinute = -1;
+  // shared-food bookkeeping: which pellet indices this minute are gone.
+  // myEatenIdx rides along in my state publishes; the host also keeps the
+  // union retained on the broker so late joiners see the same half-eaten pit.
+  let myEatenIdx = [];
+  let eatenUnion = new Set();
+  let eatenPubCount = 0;
   function rebuildFood(minute) {
     const rng = mulberry32(minute * 2654435761 + 99991);
     food = [];
@@ -302,6 +308,23 @@
       });
     }
     foodMinute = minute;
+    myEatenIdx = [];
+    eatenUnion = new Set();
+    eatenPubCount = 0;
+  }
+  function markEaten(idx) {
+    if (idx < 0 || idx >= food.length) return;
+    food[idx].eaten = true;
+    eatenUnion.add(idx);
+  }
+  function eatAt(f) { // local snake/bot ate pellet f: track + broadcast
+    const idx = food.indexOf(f);
+    if (idx >= 0) { markEaten(idx); myEatenIdx.push(idx); }
+    else f.eaten = true;
+  }
+  function applyEatenList(fm, fe) {
+    if (fm !== foodMinute || !Array.isArray(fe)) return;
+    for (const idx of fe) if (typeof idx === 'number') markEaten(idx);
   }
   rebuildFood(Math.floor(Date.now() / 60000));
   // burst pellets from deaths (local, transient, not deterministic)
@@ -314,14 +337,20 @@
   mq.onstatus = up => {
     online = up;
     const dot = document.getElementById('connDot'), txt = document.getElementById('connTxt');
-    if (up) { dot.className = 'dot live'; txt.textContent = 'LIVE — the pit'; mq.subscribe(ROOM + '/s/#'); }
+    if (up) { dot.className = 'dot live'; txt.textContent = 'LIVE — the pit'; mq.subscribe(ROOM + '/s/#'); mq.subscribe(ROOM + '/state/#'); }
     else { dot.className = 'dot off'; txt.textContent = 'OFFLINE — AI pit'; }
   };
   mq.onmessage = (topic, payload) => {
     try {
       const st = JSON.parse(payload);
       if (!st || !st.i || st.i === myId) return;
+      if (topic.indexOf(ROOM + '/state/') === 0) {
+        // retained eaten-food union — replayed by the broker to late joiners
+        if (st.t === 'food') applyEatenList(st.fm, st.fe);
+        return;
+      }
       if (bots.has(st.i)) return;
+      applyEatenList(st.fm, st.fe); // peers announce the pellets they ate
       st.seen = performance.now();
       // st.b is flat array [x0,y0,x1,y1,...]
       const pts = [];
@@ -350,8 +379,17 @@
       i: me.i, n: me.n, c: me.c, ai: 0,
       x: Math.round(me.x), y: Math.round(me.y), a: +me.a.toFixed(2),
       len: me.len, dead: me.dead, k: me.kills, b: trimmedBody(me, 26),
+      fm: foodMinute, fe: myEatenIdx,
     }));
   }, 160);
+  // host keeps the eaten-food union retained on the broker for late joiners
+  setInterval(() => {
+    if (!online || !iAmBotHost() || eatenUnion.size === eatenPubCount) return;
+    eatenPubCount = eatenUnion.size;
+    mq.publish(ROOM + '/state/food', JSON.stringify({
+      t: 'food', i: myId, fm: foodMinute, fe: [...eatenUnion], ts: Date.now(),
+    }), true);
+  }, 2000);
   setInterval(() => {
     const now = performance.now();
     for (const [id, p] of peers) if (now - p.seen > 6000) peers.delete(id);
@@ -434,7 +472,7 @@
       b.sprint = false;
       stepSnake(b, dt, ta);
       // eat food
-      for (const f of food) { if (!f.eaten && (f.x - b.x) ** 2 + (f.y - b.y) ** 2 < (HEAD_R + f.r) ** 2) { f.eaten = true; b.len += 2; } }
+      for (const f of food) { if (!f.eaten && (f.x - b.x) ** 2 + (f.y - b.y) ** 2 < (HEAD_R + f.r) ** 2) { eatAt(f); b.len += 2; } }
       for (let i = burst.length - 1; i >= 0; i--) { const p = burst[i]; if ((p.x - b.x) ** 2 + (p.y - b.y) ** 2 < (HEAD_R + p.r) ** 2) { b.len += 1; burst.splice(i, 1); } }
       // collide into others' bodies
       if (headHitsBodies(b, alive)) killSnake(b);
@@ -550,7 +588,7 @@
       stepSnake(me, dt, ta);
       // eat food
       for (const f of food) {
-        if (!f.eaten && (f.x - me.x) ** 2 + (f.y - me.y) ** 2 < (HEAD_R + f.r) ** 2) { f.eaten = true; me.len += 2; beep(600 + Math.random() * 120, 0.06, 'square', 0.035); }
+        if (!f.eaten && (f.x - me.x) ** 2 + (f.y - me.y) ** 2 < (HEAD_R + f.r) ** 2) { eatAt(f); me.len += 2; beep(600 + Math.random() * 120, 0.06, 'square', 0.035); }
       }
       for (let i = burst.length - 1; i >= 0; i--) { const p = burst[i]; if ((p.x - me.x) ** 2 + (p.y - me.y) ** 2 < (HEAD_R + p.r) ** 2) { me.len += 1; burst.splice(i, 1); beep(700, 0.05, 'square', 0.03); } }
       if (me.len > best) { best = Math.round(me.len); persist(); document.getElementById('myBest').textContent = best; }

@@ -1,6 +1,6 @@
 # 🎮 Wizzed Arcade — Game & Tool Catalog
 
-A complete reference to everything in the arcade. **140 games** and **92 tools**, plus **11 preserved classics** in [The Old Arcade](old.html).
+A complete reference to everything in the arcade. **140 games** and **93 tools**, plus **11 preserved classics** in [The Old Arcade](old.html).
 
 Every entry is a single standalone HTML file — no build step, no dependencies (except the 3D games, which load `lib/three.min.js`). Open any file directly in a browser, or browse them all from [`index.html`](index.html). Each game/tool has 5 preview screenshots under `shots/<slug>/1..5.jpg`.
 
@@ -27,10 +27,10 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🛠️ Productivity | 14 |
 | 🛠️ Text & Dev | 15 |
 | 🛠️ Numbers & Calculators | 12 |
-| 🛠️ Design & Color | 15 |
+| 🛠️ Design & Color | 16 |
 | 🛠️ Audio & Visual | 21 |
 | 🛠️ Data & Utilities | 15 |
-| **Tools total** | **92** |
+| **Tools total** | **93** |
 | 📺 Old Arcade classics | 11 |
 
 ---
@@ -286,13 +286,14 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🍽️ **Tip + Split** `NEW` | Money | [`tools/tip-split.html`](tools/tip-split.html) | Tip, total and per-person — with rounding that makes sense. |
 | 📏 **Unit Converter** `NEW` | Converter | [`tools/unit-converter.html`](tools/unit-converter.html) | Length, weight, temperature and more — live in both directions. |
 
-### Design & Color  (15)
+### Design & Color  (16)
 
 | Tool | Genre | File | Description |
 | --- | --- | --- | --- |
 | 🅰️ **ASCII Banner** `NEW` | Text Art | [`tools/ascii-art.html`](tools/ascii-art.html) | Turn any word into a giant pixel-font banner. |
 | ✳️ **Character Map** `NEW` | Symbols | [`tools/char-map.html`](tools/char-map.html) | Every arrow, star and box-drawing glyph, one click to copy. |
 | 🧩 **Collage Maker** `NEW` | Images | [`tools/collage-maker.html`](tools/collage-maker.html) | Drop photos into layouts and export one picture. |
+| 🔍 **Color Lens** `NEW` | 📱 Camera | [`tools/color-lens.html`](tools/color-lens.html) | Point at anything and it names the color out loud — Crimson, Sage, Mustard — with the exact hex to keep. |
 | 🖌️ **Color Studio** `NEW` | Color | [`tools/color-picker.html`](tools/color-picker.html) | Pick, tweak and copy colors with shades and harmonies. |
 | 🌓 **Contrast Checker** `NEW` | A11y | [`tools/contrast-check.html`](tools/contrast-check.html) | WCAG ratios with a one-click nudge to pass. |
 | 🌅 **Gradient Maker** `NEW` | CSS | [`tools/gradient-maker.html`](tools/gradient-maker.html) | Multi-stop gradients with the CSS ready to copy. |
@@ -379,12 +380,12 @@ The original eleven, preserved exactly as they were. Reachable from [`old.html`]
 
 
 - **`index.html`** — the frontpage. A sticky bar at the top toggles between the **Games** and **Tools** views and holds the category filter chips, search box, and a **light/dark theme toggle** (defaults to your system preference, saved in `localStorage`; the Old Arcade shares the same preference). Hover any card to preview its 5 screenshots (cross-faded, flicker-free).
-- **`games/`** — the 140 games. **`tools/`** — the 92 tools. **`games/old/`** — the 11 classics.
+- **`games/`** — the 140 games. **`tools/`** — the 93 tools. **`games/old/`** — the 11 classics.
 - **`old.html`** — landing page for The Old Arcade.
 - **`shots/<slug>/1..5.jpg`** — five gameplay screenshots per entry, captured at 800×500. The frontpage cycles through them on hover.
 - **`lib/three.min.js`** — three.js r160 (UMD), used by the 3D games, Groove Dancer, and the frontpage hero.
 - The **Massively Multiplayer** games (`mega-tag`, `mp-draw`, `mp-clicker`, `mp-plaza`, `mp-race`, `mp-snake`, `mp-quiz`) run serverless over public MQTT-over-WebSocket brokers (no accounts — see `private.md` for infrastructure notes and how to point any of them at your own broker via `?broker=`); AI bots fill the world when humans are scarce, every bot is badged 🤖, and the live online count always shows humans vs AI. **Late joiners get the current shared state** (the drawing canvas, the global click total, chat history, eaten food) via MQTT retained snapshots — the world persists even after everyone leaves.
-- The **📱 Camera** pages (`games/air-slice.html`, `games/statue-freeze.html`, `games/color-quest.html`, `tools/light-writer.html`) use the camera as a *controller* — motion detection by frame differencing, hue matching, and brightest-point tracking, all computed live in the browser. Nothing is recorded or uploaded; built for phones, work with any webcam.
+- The **📱 Camera** pages (`games/air-slice.html`, `games/statue-freeze.html`, `games/color-quest.html`, `tools/light-writer.html`, `tools/color-lens.html`) use the camera as a *controller* — motion detection by frame differencing, hue matching, and brightest-point tracking, all computed live in the browser. Nothing is recorded or uploaded; built for phones, work with any webcam.
 - **Character Forge** (`games/character-forge-3d.html`) exports standard **`.glb`** model files; **Groove Dancer** (`tools/groove-dancer.html`) reuses your saved Forge hero.
 - **Visualizer Studio** (`tools/visualizer-studio.html`) exports MP4/WEBM music videos at 720p/1080p/4K/square/vertical; the audio tools (cutter, slowed+reverb, vocal remover) export 16-bit WAV.
 

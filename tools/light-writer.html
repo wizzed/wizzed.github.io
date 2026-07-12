@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>LIGHT WRITER — Paint The Air With Light · Wizzed Arcade</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #05050c; }
+  body { font-family: 'Courier New', monospace; color: #e8e6ff; user-select: none; -webkit-user-select: none; }
+  #video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(0.45) saturate(0.7); }
+  #trail, #spark { position: fixed; inset: 0; width: 100%; height: 100%; }
+  #back {
+    position: fixed; top: 10px; left: 10px; z-index: 30;
+    color: #b9b4e8; text-decoration: none; font-size: 13px; letter-spacing: 1px;
+    border: 1px solid #3c3760; background: rgba(5,5,12,0.75); padding: 6px 12px; border-radius: 8px;
+  }
+  #bar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 25;
+    display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: linear-gradient(transparent, rgba(5,5,12,0.9) 30%);
+  }
+  #bar button {
+    font-family: inherit; font-size: 13px; letter-spacing: 1px;
+    color: #e8e6ff; background: rgba(30,26,58,0.85); border: 1px solid #3c3760;
+    padding: 10px 14px; border-radius: 10px;
+  }
+  #bar button.on { border-color: #ffd166; color: #ffd166; }
+  #bar .sl { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #8d87bb; letter-spacing: 1px; }
+  #bar input[type=range] { width: 90px; accent-color: #ffd166; }
+  #status {
+    position: fixed; top: 10px; right: 10px; z-index: 20; text-align: right;
+    font-size: 12px; letter-spacing: 1px; color: #b9b4e8;
+    background: rgba(5,5,12,0.75); border: 1px solid #3c3760; border-radius: 8px; padding: 6px 11px;
+  }
+  #status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #555a77; margin-right: 5px; }
+  #status .dot.live { background: #00ff9c; box-shadow: 0 0 8px #00ff9c; }
+  #overlay {
+    position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 20px;
+    background: radial-gradient(ellipse at 50% 40%, rgba(30,26,58,0.94), rgba(5,5,12,0.97));
+  }
+  #overlay.hide { display: none; }
+  #overlay h1 { font-size: clamp(34px, 9vw, 60px); letter-spacing: 7px; color: #fff; text-shadow: 0 0 30px #ffd166, 0 0 70px rgba(255,209,102,0.4); margin-bottom: 8px; }
+  #overlay .sub { color: #b9b4e8; font-size: 14px; letter-spacing: 1px; line-height: 1.9; margin-bottom: 24px; max-width: 480px; }
+  #overlay .sub b { color: #ffd166; }
+  #overlay .go {
+    font-family: inherit; font-size: 16px; letter-spacing: 3px; font-weight: bold;
+    color: #05050c; background: linear-gradient(135deg, #ffd166, #ff9d3c); border: 0;
+    padding: 15px 40px; border-radius: 12px; cursor: pointer; box-shadow: 0 0 30px rgba(255,209,102,0.45);
+  }
+  #overlay .priv { margin-top: 22px; font-size: 11px; color: #8d87bb; letter-spacing: 1px; max-width: 430px; line-height: 1.8; }
+  #overlay .err { color: #ff5c8a; font-size: 13px; margin-top: 14px; display: none; }
+</style>
+</head>
+<body>
+<video id="video" autoplay playsinline muted></video>
+<canvas id="trail"></canvas>
+<canvas id="spark"></canvas>
+<a id="back" href="../index.html">← Arcade</a>
+<div id="status"><span class="dot" id="dot"></span><span id="statTxt">camera off</span></div>
+<div id="bar">
+  <button id="colBtn" class="on">🌈 RAINBOW</button>
+  <button id="clearBtn">🧹 CLEAR</button>
+  <button id="saveBtn">💾 SAVE PNG</button>
+  <button id="flipBtn">🔄 FLIP</button>
+  <span class="sl">SENS <input type="range" id="sens" min="150" max="230" value="190"></span>
+</div>
+<div id="overlay">
+  <h1>LIGHT WRITER</h1>
+  <div class="sub">
+    long-exposure photography, live.<br>
+    grab a second phone with its <b>flashlight on</b> (or any bright light),<br>
+    wave it in front of the camera and <b>draw glowing letters in thin air</b>.<br>
+    the light leaves a trail — write your name, draw a heart, go wild.
+  </div>
+  <button class="go" id="goBtn">📷 START — ENABLE CAMERA</button>
+  <div class="err" id="errMsg">Camera unavailable. Check permissions and try again.</div>
+  <div class="priv"><b>Everything stays on your device.</b> The feed is scanned for its brightest point right in your browser. Saving exports only your glowing trail art — no camera image included.</div>
+</div>
+<script>
+(() => {
+'use strict';
+const video = document.getElementById('video');
+const trail = document.getElementById('trail'), tctx = trail.getContext('2d');
+const spark = document.getElementById('spark'), sctx = spark.getContext('2d');
+function resize() {
+  // preserve trail art across resizes
+  const keep = document.createElement('canvas');
+  keep.width = trail.width || 1; keep.height = trail.height || 1;
+  keep.getContext('2d').drawImage(trail, 0, 0);
+  trail.width = spark.width = innerWidth;
+  trail.height = spark.height = innerHeight;
+  tctx.drawImage(keep, 0, 0, trail.width, trail.height);
+}
+addEventListener('resize', resize); resize();
+
+// ---- brightest-point tracker ----
+const PW = 128, PH = 96;
+const proc = document.createElement('canvas');
+proc.width = PW; proc.height = PH;
+const pctx = proc.getContext('2d', { willReadFrequently: true });
+let camReady = false, facing = 'user', mirrored = true;
+let threshold = 200;   // luminance cut for "this is a light source"
+document.getElementById('sens').addEventListener('input', e => threshold = 390 - +e.target.value);
+
+function findLight() {
+  if (!camReady || video.readyState < 2) return null;
+  pctx.save();
+  if (mirrored) { pctx.scale(-1, 1); pctx.drawImage(video, -PW, 0, PW, PH); }
+  else pctx.drawImage(video, 0, 0, PW, PH);
+  pctx.restore();
+  const d = pctx.getImageData(0, 0, PW, PH).data;
+  let sx = 0, sy = 0, sw = 0, count = 0;
+  for (let y = 0; y < PH; y++) for (let x = 0; x < PW; x++) {
+    const i = (y * PW + x) * 4;
+    const lum = d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11;
+    if (lum > threshold) {
+      const w = lum - threshold;
+      sx += x * w; sy += y * w; sw += w; count++;
+    }
+  }
+  if (count < 2 || sw === 0) return null;
+  return { x: (sx / sw) / PW, y: (sy / sw) / PH, size: count };
+}
+
+// ---- drawing state ----
+let hue = 0, rainbow = true, fixedHue = 48;
+let lastPt = null, missFrames = 0;
+document.getElementById('colBtn').addEventListener('click', () => {
+  rainbow = !rainbow;
+  const b = document.getElementById('colBtn');
+  if (rainbow) { b.textContent = '🌈 RAINBOW'; b.classList.add('on'); }
+  else { fixedHue = (fixedHue + 60) % 360; b.textContent = '🎨 HUE ' + fixedHue + '°'; b.classList.remove('on'); }
+});
+document.getElementById('clearBtn').addEventListener('click', () => {
+  tctx.clearRect(0, 0, trail.width, trail.height);
+  lastPt = null;
+});
+document.getElementById('saveBtn').addEventListener('click', () => {
+  const out = document.createElement('canvas');
+  out.width = trail.width; out.height = trail.height;
+  const c = out.getContext('2d');
+  c.fillStyle = '#05050c';
+  c.fillRect(0, 0, out.width, out.height);
+  c.drawImage(trail, 0, 0);
+  const a = document.createElement('a');
+  a.download = 'light-writing.png';
+  a.href = out.toDataURL('image/png');
+  a.click();
+});
+document.getElementById('flipBtn').addEventListener('click', async () => {
+  facing = facing === 'user' ? 'environment' : 'user';
+  try { await startCam(); } catch (e) {}
+});
+
+async function startCam() {
+  if (video.srcObject) for (const t of video.srcObject.getTracks()) t.stop();
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false,
+  });
+  video.srcObject = stream;
+  mirrored = facing === 'user';
+  video.style.transform = mirrored ? 'scaleX(-1)' : 'none';
+  await video.play();
+  camReady = true;
+  document.getElementById('dot').className = 'dot live';
+  document.getElementById('statTxt').textContent = 'tracking light ✦';
+}
+document.getElementById('goBtn').addEventListener('click', async () => {
+  try { await startCam(); } catch (e) {
+    try { facing = 'environment'; await startCam(); } catch (e2) {
+      document.getElementById('errMsg').style.display = 'block';
+      return;
+    }
+  }
+  document.getElementById('overlay').classList.add('hide');
+});
+
+// ---- loop ----
+function frame() {
+  requestAnimationFrame(frame);
+  sctx.clearRect(0, 0, spark.width, spark.height);
+  const p = findLight();
+  if (p) {
+    missFrames = 0;
+    const x = p.x * trail.width, y = p.y * trail.height;
+    const h = rainbow ? (hue = (hue + 1.6) % 360) : fixedHue;
+    const size = Math.min(26, 7 + Math.sqrt(p.size) * 1.4);
+    tctx.globalCompositeOperation = 'lighter';
+    tctx.strokeStyle = 'hsla(' + h + ',100%,62%,0.85)';
+    tctx.fillStyle = 'hsla(' + h + ',100%,62%,0.85)';
+    tctx.shadowColor = 'hsl(' + h + ',100%,60%)';
+    tctx.shadowBlur = size * 1.6;
+    tctx.lineWidth = size; tctx.lineCap = 'round'; tctx.lineJoin = 'round';
+    if (lastPt && Math.hypot(x - lastPt.x, y - lastPt.y) < trail.width * 0.28) {
+      tctx.beginPath(); tctx.moveTo(lastPt.x, lastPt.y); tctx.lineTo(x, y); tctx.stroke();
+    } else {
+      tctx.beginPath(); tctx.arc(x, y, size / 2, 0, 6.29); tctx.fill();
+    }
+    tctx.shadowBlur = 0;
+    tctx.globalCompositeOperation = 'source-over';
+    lastPt = { x, y };
+    // live cursor sparkle
+    sctx.strokeStyle = '#ffffff';
+    sctx.lineWidth = 2;
+    sctx.globalAlpha = 0.9;
+    sctx.beginPath(); sctx.arc(x, y, size * 0.8, 0, 6.29); sctx.stroke();
+    sctx.globalAlpha = 1;
+  } else {
+    missFrames++;
+    if (missFrames > 14) lastPt = null;   // pen lifted
+  }
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

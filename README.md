@@ -1,14 +1,14 @@
 # wizzed.github.io
 
-🕹️ **Wizzed Arcade** — 137 free browser games & 91 tools, plus the 11 original classics.
+🕹️ **Wizzed Arcade** — 140 free browser games & 92 tools, plus the 11 original classics.
 
 [▶ Play now](https://wizzed.github.io) · 📖 **[Full game & tool catalog → CATALOG.md](CATALOG.md)**
 
 ## Structure
 
 - `index.html` — the arcade frontpage. A **sticky bar** at the top toggles between the **Games** and **Tools** views and holds the category-filter chips, search box, and a **light/dark theme toggle** (defaults to your system preference, saved in `localStorage`). Hover any card to preview 5 gameplay screenshots.
-- `games/*.html` — the 137 games (arcade, action, puzzle, RPG, board, words, cards, and 17 in full 3D — including **Skyward** endless flight, **Wavefarer** sailing on a GPU Gerstner-wave ocean, **VANTAGE**, a mind-bending perspective puzzle where what lines up links up, and **Character Forge**, a full character creator that exports standard `.glb` model files). Seven are **massively-multiplayer** (tag, drawing, clicker, plaza, racing, snake royale, quiz royale) — serverless MMO over public MQTT brokers with AI bots that take over when nobody's around, live online counts, and 🤖 badges on every bot.
-- `tools/*.html` — the 91 tools (productivity, text/dev, numbers, design, audio & visual, data) — including **Visualizer Studio** (music videos with timed lyrics), **Groove Dancer** (a 3D avatar that dances to your music), and a full music lab: audio cutter, slowed+reverb maker, vocal remover, BPM finder, tuner, chord lab, and DJ pads
+- `games/*.html` — the 140 games (arcade, action, puzzle, RPG, board, words, cards, and 17 in full 3D — including **Skyward** endless flight, **Wavefarer** sailing on a GPU Gerstner-wave ocean, **VANTAGE**, a mind-bending perspective puzzle where what lines up links up, and **Character Forge**, a full character creator that exports standard `.glb` model files). Seven are **massively-multiplayer** (tag, drawing, clicker, plaza, racing, snake royale, quiz royale) — serverless MMO over public MQTT brokers with AI bots that take over when nobody's around, live online counts, and 🤖 badges on every bot. Three are **📱 camera games** where your phone's camera is the controller — **Air Slice** (wave your hand to cut flying fruit), **STATUE!** (red-light-green-light with a camera referee), and **Color Quest** (a real-world color scavenger hunt); all motion/color detection runs live in the browser, nothing is recorded or uploaded.
+- `tools/*.html` — the 92 tools (productivity, text/dev, numbers, design, audio & visual, data) — including **Visualizer Studio** (music videos with timed lyrics), **Groove Dancer** (a 3D avatar that dances to your music), **Light Writer** (📱 draw glowing letters in thin air with a flashlight — live light painting), and a full music lab: audio cutter, slowed+reverb maker, vocal remover, BPM finder, tuner, chord lab, and DJ pads
 - `games/old/*.html` — the original 11 classics, reachable via `old.html` (The Old Arcade)
 - `shots/<slug>/1.jpg … 5.jpg` — five gameplay screenshots per entry; the frontpage cycles through them on hover
 - `lib/three.min.js` — three.js r160, used by the 3D games and the frontpage hero

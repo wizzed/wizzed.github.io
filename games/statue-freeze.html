@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>STATUE! — The Camera Sees You Move · Wizzed Arcade</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #0f0f1a; }
+  body { font-family: 'Courier New', monospace; color: #e8e6ff; user-select: none; -webkit-user-select: none; }
+  #video {
+    position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    transform: scaleX(-1); filter: saturate(0.8) brightness(0.85);
+  }
+  #tint { position: fixed; inset: 0; pointer-events: none; transition: background .25s; }
+  #cv { position: fixed; inset: 0; width: 100%; height: 100%; }
+  #back {
+    position: fixed; top: 10px; left: 10px; z-index: 30;
+    color: #b9b4e8; text-decoration: none; font-size: 13px; letter-spacing: 1px;
+    border: 1px solid #3c3760; background: rgba(15,15,26,0.75); padding: 6px 12px; border-radius: 8px;
+  }
+  #hud {
+    position: fixed; top: 10px; right: 10px; z-index: 20; text-align: right;
+    font-size: 14px; letter-spacing: 1px; background: rgba(15,15,26,0.75);
+    border: 1px solid #3c3760; border-radius: 8px; padding: 7px 12px;
+  }
+  #hud b { color: #ffd166; font-size: 18px; }
+  #phase {
+    position: fixed; top: 16%; width: 100%; text-align: center; z-index: 20; pointer-events: none;
+    font-size: clamp(40px, 12vw, 90px); font-weight: bold; letter-spacing: 8px;
+    text-shadow: 0 0 40px currentColor;
+  }
+  #phaseSub { position: fixed; top: calc(16% + clamp(50px,14vw,104px)); width: 100%; text-align: center; z-index: 20; font-size: 15px; letter-spacing: 2px; color: #e8e6ff; pointer-events: none; }
+  #meterWrap {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 20;
+    width: min(74vw, 420px); height: 18px; border: 1px solid #3c3760; border-radius: 10px;
+    background: rgba(15,15,26,0.75); overflow: hidden;
+  }
+  #meter { height: 100%; width: 0%; background: linear-gradient(90deg, #00ff9c, #ffd166, #ff2d78); transition: width .08s; }
+  #meterLbl { position: fixed; bottom: 46px; left: 50%; transform: translateX(-50%); z-index: 20; font-size: 11px; letter-spacing: 2px; color: #8d87bb; }
+  #overlay {
+    position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 20px;
+    background: radial-gradient(ellipse at 50% 40%, rgba(26,42,38,0.94), rgba(10,10,20,0.97));
+  }
+  #overlay.hide { display: none; }
+  #overlay h1 { font-size: clamp(38px, 10vw, 64px); letter-spacing: 8px; color: #fff; text-shadow: 0 0 28px #00ff9c; margin-bottom: 8px; }
+  #overlay .sub { color: #b9b4e8; font-size: 14px; letter-spacing: 1px; line-height: 1.9; margin-bottom: 24px; max-width: 470px; }
+  #overlay .sub b { color: #ffd166; }
+  #overlay .go {
+    font-family: inherit; font-size: 16px; letter-spacing: 3px; font-weight: bold;
+    color: #0f0f1a; background: linear-gradient(135deg, #00ff9c, #4dc3ff); border: 0;
+    padding: 15px 40px; border-radius: 12px; cursor: pointer; box-shadow: 0 0 30px rgba(0,255,156,0.4);
+  }
+  #overlay .priv { margin-top: 22px; font-size: 11px; color: #8d87bb; letter-spacing: 1px; max-width: 420px; line-height: 1.8; }
+  #overlay .err { color: #ff5c8a; font-size: 13px; margin-top: 14px; display: none; }
+</style>
+</head>
+<body>
+<video id="video" autoplay playsinline muted></video>
+<div id="tint"></div>
+<canvas id="cv"></canvas>
+<a id="back" href="../index.html">← Arcade</a>
+<div id="hud">ROUND <b id="round">0</b><br><span style="font-size:11px;color:#8d87bb">BEST <span id="best">0</span> · ❤️<span id="lives">3</span></span></div>
+<div id="phase"></div>
+<div id="phaseSub"></div>
+<div id="meterLbl">MOTION</div>
+<div id="meterWrap"><div id="meter"></div></div>
+<div id="overlay">
+  <h1>STATUE!</h1>
+  <div class="sub">
+    red light, green light — with a camera referee.<br>
+    <b style="color:#00ff9c">DANCE!</b> means move — really move, it's watching.<br>
+    <b style="color:#ff2d78">FREEZE!</b> means become a statue. Twitch = strike.<br>
+    3 strikes and you're out. Rounds get faster. Play with friends!
+  </div>
+  <button class="go" id="goBtn">📷 START — ENABLE CAMERA</button>
+  <div class="err" id="errMsg">Camera unavailable. Check permissions and try again.</div>
+  <div class="priv"><b>Everything stays on your device.</b> Frames are compared in your browser to measure motion — nothing is recorded or uploaded, ever.</div>
+</div>
+<script>
+(() => {
+'use strict';
+const SLUG = 'wizzed-statue-freeze';
+const video = document.getElementById('video');
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+function resize() { cv.width = innerWidth; cv.height = innerHeight; }
+addEventListener('resize', resize); resize();
+
+let best = 0;
+try { best = (JSON.parse(localStorage.getItem(SLUG) || '{}') || {}).best || 0; } catch (e) {}
+document.getElementById('best').textContent = best;
+
+// ---- motion engine ----
+const PW = 96, PH = 72;
+const proc = document.createElement('canvas');
+proc.width = PW; proc.height = PH;
+const pctx = proc.getContext('2d', { willReadFrequently: true });
+let prevLum = null, camReady = false;
+let energy = 0;          // smoothed whole-frame motion 0..~100
+let noise = 3;           // calibrated ambient noise floor
+
+function readMotion() {
+  if (!camReady || video.readyState < 2) return;
+  pctx.drawImage(video, 0, 0, PW, PH);
+  const d = pctx.getImageData(0, 0, PW, PH).data;
+  const lum = new Float32Array(PW * PH);
+  for (let i = 0; i < PW * PH; i++) lum[i] = d[i * 4] * 0.3 + d[i * 4 + 1] * 0.59 + d[i * 4 + 2] * 0.11;
+  if (prevLum) {
+    let moved = 0;
+    for (let i = 0; i < lum.length; i++) if (Math.abs(lum[i] - prevLum[i]) > 16) moved++;
+    const pct = moved / lum.length * 100;
+    energy = energy * 0.7 + pct * 0.3;
+  }
+  prevLum = lum;
+}
+
+// ---- audio ----
+let actx = null;
+function ensureAudio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
+function blip(f, dur, type, vol) {
+  if (!actx) return;
+  try {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || 'triangle'; o.frequency.value = f;
+    g.gain.value = vol || 0.05; o.connect(g); g.connect(actx.destination);
+    o.start(); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+    o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+
+// ---- game flow ----
+// phases: 'calib' -> loop('dance' -> 'warn' -> 'freeze') until 3 strikes
+let running = false, phase = 'idle', phaseT = 0, round = 0, lives = 3;
+let danceGoal = 0, danceDone = 0, freezeTwitch = 0;
+const phaseEl = document.getElementById('phase');
+const subEl = document.getElementById('phaseSub');
+const tintEl = document.getElementById('tint');
+
+function setPhase(p) {
+  phase = p;
+  if (p === 'calib') {
+    phaseT = 2.6;
+    phaseEl.textContent = 'HOLD STILL';
+    phaseEl.style.color = '#4dc3ff';
+    subEl.textContent = 'calibrating the referee…';
+    tintEl.style.background = 'rgba(77,195,255,0.08)';
+  } else if (p === 'dance') {
+    round++;
+    document.getElementById('round').textContent = round;
+    phaseT = Math.max(2.2, 4.6 - round * 0.22);
+    danceGoal = 26 + Math.min(round * 3, 26);
+    danceDone = 0;
+    phaseEl.textContent = 'DANCE!';
+    phaseEl.style.color = '#00ff9c';
+    subEl.textContent = 'MOVE! fill the meter!';
+    tintEl.style.background = 'rgba(0,255,156,0.10)';
+    blip(660, 0.12, 'triangle', 0.06); setTimeout(() => blip(880, 0.14, 'triangle', 0.06), 130);
+  } else if (p === 'warn') {
+    phaseT = 0.9;
+    phaseEl.textContent = 'READY…';
+    phaseEl.style.color = '#ffd166';
+    subEl.textContent = 'freeze on red!';
+    tintEl.style.background = 'rgba(255,209,102,0.10)';
+    blip(520, 0.1, 'square', 0.05);
+  } else if (p === 'freeze') {
+    phaseT = Math.min(2 + round * 0.35, 5.5);
+    freezeTwitch = 0;
+    phaseEl.textContent = 'FREEZE!';
+    phaseEl.style.color = '#ff2d78';
+    subEl.textContent = 'the camera is watching 👁️';
+    tintEl.style.background = 'rgba(255,45,120,0.14)';
+    blip(220, 0.3, 'sawtooth', 0.06);
+    navigator.vibrate && navigator.vibrate(80);
+  }
+}
+function strike(msg) {
+  lives--;
+  document.getElementById('lives').textContent = Math.max(0, lives);
+  phaseEl.textContent = '🚨 ' + msg;
+  phaseEl.style.color = '#ff5c3c';
+  blip(120, 0.5, 'sawtooth', 0.09);
+  navigator.vibrate && navigator.vibrate([90, 60, 90]);
+  if (lives <= 0) { endGame(); return; }
+  phase = 'cool'; phaseT = 1.4;
+  tintEl.style.background = 'rgba(255,92,60,0.16)';
+}
+function endGame() {
+  running = false;
+  tintEl.style.background = 'transparent';
+  phaseEl.textContent = ''; subEl.textContent = '';
+  const surv = Math.max(0, round - 1) + (phase === 'freeze' || phase === 'cool' ? 1 : 0);
+  if (surv > best) { best = surv; try { localStorage.setItem(SLUG, JSON.stringify({ best })); } catch (e) {} }
+  document.getElementById('best').textContent = best;
+  const ov = document.getElementById('overlay');
+  ov.classList.remove('hide');
+  ov.querySelector('h1').textContent = surv + ' ROUNDS';
+  ov.querySelector('.sub').innerHTML = (surv >= best && surv > 0 ? '🏆 NEW BEST!<br>' : 'best: ' + best + '<br>') + 'the statue crumbled. play again?';
+  document.getElementById('goBtn').textContent = '🔁 PLAY AGAIN';
+}
+
+async function startCam() {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: 'user', width: { ideal: 960 }, height: { ideal: 720 } }, audio: false,
+  });
+  video.srcObject = stream;
+  await video.play();
+  camReady = true;
+}
+document.getElementById('goBtn').addEventListener('click', async () => {
+  ensureAudio();
+  try { if (!camReady) await startCam(); } catch (e) {
+    document.getElementById('errMsg').style.display = 'block';
+    return;
+  }
+  round = 0; lives = 3; energy = 0; prevLum = null;
+  document.getElementById('round').textContent = 0;
+  document.getElementById('lives').textContent = 3;
+  document.getElementById('overlay').classList.add('hide');
+  running = true;
+  setPhase('calib');
+});
+
+// ---- loop ----
+let last = performance.now(), calibSum = 0, calibN = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  let dt = (now - last) / 1000; last = now;
+  if (dt > 0.05) dt = 0.05;
+  readMotion();
+
+  document.getElementById('meter').style.width = Math.min(100, energy * 3.2) + '%';
+
+  if (running) {
+    phaseT -= dt;
+    if (phase === 'calib') {
+      calibSum += energy; calibN++;
+      if (phaseT <= 0) {
+        noise = Math.max(1.5, calibSum / Math.max(1, calibN) * 1.4 + 1.2);
+        calibSum = 0; calibN = 0;
+        setPhase('dance');
+      }
+    } else if (phase === 'dance') {
+      if (energy > noise + 5) danceDone += (energy - noise) * dt;
+      const pc = Math.min(100, danceDone / danceGoal * 100);
+      subEl.textContent = 'MOVE! ' + Math.round(pc) + '%';
+      if (phaseT <= 0) {
+        if (danceDone >= danceGoal) setPhase('warn');
+        else strike('TOO STIFF! DANCE HARDER!');
+      }
+    } else if (phase === 'warn') {
+      if (phaseT <= 0) setPhase('freeze');
+    } else if (phase === 'freeze') {
+      if (energy > noise + 9) {
+        freezeTwitch += dt;
+        if (freezeTwitch > 0.22) { strike('YOU MOVED!'); }
+      } else freezeTwitch = Math.max(0, freezeTwitch - dt * 2);
+      if (phase === 'freeze' && phaseT <= 0) {
+        blip(880, 0.12, 'triangle', 0.06);
+        setPhase('dance');
+      }
+    } else if (phase === 'cool') {
+      if (phaseT <= 0) setPhase('dance');
+    }
+  }
+
+  // celebratory sparks while dancing well
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  if (running && phase === 'dance' && energy > noise + 8) {
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = ['#00ff9c', '#ffd166', '#4dc3ff'][i];
+      const x = Math.random() * cv.width, y = Math.random() * cv.height;
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath(); ctx.arc(x, y, 2 + Math.random() * 3, 0, 6.29); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

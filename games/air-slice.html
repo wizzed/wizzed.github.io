@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AIR SLICE — Wave Your Hand, Slice The Fruit · Wizzed Arcade</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #0f0f1a; }
+  body { font-family: 'Courier New', monospace; color: #e8e6ff; user-select: none; -webkit-user-select: none; }
+  #video {
+    position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    transform: scaleX(-1); filter: saturate(0.75) brightness(0.8);
+  }
+  #cv { position: fixed; inset: 0; width: 100%; height: 100%; }
+  #back {
+    position: fixed; top: 10px; left: 10px; z-index: 30;
+    color: #b9b4e8; text-decoration: none; font-size: 13px; letter-spacing: 1px;
+    border: 1px solid #3c3760; background: rgba(15,15,26,0.75); padding: 6px 12px; border-radius: 8px;
+  }
+  #hud {
+    position: fixed; top: 10px; right: 10px; z-index: 20; text-align: right;
+    font-size: 14px; letter-spacing: 1px; background: rgba(15,15,26,0.75);
+    border: 1px solid #3c3760; border-radius: 8px; padding: 7px 12px;
+  }
+  #hud b { color: #ffd166; font-size: 18px; }
+  #hud .tm { color: #00e5ff; }
+  #combo {
+    position: fixed; top: 22%; left: 50%; transform: translateX(-50%); z-index: 20;
+    font-size: 26px; font-weight: bold; letter-spacing: 3px; color: #ff2d78;
+    text-shadow: 0 0 20px rgba(255,45,120,0.9); opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  #overlay {
+    position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 20px;
+    background: radial-gradient(ellipse at 50% 40%, rgba(38,26,58,0.94), rgba(10,10,20,0.97));
+  }
+  #overlay.hide { display: none; }
+  #overlay h1 { font-size: clamp(38px, 10vw, 64px); letter-spacing: 8px; color: #fff; text-shadow: 0 0 28px #ff2d78; margin-bottom: 8px; }
+  #overlay .sub { color: #b9b4e8; font-size: 14px; letter-spacing: 1px; line-height: 1.9; margin-bottom: 24px; max-width: 460px; }
+  #overlay .sub b { color: #ffd166; }
+  #overlay .go {
+    font-family: inherit; font-size: 16px; letter-spacing: 3px; font-weight: bold;
+    color: #0f0f1a; background: linear-gradient(135deg, #ff2d78, #ff9d3c); border: 0;
+    padding: 15px 40px; border-radius: 12px; cursor: pointer; box-shadow: 0 0 30px rgba(255,45,120,0.45);
+  }
+  #overlay .priv { margin-top: 22px; font-size: 11px; color: #8d87bb; letter-spacing: 1px; max-width: 420px; line-height: 1.8; }
+  #overlay .err { color: #ff5c8a; font-size: 13px; margin-top: 14px; display: none; }
+  #deskNote { margin-top: 14px; font-size: 12px; color: #4dc3ff; display: none; }
+  @media (pointer: fine) { #deskNote { display: block; } }
+</style>
+</head>
+<body>
+<video id="video" autoplay playsinline muted></video>
+<canvas id="cv"></canvas>
+<a id="back" href="../index.html">← Arcade</a>
+<div id="hud">SCORE <b id="score">0</b> · <span class="tm" id="time">60</span>s<br><span style="font-size:11px;color:#8d87bb">BEST <span id="best">0</span> · ❤️<span id="lives">3</span></span></div>
+<div id="combo"></div>
+<div id="overlay">
+  <h1>AIR SLICE</h1>
+  <div class="sub">
+    fruit flies across your camera — <b>wave your hand</b> through it to slice!<br>
+    real hand, real air, no touching the screen.<br>
+    avoid the dark bombs 💣 — 3 lives, 60 seconds.
+  </div>
+  <button class="go" id="goBtn">📷 START — ENABLE CAMERA</button>
+  <div class="err" id="errMsg">Camera unavailable. Check permissions and try again.</div>
+  <div id="deskNote">💡 built for phones — but your webcam works too. Step back a little!</div>
+  <div class="priv"><b>Everything stays on your device.</b> The camera feed is processed live in your browser for motion only — no photo, no video, nothing is ever uploaded.</div>
+</div>
+<script>
+(() => {
+'use strict';
+const SLUG = 'wizzed-air-slice';
+const video = document.getElementById('video');
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+function resize() { cv.width = innerWidth; cv.height = innerHeight; }
+addEventListener('resize', resize); resize();
+
+let best = 0;
+try { best = (JSON.parse(localStorage.getItem(SLUG) || '{}') || {}).best || 0; } catch (e) {}
+document.getElementById('best').textContent = best;
+
+// ---- motion engine: frame differencing on a coarse grid ----
+const PW = 96, PH = 128;                     // processing resolution
+const GX = 12, GY = 16;                      // motion grid
+const proc = document.createElement('canvas');
+proc.width = PW; proc.height = PH;
+const pctx = proc.getContext('2d', { willReadFrequently: true });
+let prevLum = null;
+const grid = new Float32Array(GX * GY);      // motion energy per cell (decaying)
+let camReady = false, baseNoise = 0, calFrames = 0;
+
+function readMotion() {
+  if (!camReady || video.readyState < 2) return;
+  pctx.save();
+  pctx.scale(-1, 1);                          // mirror to match display
+  pctx.drawImage(video, -PW, 0, PW, PH);
+  pctx.restore();
+  const d = pctx.getImageData(0, 0, PW, PH).data;
+  const lum = new Float32Array(PW * PH);
+  for (let i = 0; i < PW * PH; i++) lum[i] = d[i * 4] * 0.3 + d[i * 4 + 1] * 0.59 + d[i * 4 + 2] * 0.11;
+  if (prevLum) {
+    const cellW = PW / GX, cellH = PH / GY;
+    const raw = new Float32Array(GX * GY);
+    for (let y = 0; y < PH; y++) {
+      const gy = Math.min(GY - 1, y / cellH | 0);
+      for (let x = 0; x < PW; x++) {
+        const i = y * PW + x;
+        const df = Math.abs(lum[i] - prevLum[i]);
+        if (df > 14) raw[gy * GX + Math.min(GX - 1, x / cellW | 0)] += df;
+      }
+    }
+    // calibrate ambient noise for the first second
+    if (calFrames < 30) { calFrames++; let s = 0; for (const v of raw) s += v; baseNoise = Math.max(baseNoise, s / raw.length); }
+    for (let i = 0; i < grid.length; i++) grid[i] = grid[i] * 0.6 + Math.max(0, raw[i] - baseNoise * 0.6);
+  }
+  prevLum = lum;
+}
+function motionAt(sx, sy, r) {
+  // screen point -> grid cells within radius; return peak energy
+  const gx = sx / cv.width * GX, gy = sy / cv.height * GY;
+  const gr = Math.max(1, r / cv.width * GX);
+  let peak = 0;
+  for (let y = Math.max(0, gy - gr | 0); y <= Math.min(GY - 1, gy + gr | 0); y++)
+    for (let x = Math.max(0, gx - gr | 0); x <= Math.min(GX - 1, gx + gr | 0); x++)
+      peak = Math.max(peak, grid[y * GX + x]);
+  return peak;
+}
+
+// ---- audio ----
+let actx = null;
+function ensureAudio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
+function blip(f, dur, type, vol) {
+  if (!actx) return;
+  try {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || 'triangle'; o.frequency.value = f;
+    g.gain.value = vol || 0.05; o.connect(g); g.connect(actx.destination);
+    o.start(); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+    o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+
+// ---- game state ----
+const FRUITS = [
+  { col: '#ff2d78', hi: '#ff8fb8', r: 34 },  // dragonfruit
+  { col: '#ffd166', hi: '#ffe9a8', r: 30 },  // mango
+  { col: '#00ff9c', hi: '#9dffd6', r: 32 },  // lime
+  { col: '#4dc3ff', hi: '#bfe8ff', r: 30 },  // blueberry
+  { col: '#c86bff', hi: '#e6bdff', r: 33 },  // plum
+];
+let fruits = [];   // {x,y,vx,vy,type,bomb,sliced,ang,va}
+let bits = [];     // splash particles
+let score = 0, lives = 3, timeLeft = 60, running = false, spawnT = 0, comboN = 0, comboT = 0;
+
+function spawn() {
+  const bomb = Math.random() < 0.16;
+  const side = Math.random() < 0.5;
+  const x = side ? -40 : cv.width + 40;
+  const y = cv.height * (0.35 + Math.random() * 0.55);
+  const vx = (side ? 1 : -1) * (cv.width * (0.16 + Math.random() * 0.14));
+  const vy = -cv.height * (0.55 + Math.random() * 0.25);
+  fruits.push({
+    x, y, vx, vy, bomb, sliced: false,
+    type: FRUITS[Math.random() * FRUITS.length | 0],
+    ang: Math.random() * 6.28, va: (Math.random() - 0.5) * 4,
+  });
+}
+function slice(f) {
+  f.sliced = true;
+  if (f.bomb) {
+    lives--;
+    blip(90, 0.4, 'sawtooth', 0.08);
+    flashCombo('💥 BOMB!');
+    navigator.vibrate && navigator.vibrate(180);
+    for (let i = 0; i < 26; i++) bits.push({ x: f.x, y: f.y, vx: (Math.random() - 0.5) * 900, vy: (Math.random() - 0.7) * 900, col: '#ff5c3c', life: 0.8 });
+    if (lives <= 0) endGame();
+  } else {
+    comboN++; comboT = 0.9;
+    const pts = comboN >= 3 ? 3 : 1;
+    score += pts;
+    if (comboN >= 3) flashCombo(comboN + ' COMBO! +' + pts);
+    blip(500 + comboN * 90, 0.09, 'square', 0.05);
+    navigator.vibrate && navigator.vibrate(25);
+    for (let i = 0; i < 16; i++) bits.push({ x: f.x, y: f.y, vx: (Math.random() - 0.5) * 700, vy: (Math.random() - 0.8) * 700, col: f.type.col, life: 0.7 });
+  }
+  updateHud();
+}
+let comboEl = document.getElementById('combo'), comboHideT;
+function flashCombo(txt) {
+  comboEl.textContent = txt; comboEl.style.opacity = 1;
+  clearTimeout(comboHideT); comboHideT = setTimeout(() => comboEl.style.opacity = 0, 800);
+}
+function updateHud() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('lives').textContent = Math.max(0, lives);
+  document.getElementById('time').textContent = Math.ceil(timeLeft);
+}
+function endGame() {
+  running = false;
+  if (score > best) { best = score; try { localStorage.setItem(SLUG, JSON.stringify({ best })); } catch (e) {} }
+  document.getElementById('best').textContent = best;
+  const ov = document.getElementById('overlay');
+  ov.classList.remove('hide');
+  ov.querySelector('h1').textContent = 'SLICED: ' + score;
+  ov.querySelector('.sub').innerHTML = (score >= best && score > 0 ? '🏆 NEW BEST!<br>' : 'best: ' + best + '<br>') + 'wave harder, slice faster.';
+  document.getElementById('goBtn').textContent = '🔁 PLAY AGAIN';
+}
+
+// ---- camera + flow ----
+async function startCam() {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: 'user', width: { ideal: 960 }, height: { ideal: 720 } }, audio: false,
+  });
+  video.srcObject = stream;
+  await video.play();
+  camReady = true;
+}
+document.getElementById('goBtn').addEventListener('click', async () => {
+  ensureAudio();
+  try {
+    if (!camReady) await startCam();
+  } catch (e) {
+    document.getElementById('errMsg').style.display = 'block';
+    return;
+  }
+  fruits = []; bits = [];
+  score = 0; lives = 3; timeLeft = 60; comboN = 0; spawnT = 0.4;
+  prevLum = null; calFrames = 0; baseNoise = 0;
+  updateHud();
+  document.getElementById('overlay').classList.add('hide');
+  running = true;
+  blip(660, 0.1, 'triangle', 0.05);
+});
+
+// ---- render loop ----
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  let dt = (now - last) / 1000; last = now;
+  if (dt > 0.05) dt = 0.05;
+  readMotion();
+  ctx.clearRect(0, 0, cv.width, cv.height);
+
+  // faint motion glow feedback — see your own wave
+  if (camReady) {
+    const cw = cv.width / GX, ch = cv.height / GY;
+    for (let y = 0; y < GY; y++) for (let x = 0; x < GX; x++) {
+      const e = grid[y * GX + x];
+      if (e > 60) {
+        ctx.fillStyle = 'rgba(0,229,255,' + Math.min(0.22, e / 3000) + ')';
+        ctx.fillRect(x * cw, y * ch, cw, ch);
+      }
+    }
+  }
+
+  if (running) {
+    timeLeft -= dt;
+    if (timeLeft <= 0) { timeLeft = 0; updateHud(); endGame(); }
+    comboT -= dt; if (comboT <= 0) comboN = 0;
+    spawnT -= dt;
+    if (spawnT <= 0) { spawn(); if (Math.random() < 0.35) spawn(); spawnT = 0.75 + Math.random() * 0.6; }
+    document.getElementById('time').textContent = Math.ceil(timeLeft);
+  }
+
+  const G = cv.height * 0.55;
+  for (let i = fruits.length - 1; i >= 0; i--) {
+    const f = fruits[i];
+    f.vy += G * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.ang += f.va * dt;
+    if (f.y > cv.height + 80) { fruits.splice(i, 1); continue; }
+    if (running && !f.sliced && motionAt(f.x, f.y, f.type.r * 2.1) > 220) slice(f);
+    if (f.sliced && !f.bomb) { fruits.splice(i, 1); continue; }
+    if (f.sliced && f.bomb) { fruits.splice(i, 1); continue; }
+    // draw
+    ctx.save();
+    ctx.translate(f.x, f.y); ctx.rotate(f.ang);
+    if (f.bomb) {
+      ctx.fillStyle = '#1c1c2e';
+      ctx.strokeStyle = '#ff5c3c'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, 0, 26, 0, 6.29); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ff5c3c'; ctx.font = 'bold 16px Courier New'; ctx.textAlign = 'center';
+      ctx.fillText('💣', 0, 6);
+      ctx.shadowBlur = 0;
+    } else {
+      const r = f.type.r;
+      ctx.shadowColor = f.type.col; ctx.shadowBlur = 22;
+      const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.15, 0, 0, r);
+      g.addColorStop(0, f.type.hi); g.addColorStop(1, f.type.col);
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.29); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(15,15,26,0.5)';
+      ctx.beginPath(); ctx.arc(r * 0.25, -r * 0.3, r * 0.12, 0, 6.29); ctx.fill();
+    }
+    ctx.restore();
+  }
+  for (let i = bits.length - 1; i >= 0; i--) {
+    const p = bits[i];
+    p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 1200 * dt;
+    if (p.life <= 0) { bits.splice(i, 1); continue; }
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.col;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 4 * p.life + 1, 0, 6.29); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

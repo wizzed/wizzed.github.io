@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>COLOR QUEST — Hunt Real-World Colors · Wizzed Arcade</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #0f0f1a; }
+  body { font-family: 'Courier New', monospace; color: #e8e6ff; user-select: none; -webkit-user-select: none; }
+  #video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #cv { position: fixed; inset: 0; width: 100%; height: 100%; }
+  #back {
+    position: fixed; top: 10px; left: 10px; z-index: 30;
+    color: #b9b4e8; text-decoration: none; font-size: 13px; letter-spacing: 1px;
+    border: 1px solid #3c3760; background: rgba(15,15,26,0.75); padding: 6px 12px; border-radius: 8px;
+  }
+  #hud {
+    position: fixed; top: 10px; right: 10px; z-index: 20; text-align: right;
+    font-size: 14px; letter-spacing: 1px; background: rgba(15,15,26,0.75);
+    border: 1px solid #3c3760; border-radius: 8px; padding: 7px 12px;
+  }
+  #hud b { color: #ffd166; font-size: 18px; }
+  #hud .tm { color: #00e5ff; }
+  #quest {
+    position: fixed; top: 64px; width: 100%; text-align: center; z-index: 20; pointer-events: none;
+    font-size: clamp(20px, 5.5vw, 30px); font-weight: bold; letter-spacing: 2px;
+    text-shadow: 0 2px 14px rgba(0,0,0,0.9);
+  }
+  #matchWrap {
+    position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 20;
+    width: min(70vw, 380px); height: 16px; border: 1px solid #3c3760; border-radius: 10px;
+    background: rgba(15,15,26,0.8); overflow: hidden;
+  }
+  #match { height: 100%; width: 0%; background: linear-gradient(90deg, #ff5c3c, #ffd166, #00ff9c); transition: width .1s; }
+  #matchLbl { position: fixed; bottom: 46px; left: 50%; transform: translateX(-50%); z-index: 20; font-size: 11px; letter-spacing: 2px; color: #d8d2ff; text-shadow: 0 1px 6px #000; }
+  #flip {
+    position: fixed; bottom: 24px; right: 14px; z-index: 25;
+    width: 46px; height: 46px; border-radius: 12px; border: 1px solid #3c3760;
+    background: rgba(15,15,26,0.8); color: #e8e6ff; font-size: 20px; font-family: inherit;
+  }
+  #overlay {
+    position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 20px;
+    background: radial-gradient(ellipse at 50% 40%, rgba(42,32,20,0.94), rgba(10,10,20,0.97));
+  }
+  #overlay.hide { display: none; }
+  #overlay h1 { font-size: clamp(34px, 9vw, 60px); letter-spacing: 6px; color: #fff; text-shadow: 0 0 28px #ffd166; margin-bottom: 8px; }
+  #overlay .sub { color: #b9b4e8; font-size: 14px; letter-spacing: 1px; line-height: 1.9; margin-bottom: 24px; max-width: 470px; }
+  #overlay .sub b { color: #ffd166; }
+  #overlay .go {
+    font-family: inherit; font-size: 16px; letter-spacing: 3px; font-weight: bold;
+    color: #0f0f1a; background: linear-gradient(135deg, #ffd166, #ff9d3c); border: 0;
+    padding: 15px 40px; border-radius: 12px; cursor: pointer; box-shadow: 0 0 30px rgba(255,209,102,0.4);
+  }
+  #overlay .priv { margin-top: 22px; font-size: 11px; color: #8d87bb; letter-spacing: 1px; max-width: 420px; line-height: 1.8; }
+  #overlay .err { color: #ff5c8a; font-size: 13px; margin-top: 14px; display: none; }
+</style>
+</head>
+<body>
+<video id="video" autoplay playsinline muted></video>
+<canvas id="cv"></canvas>
+<a id="back" href="../index.html">← Arcade</a>
+<div id="hud">FOUND <b id="score">0</b> · <span class="tm" id="time">45</span>s<br><span style="font-size:11px;color:#8d87bb">BEST <span id="best">0</span></span></div>
+<div id="quest"></div>
+<div id="matchLbl">MATCH</div>
+<div id="matchWrap"><div id="match"></div></div>
+<button id="flip" title="flip camera">🔄</button>
+<div id="overlay">
+  <h1>COLOR QUEST</h1>
+  <div class="sub">
+    a real-world scavenger hunt.<br>
+    the game names a color — <b>run around and point your camera at it</b>.<br>
+    a mug, a plant, a sock, the sky… hold steady on the ring to capture.<br>
+    45 seconds. how many colors can you find?
+  </div>
+  <button class="go" id="goBtn">📷 START THE HUNT</button>
+  <div class="err" id="errMsg">Camera unavailable. Check permissions and try again.</div>
+  <div class="priv"><b>Everything stays on your device.</b> Only the pixels inside the ring are read — live, in your browser. Nothing is saved or uploaded.</div>
+</div>
+<script>
+(() => {
+'use strict';
+const SLUG = 'wizzed-color-quest';
+const video = document.getElementById('video');
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+function resize() { cv.width = innerWidth; cv.height = innerHeight; }
+addEventListener('resize', resize); resize();
+
+let best = 0;
+try { best = (JSON.parse(localStorage.getItem(SLUG) || '{}') || {}).best || 0; } catch (e) {}
+document.getElementById('best').textContent = best;
+
+// targets: name, emoji, hue centre (deg), hue tolerance, special sat/lum rules
+const TARGETS = [
+  { n: 'RED',    e: '🟥', h: 0,   tol: 18 },
+  { n: 'ORANGE', e: '🟧', h: 28,  tol: 14 },
+  { n: 'YELLOW', e: '🟨', h: 55,  tol: 16 },
+  { n: 'GREEN',  e: '🟩', h: 120, tol: 45 },
+  { n: 'BLUE',   e: '🟦', h: 218, tol: 40 },
+  { n: 'PURPLE', e: '🟪', h: 280, tol: 25 },
+  { n: 'PINK',   e: '🩷', h: 330, tol: 22 },
+  { n: 'WHITE',  e: '⬜', white: true },
+  { n: 'BLACK',  e: '⬛', black: true },
+];
+
+const proc = document.createElement('canvas');
+proc.width = 64; proc.height = 64;
+const pctx = proc.getContext('2d', { willReadFrequently: true });
+let camReady = false, facing = 'environment';
+
+function sampleRing() {
+  // read the centre square of the video (matches the on-screen ring)
+  if (!camReady || video.readyState < 2) return null;
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const s = Math.min(vw, vh) * 0.22;
+  pctx.drawImage(video, (vw - s) / 2, (vh - s) / 2, s, s, 0, 0, 64, 64);
+  const d = pctx.getImageData(0, 0, 64, 64).data;
+  let r = 0, g = 0, b = 0;
+  const n = 64 * 64;
+  for (let i = 0; i < n; i++) { r += d[i * 4]; g += d[i * 4 + 1]; b += d[i * 4 + 2]; }
+  return { r: r / n, g: g / n, b: b / n };
+}
+function rgb2hsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+  if (mx === mn) return { h: 0, s: 0, l };
+  const dd = mx - mn;
+  const s = l > 0.5 ? dd / (2 - mx - mn) : dd / (mx + mn);
+  let h;
+  if (mx === r) h = ((g - b) / dd + (g < b ? 6 : 0)) * 60;
+  else if (mx === g) h = ((b - r) / dd + 2) * 60;
+  else h = ((r - g) / dd + 4) * 60;
+  return { h, s, l };
+}
+function matchPct(t, c) {
+  const { h, s, l } = rgb2hsl(c.r, c.g, c.b);
+  if (t.white) return Math.max(0, Math.min(1, (l - 0.55) / 0.3)) * Math.max(0, 1 - s * 2.2) * 100;
+  if (t.black) return Math.max(0, Math.min(1, (0.24 - l) / 0.18)) * 100;
+  let dh = Math.abs(h - t.h); if (dh > 180) dh = 360 - dh;
+  const hueOK = Math.max(0, 1 - dh / t.tol);
+  const satOK = Math.min(1, s / 0.28);
+  const lumOK = l > 0.08 && l < 0.92 ? 1 : 0;
+  return hueOK * satOK * lumOK * 100;
+}
+
+// ---- audio ----
+let actx = null;
+function ensureAudio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
+function blip(f, dur, type, vol) {
+  if (!actx) return;
+  try {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || 'triangle'; o.frequency.value = f;
+    g.gain.value = vol || 0.05; o.connect(g); g.connect(actx.destination);
+    o.start(); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+    o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+
+// ---- game ----
+let running = false, score = 0, timeLeft = 45, target = null, hold = 0, lastPct = 0;
+let confetti = [];
+function nextTarget() {
+  let t;
+  do { t = TARGETS[Math.random() * TARGETS.length | 0]; } while (target && t.n === target.n);
+  target = t; hold = 0;
+  document.getElementById('quest').innerHTML = 'find something ' + t.e + ' <span style="color:' + questCol(t) + '">' + t.n + '</span>';
+  blip(560, 0.1, 'triangle', 0.05);
+}
+function questCol(t) {
+  if (t.white) return '#ffffff';
+  if (t.black) return '#9a96c0';
+  return 'hsl(' + t.h + ',95%,65%)';
+}
+function captured() {
+  score++;
+  document.getElementById('score').textContent = score;
+  blip(880, 0.12, 'sine', 0.06); setTimeout(() => blip(1320, 0.16, 'sine', 0.05), 100);
+  navigator.vibrate && navigator.vibrate([40, 40, 40]);
+  timeLeft = Math.min(60, timeLeft + 4);
+  for (let i = 0; i < 40; i++) {
+    confetti.push({
+      x: cv.width / 2, y: cv.height / 2,
+      vx: (Math.random() - 0.5) * 800, vy: (Math.random() - 0.8) * 800,
+      col: questCol(target), life: 0.9 + Math.random() * 0.4,
+    });
+  }
+  nextTarget();
+}
+function endGame() {
+  running = false;
+  document.getElementById('quest').textContent = '';
+  if (score > best) { best = score; try { localStorage.setItem(SLUG, JSON.stringify({ best })); } catch (e) {} }
+  document.getElementById('best').textContent = best;
+  const ov = document.getElementById('overlay');
+  ov.classList.remove('hide');
+  ov.querySelector('h1').textContent = score + ' COLORS FOUND';
+  ov.querySelector('.sub').innerHTML = (score >= best && score > 0 ? '🏆 NEW BEST!<br>' : 'best: ' + best + '<br>') + 'each capture adds +4s — chain them faster!';
+  document.getElementById('goBtn').textContent = '🔁 HUNT AGAIN';
+}
+
+async function startCam() {
+  if (video.srcObject) for (const t of video.srcObject.getTracks()) t.stop();
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false,
+  });
+  video.srcObject = stream;
+  video.style.transform = facing === 'user' ? 'scaleX(-1)' : 'none';
+  await video.play();
+  camReady = true;
+}
+document.getElementById('flip').addEventListener('click', async () => {
+  facing = facing === 'environment' ? 'user' : 'environment';
+  try { await startCam(); } catch (e) {}
+});
+document.getElementById('goBtn').addEventListener('click', async () => {
+  ensureAudio();
+  try { if (!camReady) await startCam(); } catch (e) {
+    try { facing = 'user'; await startCam(); } catch (e2) {
+      document.getElementById('errMsg').style.display = 'block';
+      return;
+    }
+  }
+  score = 0; timeLeft = 45; confetti = [];
+  document.getElementById('score').textContent = 0;
+  document.getElementById('overlay').classList.add('hide');
+  running = true;
+  nextTarget();
+});
+
+// ---- loop ----
+let last = performance.now(), sampleT = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  let dt = (now - last) / 1000; last = now;
+  if (dt > 0.05) dt = 0.05;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+
+  const cx = cv.width / 2, cy = cv.height / 2;
+  const R = Math.min(cv.width, cv.height) * 0.16;
+
+  if (running) {
+    timeLeft -= dt;
+    document.getElementById('time').textContent = Math.max(0, Math.ceil(timeLeft));
+    if (timeLeft <= 0) endGame();
+
+    sampleT -= dt;
+    if (sampleT <= 0) {
+      sampleT = 0.12;
+      const c = sampleRing();
+      if (c) lastPct = matchPct(target, c);
+    }
+    document.getElementById('match').style.width = lastPct.toFixed(0) + '%';
+    if (lastPct > 68) {
+      hold += dt;
+      if (hold > 1.1) captured();
+    } else hold = Math.max(0, hold - dt * 1.5);
+  }
+
+  // the ring
+  if (running || camReady) {
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = running ? questCol(target) : '#8d87bb';
+    ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 18;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.29); ctx.stroke();
+    ctx.shadowBlur = 0;
+    // hold progress arc
+    if (running && hold > 0) {
+      ctx.lineWidth = 9;
+      ctx.strokeStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(cx, cy, R + 12, -Math.PI / 2, -Math.PI / 2 + hold / 1.1 * 6.28); ctx.stroke();
+    }
+    // corner ticks
+    ctx.strokeStyle = 'rgba(232,230,255,0.5)'; ctx.lineWidth = 2;
+    for (const a of [0.25, 0.75, 1.25, 1.75]) {
+      const a0 = a * Math.PI;
+      ctx.beginPath(); ctx.arc(cx, cy, R + 24, a0 - 0.18, a0 + 0.18); ctx.stroke();
+    }
+  }
+
+  for (let i = confetti.length - 1; i >= 0; i--) {
+    const p = confetti[i];
+    p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 900 * dt;
+    if (p.life <= 0) { confetti.splice(i, 1); continue; }
+    ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+    ctx.fillStyle = p.col;
+    ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
+  }
+  ctx.globalAlpha = 1;
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

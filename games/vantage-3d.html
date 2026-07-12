@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>VANTAGE — Perspective Puzzle · Wizzed Arcade</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #0f0f1a; }
+  body { font-family: 'Courier New', monospace; color: #e8e6ff; user-select: none; -webkit-user-select: none; }
+  canvas { display: block; }
+  #back {
+    position: fixed; top: 12px; left: 12px; z-index: 30;
+    color: #b9b4e8; text-decoration: none; font-size: 13px; letter-spacing: 1px;
+    border: 1px solid #3c3760; background: rgba(15,15,26,0.7); padding: 6px 12px; border-radius: 8px;
+  }
+  #back:hover { color: #fff; border-color: #7c5cff; }
+  #hud {
+    position: fixed; top: 12px; right: 12px; z-index: 20; text-align: right;
+    font-size: 13px; letter-spacing: 1px; color: #b9b4e8;
+    background: rgba(15,15,26,0.7); border: 1px solid #3c3760; border-radius: 8px; padding: 8px 14px;
+  }
+  #hud b { color: #ffd166; }
+  #hud .lvl { color: #7c5cff; font-weight: bold; }
+  #hint {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 20;
+    font-size: 12px; letter-spacing: 1px; color: #8d87bb; text-align: center;
+    background: rgba(15,15,26,0.6); padding: 6px 14px; border-radius: 8px; white-space: nowrap;
+  }
+  #toast {
+    position: fixed; top: 18%; left: 50%; transform: translateX(-50%) scale(0.9); z-index: 25;
+    font-size: 18px; font-weight: bold; letter-spacing: 2px; color: #ffd166; text-align: center;
+    text-shadow: 0 0 18px rgba(255,209,102,0.8); opacity: 0; transition: opacity .3s, transform .3s;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) scale(1); }
+  #overlay {
+    position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    background: radial-gradient(ellipse at 50% 40%, rgba(30,26,58,0.92), rgba(10,10,20,0.96));
+  }
+  #overlay.hide { display: none; }
+  #overlay h1 {
+    font-size: clamp(42px, 9vw, 84px); letter-spacing: 14px; color: #fff; margin-bottom: 6px;
+    text-shadow: 0 0 30px #7c5cff, 0 0 80px rgba(124,92,255,0.5);
+  }
+  #overlay .sub { color: #b9b4e8; font-size: 15px; letter-spacing: 2px; margin-bottom: 26px; }
+  #overlay .go {
+    font-family: inherit; font-size: 17px; letter-spacing: 3px; font-weight: bold;
+    color: #0f0f1a; background: linear-gradient(135deg, #ffd166, #ff9d3c); border: 0;
+    padding: 14px 42px; border-radius: 12px; cursor: pointer;
+    box-shadow: 0 0 30px rgba(255,209,102,0.4);
+  }
+  #overlay .go:hover { transform: scale(1.05); }
+  #overlay .keys { margin-top: 26px; color: #8d87bb; font-size: 12px; letter-spacing: 1px; line-height: 2; }
+  #overlay .keys b { color: #e8e6ff; border: 1px solid #3c3760; border-radius: 5px; padding: 1px 7px; }
+  #flash { position: fixed; inset: 0; z-index: 35; pointer-events: none; opacity: 0; background: #ff2d55; transition: opacity .5s; }
+  #touch { position: fixed; bottom: 10px; width: 100%; z-index: 22; display: none; justify-content: space-between; padding: 0 14px; pointer-events: none; }
+  #touch .grp { display: flex; gap: 10px; pointer-events: auto; }
+  #touch button {
+    width: 56px; height: 56px; border-radius: 14px; border: 1px solid #3c3760;
+    background: rgba(30,26,58,0.7); color: #e8e6ff; font-size: 22px; font-family: inherit;
+  }
+  @media (pointer: coarse) { #touch { display: flex; } #hint { display: none; } }
+</style>
+</head>
+<body>
+<a id="back" href="../index.html">← Arcade</a>
+<div id="hud"><span class="lvl" id="lvlName">·</span><br>SHARDS <b id="shardN">0/0</b></div>
+<div id="hint">← → move · SPACE jump · <b>Q / E rotate the world</b> · what lines up, links up</div>
+<div id="toast"></div>
+<div id="flash"></div>
+<div id="overlay">
+  <h1>VANTAGE</h1>
+  <div class="sub">a mind-bending perspective puzzle<br>platforms that merely LOOK connected… ARE</div>
+  <button class="go" id="goBtn">ENTER THE ILLUSION</button>
+  <div class="keys">
+    <b>←</b> <b>→</b> move &nbsp; <b>SPACE</b> jump &nbsp; <b>Q</b> <b>E</b> rotate the world<br>
+    depth is a lie — only the silhouette is real
+  </div>
+</div>
+<div id="touch">
+  <div class="grp"><button id="tL">◀</button><button id="tR">▶</button></div>
+  <div class="grp"><button id="tQ">⟲</button><button id="tJ">⤒</button><button id="tE">⟳</button></div>
+</div>
+<script src="../lib/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+const SLUG = 'wizzed-vantage-3d';
+
+// ================================================================
+//  Levels — blocks are 1×1×1 voxels on an integer grid, y is up.
+//  b(x,y,z,w,h,d) fills a box of voxels. Shards/exit sit ON a voxel.
+// ================================================================
+function b(list, x, y, z, w, h, d) {
+  for (let i = 0; i < (w || 1); i++)
+    for (let j = 0; j < (h || 1); j++)
+      for (let k = 0; k < (d || 1); k++) list.push([x + i, y + j, z + k]);
+}
+function makeLevels() {
+  const L = [];
+  { // 1 — FIRST LIGHT: the gap is only real in one view
+    const bl = [];
+    b(bl, 0, 0, 0, 4, 1, 1);        // home ledge
+    b(bl, 6, 0, -3, 3, 1, 1);       // "far" ledge — same silhouette column
+    b(bl, 6, 0, 3, 3, 1, 1);        // front twin, carries the exit
+    L.push({ name: 'FIRST LIGHT', blocks: bl, start: [0, 1, 0],
+      shards: [[7, 1, -3]], exit: [8, 1, 3],
+      tip: 'rotate with Q/E — distance is an opinion' });
+  }
+  { // 2 — SPLIT TOWER: one clean staircase in silhouette, two ruins in truth
+    const bl = [];
+    b(bl, 0, 0, 0, 3, 1, 1);
+    b(bl, 3, 1, -3, 1, 1, 1);
+    b(bl, 4, 2, 2, 1, 1, 1);
+    b(bl, 5, 3, -3, 1, 1, 1);
+    b(bl, 6, 4, 2, 1, 1, 1);
+    b(bl, 7, 5, -3, 1, 1, 1);
+    b(bl, 8, 6, 2, 2, 1, 1);
+    b(bl, 8, 3, -6, 1, 1, 1);
+    L.push({ name: 'SPLIT TOWER', blocks: bl, start: [1, 1, 0],
+      shards: [[7, 6, -3], [8, 4, -6]], exit: [9, 7, 2],
+      tip: 'the staircase is whole only in silhouette' });
+  }
+  { // 3 — ESCHER STEPS: a climb that only exists looking down the z-axis
+    const bl = [];
+    b(bl, 0, 0, 0, 3, 1, 1);
+    b(bl, 2, 1, -1, 1, 1, 1);
+    b(bl, 0, 2, -2, 1, 1, 1);
+    b(bl, 1, 3, -3, 1, 1, 1);
+    b(bl, 0, 4, -4, 1, 1, 1);
+    b(bl, 1, 5, -5, 1, 1, 1);
+    b(bl, 0, 6, -7, 2, 1, 1);
+    b(bl, 3, 2, -5, 1, 1, 1);
+    L.push({ name: 'ESCHER STEPS', blocks: bl, start: [1, 1, 0],
+      shards: [[1, 4, -3], [3, 3, -5]], exit: [1, 7, -7],
+      tip: 'every rotation lays the next stair' });
+  }
+  { // 4 — PILLARS OF DOUBT: a skyline to read, then climb
+    const bl = [];
+    b(bl, 0, 0, 0, 2, 1, 1);
+    b(bl, 3, 0, -2, 1, 2, 1);
+    b(bl, 5, 0, 1, 1, 3, 1);
+    b(bl, 7, 0, -5, 1, 4, 1);
+    b(bl, 9, 0, -7, 1, 5, 1);
+    b(bl, -4, 0, -9, 1, 6, 1);
+    b(bl, -2, 0, -12, 1, 7, 1);
+    L.push({ name: 'PILLARS OF DOUBT', blocks: bl, start: [0, 1, 0],
+      shards: [[9, 5, -7], [-4, 6, -9]], exit: [-2, 7, -12],
+      tip: 'the columns are a skyline — read it, then climb it' });
+  }
+  { // 5 — THE LATTICE: a floating grid where all four views disagree
+    const bl = [];
+    b(bl, 0, 0, 0, 3, 1, 1);
+    b(bl, 4, 1, -3, 1, 1, 1);
+    b(bl, 6, 2, 1, 1, 1, 1);
+    b(bl, 7, 3, 4, 1, 1, 1);
+    b(bl, 4, 4, 6, 1, 1, 1);
+    b(bl, 1, 5, 7, 1, 1, 1);
+    b(bl, -2, 5, 3, 1, 1, 1);
+    b(bl, -4, 6, 1, 1, 1, 1);
+    b(bl, -5, 7, -2, 1, 1, 1);
+    b(bl, -1, 8, -4, 1, 1, 1);
+    L.push({ name: 'THE LATTICE', blocks: bl, start: [1, 1, 0],
+      shards: [[7, 4, 4], [-2, 6, 3], [-5, 8, -2]], exit: [-1, 9, -4],
+      tip: 'four views, one truth — yours' });
+  }
+  { // 6 — SUMMIT: the long ascent, all lessons at once
+    const bl = [];
+    b(bl, 0, 0, 0, 3, 1, 1);
+    b(bl, 3, 1, -3, 1, 1, 1);
+    b(bl, 4, 2, 2, 1, 1, 1);
+    b(bl, 5, 3, -3, 1, 1, 1);
+    b(bl, 6, 4, 0, 1, 1, 1);
+    b(bl, 7, 5, 3, 1, 1, 1);
+    b(bl, 5, 6, 5, 1, 1, 1);
+    b(bl, 3, 7, 6, 1, 1, 1);
+    b(bl, 1, 8, 7, 1, 1, 1);
+    b(bl, 1, 9, 5, 1, 1, 1);
+    b(bl, 1, 10, 3, 1, 1, 1);
+    b(bl, 1, 11, 1, 1, 1, 1);
+    b(bl, -2, 12, -3, 2, 1, 1);
+    L.push({ name: 'SUMMIT', blocks: bl, start: [1, 1, 0],
+      shards: [[5, 4, -3], [3, 8, 6], [1, 12, 1]], exit: [-1, 13, -3],
+      tip: 'the peak only exists if you believe every view' });
+  }
+  return L;
+}
+const LEVELS = makeLevels();
+
+// ================================================================
+//  Projection helpers — view v ∈ {0,1,2,3}, camera yaw = v·90°
+//  u = screen-x of a world point, depth = distance toward camera
+// ================================================================
+const COS = [1, 0, -1, 0], SIN = [0, 1, 0, -1];
+function projU(v, x, z) { return x * COS[v] - z * SIN[v]; }
+function projD(v, x, z) { return x * SIN[v] + z * COS[v]; }
+function unproj(v, u, d) { // back to world x,z
+  return { x: u * COS[v] + d * SIN[v], z: -u * SIN[v] + d * COS[v] };
+}
+
+// ================================================================
+//  Three.js scene
+// ================================================================
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+
+const PALS = [
+  { bg1: 0x3a2d6e, bg2: 0x0d0b1c, blk: 0x8a68ff, top: 0xcbb8ff, glow: 0xff7ac0 },
+  { bg1: 0x14486b, bg2: 0x081020, blk: 0x00c4ea, top: 0xa5ecff, glow: 0xffd166 },
+  { bg1: 0x5e2350, bg2: 0x150a18, blk: 0xff3d85, top: 0xffa5c8, glow: 0x00e5ff },
+  { bg1: 0x1a5c3c, bg2: 0x081510, blk: 0x00d99a, top: 0x95ffd5, glow: 0xffe64d },
+  { bg1: 0x6b4c14, bg2: 0x181008, blk: 0xffb03a, top: 0xffe6a0, glow: 0x4dc3ff },
+  { bg1: 0x1d3a75, bg2: 0x080c1c, blk: 0x54c8ff, top: 0xcdeeff, glow: 0xff5c8a },
+];
+
+const camSize = 9;
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -60, 120);
+function sizeCamera() {
+  const a = innerWidth / innerHeight;
+  camera.left = -camSize * a; camera.right = camSize * a;
+  camera.top = camSize; camera.bottom = -camSize;
+  camera.updateProjectionMatrix();
+}
+sizeCamera();
+
+const amb = new THREE.AmbientLight(0xffffff, 0.75);
+scene.add(amb);
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0x8a9cff, 0.5);
+fill.position.set(-10, -4, -8);
+scene.add(fill);
+const heroLight = new THREE.PointLight(0xffffff, 14, 9, 1.6);
+scene.add(heroLight);
+
+// background: big gradient quad + drifting dust
+const bgGeo = new THREE.PlaneGeometry(2, 2);
+const bgMat = new THREE.ShaderMaterial({
+  depthWrite: false, depthTest: false,
+  uniforms: { c1: { value: new THREE.Color(PALS[0].bg1) }, c2: { value: new THREE.Color(PALS[0].bg2) } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.9999, 1.0); }',
+  fragmentShader: 'varying vec2 vUv; uniform vec3 c1; uniform vec3 c2;' +
+    'void main(){ float d = distance(vUv, vec2(0.5, 0.58)); float g = smoothstep(0.95, 0.0, d); float halo = smoothstep(0.42, 0.0, d) * 0.35; vec3 col = mix(c2, c1, g * g * 1.25 + 0.08) + c1 * halo; gl_FragColor = vec4(col, 1.0); }',
+});
+const bgMesh = new THREE.Mesh(bgGeo, bgMat);
+bgMesh.renderOrder = -10; bgMesh.frustumCulled = false;
+scene.add(bgMesh);
+
+const dustGeo = new THREE.BufferGeometry();
+{
+  const N = 130, pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * 46;
+    pos[i * 3 + 1] = (Math.random() - 0.5) * 30;
+    pos[i * 3 + 2] = (Math.random() - 0.5) * 46;
+  }
+  dustGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+}
+const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: 0xd8d2ff, size: 0.16, transparent: true, opacity: 0.75 }));
+scene.add(dust);
+
+// ================================================================
+//  Level construction
+// ================================================================
+let blocksGroup = null, shardMeshes = [], exitMesh = null, exitRing = null;
+let solids = [];            // [x,y,z] ints
+let maps = [];              // per view: Map "u,y" -> voxels sorted closest-first
+let level = null, levelIdx = 0;
+let collected = 0;
+
+function key(u, y) { return u + ',' + y; }
+function buildMaps() {
+  maps = [];
+  for (let v = 0; v < 4; v++) {
+    const m = new Map();
+    for (const s of solids) {
+      const k = key(projU(v, s[0], s[2]), s[1]);
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(s);
+    }
+    for (const arr of m.values()) arr.sort((a, b2) => projD(v, b2[0], b2[2]) - projD(v, a[0], a[2]));
+    maps.push(m);
+  }
+}
+function solidAt(v, u, y) { return maps[v].has(key(u, y)); }
+function frontVoxel(v, u, y) { const a = maps[v].get(key(u, y)); return a ? a[0] : null; }
+
+function clearLevel() {
+  if (blocksGroup) { scene.remove(blocksGroup); blocksGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+  for (const s of shardMeshes) scene.remove(s.mesh);
+  if (exitMesh) scene.remove(exitMesh);
+  if (exitRing) scene.remove(exitRing);
+  shardMeshes = []; exitMesh = null; exitRing = null;
+}
+
+const haloTex = (() => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(32, 32, 2, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,0.9)');
+  g.addColorStop(0.4, 'rgba(255,255,255,0.25)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c);
+  return tex;
+})();
+const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+const edgeGeo = new THREE.EdgesGeometry(boxGeo);
+function loadLevel(i) {
+  clearLevel();
+  levelIdx = i;
+  level = LEVELS[i];
+  solids = level.blocks;
+  buildMaps();
+  const pal = PALS[i % PALS.length];
+  bgMat.uniforms.c1.value.setHex(pal.bg1);
+  bgMat.uniforms.c2.value.setHex(pal.bg2);
+
+  blocksGroup = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({ color: pal.blk });
+  const topMat = new THREE.MeshLambertMaterial({ color: pal.top });
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0x0a0a14, transparent: true, opacity: 0.85 });
+  const topSet = new Set(solids.map(s => s.join(',')));
+  for (const s of solids) {
+    const isTop = !topSet.has(s[0] + ',' + (s[1] + 1) + ',' + s[2]);
+    const m = new THREE.Mesh(boxGeo, isTop ? topMat : mat);
+    m.position.set(s[0], s[1], s[2]);
+    blocksGroup.add(m);
+    const e = new THREE.LineSegments(edgeGeo, edgeMat);
+    e.position.copy(m.position);
+    blocksGroup.add(e);
+  }
+  scene.add(blocksGroup);
+
+  heroLight.color.setHex(pal.glow);
+  const shGeo = new THREE.OctahedronGeometry(0.3);
+  for (const s of level.shards) {
+    const m = new THREE.Mesh(shGeo, new THREE.MeshBasicMaterial({ color: 0xffd166 }));
+    m.position.set(s[0], s[1] + 0.05, s[2]);
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTex, color: 0xffd166, transparent: true, opacity: 0.55, depthWrite: false }));
+    halo.scale.set(1.6, 1.6, 1);
+    m.add(halo);
+    scene.add(m);
+    shardMeshes.push({ mesh: m, pos: s, got: false });
+  }
+  collected = 0;
+
+  exitMesh = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.09, 10, 28),
+    new THREE.MeshBasicMaterial({ color: 0x555a77 }));
+  exitMesh.position.set(level.exit[0], level.exit[1] + 0.15, level.exit[2]);
+  scene.add(exitMesh);
+  exitRing = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.03, 8, 30),
+    new THREE.MeshBasicMaterial({ color: 0x555a77, transparent: true, opacity: 0.5 }));
+  exitRing.position.copy(exitMesh.position);
+  scene.add(exitRing);
+
+  // player spawn
+  view = 0; targetYaw = 0; yaw = 0;
+  P.u = projU(0, level.start[0], level.start[2]);
+  P.d = projD(0, level.start[0], level.start[2]);
+  P.y = level.start[1] + 0.5;
+  P.vu = 0; P.vy = 0; P.grounded = false;
+  document.getElementById('lvlName').textContent = (i + 1) + ' · ' + level.name;
+  updateShardHud();
+  toast(level.name.toUpperCase() + ' — ' + level.tip);
+  // world center for camera
+  let cx = 0, cy = 0, cz = 0;
+  for (const s of solids) { cx += s[0]; cy += s[1]; cz += s[2]; }
+  center.set(cx / solids.length, cy / solids.length + 1.2, cz / solids.length);
+  save();
+}
+function updateShardHud() {
+  document.getElementById('shardN').textContent = collected + '/' + level.shards.length;
+  const open = collected >= level.shards.length;
+  exitMesh.material.color.setHex(open ? 0x00ff9c : 0x555a77);
+  exitRing.material.color.setHex(open ? 0x00ff9c : 0x555a77);
+}
+
+// ================================================================
+//  Player
+// ================================================================
+const P = { u: 0, y: 1, d: 0, vu: 0, vy: 0, grounded: false, hw: 0.32, hh: 0.42 };
+const player = new THREE.Group();
+{
+  const bodyM = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62),
+    new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x332255 }));
+  player.add(bodyM);
+  const eyeG = new THREE.BoxGeometry(0.09, 0.16, 0.09);
+  const eyeM = new THREE.MeshBasicMaterial({ color: 0x0f0f1a });
+  for (const sx of [-0.14, 0.14]) {
+    for (const [ex, ez] of [[sx, 0.32], [0.32, sx], [sx, -0.32], [-0.32, sx]]) {
+      const e = new THREE.Mesh(eyeG, eyeM);
+      e.position.set(ex, 0.08, ez);
+      player.add(e);
+    }
+  }
+}
+scene.add(player);
+const trail = [];
+
+const GRAV = 22, JUMP = 8.4, SPEED = 4.8;
+function playerWorld() { const w = unproj(view, P.u, P.d); return { x: w.x, y: P.y, z: w.z }; }
+
+function collideAxis(du) {
+  // move along u then y with voxel AABBs in the current view's silhouette
+  P.u += du;
+  const lo = Math.round(P.u - P.hw), hi = Math.round(P.u + P.hw);
+  for (let cu = lo; cu <= hi; cu++) {
+    for (let cy = Math.round(P.y - P.hh); cy <= Math.round(P.y + P.hh); cy++) {
+      if (!solidAt(view, cu, cy)) continue;
+      if (Math.abs(P.u - cu) < P.hw + 0.5 && Math.abs(P.y - cy) < P.hh + 0.5) {
+        P.u = du > 0 ? cu - 0.5 - P.hw : cu + 0.5 + P.hw;
+        P.vu = 0;
+      }
+    }
+  }
+}
+function collideY(dy) {
+  P.y += dy;
+  P.grounded = false;
+  const lo = Math.round(P.u - P.hw + 0.02), hi = Math.round(P.u + P.hw - 0.02);
+  for (let cu = lo; cu <= hi; cu++) {
+    for (let cy = Math.round(P.y - P.hh); cy <= Math.round(P.y + P.hh); cy++) {
+      if (!solidAt(view, cu, cy)) continue;
+      if (Math.abs(P.u - cu) < P.hw + 0.5 - 0.02 && Math.abs(P.y - cy) < P.hh + 0.5) {
+        if (dy < 0) {
+          P.y = cy + 0.5 + P.hh; P.vy = 0;
+          if (!P.grounded) land(cu, cy);
+          P.grounded = true;
+        } else {
+          P.y = cy - 0.5 - P.hh; P.vy = 0;
+        }
+      }
+    }
+  }
+}
+function land(cu, cy) {
+  // snap depth to the voxel the eye says you landed on (closest to camera)
+  const fv = frontVoxel(view, cu, cy);
+  if (fv) P.d = projD(view, fv[0], fv[2]);
+  puff();
+  blip(190, 0.05, 'sine', 0.05);
+}
+function ejectFromSolid() {
+  for (let up = 0; up <= 4; up++) {
+    let free = true;
+    for (let cu = Math.round(P.u - P.hw); cu <= Math.round(P.u + P.hw) && free; cu++)
+      for (let cy = Math.round(P.y + up - P.hh); cy <= Math.round(P.y + up + P.hh) && free; cy++)
+        if (solidAt(view, cu, cy) && Math.abs(P.u - cu) < P.hw + 0.48 && Math.abs(P.y + up - cy) < P.hh + 0.48) free = false;
+    if (free) { P.y += up; return; }
+  }
+  respawn();
+}
+function respawn() {
+  document.getElementById('flash').style.opacity = 0.45;
+  setTimeout(() => document.getElementById('flash').style.opacity = 0, 120);
+  blip(90, 0.3, 'sawtooth', 0.06);
+  P.u = projU(view, level.start[0], level.start[2]);
+  P.d = projD(view, level.start[0], level.start[2]);
+  P.y = level.start[1] + 0.5;
+  P.vu = 0; P.vy = 0;
+}
+
+// ================================================================
+//  View rotation
+// ================================================================
+let view = 0, yaw = 0, targetYaw = 0, rotating = false, rotT = 0, rotFrom = 0;
+function rotate(dir) {
+  if (rotating || !running) return;
+  rotating = true; rotT = 0; rotFrom = yaw;
+  targetYaw = yaw + dir * Math.PI / 2;
+  view = ((view + (dir > 0 ? 1 : 3)) % 4);
+  whoosh();
+  // player keeps their true 3D spot; re-derive silhouette coords in new view
+  const w = unproj((view + (dir > 0 ? 3 : 1)) % 4, P.u, P.d); // old view's world pos
+  P.u = projU(view, w.x, w.z);
+  P.d = projD(view, w.x, w.z);
+}
+const easeInOut = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+// ================================================================
+//  Audio
+// ================================================================
+let actx = null;
+function ensureAudio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
+function blip(f, dur, type, vol) {
+  if (!actx) return;
+  try {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || 'triangle'; o.frequency.value = f;
+    g.gain.value = vol || 0.05;
+    o.connect(g); g.connect(actx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+    o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+function whoosh() {
+  if (!actx) return;
+  try {
+    const n = actx.createBufferSource(), buf = actx.createBuffer(1, actx.sampleRate * 0.5, actx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    n.buffer = buf;
+    const f = actx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 500;
+    f.frequency.exponentialRampToValueAtTime(1600, actx.currentTime + 0.4);
+    const g = actx.createGain(); g.gain.value = 0.08;
+    n.connect(f); f.connect(g); g.connect(actx.destination);
+    n.start();
+  } catch (e) {}
+}
+function chime() { blip(880, 0.12, 'sine', 0.06); setTimeout(() => blip(1320, 0.18, 'sine', 0.05), 90); }
+
+// ================================================================
+//  Particles (landing puff + shard sparkle)
+// ================================================================
+const parts = [];
+const partGeo = new THREE.SphereGeometry(0.06, 6, 6);
+function puff() {
+  const w = playerWorld();
+  for (let i = 0; i < 6; i++) {
+    const m = new THREE.Mesh(partGeo, new THREE.MeshBasicMaterial({ color: 0xb9b4e8, transparent: true }));
+    m.position.set(w.x + (Math.random() - 0.5) * 0.5, w.y - 0.35, w.z + (Math.random() - 0.5) * 0.5);
+    scene.add(m);
+    parts.push({ m, vx: (Math.random() - 0.5) * 1.6, vy: Math.random() * 1.2, vz: (Math.random() - 0.5) * 1.6, life: 0.5 });
+  }
+}
+function sparkle(x, y, z) {
+  for (let i = 0; i < 14; i++) {
+    const m = new THREE.Mesh(partGeo, new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true }));
+    m.position.set(x, y, z);
+    scene.add(m);
+    const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 2.4;
+    parts.push({ m, vx: Math.cos(a) * sp, vy: 1 + Math.random() * 2.2, vz: Math.sin(a) * sp, life: 0.8 });
+  }
+}
+
+// ================================================================
+//  Input
+// ================================================================
+const keys = {};
+addEventListener('keydown', e => {
+  ensureAudio();
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) e.preventDefault();
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === 'q' || e.key === 'Q') rotate(-1);
+  if (e.key === 'e' || e.key === 'E') rotate(1);
+  if ((e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') && P.grounded && running && !rotating) {
+    P.vy = JUMP; P.grounded = false;
+    blip(420, 0.08, 'square', 0.035);
+  }
+});
+addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+function bindHold(id, key2) {
+  const el = document.getElementById(id);
+  const on = e => { e.preventDefault(); ensureAudio(); keys[key2] = true; };
+  const off = e => { e.preventDefault(); keys[key2] = false; };
+  el.addEventListener('pointerdown', on);
+  el.addEventListener('pointerup', off);
+  el.addEventListener('pointerleave', off);
+}
+bindHold('tL', 'arrowleft'); bindHold('tR', 'arrowright');
+document.getElementById('tJ').addEventListener('pointerdown', e => {
+  e.preventDefault(); ensureAudio();
+  if (P.grounded && running && !rotating) { P.vy = JUMP; P.grounded = false; blip(420, 0.08, 'square', 0.035); }
+});
+document.getElementById('tQ').addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); rotate(-1); });
+document.getElementById('tE').addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); rotate(1); });
+
+// ================================================================
+//  Toast / flow
+// ================================================================
+let toastT = null;
+function toast(msg, ms) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove('show'), ms || 2600);
+}
+let running = false, startT = 0;
+let save0 = {};
+try { save0 = JSON.parse(localStorage.getItem(SLUG) || '{}') || {}; } catch (e) {}
+function save() { try { localStorage.setItem(SLUG, JSON.stringify({ lvl: levelIdx })); } catch (e) {} }
+
+const qsLvl = parseInt(new URLSearchParams(location.search).get('lvl'), 10);
+document.getElementById('goBtn').addEventListener('click', () => {
+  ensureAudio();
+  document.getElementById('overlay').classList.add('hide');
+  running = true;
+  startT = performance.now();
+  blip(660, 0.1, 'triangle', 0.05);
+});
+function winGame() {
+  running = false;
+  const secs = Math.round((performance.now() - startT) / 1000);
+  const ov = document.getElementById('overlay');
+  ov.classList.remove('hide');
+  ov.querySelector('h1').textContent = 'TRANSCENDED';
+  ov.querySelector('.sub').innerHTML = 'all six illusions solved · ' + secs + 's<br>reality was the silhouette all along';
+  const btn = document.getElementById('goBtn');
+  btn.textContent = 'ONCE MORE';
+  btn.onclick = () => { loadLevel(0); ov.classList.add('hide'); running = true; startT = performance.now(); };
+  try { localStorage.setItem(SLUG, JSON.stringify({ lvl: 0, won: 1 })); } catch (e) {}
+}
+function nextLevel() {
+  chime();
+  if (levelIdx + 1 >= LEVELS.length) { winGame(); return; }
+  loadLevel(levelIdx + 1);
+}
+
+// ================================================================
+//  Camera rig + main loop
+// ================================================================
+const center = new THREE.Vector3(0, 2, 0);
+const CAMR = 40;
+function placeCamera(yawNow, tilt) {
+  const cx = center.x + Math.sin(yawNow) * CAMR * Math.cos(tilt);
+  const cz = center.z + Math.cos(yawNow) * CAMR * Math.cos(tilt);
+  const cy = center.y + Math.sin(tilt) * CAMR;
+  camera.position.set(cx, cy, cz);
+  camera.lookAt(center);
+  sun.position.set(cx + 8, cy + 18, cz + 6);
+}
+
+loadLevel(Number.isInteger(qsLvl) && qsLvl >= 0 && qsLvl < LEVELS.length ? qsLvl
+  : (save0.lvl && save0.lvl < LEVELS.length ? save0.lvl : 0));
+
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  let dt = (now - last) / 1000; last = now;
+  if (dt > 0.05) dt = 0.05;
+  const t = now / 1000;
+
+  // rotation tween — physics frozen while the world turns
+  let tilt = 0;
+  if (rotating) {
+    rotT += dt / 0.65;
+    if (rotT >= 1) {
+      rotT = 1; rotating = false; yaw = targetYaw;
+      ejectFromSolid();
+    } else {
+      yaw = rotFrom + (targetYaw - rotFrom) * easeInOut(rotT);
+    }
+    tilt = Math.sin(Math.min(rotT, 1) * Math.PI) * 0.33; // rise to reveal the 3D lie
+  } else if (running) {
+    // ---- physics on the silhouette ----
+    const mv = (keys['arrowleft'] || keys['a'] ? -1 : 0) + (keys['arrowright'] || keys['d'] ? 1 : 0);
+    P.vu += (mv * SPEED - P.vu) * Math.min(1, dt * 14);
+    P.vy -= GRAV * dt;
+    collideAxis(P.vu * dt);
+    collideY(P.vy * dt);
+
+    // shards + exit live on the silhouette too
+    for (const s of shardMeshes) {
+      if (s.got) continue;
+      const su = projU(view, s.pos[0], s.pos[2]);
+      if (Math.abs(su - P.u) < 0.62 && Math.abs(s.pos[1] + 0.05 - P.y) < 0.85) {
+        s.got = true; collected++;
+        s.mesh.visible = false;
+        sparkle(s.pos[0], s.pos[1], s.pos[2]);
+        chime();
+        updateShardHud();
+        toast(collected >= level.shards.length ? 'THE WAY IS OPEN ◯' : 'shard ' + collected + '/' + level.shards.length);
+      }
+    }
+    const eu = projU(view, level.exit[0], level.exit[2]);
+    if (Math.abs(eu - P.u) < 0.6 && Math.abs(level.exit[1] + 0.15 - P.y) < 0.9) {
+      if (collected >= level.shards.length) nextLevel();
+    }
+    if (P.y < -7) respawn();
+  }
+
+  // player mesh at true 3D spot
+  const w = playerWorld();
+  player.position.set(w.x, w.y, w.z);
+  heroLight.position.set(w.x, w.y + 1.6, w.z);
+  player.rotation.y = yaw;
+  const squash = P.grounded ? 1 : 1.06;
+  player.scale.set(2 - squash, squash, 2 - squash);
+
+  // trail
+  if (running && (Math.abs(P.vu) > 0.5 || !P.grounded) && Math.random() < 0.35) {
+    const m = new THREE.Mesh(partGeo, new THREE.MeshBasicMaterial({ color: 0x7c5cff, transparent: true }));
+    m.position.set(w.x, w.y - 0.15, w.z);
+    scene.add(m);
+    parts.push({ m, vx: 0, vy: 0.3, vz: 0, life: 0.4 });
+  }
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    p.life -= dt;
+    p.m.position.x += p.vx * dt; p.m.position.y += p.vy * dt; p.m.position.z += p.vz * dt;
+    p.m.material.opacity = Math.max(0, p.life * 2);
+    if (p.life <= 0) { scene.remove(p.m); p.m.material.dispose(); parts.splice(i, 1); }
+  }
+
+  // shards spin, exit pulses
+  for (const s of shardMeshes) if (!s.got) {
+    s.mesh.rotation.y = t * 2.2; s.mesh.rotation.x = t * 1.3;
+    s.mesh.position.y = s.pos[1] + 0.05 + Math.sin(t * 3 + s.pos[0]) * 0.08;
+  }
+  if (exitMesh) {
+    exitMesh.rotation.y = t * 1.4;
+    const open = collected >= (level ? level.shards.length : 1);
+    const pl = 1 + (open ? Math.sin(t * 5) * 0.08 : 0);
+    exitRing.scale.set(pl, pl, pl);
+    exitRing.rotation.y = -t;
+  }
+
+  dust.rotation.y = t * 0.015;
+  placeCamera(yaw, tilt);
+  bgMesh.position.copy(camera.position);
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(frame);
+
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  sizeCamera();
+});
+})();
+</script>
+</body>
+</html>

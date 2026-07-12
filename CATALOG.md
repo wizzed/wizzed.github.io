@@ -1,6 +1,6 @@
 # 🎮 Wizzed Arcade — Game & Tool Catalog
 
-A complete reference to everything in the arcade. **136 games** and **91 tools**, plus **11 preserved classics** in [The Old Arcade](old.html).
+A complete reference to everything in the arcade. **137 games** and **91 tools**, plus **11 preserved classics** in [The Old Arcade](old.html).
 
 Every entry is a single standalone HTML file — no build step, no dependencies (except the 3D games, which load `lib/three.min.js`). Open any file directly in a browser, or browse them all from [`index.html`](index.html). Each game/tool has 5 preview screenshots under `shots/<slug>/1..5.jpg`.
 
@@ -22,8 +22,8 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🎮 Board & Strategy | 13 |
 | 🎮 Word, Trivia & Number | 11 |
 | 🎮 Cards & Casino | 15 |
-| 🎮 3D | 16 |
-| **Games total** | **136** |
+| 🎮 3D | 17 |
+| **Games total** | **137** |
 | 🛠️ Productivity | 14 |
 | 🛠️ Text & Dev | 15 |
 | 🛠️ Numbers & Calculators | 12 |
@@ -199,7 +199,7 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🕷️ **Spider Solitaire** `NEW` | Card Classic | [`games/spider-solitaire.html`](games/spider-solitaire.html) | The two-suit tower of patience, with full drag-and-drop. |
 | 🎰 **Video Poker** | Jacks or Better | [`games/video-poker.html`](games/video-poker.html) | Hold the right cards and chase the royal flush paytable. |
 
-### 3D  (16)
+### 3D  (17)
 
 | Game | Genre | File | Description |
 | --- | --- | --- | --- |
@@ -217,6 +217,7 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🛸 **Star Flight** | 3D Flyer | [`games/star-flight-3d.html`](games/star-flight-3d.html) | Bank through an endless asteroid field at ever-increasing speed. |
 | 🎯 **Target Gallery 3D** `NEW` | 3D Shooter | [`games/gallery-3d.html`](games/gallery-3d.html) | Sixty seconds, moving ducks, and your trigger finger. |
 | 💫 **Tunnel Rush 3D** `NEW` | 3D Rush | [`games/tunnel-run-3d.html`](games/tunnel-run-3d.html) | Spin around the tube and thread the gaps at warp speed. |
+| 👁️ **VANTAGE** `NEW` | Perspective Puzzle | [`games/vantage-3d.html`](games/vantage-3d.html) | Mind-bending: platforms that merely LOOK connected ARE. Rotate the world through six Escher-grade illusions. |
 | ⛏️ **Voxel Builder** | 3D Sandbox | [`games/voxel-builder.html`](games/voxel-builder.html) | Place neon voxels block by block and build tiny worlds. |
 | ⛵ **Wavefarer** `NEW` | Endless Sailing | [`games/wavefarer-3d.html`](games/wavefarer-3d.html) | Ride real rolling swells from dusk into night — thread the gates, outrun the storm. |
 
@@ -374,7 +375,7 @@ The original eleven, preserved exactly as they were. Reachable from [`old.html`]
 
 
 - **`index.html`** — the frontpage. A sticky bar at the top toggles between the **Games** and **Tools** views and holds the category filter chips, search box, and a **light/dark theme toggle** (defaults to your system preference, saved in `localStorage`; the Old Arcade shares the same preference). Hover any card to preview its 5 screenshots (cross-faded, flicker-free).
-- **`games/`** — the 136 games. **`tools/`** — the 91 tools. **`games/old/`** — the 11 classics.
+- **`games/`** — the 137 games. **`tools/`** — the 91 tools. **`games/old/`** — the 11 classics.
 - **`old.html`** — landing page for The Old Arcade.
 - **`shots/<slug>/1..5.jpg`** — five gameplay screenshots per entry, captured at 800×500. The frontpage cycles through them on hover.
 - **`lib/three.min.js`** — three.js r160 (UMD), used by the 3D games, Groove Dancer, and the frontpage hero.

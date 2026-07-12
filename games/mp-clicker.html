@@ -110,11 +110,11 @@
 </div>
 
 <div id="stats">
-  YOUR SESSION <span class="big" id="myClicks">0</span><br>
-  COMBINED CPS <b id="cps">0.0</b> · LIFETIME <b id="life">0</b>
+  GLOBAL ALL-TIME <span class="big" id="globalN">0</span><br>
+  YOUR SESSION <b id="myClicks">0</b> · COMBINED CPS <b id="cps">0.0</b> · LIFETIME <b id="life">0</b>
 </div>
 
-<div id="hint">SPACE or click/tap the button · counter tallies everyone online right now · 🤖 = AI clickers</div>
+<div id="hint">SPACE or click/tap the button · every click ever lands on the global counter — 1,000,000 together · 🤖 = AI clickers</div>
 <div id="milestone"></div>
 
 <script>
@@ -190,10 +190,10 @@
       const pid = new Uint8Array([0, 7]);
       this.send(0x82, this.cat(pid, this.enc(filter), new Uint8Array([0])));
     }
-    publish(topic, payloadStr) {
+    publish(topic, payloadStr, retain) {
       if (!this.connected) return;
       const pl = new TextEncoder().encode(payloadStr);
-      this.send(0x30, this.cat(this.enc(topic), pl));
+      this.send(retain ? 0x31 : 0x30, this.cat(this.enc(topic), pl));
     }
     feed(chunk) {
       this.buf = this.cat(this.buf, chunk);
@@ -289,13 +289,22 @@
   mq.onstatus = up => {
     online = up;
     const dot = document.getElementById('connDot'), txt = document.getElementById('connTxt');
-    if (up) { dot.className = 'dot live'; txt.textContent = 'LIVE — global button'; mq.subscribe(ROOM + '/p/#'); }
+    if (up) { dot.className = 'dot live'; txt.textContent = 'LIVE — global button'; mq.subscribe(ROOM + '/p/#'); mq.subscribe(ROOM + '/state/#'); }
     else { dot.className = 'dot off'; txt.textContent = 'OFFLINE — clicking with bots'; }
   };
   mq.onmessage = (topic, payload) => {
     try {
       const m = JSON.parse(payload);
       if (!m || !m.i || m.i === myId) return;
+      if (topic.indexOf(ROOM + '/state/') === 0) {
+        // retained all-time total — the broker replays it to every new joiner
+        if (m.t === 'tot' && typeof m.tot === 'number' && m.tot > globalTotal && m.tot < 1e12) {
+          const prev = globalTotal;
+          globalTotal = Math.floor(m.tot);
+          checkGlobalMilestone(prev);
+        }
+        return;
+      }
       if (bots.has(m.i)) return;
       const prev = peers.get(m.i);
       const prevC = prev ? prev.c : m.c;
@@ -304,8 +313,39 @@
       peers.set(m.i, m);
       const delta = m.c - prevC;
       if (delta > 0 && delta < 60) spawnPulse(delta, m.ai, false);
+      if (delta > 0 && delta < 5000) bumpGlobal(delta);
     } catch (e) {}
   };
+
+  // ---- the shared all-time counter (the actual "million clicks") ----
+  // Every client adds the click deltas it observes; the host publishes the
+  // best-known total as a retained message so late joiners (and tomorrow's
+  // players) resume from the real count instead of zero.
+  const TOT_TOPIC = ROOM + '/state/total';
+  let globalTotal = 0;
+  let totalDirty = false;
+  function bumpGlobal(n) {
+    const prev = globalTotal;
+    globalTotal += n;
+    totalDirty = true;
+    checkGlobalMilestone(prev);
+  }
+  setInterval(() => {
+    if (!online || !iAmHost() || !totalDirty) return;
+    totalDirty = false;
+    mq.publish(TOT_TOPIC, JSON.stringify({ t: 'tot', i: myId, tot: globalTotal, ts: Date.now() }), true);
+  }, 2500);
+  const GLOBAL_MILES = [1000, 10000, 100000, 250000, 500000, 1000000];
+  function checkGlobalMilestone(prev) {
+    for (const m of GLOBAL_MILES) {
+      if (prev < m && globalTotal >= m) {
+        showMilestone('🌍 ' + m.toLocaleString() + ' CLICKS WORLDWIDE! 🎉');
+        burstConfetti();
+        bleep(880, 0.16, 'triangle');
+        setTimeout(() => bleep(1180, 0.16, 'triangle'), 120);
+      }
+    }
+  }
 
   // publish presence ~5.5Hz with my session count + cps
   setInterval(() => {
@@ -337,6 +377,7 @@
     ensureAudio();
     me.c++;
     lifetime++;
+    bumpGlobal(1);
     myClickTimes.push(performance.now());
     persist();
     btn.scale = 0.82; btn.glow = 1; btn.wob = 1;
@@ -444,6 +485,7 @@
         const interval = 1 / (5 + Math.random() * 4);
         while (b.rate >= interval) {
           b.rate -= interval; b.c++; b.burst--;
+          bumpGlobal(1);
           b.ct.push(now);
           spawnPulse(1, true, false);
           if (b.burst <= 0) break;
@@ -582,6 +624,7 @@
     document.getElementById('onlineN').textContent = (humans + ais).toLocaleString();
     document.getElementById('humanN').textContent = humans;
     document.getElementById('aiN').textContent = ais;
+    document.getElementById('globalN').textContent = globalTotal.toLocaleString();
     combinedShown += (combinedCps - combinedShown) * 0.4;
     document.getElementById('cps').textContent = combinedShown.toFixed(1);
 

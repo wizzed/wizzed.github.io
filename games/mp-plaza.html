@@ -235,10 +235,10 @@
       const pid = new Uint8Array([0, 7]);
       this.send(0x82, this.cat(pid, this.enc(filter), new Uint8Array([0])));
     }
-    publish(topic, payloadStr) {
+    publish(topic, payloadStr, retain) {
       if (!this.connected) return;
       const pl = new TextEncoder().encode(payloadStr);
-      this.send(0x30, this.cat(this.enc(topic), pl));
+      this.send(retain ? 0x31 : 0x30, this.cat(this.enc(topic), pl));
     }
     feed(chunk) {
       this.buf = this.cat(this.buf, chunk);
@@ -353,9 +353,31 @@
         const p = peers.get(m.i);
         if (p) { p.emote = m.e; p.emoteT = performance.now(); }
         bleep(520, 0.05);
+      } else if (m.t === 'chat') {
+        // retained chat history — replayed by the broker to late joiners
+        if (!chatSynced) {
+          chatSynced = true;
+          if (chatHist.length === 0 && Array.isArray(m.hist)) {
+            for (const c of m.hist.slice(-8)) {
+              chatHist.push({ n: String(c.n || '???').slice(0, 14), msg: String(c.msg || '').slice(0, 60), ai: c.ai ? 1 : 0 });
+            }
+            renderChatLog();
+          }
+        }
       }
     } catch (e) {}
   };
+
+  // ---- late-joiner sync: the host keeps the last 8 chat lines retained on
+  // the broker so a fresh visitor walks into the conversation, not silence ----
+  const CHAT_TOPIC = ROOM + '/state/chat';
+  let chatSynced = false;
+  let chatDirty = false;
+  setInterval(() => {
+    if (!online || !iAmHost() || !chatDirty) return;
+    chatDirty = false;
+    mq.publish(CHAT_TOPIC, JSON.stringify({ t: 'chat', i: myId, hist: chatHist.slice(-8), ts: Date.now() }), true);
+  }, 1500);
 
   setInterval(() => {
     if (!online) return;
@@ -371,6 +393,7 @@
   function pushChat(n, msg, ai) {
     chatHist.push({ n: n || '???', msg, ai: ai ? 1 : 0 });
     while (chatHist.length > 8) chatHist.shift();
+    chatDirty = true;
     renderChatLog();
   }
   function renderChatLog() {

@@ -42,10 +42,18 @@
   #shapes button { font-size: 15px; padding: 6px 8px; }
   #shapes .lbl { font-size: 9px; color: #8d87bb; text-align: center; letter-spacing: 1px; }
   #props {
-    position: fixed; right: 8px; top: 108px; z-index: 24; width: 200px;
-    padding: 10px; display: none; max-height: calc(100vh - 260px); overflow-y: auto;
+    position: fixed; right: 8px; top: 208px; z-index: 26; width: 200px;
+    padding: 10px; display: none; max-height: calc(100vh - 340px); overflow-y: auto;
   }
   #props.show { display: block; }
+  #propsHead { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  #propsTitle { flex: 1; font-size: 11px; color: #ffd166; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #propsHead button {
+    font-family: inherit; font-size: 12px; color: #b9b4e8; background: #232135;
+    border: 1px solid #3c3760; border-radius: 6px; padding: 3px 8px; cursor: pointer;
+  }
+  #props.collapsed #propsBody { display: none; }
+  #props.collapsed { overflow: hidden; }
   #props h3 { font-size: 10px; letter-spacing: 2px; color: #8d87bb; margin: 8px 0 4px; }
   #props h3:first-child { margin-top: 0; }
   #props input[type=text] {
@@ -114,21 +122,58 @@
   }
   #welcome .go.alt { background: linear-gradient(135deg, #ffd166, #ff9d3c); }
   #loadInput { display: none; }
+  #menuBtn { display: none; }
+
+  /* ---------- mobile layout ---------- */
+  @media (max-width: 760px) {
+    #topbar { top: 6px; left: 50%; max-width: calc(100vw - 8px); padding: 4px 5px; gap: 3px; flex-wrap: nowrap; }
+    #topbar .tx { display: none; }
+    #topbar .sep { display: none; }
+    #topbar button { font-size: 14px; padding: 8px 9px; }
+    #menuBtn { display: inline-block; }
+    #back { display: none; }
+    #backMenu { display: block !important; }
+    #filebar {
+      display: none; top: 56px; right: 6px;
+    }
+    #filebar.open { display: flex; }
+    #shapes {
+      left: 6px; right: 6px; top: auto; bottom: 128px; transform: none;
+      flex-direction: row; overflow-x: auto; padding: 6px;
+    }
+    #shapes .lbl { display: none; }
+    #shapes button { font-size: 17px; padding: 8px 12px; }
+    #props {
+      left: 6px; right: 6px; width: auto; top: auto; bottom: 178px;
+      max-height: 42vh; z-index: 27;
+    }
+    #props .row input[type=number], #props input[type=text], #tl-controls .dur input { font-size: 16px; }
+    #props .row label { width: 14px; }
+    #timeline { width: calc(100vw - 12px); bottom: 6px; padding: 6px 8px; }
+    #tl-hint { display: none; }
+    #tl-controls .dur { display: none; }
+    #tl-controls button { padding: 8px 10px; }
+    .key { width: 16px; height: 16px; }
+    #hint { display: none; }
+    #welcome .go { display: block; width: min(86vw, 380px); margin: 6px auto; }
+  }
 </style>
 </head>
 <body>
 <a id="back" href="../index.html">← Arcade</a>
 <div id="topbar" class="panel">
-  <button id="mMove" class="on" title="W">↔ MOVE</button>
-  <button id="mRot" title="E">⟳ ROTATE</button>
-  <button id="mScale" title="R">⤢ SCALE</button>
+  <button id="mMove" class="on" title="W">↔<span class="tx"> MOVE</span></button>
+  <button id="mRot" title="E">⟳<span class="tx"> ROTATE</span></button>
+  <button id="mScale" title="R">⤢<span class="tx"> SCALE</span></button>
   <span class="sep"></span>
-  <button id="snapBtn" title="grid snap">🧲 SNAP</button>
+  <button id="snapBtn" title="grid snap">🧲<span class="tx"> SNAP</span></button>
   <span class="sep"></span>
   <button id="undoBtn" title="Ctrl+Z">↩</button>
   <button id="redoBtn" title="Ctrl+Y">↪</button>
+  <button id="menuBtn" title="file & export">☰</button>
 </div>
 <div id="filebar" class="panel">
+  <a id="backMenu" href="../index.html" style="display:none; text-decoration:none; text-align:center; font-size:12px; color:#b9b4e8; border:1px solid #3c3760; background:#232135; padding:7px 9px; border-radius:7px;">← Arcade</a>
   <button id="exportGlb" class="exp">⬇ GLB · games/web</button>
   <button id="exportStl" class="exp">⬇ STL · 3D print</button>
   <button id="saveBtn">💾 project</button>
@@ -149,6 +194,12 @@
   <button data-shape="slab" title="slab">▬</button>
 </div>
 <div id="props" class="panel">
+  <div id="propsHead">
+    <span id="propsTitle">object</span>
+    <button id="propsToggle">▾</button>
+    <button id="propsClose">✕</button>
+  </div>
+  <div id="propsBody">
   <h3>NAME</h3>
   <input type="text" id="pName" maxlength="24">
   <h3>POSITION</h3>
@@ -166,6 +217,7 @@
   <div class="btnrow">
     <button id="dupBtn" title="Ctrl+D">⧉ DUP</button>
     <button id="delBtn" class="danger" title="Del">🗑 DEL</button>
+  </div>
   </div>
 </div>
 <div id="timeline" class="panel">
@@ -208,7 +260,9 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffe
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.autoClear = false;
+renderer.domElement.style.touchAction = 'none';
 document.body.appendChild(renderer.domElement);
+const COARSE = matchMedia('(pointer: coarse)').matches;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x14131f);
@@ -386,15 +440,28 @@ function autosave() {
 const propEls = ['pX','pY','pZ','rX','rY','rZ','sX','sY','sZ'].map(id => document.getElementById(id));
 function select(obj) {
   selected = obj;
-  document.getElementById('props').classList.toggle('show', !!obj);
+  const panel = document.getElementById('props');
+  panel.classList.toggle('show', !!obj);
+  if (obj && COARSE && !select.everToggled) panel.classList.add('collapsed');
   gizmoRoot.visible = !!obj;
   refreshPanel();
   renderKeys();
 }
+document.getElementById('propsToggle').addEventListener('click', () => {
+  select.everToggled = true;
+  const panel = document.getElementById('props');
+  panel.classList.toggle('collapsed');
+  document.getElementById('propsToggle').textContent = panel.classList.contains('collapsed') ? '▸' : '▾';
+});
+document.getElementById('propsClose').addEventListener('click', () => select(null));
+document.getElementById('menuBtn').addEventListener('click', () => {
+  document.getElementById('filebar').classList.toggle('open');
+});
 function refreshPanel() {
   if (!selected) return;
   const m = selected.mesh;
   document.getElementById('pName').value = selected.name;
+  document.getElementById('propsTitle').textContent = '⚙ ' + selected.name;
   const e = new THREE.Euler().setFromQuaternion(m.quaternion, 'XYZ');
   const vals = [m.position.x, m.position.y, m.position.z,
     THREE.MathUtils.radToDeg(e.x), THREE.MathUtils.radToDeg(e.y), THREE.MathUtils.radToDeg(e.z),
@@ -519,7 +586,7 @@ function updateGizmo() {
   if (!selected) return;
   gizmoRoot.position.copy(selected.mesh.position);
   const d = camera.position.distanceTo(gizmoRoot.position);
-  const s = d * 0.09;
+  const s = d * (COARSE ? 0.13 : 0.09);
   gizmoRoot.scale.set(s, s, s);
 }
 
@@ -634,7 +701,7 @@ renderer.domElement.addEventListener('pointermove', ev => {
     refreshPanel();
     return;
   }
-  if (orbiting) { camCtl.yaw -= dx * 0.0055; camCtl.pitch += dy * 0.005; placeCamera(); }
+  if (orbiting && !multiTouch) { camCtl.yaw -= dx * 0.0055; camCtl.pitch += dy * 0.005; placeCamera(); }
   else if (panning) {
     const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
     const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
@@ -657,18 +724,29 @@ renderer.domElement.addEventListener('wheel', ev => {
   camCtl.dist *= Math.exp(ev.deltaY * 0.001);
   placeCamera();
 }, { passive: false });
-// pinch zoom
-let pinch0 = 0, dist0 = 0;
+// two fingers: pinch = zoom, drag together = pan
+let pinch0 = 0, dist0 = 0, mid0 = null, target0 = null, multiTouch = false;
+addEventListener('touchstart', ev => {
+  if (ev.touches.length >= 2) { multiTouch = true; orbiting = panning = false; drag = null; }
+}, { passive: true });
 addEventListener('touchmove', ev => {
   if (ev.touches.length === 2) {
     const d = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX, ev.touches[0].clientY - ev.touches[1].clientY);
-    if (!pinch0) { pinch0 = d; dist0 = camCtl.dist; }
+    const mid = { x: (ev.touches[0].clientX + ev.touches[1].clientX) / 2, y: (ev.touches[0].clientY + ev.touches[1].clientY) / 2 };
+    if (!pinch0) { pinch0 = d; dist0 = camCtl.dist; mid0 = mid; target0 = camCtl.target.clone(); }
     camCtl.dist = dist0 * pinch0 / d;
+    const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+    const k = camCtl.dist * 0.0022;
+    camCtl.target.copy(target0)
+      .addScaledVector(right, -(mid.x - mid0.x) * k)
+      .addScaledVector(up, (mid.y - mid0.y) * k);
     placeCamera();
-    orbiting = false;
   }
 }, { passive: true });
-addEventListener('touchend', () => { pinch0 = 0; });
+addEventListener('touchend', ev => {
+  if (ev.touches.length < 2) { pinch0 = 0; mid0 = null; multiTouch = false; }
+}, { passive: true });
 
 // shape buttons
 document.querySelectorAll('#shapes button[data-shape]').forEach(b => b.addEventListener('click', () => {
@@ -953,6 +1031,9 @@ function exportGLB() {
 }
 document.getElementById('exportGlb').addEventListener('click', exportGLB);
 document.getElementById('exportStl').addEventListener('click', exportSTL);
+document.getElementById('filebar').addEventListener('click', () => {
+  if (innerWidth <= 760) document.getElementById('filebar').classList.remove('open');
+});
 
 // ---- project save/load ----
 document.getElementById('saveBtn').addEventListener('click', () => {

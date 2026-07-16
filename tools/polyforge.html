@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>POLYFORGE — 3D Modeling, Animation & Export Studio · Wizzed Arcade</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #0f0f1a; }
+  body { font-family: 'Courier New', monospace; color: #e8e6ff; user-select: none; -webkit-user-select: none; }
+  canvas { display: block; }
+  #back {
+    position: fixed; top: 8px; left: 8px; z-index: 30;
+    color: #b9b4e8; text-decoration: none; font-size: 12px; letter-spacing: 1px;
+    border: 1px solid #3c3760; background: rgba(15,15,26,0.85); padding: 5px 10px; border-radius: 8px;
+  }
+  #back:hover { color: #fff; border-color: #7c5cff; }
+  .panel { background: rgba(18,17,32,0.92); border: 1px solid #3c3760; border-radius: 10px; }
+  #topbar {
+    position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 25;
+    display: flex; gap: 5px; align-items: center; flex-wrap: wrap; justify-content: center;
+    padding: 6px 8px; max-width: calc(100vw - 180px);
+  }
+  #topbar button, #shapes button, #props button, #timeline button, #filebar button {
+    font-family: inherit; font-size: 11.5px; letter-spacing: 0.5px;
+    color: #e8e6ff; background: #232135; border: 1px solid #3c3760;
+    padding: 6px 9px; border-radius: 7px; cursor: pointer; white-space: nowrap;
+  }
+  #topbar button:hover, #shapes button:hover, #props button:hover, #timeline button:hover, #filebar button:hover { border-color: #7c5cff; }
+  #topbar button.on { border-color: #ffd166; color: #ffd166; background: #2e2a1c; }
+  #topbar .sep { width: 1px; height: 20px; background: #3c3760; margin: 0 2px; }
+  #filebar {
+    position: fixed; top: 8px; right: 8px; z-index: 25; display: flex; flex-direction: column; gap: 5px;
+    padding: 6px 8px;
+  }
+  #filebar button.exp { border-color: #2c8a5f; color: #7dffc8; }
+  #filebar button.exp:hover { border-color: #00ff9c; }
+  #shapes {
+    position: fixed; left: 8px; top: 50%; transform: translateY(-50%); z-index: 25;
+    display: flex; flex-direction: column; gap: 4px; padding: 7px;
+  }
+  #shapes button { font-size: 15px; padding: 6px 8px; }
+  #shapes .lbl { font-size: 9px; color: #8d87bb; text-align: center; letter-spacing: 1px; }
+  #props {
+    position: fixed; right: 8px; top: 108px; z-index: 24; width: 200px;
+    padding: 10px; display: none; max-height: calc(100vh - 260px); overflow-y: auto;
+  }
+  #props.show { display: block; }
+  #props h3 { font-size: 10px; letter-spacing: 2px; color: #8d87bb; margin: 8px 0 4px; }
+  #props h3:first-child { margin-top: 0; }
+  #props input[type=text] {
+    width: 100%; font-family: inherit; font-size: 12px; color: #ffd166;
+    background: #16152a; border: 1px solid #3c3760; border-radius: 6px; padding: 5px 7px;
+  }
+  #props .row { display: flex; gap: 4px; margin-bottom: 4px; align-items: center; }
+  #props .row label { font-size: 10px; color: #8d87bb; width: 12px; }
+  #props .row input[type=number] {
+    width: 100%; min-width: 0; font-family: inherit; font-size: 11.5px; color: #e8e6ff;
+    background: #16152a; border: 1px solid #3c3760; border-radius: 6px; padding: 4px 5px;
+  }
+  #props input[type=color] { width: 100%; height: 30px; border: 1px solid #3c3760; border-radius: 6px; background: #16152a; padding: 2px; }
+  #props input[type=range] { width: 100%; accent-color: #7c5cff; }
+  #props .btnrow { display: flex; gap: 4px; margin-top: 8px; }
+  #props .btnrow button { flex: 1; }
+  #props button.danger { border-color: #7a2c3c; color: #ff8fa8; }
+  #timeline {
+    position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%); z-index: 25;
+    width: min(96vw, 780px); padding: 8px 10px;
+  }
+  #tl-controls { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+  #tl-controls .time { font-size: 11px; color: #ffd166; min-width: 78px; letter-spacing: 1px; }
+  #tl-controls .dur { display: flex; align-items: center; gap: 4px; font-size: 10px; color: #8d87bb; }
+  #tl-controls .dur input {
+    width: 44px; font-family: inherit; font-size: 11px; color: #e8e6ff;
+    background: #16152a; border: 1px solid #3c3760; border-radius: 6px; padding: 3px 5px;
+  }
+  #tl-controls button.rec { border-color: #ffd166; color: #ffd166; }
+  #track {
+    position: relative; height: 34px; background: #16152a; border: 1px solid #3c3760;
+    border-radius: 7px; cursor: pointer; overflow: hidden;
+  }
+  #playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #00e5ff; box-shadow: 0 0 8px #00e5ff; pointer-events: none; }
+  .key {
+    position: absolute; top: 50%; width: 11px; height: 11px; transform: translate(-50%, -50%) rotate(45deg);
+    background: #ffd166; border: 1px solid #fff; cursor: pointer;
+  }
+  .key.sel { background: #ff2d78; box-shadow: 0 0 10px #ff2d78; }
+  #tl-hint { font-size: 9.5px; color: #8d87bb; letter-spacing: 0.5px; margin-top: 5px; text-align: center; }
+  #toast {
+    position: fixed; top: 62px; left: 50%; transform: translateX(-50%); z-index: 40;
+    font-size: 12px; letter-spacing: 1px; color: #0f0f1a; background: #ffd166; font-weight: bold;
+    padding: 8px 16px; border-radius: 9px; opacity: 0; transition: opacity .25s; pointer-events: none;
+    max-width: 90vw; text-align: center;
+  }
+  #toast.show { opacity: 1; }
+  #hint {
+    position: fixed; bottom: 118px; left: 50%; transform: translateX(-50%); z-index: 20;
+    font-size: 10.5px; letter-spacing: 1px; color: #8d87bb; text-align: center;
+    background: rgba(15,15,26,0.6); padding: 4px 12px; border-radius: 8px; white-space: nowrap; pointer-events: none;
+  }
+  #welcome {
+    position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 20px;
+    background: radial-gradient(ellipse at 50% 40%, rgba(30,26,58,0.94), rgba(10,10,20,0.97));
+  }
+  #welcome.hide { display: none; }
+  #welcome h1 { font-size: clamp(36px, 9vw, 62px); letter-spacing: 9px; color: #fff; text-shadow: 0 0 30px #7c5cff, 0 0 70px rgba(0,229,255,0.4); margin-bottom: 8px; }
+  #welcome .sub { color: #b9b4e8; font-size: 14px; letter-spacing: 1px; line-height: 1.9; margin-bottom: 24px; max-width: 500px; }
+  #welcome .sub b { color: #ffd166; }
+  #welcome .go {
+    font-family: inherit; font-size: 16px; letter-spacing: 3px; font-weight: bold;
+    color: #0f0f1a; background: linear-gradient(135deg, #7c5cff, #00e5ff); border: 0;
+    padding: 14px 38px; border-radius: 12px; cursor: pointer; box-shadow: 0 0 30px rgba(124,92,255,0.45); margin: 4px;
+  }
+  #welcome .go.alt { background: linear-gradient(135deg, #ffd166, #ff9d3c); }
+  #loadInput { display: none; }
+</style>
+</head>
+<body>
+<a id="back" href="../index.html">← Arcade</a>
+<div id="topbar" class="panel">
+  <button id="mMove" class="on" title="W">↔ MOVE</button>
+  <button id="mRot" title="E">⟳ ROTATE</button>
+  <button id="mScale" title="R">⤢ SCALE</button>
+  <span class="sep"></span>
+  <button id="snapBtn" title="grid snap">🧲 SNAP</button>
+  <span class="sep"></span>
+  <button id="undoBtn" title="Ctrl+Z">↩</button>
+  <button id="redoBtn" title="Ctrl+Y">↪</button>
+</div>
+<div id="filebar" class="panel">
+  <button id="exportGlb" class="exp">⬇ GLB · games/web</button>
+  <button id="exportStl" class="exp">⬇ STL · 3D print</button>
+  <button id="saveBtn">💾 project</button>
+  <button id="loadBtn">📂 open</button>
+  <button id="demoBtn">🚀 demo</button>
+</div>
+<input type="file" id="loadInput" accept=".json,.polyforge">
+<div id="shapes" class="panel">
+  <div class="lbl">ADD</div>
+  <button data-shape="cube" title="cube">◼</button>
+  <button data-shape="sphere" title="sphere">●</button>
+  <button data-shape="cylinder" title="cylinder">⬮</button>
+  <button data-shape="cone" title="cone">▲</button>
+  <button data-shape="pyramid" title="pyramid">◮</button>
+  <button data-shape="torus" title="torus">◯</button>
+  <button data-shape="capsule" title="capsule">⬭</button>
+  <button data-shape="wedge" title="wedge">◺</button>
+  <button data-shape="slab" title="slab">▬</button>
+</div>
+<div id="props" class="panel">
+  <h3>NAME</h3>
+  <input type="text" id="pName" maxlength="24">
+  <h3>POSITION</h3>
+  <div class="row"><label>X</label><input type="number" step="0.1" id="pX"><label>Y</label><input type="number" step="0.1" id="pY"><label>Z</label><input type="number" step="0.1" id="pZ"></div>
+  <h3>ROTATION °</h3>
+  <div class="row"><label>X</label><input type="number" step="5" id="rX"><label>Y</label><input type="number" step="5" id="rY"><label>Z</label><input type="number" step="5" id="rZ"></div>
+  <h3>SCALE</h3>
+  <div class="row"><label>X</label><input type="number" step="0.1" id="sX"><label>Y</label><input type="number" step="0.1" id="sY"><label>Z</label><input type="number" step="0.1" id="sZ"></div>
+  <h3>COLOR</h3>
+  <input type="color" id="pColor">
+  <h3>METAL <span id="metV" style="color:#ffd166"></span></h3>
+  <input type="range" id="pMetal" min="0" max="100" value="10">
+  <h3>ROUGH <span id="rouV" style="color:#ffd166"></span></h3>
+  <input type="range" id="pRough" min="0" max="100" value="60">
+  <div class="btnrow">
+    <button id="dupBtn" title="Ctrl+D">⧉ DUP</button>
+    <button id="delBtn" class="danger" title="Del">🗑 DEL</button>
+  </div>
+</div>
+<div id="timeline" class="panel">
+  <div id="tl-controls">
+    <button id="playBtn">▶ PLAY</button>
+    <span class="time" id="timeLbl">0.00 / 4.00s</span>
+    <button id="keyBtn" class="rec">◆ ADD KEY</button>
+    <button id="delKeyBtn">✕ KEY</button>
+    <span class="dur">LEN <input type="number" id="durInput" min="1" max="60" step="0.5" value="4">s</span>
+  </div>
+  <div id="track"><div id="playhead"></div></div>
+  <div id="tl-hint" id="tlhint">select an object · move the playhead · pose it · ◆ ADD KEY — keys animate position, rotation & scale</div>
+</div>
+<div id="hint">drag empty space: orbit · wheel/pinch: zoom · shift-drag: pan · click object: select · W/E/R gizmo modes</div>
+<div id="toast"></div>
+<div id="welcome">
+  <h1>POLYFORGE</h1>
+  <div class="sub">
+    a real 3D modeling studio in your browser.<br>
+    build models from shapes — move, rotate, scale, color.<br>
+    give them <b>keyframe animations</b> on a timeline.<br>
+    then export: <b>GLB</b> for games, web & engines (animations included!)<br>
+    or <b>STL</b> straight into your 3D-printing slicer.
+  </div>
+  <div>
+    <button class="go" id="startBtn">🧊 START BUILDING</button>
+    <button class="go alt" id="startDemoBtn">🚀 OPEN THE DEMO ROCKET</button>
+  </div>
+</div>
+<script src="../lib/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+const SLUG = 'wizzed-polyforge';
+
+// ================================================================
+//  Renderer / scene / camera
+// ================================================================
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.autoClear = false;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x14131f);
+scene.fog = new THREE.Fog(0x14131f, 60, 140);
+const gizmoScene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 300);
+const camCtl = { yaw: 0.7, pitch: 0.5, dist: 16, target: new THREE.Vector3(0, 1.5, 0) };
+function placeCamera() {
+  const c = camCtl;
+  c.pitch = Math.max(-1.45, Math.min(1.45, c.pitch));
+  c.dist = Math.max(3, Math.min(90, c.dist));
+  camera.position.set(
+    c.target.x + Math.sin(c.yaw) * Math.cos(c.pitch) * c.dist,
+    c.target.y + Math.sin(c.pitch) * c.dist,
+    c.target.z + Math.cos(c.yaw) * Math.cos(c.pitch) * c.dist,
+  );
+  camera.lookAt(c.target);
+}
+placeCamera();
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(12, 22, 8);
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0x8a9cff, 0.5);
+fill.position.set(-10, 6, -12);
+scene.add(fill);
+
+// floor grid
+const grid = new THREE.GridHelper(40, 40, 0x4a4478, 0x262238);
+scene.add(grid);
+const floorMat = new THREE.MeshLambertMaterial({ color: 0x191726, transparent: true, opacity: 0.85 });
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -0.01;
+scene.add(floor);
+
+// ================================================================
+//  Object model
+// ================================================================
+let objects = [];      // {id, name, type, mesh, keys:[{time,p,q,s}]}
+let nextId = 1;
+let selected = null;
+const worldGroup = new THREE.Group();
+scene.add(worldGroup);
+
+function makeGeometry(type) {
+  switch (type) {
+    case 'cube': return new THREE.BoxGeometry(2, 2, 2);
+    case 'sphere': return new THREE.SphereGeometry(1.2, 24, 18);
+    case 'cylinder': return new THREE.CylinderGeometry(1, 1, 2.2, 24);
+    case 'cone': return new THREE.ConeGeometry(1.1, 2.2, 24);
+    case 'pyramid': return new THREE.ConeGeometry(1.3, 2, 4, 1);
+    case 'torus': return new THREE.TorusGeometry(1.1, 0.4, 14, 28);
+    case 'capsule': return new THREE.CapsuleGeometry(0.8, 1.2, 6, 16);
+    case 'wedge': {
+      const g = new THREE.BufferGeometry();
+      // triangular prism: right wedge, 1x1x1 scaled by 2
+      const v = [
+        // bottom quad (y=-1): (-1,-1,-1)(1,-1,-1)(1,-1,1)(-1,-1,1)
+        -1,-1,-1, 1,-1,-1, 1,-1,1,  -1,-1,-1, 1,-1,1, -1,-1,1,
+        // back quad (z=-1) up to top edge at (x=-1? ) design: slope from back-top to front-bottom
+        // vertical back face (x=-1): (-1,-1,-1)(-1,-1,1)(-1,1,1)(-1,1,-1)
+        -1,-1,-1, -1,-1,1, -1,1,1,  -1,-1,-1, -1,1,1, -1,1,-1,
+        // slope face from top-back edge to bottom-front edge
+        -1,1,-1, -1,1,1, 1,-1,1,  -1,1,-1, 1,-1,1, 1,-1,-1,
+        // side z=-1: (-1,-1,-1)(-1,1,-1)(1,-1,-1)
+        -1,-1,-1, -1,1,-1, 1,-1,-1,
+        // side z=1: (-1,-1,1)(1,-1,1)(-1,1,1)
+        -1,-1,1, 1,-1,1, -1,1,1,
+      ];
+      g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+      g.computeVertexNormals();
+      return g;
+    }
+    case 'slab': return new THREE.BoxGeometry(3, 0.4, 3);
+    default: return new THREE.BoxGeometry(2, 2, 2);
+  }
+}
+const SPAWN_COLORS = ['#7c5cff', '#00e5ff', '#ff2d78', '#ffd166', '#00ff9c', '#ff9d3c', '#4dc3ff', '#c86bff'];
+let spawnColorIdx = 0;
+
+function addObject(type, opts) {
+  opts = opts || {};
+  const geo = makeGeometry(type);
+  const mat = new THREE.MeshStandardMaterial({
+    color: opts.color || SPAWN_COLORS[spawnColorIdx++ % SPAWN_COLORS.length],
+    metalness: opts.metalness != null ? opts.metalness : 0.1,
+    roughness: opts.roughness != null ? opts.roughness : 0.6,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  geo.computeBoundingBox();
+  const h = geo.boundingBox ? -geo.boundingBox.min.y : 1;
+  mesh.position.set(0, h, 0);
+  if (opts.p) mesh.position.fromArray(opts.p);
+  if (opts.q) mesh.quaternion.fromArray(opts.q);
+  if (opts.s) mesh.scale.fromArray(opts.s);
+  worldGroup.add(mesh);
+  const obj = {
+    id: nextId++,
+    name: opts.name || (type + '-' + (nextId - 1)),
+    type, mesh,
+    keys: (opts.keys || []).map(k => ({ time: k.time, p: k.p.slice(), q: k.q.slice(), s: k.s.slice() })),
+  };
+  mesh.userData.obj = obj;
+  objects.push(obj);
+  return obj;
+}
+function removeObject(obj) {
+  worldGroup.remove(obj.mesh);
+  obj.mesh.geometry.dispose();
+  obj.mesh.material.dispose();
+  objects = objects.filter(o => o !== obj);
+  if (selected === obj) select(null);
+}
+function clearAll() {
+  for (const o of [...objects]) removeObject(o);
+  nextId = 1;
+}
+
+// ================================================================
+//  Serialization / undo / autosave
+// ================================================================
+function serialize() {
+  return {
+    v: 1, duration: TL.duration,
+    objects: objects.map(o => ({
+      type: o.type, name: o.name,
+      color: '#' + o.mesh.material.color.getHexString(),
+      metalness: o.mesh.material.metalness, roughness: o.mesh.material.roughness,
+      p: o.mesh.position.toArray(), q: o.mesh.quaternion.toArray(), s: o.mesh.scale.toArray(),
+      keys: o.keys.map(k => ({ time: k.time, p: k.p.slice(), q: k.q.slice(), s: k.s.slice() })),
+    })),
+  };
+}
+function restore(data) {
+  clearAll();
+  TL.duration = data.duration || 4;
+  document.getElementById('durInput').value = TL.duration;
+  for (const d of (data.objects || [])) addObject(d.type, d);
+  select(null);
+  renderKeys();
+}
+let undoStack = [], redoStack = [];
+function pushUndo() {
+  undoStack.push(JSON.stringify(serialize()));
+  if (undoStack.length > 60) undoStack.shift();
+  redoStack = [];
+  autosave();
+}
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(JSON.stringify(serialize()));
+  restore(JSON.parse(undoStack.pop()));
+  toast('↩ undo');
+}
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(JSON.stringify(serialize()));
+  restore(JSON.parse(redoStack.pop()));
+  toast('↪ redo');
+}
+let autosaveT;
+function autosave() {
+  clearTimeout(autosaveT);
+  autosaveT = setTimeout(() => {
+    try { localStorage.setItem(SLUG, JSON.stringify(serialize())); } catch (e) {}
+  }, 600);
+}
+
+// ================================================================
+//  Selection + properties panel
+// ================================================================
+const propEls = ['pX','pY','pZ','rX','rY','rZ','sX','sY','sZ'].map(id => document.getElementById(id));
+function select(obj) {
+  selected = obj;
+  document.getElementById('props').classList.toggle('show', !!obj);
+  gizmoRoot.visible = !!obj;
+  refreshPanel();
+  renderKeys();
+}
+function refreshPanel() {
+  if (!selected) return;
+  const m = selected.mesh;
+  document.getElementById('pName').value = selected.name;
+  const e = new THREE.Euler().setFromQuaternion(m.quaternion, 'XYZ');
+  const vals = [m.position.x, m.position.y, m.position.z,
+    THREE.MathUtils.radToDeg(e.x), THREE.MathUtils.radToDeg(e.y), THREE.MathUtils.radToDeg(e.z),
+    m.scale.x, m.scale.y, m.scale.z];
+  propEls.forEach((el, i) => { if (document.activeElement !== el) el.value = (+vals[i].toFixed(2)); });
+  document.getElementById('pColor').value = '#' + m.material.color.getHexString();
+  document.getElementById('pMetal').value = m.material.metalness * 100;
+  document.getElementById('pRough').value = m.material.roughness * 100;
+  document.getElementById('metV').textContent = m.material.metalness.toFixed(2);
+  document.getElementById('rouV').textContent = m.material.roughness.toFixed(2);
+}
+function panelChanged() {
+  if (!selected) return;
+  const m = selected.mesh;
+  const v = propEls.map(el => parseFloat(el.value) || 0);
+  m.position.set(v[0], v[1], v[2]);
+  m.quaternion.setFromEuler(new THREE.Euler(
+    THREE.MathUtils.degToRad(v[3]), THREE.MathUtils.degToRad(v[4]), THREE.MathUtils.degToRad(v[5]), 'XYZ'));
+  m.scale.set(v[6] || 0.01, v[7] || 0.01, v[8] || 0.01);
+}
+propEls.forEach(el => {
+  el.addEventListener('input', panelChanged);
+  el.addEventListener('change', () => { panelChanged(); pushUndo(); });
+});
+document.getElementById('pName').addEventListener('change', e => {
+  if (selected) { selected.name = e.target.value || selected.type; pushUndo(); }
+});
+document.getElementById('pColor').addEventListener('input', e => {
+  if (selected) selected.mesh.material.color.set(e.target.value);
+});
+document.getElementById('pColor').addEventListener('change', pushUndo);
+document.getElementById('pMetal').addEventListener('input', e => {
+  if (selected) { selected.mesh.material.metalness = e.target.value / 100; refreshPanel(); }
+});
+document.getElementById('pRough').addEventListener('input', e => {
+  if (selected) { selected.mesh.material.roughness = e.target.value / 100; refreshPanel(); }
+});
+document.getElementById('pMetal').addEventListener('change', pushUndo);
+document.getElementById('pRough').addEventListener('change', pushUndo);
+document.getElementById('dupBtn').addEventListener('click', duplicateSel);
+document.getElementById('delBtn').addEventListener('click', deleteSel);
+function duplicateSel() {
+  if (!selected) return;
+  const d = JSON.parse(JSON.stringify(serialize().objects[objects.indexOf(selected)]));
+  d.p[0] += 1.2; d.p[2] += 1.2;
+  d.name = selected.name + ' copy';
+  const o = addObject(d.type, d);
+  select(o); pushUndo();
+  toast('⧉ duplicated');
+}
+function deleteSel() {
+  if (!selected) return;
+  removeObject(selected);
+  pushUndo();
+  toast('🗑 deleted');
+}
+
+// ================================================================
+//  Gizmo (hand-rolled): translate arrows / rotate rings / scale cube
+// ================================================================
+const gizmoRoot = new THREE.Group();
+gizmoRoot.visible = false;
+gizmoScene.add(gizmoRoot);
+const AXES = [
+  { n: 'x', dir: new THREE.Vector3(1, 0, 0), col: 0xff4d6d },
+  { n: 'y', dir: new THREE.Vector3(0, 1, 0), col: 0x39d98a },
+  { n: 'z', dir: new THREE.Vector3(0, 0, 1), col: 0x4d9dff },
+];
+const handles = [];   // {mesh, kind:'move'|'rot'|'scale', axis}
+function gizmoMat(col) { return new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, depthTest: false }); }
+for (const a of AXES) {
+  // translate arrow
+  const arrow = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.15, 8), gizmoMat(a.col));
+  shaft.position.y = 0.65;
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.3, 10), gizmoMat(a.col));
+  tip.position.y = 1.35;
+  arrow.add(shaft, tip);
+  if (a.n === 'x') arrow.rotation.z = -Math.PI / 2;
+  if (a.n === 'z') arrow.rotation.x = Math.PI / 2;
+  gizmoRoot.add(arrow);
+  const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.6, 6), new THREE.MeshBasicMaterial({ visible: false }));
+  hit.position.y = 0.85;
+  arrow.add(hit);
+  handles.push({ mesh: hit, group: arrow, kind: 'move', axis: a });
+  // rotate ring
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.65, 0.03, 8, 48), gizmoMat(a.col));
+  const ringHit = new THREE.Mesh(new THREE.TorusGeometry(1.65, 0.14, 6, 32), new THREE.MeshBasicMaterial({ visible: false }));
+  if (a.n === 'x') { ring.rotation.y = Math.PI / 2; ringHit.rotation.y = Math.PI / 2; }
+  if (a.n === 'y') { ring.rotation.x = Math.PI / 2; ringHit.rotation.x = Math.PI / 2; }
+  ring.visible = false; ringHit.visible = false;
+  gizmoRoot.add(ring, ringHit);
+  handles.push({ mesh: ringHit, group: ring, kind: 'rot', axis: a });
+}
+const scaleCube = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), gizmoMat(0xffd166));
+scaleCube.visible = false;
+gizmoRoot.add(scaleCube);
+handles.push({ mesh: scaleCube, group: scaleCube, kind: 'scale', axis: null });
+
+let mode = 'move';
+function setMode(m) {
+  mode = m;
+  document.getElementById('mMove').classList.toggle('on', m === 'move');
+  document.getElementById('mRot').classList.toggle('on', m === 'rot');
+  document.getElementById('mScale').classList.toggle('on', m === 'scale');
+  for (const h of handles) {
+    h.group.visible = (m === 'move' && h.kind === 'move') || (m === 'rot' && h.kind === 'rot') || (m === 'scale' && h.kind === 'scale');
+  }
+}
+document.getElementById('mMove').addEventListener('click', () => setMode('move'));
+document.getElementById('mRot').addEventListener('click', () => setMode('rot'));
+document.getElementById('mScale').addEventListener('click', () => setMode('scale'));
+setMode('move');
+
+let snap = false;
+document.getElementById('snapBtn').addEventListener('click', () => {
+  snap = !snap;
+  document.getElementById('snapBtn').classList.toggle('on', snap);
+});
+
+function updateGizmo() {
+  if (!selected) return;
+  gizmoRoot.position.copy(selected.mesh.position);
+  const d = camera.position.distanceTo(gizmoRoot.position);
+  const s = d * 0.09;
+  gizmoRoot.scale.set(s, s, s);
+}
+
+// ---- drag math ----
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+function setRay(ev) {
+  ndc.x = (ev.clientX / innerWidth) * 2 - 1;
+  ndc.y = -(ev.clientY / innerHeight) * 2 + 1;
+  ray.setFromCamera(ndc, camera);
+}
+function axisParam(o, a) {
+  const w = new THREE.Vector3().subVectors(ray.ray.origin, o);
+  const b = a.dot(ray.ray.direction);
+  const d = a.dot(w), e = ray.ray.direction.dot(w);
+  const denom = 1 - b * b;
+  if (Math.abs(denom) < 1e-6) return 0;
+  return (d - b * e) / denom;
+}
+function planeAngle(o, n) {
+  const plane = new THREE.Plane(n, -n.dot(o));
+  const pt = new THREE.Vector3();
+  if (!ray.ray.intersectPlane(plane, pt)) return null;
+  const u = Math.abs(n.x) > 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+  const b1 = new THREE.Vector3().crossVectors(n, u).normalize();
+  const b2 = new THREE.Vector3().crossVectors(n, b1).normalize();
+  const v = pt.sub(o);
+  return Math.atan2(v.dot(b2), v.dot(b1));
+}
+
+// ================================================================
+//  Pointer interaction: select / gizmo drag / orbit / pan
+// ================================================================
+let drag = null;   // {kind, axis, t0, p0, q0, s0, ang0, sy0}
+let orbiting = false, panning = false, lastPX = 0, lastPY = 0, downPX = 0, downPY = 0, moved = false;
+
+renderer.domElement.addEventListener('pointerdown', ev => {
+  ev.preventDefault();
+  renderer.domElement.setPointerCapture(ev.pointerId);
+  lastPX = downPX = ev.clientX; lastPY = downPY = ev.clientY; moved = false;
+  setRay(ev);
+  if (selected && gizmoRoot.visible) {
+    const hits = ray.intersectObjects(handles.filter(h => (
+      (mode === 'move' && h.kind === 'move') || (mode === 'rot' && h.kind === 'rot') || (mode === 'scale' && h.kind === 'scale')
+    )).map(h => h.mesh), false);
+    if (hits.length) {
+      const h = handles.find(x => x.mesh === hits[0].object);
+      const m = selected.mesh;
+      if (h.kind === 'move') {
+        drag = { kind: 'move', axis: h.axis.dir.clone(), t0: axisParam(m.position.clone(), h.axis.dir), p0: m.position.clone() };
+      } else if (h.kind === 'rot') {
+        const ang = planeAngle(m.position.clone(), h.axis.dir.clone());
+        drag = { kind: 'rot', axis: h.axis.dir.clone(), ang0: ang, q0: m.quaternion.clone(), o: m.position.clone() };
+      } else {
+        drag = { kind: 'scale', sy0: ev.clientY, s0: m.scale.clone() };
+      }
+      return;
+    }
+  }
+  // object pick
+  const hits = ray.intersectObjects(worldGroup.children, false);
+  if (hits.length) {
+    select(hits[0].object.userData.obj);
+    updateGizmo();
+    // allow immediate ground-drag of freshly clicked object in move mode
+    if (mode === 'move') {
+      const m = selected.mesh;
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -m.position.y);
+      const pt = new THREE.Vector3();
+      if (ray.ray.intersectPlane(plane, pt)) drag = { kind: 'ground', off: pt.sub(m.position), p0: m.position.clone() };
+    }
+    return;
+  }
+  if (ev.shiftKey || ev.button === 2 || ev.button === 1) panning = true;
+  else orbiting = true;
+});
+renderer.domElement.addEventListener('pointermove', ev => {
+  const dx = ev.clientX - lastPX, dy = ev.clientY - lastPY;
+  lastPX = ev.clientX; lastPY = ev.clientY;
+  if (Math.abs(ev.clientX - downPX) + Math.abs(ev.clientY - downPY) > 4) moved = true;
+  if (drag && selected) {
+    setRay(ev);
+    const m = selected.mesh;
+    if (drag.kind === 'move') {
+      const t = axisParam(drag.p0.clone(), drag.axis);
+      let delta = t - drag.t0;
+      const np = drag.p0.clone().addScaledVector(drag.axis, delta);
+      if (snap) { np.x = Math.round(np.x * 2) / 2; np.y = Math.round(np.y * 2) / 2; np.z = Math.round(np.z * 2) / 2; }
+      m.position.copy(np);
+    } else if (drag.kind === 'ground') {
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -drag.p0.y);
+      const pt = new THREE.Vector3();
+      if (ray.ray.intersectPlane(plane, pt)) {
+        const np = pt.sub(drag.off);
+        np.y = drag.p0.y;
+        if (snap) { np.x = Math.round(np.x * 2) / 2; np.z = Math.round(np.z * 2) / 2; }
+        m.position.copy(np);
+      }
+    } else if (drag.kind === 'rot') {
+      const ang = planeAngle(drag.o, drag.axis);
+      if (ang != null && drag.ang0 != null) {
+        let delta = ang - drag.ang0;
+        if (snap) delta = Math.round(delta / (Math.PI / 12)) * (Math.PI / 12);
+        const q = new THREE.Quaternion().setFromAxisAngle(drag.axis, delta);
+        m.quaternion.copy(q).multiply(drag.q0);
+      }
+    } else if (drag.kind === 'scale') {
+      let f = Math.exp((drag.sy0 - ev.clientY) * 0.006);
+      if (snap) f = Math.max(0.25, Math.round(f * 4) / 4);
+      m.scale.copy(drag.s0).multiplyScalar(f);
+    }
+    refreshPanel();
+    return;
+  }
+  if (orbiting) { camCtl.yaw -= dx * 0.0055; camCtl.pitch += dy * 0.005; placeCamera(); }
+  else if (panning) {
+    const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+    const k = camCtl.dist * 0.0016;
+    camCtl.target.addScaledVector(right, -dx * k).addScaledVector(up, dy * k);
+    placeCamera();
+  }
+});
+renderer.domElement.addEventListener('pointerup', ev => {
+  if (drag) { drag = null; pushUndo(); }
+  else if (!moved && orbiting) {
+    // click on empty space -> deselect
+    select(null);
+  }
+  orbiting = panning = false;
+});
+renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+renderer.domElement.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  camCtl.dist *= Math.exp(ev.deltaY * 0.001);
+  placeCamera();
+}, { passive: false });
+// pinch zoom
+let pinch0 = 0, dist0 = 0;
+addEventListener('touchmove', ev => {
+  if (ev.touches.length === 2) {
+    const d = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX, ev.touches[0].clientY - ev.touches[1].clientY);
+    if (!pinch0) { pinch0 = d; dist0 = camCtl.dist; }
+    camCtl.dist = dist0 * pinch0 / d;
+    placeCamera();
+    orbiting = false;
+  }
+}, { passive: true });
+addEventListener('touchend', () => { pinch0 = 0; });
+
+// shape buttons
+document.querySelectorAll('#shapes button[data-shape]').forEach(b => b.addEventListener('click', () => {
+  const o = addObject(b.dataset.shape);
+  select(o);
+  updateGizmo();
+  pushUndo();
+  toast('+ ' + b.dataset.shape);
+}));
+
+// keyboard
+addEventListener('keydown', ev => {
+  if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+  const k = ev.key.toLowerCase();
+  if (k === 'w') setMode('move');
+  else if (k === 'e') setMode('rot');
+  else if (k === 'r') setMode('scale');
+  else if (k === 'delete' || k === 'backspace') deleteSel();
+  else if (k === 'd' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); duplicateSel(); }
+  else if (k === 'z' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); undo(); }
+  else if (k === 'y' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); redo(); }
+  else if (k === ' ') { ev.preventDefault(); togglePlay(); }
+});
+
+// ================================================================
+//  Timeline / keyframes
+// ================================================================
+const TL = { duration: 4, time: 0, playing: false, selKey: -1 };
+const track = document.getElementById('track');
+function renderKeys() {
+  [...track.querySelectorAll('.key')].forEach(el => el.remove());
+  if (!selected) return;
+  selected.keys.forEach((k, i) => {
+    const el = document.createElement('div');
+    el.className = 'key' + (i === TL.selKey ? ' sel' : '');
+    el.style.left = (k.time / TL.duration * 100) + '%';
+    el.addEventListener('pointerdown', ev => {
+      ev.stopPropagation();
+      TL.selKey = i;
+      TL.time = k.time;
+      applyAnimAt(TL.time);
+      renderKeys();
+    });
+    track.appendChild(el);
+  });
+}
+track.addEventListener('pointerdown', ev => {
+  const r = track.getBoundingClientRect();
+  const scrub = e2 => {
+    TL.time = Math.max(0, Math.min(TL.duration, (e2.clientX - r.left) / r.width * TL.duration));
+    TL.selKey = -1;
+    applyAnimAt(TL.time);
+    renderKeys();
+  };
+  scrub(ev);
+  const mv = e2 => scrub(e2);
+  const up = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); };
+  addEventListener('pointermove', mv);
+  addEventListener('pointerup', up);
+});
+document.getElementById('durInput').addEventListener('change', e => {
+  TL.duration = Math.max(1, Math.min(60, parseFloat(e.target.value) || 4));
+  e.target.value = TL.duration;
+  for (const o of objects) o.keys = o.keys.filter(k => k.time <= TL.duration);
+  renderKeys(); pushUndo();
+});
+document.getElementById('keyBtn').addEventListener('click', () => {
+  if (!selected) { toast('select an object first'); return; }
+  const m = selected.mesh;
+  const key = { time: +TL.time.toFixed(2), p: m.position.toArray(), q: m.quaternion.toArray(), s: m.scale.toArray() };
+  const existing = selected.keys.findIndex(k => Math.abs(k.time - key.time) < 0.05);
+  if (existing >= 0) selected.keys[existing] = key;
+  else { selected.keys.push(key); selected.keys.sort((a, b) => a.time - b.time); }
+  renderKeys(); pushUndo();
+  toast('◆ key @ ' + key.time.toFixed(2) + 's');
+});
+document.getElementById('delKeyBtn').addEventListener('click', () => {
+  if (!selected || TL.selKey < 0 || !selected.keys[TL.selKey]) { toast('click a ◆ first'); return; }
+  selected.keys.splice(TL.selKey, 1);
+  TL.selKey = -1;
+  renderKeys(); pushUndo();
+  toast('✕ key removed');
+});
+function togglePlay() {
+  TL.playing = !TL.playing;
+  document.getElementById('playBtn').textContent = TL.playing ? '⏸ STOP' : '▶ PLAY';
+  if (!TL.playing) applyAnimAt(TL.time);
+}
+document.getElementById('playBtn').addEventListener('click', togglePlay);
+
+function sampleKeys(keys, t) {
+  if (!keys.length) return null;
+  if (t <= keys[0].time || keys.length === 1) return keys[0];
+  if (t >= keys[keys.length - 1].time) return keys[keys.length - 1];
+  let i = 0;
+  while (i < keys.length - 1 && keys[i + 1].time < t) i++;
+  const a = keys[i], b = keys[i + 1];
+  const f = (t - a.time) / Math.max(1e-6, b.time - a.time);
+  const p = [0, 1, 2].map(j => a.p[j] + (b.p[j] - a.p[j]) * f);
+  const s = [0, 1, 2].map(j => a.s[j] + (b.s[j] - a.s[j]) * f);
+  const qa = new THREE.Quaternion().fromArray(a.q), qb = new THREE.Quaternion().fromArray(b.q);
+  const q = new THREE.Quaternion().slerpQuaternions(qa, qb, f).toArray();
+  return { p, q, s };
+}
+function applyAnimAt(t) {
+  for (const o of objects) {
+    const k = sampleKeys(o.keys, t);
+    if (!k) continue;
+    o.mesh.position.fromArray(k.p);
+    o.mesh.quaternion.fromArray(k.q);
+    o.mesh.scale.fromArray(k.s);
+  }
+  refreshPanel();
+}
+
+// ================================================================
+//  Exporters
+// ================================================================
+function download(name, blob) {
+  const a = document.createElement('a');
+  a.download = name;
+  a.href = URL.createObjectURL(blob);
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+}
+
+// ---- binary STL (merged, world-space) — for 3D printing ----
+function exportSTL() {
+  if (!objects.length) { toast('nothing to export — add some shapes!'); return; }
+  scene.updateMatrixWorld(true);
+  const tris = [];
+  const va = new THREE.Vector3(), vb = new THREE.Vector3(), vc = new THREE.Vector3();
+  for (const o of objects) {
+    const g = o.mesh.geometry.index ? o.mesh.geometry.toNonIndexed() : o.mesh.geometry;
+    const pos = g.getAttribute('position');
+    const mw = o.mesh.matrixWorld;
+    const flip = mw.determinant() < 0;
+    for (let i = 0; i < pos.count; i += 3) {
+      va.fromBufferAttribute(pos, i).applyMatrix4(mw);
+      vb.fromBufferAttribute(pos, i + (flip ? 2 : 1)).applyMatrix4(mw);
+      vc.fromBufferAttribute(pos, i + (flip ? 1 : 2)).applyMatrix4(mw);
+      tris.push([va.clone(), vb.clone(), vc.clone()]);
+    }
+    if (g !== o.mesh.geometry) g.dispose();
+  }
+  const buf = new ArrayBuffer(84 + tris.length * 50);
+  const dv = new DataView(buf);
+  const header = 'Wizzed PolyForge — https://wizzed.github.io';
+  for (let i = 0; i < Math.min(80, header.length); i++) dv.setUint8(i, header.charCodeAt(i));
+  dv.setUint32(80, tris.length, true);
+  let off = 84;
+  const n = new THREE.Vector3(), e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
+  for (const t of tris) {
+    e1.subVectors(t[1], t[0]); e2.subVectors(t[2], t[0]);
+    n.crossVectors(e1, e2).normalize();
+    if (!isFinite(n.x)) n.set(0, 0, 1);
+    for (const v of [n, t[0], t[1], t[2]]) {
+      dv.setFloat32(off, v.x, true); dv.setFloat32(off + 4, v.y, true); dv.setFloat32(off + 8, v.z, true);
+      off += 12;
+    }
+    dv.setUint16(off, 0, true); off += 2;
+  }
+  download('polyforge-model.stl', new Blob([buf], { type: 'model/stl' }));
+  toast('⬇ STL exported — ' + tris.length + ' triangles, slicer-ready');
+}
+
+// ---- GLB (nodes, PBR materials, keyframe animation) — for games/web ----
+function exportGLB() {
+  if (!objects.length) { toast('nothing to export — add some shapes!'); return; }
+  const json = {
+    asset: { version: '2.0', generator: 'Wizzed PolyForge' },
+    scene: 0, scenes: [{ nodes: [] }],
+    nodes: [], meshes: [], materials: [], accessors: [], bufferViews: [], buffers: [],
+  };
+  const bin = [];
+  let binLen = 0;
+  function pad4(n) { return (4 - (n % 4)) % 4; }
+  function pushBuf(arr, target) {
+    const bytes = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength);
+    const bv = { buffer: 0, byteOffset: binLen, byteLength: bytes.byteLength };
+    if (target) bv.target = target;
+    json.bufferViews.push(bv);
+    bin.push(bytes);
+    binLen += bytes.byteLength;
+    const p = pad4(binLen);
+    if (p) { bin.push(new Uint8Array(p)); binLen += p; }
+    return json.bufferViews.length - 1;
+  }
+  function accessor(bv, type, compType, count, minMax) {
+    const a = { bufferView: bv, componentType: compType, count, type };
+    if (minMax) { a.min = minMax.min; a.max = minMax.max; }
+    json.accessors.push(a);
+    return json.accessors.length - 1;
+  }
+  function vecMinMax(arr, n) {
+    const min = Array(n).fill(Infinity), max = Array(n).fill(-Infinity);
+    for (let i = 0; i < arr.length; i += n)
+      for (let j = 0; j < n; j++) { min[j] = Math.min(min[j], arr[i + j]); max[j] = Math.max(max[j], arr[i + j]); }
+    return { min, max };
+  }
+
+  const anims = { channels: [], samplers: [] };
+  objects.forEach((o) => {
+    const g = o.mesh.geometry;
+    const pos = g.getAttribute('position');
+    const norm = g.getAttribute('normal');
+    const posArr = new Float32Array(pos.array.slice(0, pos.count * 3));
+    const normArr = new Float32Array(norm.array.slice(0, norm.count * 3));
+    const posAcc = accessor(pushBuf(posArr, 34962), 'VEC3', 5126, pos.count, vecMinMax(posArr, 3));
+    const normAcc = accessor(pushBuf(normArr, 34962), 'VEC3', 5126, norm.count);
+    const prim = { attributes: { POSITION: posAcc, NORMAL: normAcc }, material: json.materials.length, mode: 4 };
+    if (g.index) {
+      const big = pos.count > 65535;
+      const idxArr = big ? new Uint32Array(g.index.array) : new Uint16Array(g.index.array);
+      prim.indices = accessor(pushBuf(idxArr, 34963), 'SCALAR', big ? 5125 : 5123, g.index.count);
+    }
+    const c = o.mesh.material.color;
+    json.materials.push({
+      name: o.name + '-mat',
+      pbrMetallicRoughness: {
+        baseColorFactor: [c.r, c.g, c.b, 1],
+        metallicFactor: o.mesh.material.metalness,
+        roughnessFactor: o.mesh.material.roughness,
+      },
+      doubleSided: true,
+    });
+    json.meshes.push({ name: o.name, primitives: [prim] });
+    const nodeIdx = json.nodes.length;
+    // rest pose = key 0 if animated, else current TRS
+    const rest = o.keys.length ? o.keys[0] : { p: o.mesh.position.toArray(), q: o.mesh.quaternion.toArray(), s: o.mesh.scale.toArray() };
+    json.nodes.push({ name: o.name, mesh: json.meshes.length - 1, translation: rest.p, rotation: rest.q, scale: rest.s });
+    json.scenes[0].nodes.push(nodeIdx);
+
+    if (o.keys.length > 1) {
+      const times = new Float32Array(o.keys.map(k => k.time));
+      const tAcc = accessor(pushBuf(times), 'SCALAR', 5126, times.length, { min: [times[0]], max: [times[times.length - 1]] });
+      const pArr = new Float32Array(o.keys.flatMap(k => k.p));
+      const qArr = new Float32Array(o.keys.flatMap(k => k.q));
+      const sArr = new Float32Array(o.keys.flatMap(k => k.s));
+      const pAcc = accessor(pushBuf(pArr), 'VEC3', 5126, o.keys.length);
+      const qAcc = accessor(pushBuf(qArr), 'VEC4', 5126, o.keys.length);
+      const sAcc = accessor(pushBuf(sArr), 'VEC3', 5126, o.keys.length);
+      for (const [path, acc] of [['translation', pAcc], ['rotation', qAcc], ['scale', sAcc]]) {
+        anims.samplers.push({ input: tAcc, interpolation: 'LINEAR', output: acc });
+        anims.channels.push({ sampler: anims.samplers.length - 1, target: { node: nodeIdx, path } });
+      }
+    }
+  });
+  if (anims.channels.length) json.animations = [{ name: 'polyforge-clip', channels: anims.channels, samplers: anims.samplers }];
+  json.buffers.push({ byteLength: binLen });
+
+  // assemble GLB
+  const enc = new TextEncoder();
+  let jsonBytes = enc.encode(JSON.stringify(json));
+  const jpad = pad4(jsonBytes.length);
+  if (jpad) {
+    const padded = new Uint8Array(jsonBytes.length + jpad);
+    padded.set(jsonBytes);
+    for (let i = 0; i < jpad; i++) padded[jsonBytes.length + i] = 0x20;
+    jsonBytes = padded;
+  }
+  const binTotal = new Uint8Array(binLen);
+  { let o2 = 0; for (const b of bin) { binTotal.set(b, o2); o2 += b.byteLength; } }
+  const total = 12 + 8 + jsonBytes.length + 8 + binTotal.length;
+  const out = new ArrayBuffer(total);
+  const dv = new DataView(out);
+  const u8 = new Uint8Array(out);
+  dv.setUint32(0, 0x46546C67, true);          // magic 'glTF'
+  dv.setUint32(4, 2, true);
+  dv.setUint32(8, total, true);
+  dv.setUint32(12, jsonBytes.length, true);
+  dv.setUint32(16, 0x4E4F534A, true);         // 'JSON'
+  u8.set(jsonBytes, 20);
+  let off = 20 + jsonBytes.length;
+  dv.setUint32(off, binTotal.length, true);
+  dv.setUint32(off + 4, 0x004E4942, true);    // 'BIN\0'
+  u8.set(binTotal, off + 8);
+  download('polyforge-model.glb', new Blob([out], { type: 'model/gltf-binary' }));
+  const nAnim = objects.filter(o => o.keys.length > 1).length;
+  toast('⬇ GLB exported — ' + objects.length + ' parts' + (nAnim ? ', ' + nAnim + ' animated' : ''));
+}
+document.getElementById('exportGlb').addEventListener('click', exportGLB);
+document.getElementById('exportStl').addEventListener('click', exportSTL);
+
+// ---- project save/load ----
+document.getElementById('saveBtn').addEventListener('click', () => {
+  download('project.polyforge.json', new Blob([JSON.stringify(serialize(), null, 1)], { type: 'application/json' }));
+  toast('💾 project saved');
+});
+document.getElementById('loadBtn').addEventListener('click', () => document.getElementById('loadInput').click());
+document.getElementById('loadInput').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      pushUndo();
+      restore(JSON.parse(r.result));
+      toast('📂 project loaded');
+    } catch (err) { toast('⚠ not a PolyForge project file'); }
+  };
+  r.readAsText(f);
+  e.target.value = '';
+});
+
+// ================================================================
+//  Demo scene — a little rocket with a takeoff loop
+// ================================================================
+function loadDemo() {
+  clearAll();
+  TL.duration = 4;
+  document.getElementById('durInput').value = 4;
+  const body = addObject('cylinder', { name: 'body', color: '#e8e6ff', p: [0, 2.6, 0], s: [0.9, 1.6, 0.9], metalness: 0.3, roughness: 0.35 });
+  addObject('cone', { name: 'nose', color: '#ff2d78', p: [0, 5.6, 0], s: [0.82, 0.9, 0.82], metalness: 0.2, roughness: 0.4 });
+  addObject('torus', { name: 'window', color: '#00e5ff', p: [0, 3.4, 0.83], s: [0.32, 0.32, 0.4], metalness: 0.6, roughness: 0.2 });
+  for (let i = 0; i < 3; i++) {
+    const a = i * Math.PI * 2 / 3;
+    const fin = addObject('wedge', { name: 'fin-' + (i + 1), color: '#ffd166', p: [Math.sin(a) * 1.05, 0.8, Math.cos(a) * 1.05], s: [0.5, 0.8, 0.28], metalness: 0.1, roughness: 0.6 });
+    fin.mesh.quaternion.setFromEuler(new THREE.Euler(0, a + Math.PI / 2, 0));
+  }
+  const flame = addObject('cone', { name: 'flame', color: '#ff9d3c', p: [0, 0.2, 0], s: [0.55, -0.8, 0.55], metalness: 0, roughness: 1 });
+  addObject('slab', { name: 'pad', color: '#4a4478', p: [0, 0.1, 0], s: [1.6, 0.5, 1.6], metalness: 0.4, roughness: 0.7 });
+  // animation: hover + spin
+  const parts = objects.filter(o => o.name !== 'pad');
+  for (const o of parts) {
+    const m = o.mesh;
+    const base = m.position.toArray();
+    const q0 = m.quaternion.toArray();
+    const qHalf = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI).multiply(m.quaternion).toArray();
+    const qFull = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI * 1.9999).multiply(m.quaternion).toArray();
+    const up = [base[0], base[1] + 2.2, base[2]];
+    o.keys = [
+      { time: 0, p: base.slice(), q: q0.slice(), s: m.scale.toArray() },
+      { time: 2, p: up, q: qHalf, s: m.scale.toArray() },
+      { time: 4, p: base.slice(), q: qFull, s: m.scale.toArray() },
+    ];
+  }
+  const fl = objects.find(o => o.name === 'flame');
+  if (fl) fl.keys = [
+    { time: 0, p: [0, 0.2, 0], q: [0, 0, 0, 1], s: [0.55, -0.8, 0.55] },
+    { time: 1, p: [0, 1.9, 0], q: [0, 0, 0, 1], s: [0.8, -1.6, 0.8] },
+    { time: 2, p: [0, 2.4, 0], q: [0, 0, 0, 1], s: [0.7, -1.2, 0.7] },
+    { time: 3, p: [0, 1.6, 0], q: [0, 0, 0, 1], s: [0.85, -1.7, 0.85] },
+    { time: 4, p: [0, 0.2, 0], q: [0, 0, 0, 1], s: [0.55, -0.8, 0.55] },
+  ];
+  select(body);
+  updateGizmo();
+  renderKeys();
+  pushUndo();
+  toast('🚀 demo rocket — press SPACE to play the takeoff');
+}
+document.getElementById('demoBtn').addEventListener('click', loadDemo);
+
+// ================================================================
+//  Toast / welcome / boot
+// ================================================================
+let toastT;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 2100);
+}
+document.getElementById('startBtn').addEventListener('click', () => {
+  document.getElementById('welcome').classList.add('hide');
+  let had = false;
+  try {
+    const saved = JSON.parse(localStorage.getItem(SLUG) || 'null');
+    if (saved && saved.objects && saved.objects.length) { restore(saved); had = true; }
+  } catch (e) {}
+  if (had) toast('restored your last session ✔');
+  else { addObject('cube'); select(objects[0]); updateGizmo(); pushUndo(); }
+});
+document.getElementById('startDemoBtn').addEventListener('click', () => {
+  document.getElementById('welcome').classList.add('hide');
+  loadDemo();
+  togglePlay();
+});
+document.getElementById('undoBtn').addEventListener('click', undo);
+document.getElementById('redoBtn').addEventListener('click', redo);
+
+// ================================================================
+//  Main loop
+// ================================================================
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (TL.playing) {
+    TL.time += dt;
+    if (TL.time > TL.duration) TL.time = 0;
+    applyAnimAt(TL.time);
+  }
+  document.getElementById('playhead').style.left = (TL.time / TL.duration * 100) + '%';
+  document.getElementById('timeLbl').textContent = TL.time.toFixed(2) + ' / ' + TL.duration.toFixed(2) + 's';
+  updateGizmo();
+  renderer.clear();
+  renderer.render(scene, camera);
+  renderer.clearDepth();
+  if (gizmoRoot.visible) renderer.render(gizmoScene, camera);
+}
+requestAnimationFrame(frame);
+
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+});
+})();
+</script>
+</body>
+</html>

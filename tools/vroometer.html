@@ -35,16 +35,13 @@
   #speedVal { font-size: clamp(84px, 28vw, 130px); font-weight: bold; line-height: 0.95; color: #fff; text-shadow: 0 0 24px rgba(255,209,102,0.25); letter-spacing: -2px; }
   #speedVal.stale { color: #4a4866; text-shadow: none; }
   #speedUnit { font-size: 13px; letter-spacing: 3px; color: #8d87bb; }
-  #gearWrap { width: 86px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-left: 1px solid #2c2a44; }
-  #gearVal { font-size: 58px; font-weight: bold; color: #ffd166; line-height: 1; text-shadow: 0 0 18px rgba(255,209,102,0.4); }
-  #gearLbl { font-size: 10px; letter-spacing: 2px; color: #8d87bb; margin-top: 3px; }
+  #gearWrap { width: 148px; display: flex; align-items: center; justify-content: center; border-left: 1px solid #2c2a44; }
+  #tach { width: 140px; height: 140px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
-  /* rev bar — priority 3 */
-  #revWrap { padding: 8px 12px 10px; }
-  #revTrack { position: relative; height: 22px; background: #0b0b14; border: 1px solid #2c2a44; border-radius: 7px; overflow: hidden; }
-  #revRed { position: absolute; top: 0; bottom: 0; right: 0; width: 12%; background: rgba(255,45,85,0.18); border-left: 1px solid rgba(255,45,85,0.6); }
-  #revFill { position: absolute; top: 0; bottom: 0; left: 0; width: 0%; background: linear-gradient(90deg, #00e5ff, #ffd166 70%, #ff2d55); transition: none; }
-  #revInfo { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 1px; color: #8d87bb; margin-top: 4px; }
+  /* rpm info strip (the tach gauge is the rev display) */
+  #revWrap { padding: 7px 12px; }
+  #revInfo { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 1px; color: #8d87bb; }
   #rpmVal { color: #e8e6ff; }
 
   /* map + gps — priority 5+7 */
@@ -161,13 +158,12 @@
       <div id="speedUnit">KM/H · GPS ESTIMATE</div>
     </div>
     <div id="gearWrap">
-      <div id="gearVal">N</div>
-      <div id="gearLbl">GEAR</div>
+      <canvas id="tach" width="300" height="300"></canvas>
+      <span id="gearVal" class="sr">N</span>
     </div>
   </div>
 
   <div id="revWrap" class="panel">
-    <div id="revTrack"><div id="revRed"></div><div id="revFill"></div></div>
     <div id="revInfo"><span id="rpmVal">0 RPM</span><span id="presetLbl">SPORTS CAR</span></div>
   </div>
 
@@ -197,8 +193,8 @@
   <div id="dev" class="panel">
     <div class="drow"><span>SIM</span><input type="range" id="simSlider" min="0" max="50" value="0" step="0.5"><span id="simVal">0 km/h</span></div>
     <div class="drow">
-      <button data-prof="sprint">sprint</button><button data-prof="cruise">cruise 20</button>
-      <button data-prof="hill">fast 35</button><button data-prof="stop">stop</button>
+      <button data-prof="cruise">cruise 12</button><button data-prof="hill">brisk 18</button>
+      <button data-prof="sprint">sprint 25</button><button data-prof="stop">stop</button>
       <button data-prof="dropout">3s dropout</button>
       <span id="devInfo"></span>
     </div>
@@ -251,7 +247,7 @@
   <h2>⚙ SETTINGS</h2>
   <div class="srow"><span class="k">Pitch<small>offsets the whole rev range</small></span><input type="range" id="sPitch" min="-30" max="30" value="0"><span class="val" id="sPitchV">0%</span></div>
   <div class="srow"><span class="k">Roughness<small>drive, jitter and exhaust rasp</small></span><input type="range" id="sRough" min="0" max="100" value="50"><span class="val" id="sRoughV">50%</span></div>
-  <div class="srow"><span class="k">Top speed<small>speed that hits the top of the revs</small></span><input type="range" id="sTop" min="25" max="60" value="40"><span class="val" id="sTopV">40</span></div>
+  <div class="srow"><span class="k">Top speed<small>speed that hits the top of the revs</small></span><input type="range" id="sTop" min="15" max="60" value="20"><span class="val" id="sTopV">40</span></div>
   <div class="srow"><span class="k">Gear shifts<small>virtual gearbox + shift sounds</small></span><button class="tgl on" id="sGears"></button></div>
   <div class="srow"><span class="k">Exhaust pops<small>crackle when slowing down</small></span><button class="tgl on" id="sPops"></button></div>
   <div class="srow"><span class="k">Quiet mode<small>caps volume at 40% for shared paths</small></span><button class="tgl" id="sQuiet"></button></div>
@@ -311,9 +307,10 @@ const PRESETS = {
 //  Settings — PRD §2 table, persisted in localStorage
 // ================================================================
 const S = Object.assign({
-  preset: 'sportscar', volume: 80, pitch: 0, rough: 50, topSpeed: 40,
-  gears: true, pops: true, quiet: false,
+  preset: 'sportscar', volume: 80, pitch: 0, rough: 50, topSpeed: 20,
+  gears: true, pops: true, quiet: false, v: 2,
 }, (() => { try { return JSON.parse(localStorage.getItem(SLUG) || '{}').settings || {}; } catch (e) { return {}; } })());
+if (S.v !== 2) { S.topSpeed = 20; S.v = 2; }   // bikes: 12 km/h should already sound fast
 function saveAll() {
   try {
     localStorage.setItem(SLUG, JSON.stringify({ settings: S, trip: trip.save(), t: Date.now() }));
@@ -370,7 +367,7 @@ const filter = {
       if (f >= 1) this.blend = null;
     } else if (age <= 3 || this.lastFixTime === 0) {
       this.v = Math.max(0, this.v + this.a * dt);
-      this.a *= Math.exp(-dt / 1.2);
+      if (age > 1.5) this.a *= Math.exp(-dt / 1.2);   // decay guards GPS gaps, not normal 1 Hz cadence
     } else if (age <= 10) {
       this.a = 0;                                   // hold last speed, state cruising
     } else {
@@ -844,9 +841,9 @@ if (DEV) {
   slider.addEventListener('input', () => { dev.target = +slider.value; document.getElementById('simVal').textContent = slider.value + ' km/h'; });
   document.querySelectorAll('#dev button').forEach(b => b.addEventListener('click', () => {
     const p = b.dataset.prof;
-    if (p === 'sprint') dev.target = 32;
-    else if (p === 'cruise') dev.target = 20;
-    else if (p === 'hill') dev.target = 35;
+    if (p === 'sprint') dev.target = 25;
+    else if (p === 'cruise') dev.target = 12;
+    else if (p === 'hill') dev.target = 18;
     else if (p === 'stop') dev.target = 0;
     else if (p === 'dropout') dev.dropout = 3;
     slider.value = dev.target;
@@ -854,10 +851,11 @@ if (DEV) {
   }));
 }
 function devTick(dt) {
-  // simulated bicycle: ease toward target with bicycle-ish accel limits
+  // simulated bicycle: decisive kick-off, brake harder, settle exactly on target
   const tgt = dev.target / KMH;
-  const maxA = 1.1, diff = tgt - dev.v;
-  dev.v += Math.max(-1.6 * dt, Math.min(maxA * dt, diff * dt * 0.9));
+  const diff = tgt - dev.v;
+  if (Math.abs(diff) < 0.12) dev.v = tgt;
+  else dev.v += Math.max(-1.8, Math.min(1.4, diff * 1.2)) * dt;
   dev.v = Math.max(0, dev.v);
   dev.fixTimer -= dt;
   if (dev.fixTimer <= 0) {
@@ -1011,10 +1009,10 @@ function frame(now) {
     const P = PRESETS[S.preset];
     if (drive.state === 'slow' && drive.load < -0.5 && drive.rpm > 0.45 * P.redlineRpm) audio.exhaustPops();
   }
-  // rev bar every frame — same value the audio uses
+  // tach gauge every frame — same RPM the audio uses
   const P = PRESETS[S.preset];
   const rn = Math.max(0, Math.min(1, (drive.rpm - 0) / (P.redlineRpm * 1.02)));
-  $('revFill').style.width = (rn * 100).toFixed(1) + '%';
+  drawTach(rn, dt);
   // text at ~8Hz (≥4Hz per PRD)
   uiT += dt;
   if (uiT >= 0.12) {
@@ -1060,6 +1058,81 @@ function frame(now) {
   if (saveT >= 5 && running) { saveT = 0; saveAll(); }
 }
 requestAnimationFrame(frame);
+
+// ================================================================
+//  Tachometer gauge — needle arc + a rotating cog holding the gear
+// ================================================================
+let cogAngle = 0;
+function drawTach(rn, dt) {
+  const cv = $('tach'), x = cv.getContext('2d');
+  const W = 300, cx = 150, cy = 150;
+  x.clearRect(0, 0, W, W);
+  const a0 = Math.PI * 0.75, sweep = Math.PI * 1.5;          // 270° dial
+  const R = 128;
+  // dial track
+  x.lineWidth = 16; x.lineCap = 'round';
+  x.strokeStyle = '#1d1b30';
+  x.beginPath(); x.arc(cx, cy, R, a0, a0 + sweep); x.stroke();
+  // redline zone (last 12%)
+  x.strokeStyle = 'rgba(255,45,85,0.4)';
+  x.beginPath(); x.arc(cx, cy, R, a0 + sweep * 0.88, a0 + sweep); x.stroke();
+  // lit arc up to needle
+  if (rn > 0.005) {
+    const g = x.createConicGradient ? null : null;
+    x.strokeStyle = rn > 0.88 ? '#ff2d55' : rn > 0.6 ? '#ffd166' : '#00e5ff';
+    x.shadowColor = x.strokeStyle; x.shadowBlur = 14;
+    x.beginPath(); x.arc(cx, cy, R, a0, a0 + sweep * rn); x.stroke();
+    x.shadowBlur = 0;
+  }
+  // ticks
+  x.lineWidth = 3; x.strokeStyle = '#3a3758';
+  for (let i = 0; i <= 10; i++) {
+    const a = a0 + sweep * i / 10;
+    x.beginPath();
+    x.moveTo(cx + Math.cos(a) * (R - 16), cy + Math.sin(a) * (R - 16));
+    x.lineTo(cx + Math.cos(a) * (R - 26), cy + Math.sin(a) * (R - 26));
+    x.stroke();
+  }
+  // needle
+  const na = a0 + sweep * rn;
+  x.strokeStyle = '#fff'; x.lineWidth = 5; x.lineCap = 'round';
+  x.shadowColor = '#ffd166'; x.shadowBlur = 10;
+  x.beginPath();
+  x.moveTo(cx + Math.cos(na) * 62, cy + Math.sin(na) * 62);
+  x.lineTo(cx + Math.cos(na) * (R - 10), cy + Math.sin(na) * (R - 10));
+  x.stroke();
+  x.shadowBlur = 0;
+  // the cog — spins with the engine
+  cogAngle += (drive.rpm / 6000) * dt * 6.283;
+  const teeth = 10, r1 = 52, r2 = 42;
+  x.save();
+  x.translate(cx, cy); x.rotate(cogAngle);
+  x.beginPath();
+  for (let i = 0; i < teeth * 4; i++) {
+    const seg = i / (teeth * 4) * 6.28318;
+    const r = (i % 4 < 2) ? r1 : r2;
+    x.lineTo(Math.cos(seg) * r, Math.sin(seg) * r);
+  }
+  x.closePath();
+  x.fillStyle = '#16152a';
+  x.strokeStyle = '#ffd166'; x.lineWidth = 3;
+  x.shadowColor = 'rgba(255,209,102,0.5)'; x.shadowBlur = 8;
+  x.fill(); x.stroke();
+  x.shadowBlur = 0;
+  x.beginPath(); x.arc(0, 0, 33, 0, 6.29);
+  x.fillStyle = '#0b0b14'; x.fill();
+  x.strokeStyle = '#2c2a44'; x.lineWidth = 2; x.stroke();
+  x.restore();
+  // gear digit (upright)
+  const gearTxt = drive.gear === 0 ? 'N' : String(drive.gear);
+  x.fillStyle = '#ffd166'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.font = 'bold 44px Courier New';
+  x.shadowColor = '#ffd166'; x.shadowBlur = 12;
+  x.fillText(gearTxt, cx, cy - 2);
+  x.shadowBlur = 0;
+  x.fillStyle = '#8d87bb'; x.font = '11px Courier New';
+  x.fillText('GEAR', cx, cy + 26);
+}
 
 // debug handle for tests + dev graphs
 window.__VR = {

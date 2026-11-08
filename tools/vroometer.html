@@ -1102,26 +1102,57 @@ function drawTach(rn, dt) {
   x.lineTo(cx + Math.cos(na) * (R - 10), cy + Math.sin(na) * (R - 10));
   x.stroke();
   x.shadowBlur = 0;
-  // the cog — spins with the engine
+  // the chainring — a bicycle sprocket spinning with the engine
   cogAngle += (drive.rpm / 6000) * dt * 6.283;
-  const teeth = 10, r1 = 52, r2 = 42;
+  const teeth = 16, rTip = 57, rRoot = 49;
   x.save();
   x.translate(cx, cy); x.rotate(cogAngle);
+  // pointed bike-sprocket teeth
   x.beginPath();
-  for (let i = 0; i < teeth * 4; i++) {
-    const seg = i / (teeth * 4) * 6.28318;
-    const r = (i % 4 < 2) ? r1 : r2;
-    x.lineTo(Math.cos(seg) * r, Math.sin(seg) * r);
+  for (let i = 0; i < teeth; i++) {
+    const a1 = i / teeth * 6.28318;
+    const a2 = (i + 0.5) / teeth * 6.28318;
+    const a3 = (i + 1) / teeth * 6.28318;
+    const am1 = (i + 0.18) / teeth * 6.28318, am2 = (i + 0.32) / teeth * 6.28318;
+    if (i === 0) x.moveTo(Math.cos(a1) * rRoot, Math.sin(a1) * rRoot);
+    x.lineTo(Math.cos(am1) * rRoot, Math.sin(am1) * rRoot);
+    x.lineTo(Math.cos(a2) * rTip, Math.sin(a2) * rTip);          // tooth tip
+    x.lineTo(Math.cos(am2 + 0.5 / teeth * 6.28318) * rRoot, Math.sin(am2 + 0.5 / teeth * 6.28318) * rRoot);
+    x.lineTo(Math.cos(a3) * rRoot, Math.sin(a3) * rRoot);
   }
   x.closePath();
   x.fillStyle = '#16152a';
-  x.strokeStyle = '#ffd166'; x.lineWidth = 3;
+  x.strokeStyle = '#ffd166'; x.lineWidth = 2.5;
   x.shadowColor = 'rgba(255,209,102,0.5)'; x.shadowBlur = 8;
   x.fill(); x.stroke();
   x.shadowBlur = 0;
-  x.beginPath(); x.arc(0, 0, 33, 0, 6.29);
+  // chainring spoke cutouts (the 5 windows of a crank sprocket)
+  x.fillStyle = '#12121f';
+  for (let i = 0; i < 5; i++) {
+    const a = i / 5 * 6.28318 + 0.6;
+    x.beginPath();
+    x.ellipse(Math.cos(a) * 40, Math.sin(a) * 40, 8.5, 5.5, a, 0, 6.29);
+    x.fill();
+  }
+  // bolt circle
+  x.strokeStyle = '#2c2a44'; x.lineWidth = 1.5;
+  x.beginPath(); x.arc(0, 0, 40, 0, 6.29); x.stroke();
+  // hub
+  x.beginPath(); x.arc(0, 0, 30, 0, 6.29);
   x.fillStyle = '#0b0b14'; x.fill();
   x.strokeStyle = '#2c2a44'; x.lineWidth = 2; x.stroke();
+  x.restore();
+  // the chain running over the sprocket (links travel with the revs)
+  x.save();
+  x.translate(cx, cy);
+  x.lineWidth = 7; x.lineCap = 'butt';
+  x.strokeStyle = '#8d87bb';
+  x.setLineDash([7, 5]);
+  x.lineDashOffset = -cogAngle * 60;
+  x.beginPath(); x.arc(0, 0, 60, -Math.PI * 0.85, -Math.PI * 0.15); x.stroke();
+  x.setLineDash([]);
+  x.strokeStyle = 'rgba(141,135,187,0.35)'; x.lineWidth = 2;
+  x.beginPath(); x.arc(0, 0, 60, -Math.PI * 0.85, -Math.PI * 0.15); x.stroke();
   x.restore();
   // gear digit (upright)
   const gearTxt = drive.gear === 0 ? 'N' : String(drive.gear);

@@ -29,39 +29,87 @@
   #stateLbl.slow { color: #ff9d3c; border-color: #6b4418; }
   #setBtn { font-family: inherit; font-size: 15px; background: #12121f; color: #b9b4e8; border: 1px solid #2c2a44; border-radius: 8px; padding: 4px 10px; }
 
-  /* speed block — priority 1+2 */
-  #speedBlock { display: flex; align-items: stretch; padding: 6px 14px 2px; }
-  #speedWrap { flex: 1; text-align: center; }
-  #speedVal { font-size: clamp(84px, 28vw, 130px); font-weight: bold; line-height: 0.95; color: #fff; text-shadow: 0 0 24px rgba(255,209,102,0.25); letter-spacing: -2px; }
+  /* hero dial — speed is the centre of attention (priorities 1-4) */
+  :root { --dial: min(92vw, 50vh, 420px); }
+  #hero { position: relative; align-self: center; width: var(--dial); height: var(--dial); flex: 0 0 auto; }
+  #dial { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #speedCore { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-64%); text-align: center; pointer-events: none; }
+  #speedVal {
+    font-size: calc(var(--dial) * 0.34); font-weight: bold; line-height: 0.9; color: #fff;
+    letter-spacing: -0.04em; text-shadow: 0 0 calc(var(--dial) * 0.07) rgba(255,209,102,0.35);
+  }
   #speedVal.stale { color: #4a4866; text-shadow: none; }
-  #speedUnit { font-size: 13px; letter-spacing: 3px; color: #8d87bb; }
-  #gearWrap { width: 148px; display: flex; align-items: center; justify-content: center; border-left: 1px solid #2c2a44; }
-  #tach { width: 140px; height: 140px; }
+  #speedUnit { font-size: calc(var(--dial) * 0.046); letter-spacing: 0.3em; color: #b9b4e8; margin-top: calc(var(--dial) * 0.012); }
+  #revInfo { font-size: calc(var(--dial) * 0.034); letter-spacing: 1px; color: #8d87bb; margin-top: calc(var(--dial) * 0.014); }
+  #rpmVal { color: #e8e6ff; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
-  /* rpm info strip (the tach gauge is the rev display) */
-  #revWrap { padding: 7px 12px; }
-  #revInfo { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 1px; color: #8d87bb; }
-  #rpmVal { color: #e8e6ff; }
+  /* HUD row — game minimap + trip stats (priorities 5-8) */
+  #hud { display: flex; gap: 8px; align-items: center; }
+  #mmWrap {
+    position: relative; flex: 0 0 auto; width: 118px; height: 118px; border-radius: 50%; padding: 0;
+    border: 2px solid #2c2a44; background: #0d0d18; cursor: pointer; overflow: hidden;
+    box-shadow: 0 0 0 3px #12121f, 0 0 18px rgba(0,229,255,0.15);
+  }
+  #mmWrap:active { transform: scale(0.97); }
+  #minimap { width: 100%; height: 100%; display: block; }
+  #mmHint {
+    position: absolute; right: 9px; bottom: 9px; font-size: 13px; color: #ffd166;
+    background: rgba(11,11,20,0.85); border: 1px solid #2c2a44; border-radius: 50%;
+    width: 24px; height: 24px; line-height: 22px; text-align: center; pointer-events: none;
+  }
+  #hudGrid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; min-width: 0; }
+  .stat { padding: 7px 4px; text-align: center; min-width: 0; }
+  .stat .v { font-size: 17px; font-weight: bold; color: #e8e6ff; white-space: nowrap; }
+  .stat .k { font-size: 9px; letter-spacing: 1.5px; color: #8d87bb; margin-top: 1px; }
 
-  /* map + gps — priority 5+7 */
-  #midRow { display: flex; gap: 7px; flex: 1 1 118px; min-height: 118px; }
-  #mapPanel { flex: 1.2; position: relative; overflow: hidden; min-height: 108px; }
-  #trail { width: 100%; height: 100%; display: block; }
-  #mapTag { position: absolute; top: 6px; left: 8px; font-size: 9px; letter-spacing: 1px; color: #8d87bb; }
-  #gpsPanel { flex: 1; padding: 8px 10px; font-size: 11px; line-height: 1.75; letter-spacing: 0.5px; min-height: 108px; }
-  #gpsPanel .k { color: #8d87bb; }
-  #sigDot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #555a77; margin-right: 4px; }
+  /* GPS line — priority 7 */
+  #gpsLine {
+    display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px;
+    padding: 7px 11px; font-size: 11px; letter-spacing: 0.5px; color: #b9b4e8;
+  }
+  #sigDot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #555a77; margin-right: 5px; }
   #sigDot.strong { background: #00ff9c; box-shadow: 0 0 7px #00ff9c; }
   #sigDot.ok { background: #ffd166; box-shadow: 0 0 7px #ffd166; }
   #sigDot.weak { background: #ff9d3c; box-shadow: 0 0 7px #ff9d3c; }
   #sigDot.lost { background: #ff2d55; }
 
-  /* elevation + trip — priority 6+8 */
-  #statRow { display: flex; gap: 7px; }
-  .stat { flex: 1; padding: 7px 10px; text-align: center; }
-  .stat .v { font-size: 17px; font-weight: bold; color: #e8e6ff; }
-  .stat .k { font-size: 9px; letter-spacing: 1.5px; color: #8d87bb; margin-top: 1px; }
+  /* big map */
+  #bigMap { position: fixed; inset: 0; z-index: 39; display: none; background: #0b0b14; }
+  #bigMap.show { display: block; }
+  #bigCv { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+  #bmTop {
+    position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 10px;
+    padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+    background: linear-gradient(rgba(11,11,20,0.95), rgba(11,11,20,0));
+  }
+  #bmTitle { font-size: 13px; letter-spacing: 3px; color: #ffd166; font-weight: bold; }
+  #bmStats { flex: 1; font-size: 11px; color: #b9b4e8; letter-spacing: 0.5px; }
+  #bigMap button {
+    font-family: inherit; font-size: 12px; letter-spacing: 1px; font-weight: bold;
+    color: #e8e6ff; background: rgba(18,18,31,0.92); border: 1px solid #2c2a44; border-radius: 10px; padding: 10px 12px;
+  }
+  #bmClose { font-size: 16px; padding: 7px 13px; }
+  #bmZoom { position: absolute; right: 12px; top: calc(62px + env(safe-area-inset-top)); display: flex; gap: 7px; }
+  #bmZoom button { min-width: 48px; padding: 8px 11px; }
+  #bmZoom button.on { color: #ffd166; border-color: #ffd166; }
+  #bmBar {
+    position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-wrap: wrap; gap: 7px; justify-content: center;
+    padding: 12px 12px calc(10px + env(safe-area-inset-bottom));
+    background: linear-gradient(rgba(11,11,20,0), rgba(11,11,20,0.96) 30%);
+  }
+  #bmBar button { flex: 1 1 30%; min-height: 48px; }
+  #bmGmaps { color: #7dffc8 !important; border-color: #1d5c44 !important; }
+  #bmGpx { color: #4dc3ff !important; border-color: #1d4260 !important; }
+  #bmReset { color: #ff8fa8 !important; border-color: #5c2434 !important; }
+  #bmReset.arm { background: #5c2434 !important; color: #fff !important; }
+  #bmNote { flex-basis: 100%; text-align: center; font-size: 10px; color: #8d87bb; letter-spacing: 0.3px; line-height: 1.6; }
+  #doneExport { display: flex; gap: 7px; margin: -4px 0 16px; }
+  #doneExport.hide { display: none; }
+  #doneExport button {
+    font-family: inherit; font-size: 12px; letter-spacing: 1px; font-weight: bold; color: #e8e6ff;
+    background: #12121f; border: 1px solid #2c2a44; border-radius: 10px; padding: 11px 13px;
+  }
 
   /* controls — priority 9 */
   #presetRow { display: flex; gap: 6px; }
@@ -118,8 +166,10 @@
 
   /* settings drawer */
   #settings {
-    position: fixed; inset: 0; z-index: 38; display: none; flex-direction: column;
-    background: rgba(8,8,16,0.97); padding: 16px; overflow-y: auto;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 38; display: none; flex-direction: column;
+    max-height: 72vh; background: rgba(10,10,19,0.98); padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+    overflow-y: auto; border-top: 1px solid #2c2a44; border-radius: 18px 18px 0 0;
+    box-shadow: 0 -12px 40px rgba(0,0,0,0.6); max-width: 560px; margin: 0 auto;
   }
   #settings.show { display: flex; }
   #settings h2 { font-size: 15px; letter-spacing: 3px; color: #ffd166; margin-bottom: 12px; }
@@ -132,6 +182,7 @@
   .tgl::after { content: ''; position: absolute; top: 3px; left: 4px; width: 20px; height: 20px; border-radius: 50%; background: #555a77; transition: all .15s; }
   .tgl.on { border-color: #ffd166; }
   .tgl.on::after { left: 26px; background: #ffd166; }
+  #sReset::after { display: none; }
   #closeSet { margin-top: 16px; font-family: inherit; font-size: 14px; font-weight: bold; letter-spacing: 2px; color: #0b0b14; background: #ffd166; border: 0; padding: 13px; border-radius: 11px; }
 
   /* dev mode */
@@ -152,42 +203,35 @@
     <button id="setBtn" title="settings">⚙</button>
   </div>
 
-  <div id="speedBlock" class="panel">
-    <div id="speedWrap">
+  <div id="hero">
+    <canvas id="dial"></canvas>
+    <div id="speedCore">
       <div id="speedVal">0</div>
-      <div id="speedUnit">KM/H · GPS ESTIMATE</div>
+      <div id="speedUnit">KM/H</div>
+      <div id="revInfo"><span id="rpmVal">0 RPM</span> · <span id="presetLbl">SPORTS CAR</span></div>
     </div>
-    <div id="gearWrap">
-      <canvas id="tach" width="300" height="300"></canvas>
-      <span id="gearVal" class="sr">N</span>
+    <span id="gearVal" class="sr">N</span>
+  </div>
+
+  <div id="hud">
+    <button id="mmWrap" title="open the big map">
+      <canvas id="minimap"></canvas>
+      <span id="mmHint">⤢</span>
+    </button>
+    <div id="hudGrid">
+      <div class="stat panel"><div class="v" id="distTxt">0.00</div><div class="k">KM</div></div>
+      <div class="stat panel"><div class="v" id="timeTxt">0:00</div><div class="k">TIME</div></div>
+      <div class="stat panel"><div class="v" id="avgTxt">0.0</div><div class="k">AVG</div></div>
+      <div class="stat panel"><div class="v" id="topTxt">0.0</div><div class="k">TOP</div></div>
+      <div class="stat panel"><div class="v" id="elevTxt">—</div><div class="k">ELEV M</div></div>
+      <div class="stat panel"><div class="v" id="climbTxt">0</div><div class="k">CLIMB M</div></div>
     </div>
   </div>
 
-  <div id="revWrap" class="panel">
-    <div id="revInfo"><span id="rpmVal">0 RPM</span><span id="presetLbl">SPORTS CAR</span></div>
-  </div>
-
-  <div id="midRow">
-    <div id="mapPanel" class="panel">
-      <canvas id="trail"></canvas>
-      <span id="mapTag">RIDE TRAIL · N↑</span>
-    </div>
-    <div id="gpsPanel" class="panel">
-      <div><span id="sigDot"></span><b id="sigTxt">FINDING GPS…</b></div>
-      <div><span class="k">ACC</span> <span id="accTxt">—</span></div>
-      <div><span class="k">LAT</span> <span id="latTxt">—</span></div>
-      <div><span class="k">LON</span> <span id="lonTxt">—</span></div>
-      <div><span class="k">HDG</span> <span id="hdgTxt">—</span></div>
-    </div>
-  </div>
-
-  <div id="statRow">
-    <div class="stat panel"><div class="v" id="elevTxt">—</div><div class="k">ELEV M</div></div>
-    <div class="stat panel"><div class="v" id="climbTxt">0</div><div class="k">CLIMB M</div></div>
-    <div class="stat panel"><div class="v" id="distTxt">0.00</div><div class="k">KM</div></div>
-    <div class="stat panel"><div class="v" id="timeTxt">0:00</div><div class="k">TIME</div></div>
-    <div class="stat panel"><div class="v" id="avgTxt">0.0</div><div class="k">AVG</div></div>
-    <div class="stat panel"><div class="v" id="topTxt">0.0</div><div class="k">TOP</div></div>
+  <div id="gpsLine" class="panel">
+    <span><span id="sigDot"></span><b id="sigTxt">FINDING GPS…</b> <span id="accTxt">—</span></span>
+    <span><span id="latTxt">—</span>, <span id="lonTxt">—</span></span>
+    <span id="hdgTxt">—</span>
   </div>
 
   <div id="dev" class="panel">
@@ -210,6 +254,31 @@
   </div>
 </div>
 
+<div id="bigMap">
+  <canvas id="bigCv"></canvas>
+  <div id="bmTop">
+    <span id="bmTitle">RIDE MAP</span>
+    <span id="bmStats"></span>
+    <button id="bmClose" title="close">✕</button>
+  </div>
+  <div id="bmZoom">
+    <button id="bmIn" title="zoom in">＋</button>
+    <button id="bmOut" title="zoom out">－</button>
+    <button id="bmFit" class="on" title="fit whole ride">FIT</button>
+    <button id="bmMe" title="follow me">◎ ME</button>
+  </div>
+  <div id="bmBar">
+    <button id="bmGmaps">🗺 GOOGLE MAPS</button>
+    <button id="bmGpx">⬇ GPX FILE</button>
+    <button id="bmReset">↺ RESET RIDE</button>
+    <div id="bmNote">
+      Google Maps redraws your ride as a cycling route through points of your trail.
+      For the exact trail, import the GPX into Google My Maps, Strava, Komoot or Garmin.
+      Nothing leaves your phone unless you tap one of these.
+    </div>
+  </div>
+</div>
+
 <button id="restoreBtn">🔊 TAP TO RESTORE SOUND</button>
 <div id="toast"></div>
 
@@ -220,6 +289,11 @@
     real GPS speed drives a live synthesized motor —<br>
     <b>rev up when you pedal, burble when you coast.</b><br>
     pick your engine:
+  </div>
+  <div id="doneExport" class="hide">
+    <button id="doneMap">⤢ MAP</button>
+    <button id="doneGmaps">🗺 GOOGLE MAPS</button>
+    <button id="doneGpx">⬇ GPX</button>
   </div>
   <div id="startPresets"></div>
   <button class="go" id="startBtn">▶ START ENGINE</button>
@@ -251,6 +325,7 @@
   <div class="srow"><span class="k">Gear shifts<small>virtual gearbox + shift sounds</small></span><button class="tgl on" id="sGears"></button></div>
   <div class="srow"><span class="k">Exhaust pops<small>crackle when slowing down</small></span><button class="tgl on" id="sPops"></button></div>
   <div class="srow"><span class="k">Quiet mode<small>caps volume at 40% for shared paths</small></span><button class="tgl" id="sQuiet"></button></div>
+  <div class="srow"><span class="k">Reset ride<small>clear the trail and trip stats</small></span><button class="tgl" id="sReset" style="width:auto;padding:0 12px;font-family:inherit;font-size:11px;color:#ff8fa8;border-color:#5c2434">RESET</button></div>
   <button id="closeSet">DONE</button>
 </div>
 
@@ -313,7 +388,7 @@ const S = Object.assign({
 if (S.v !== 2) { S.topSpeed = 20; S.v = 2; }   // bikes: 12 km/h should already sound fast
 function saveAll() {
   try {
-    localStorage.setItem(SLUG, JSON.stringify({ settings: S, trip: trip.save(), t: Date.now() }));
+    localStorage.setItem(SLUG, JSON.stringify({ settings: S, trip: trip.save(), trail: trailSave(), t: Date.now() }));
   } catch (e) {}
 }
 
@@ -425,6 +500,7 @@ const drive = {
     // --- virtual gearbox ---
     const u = Math.min(1.2, kmh / S.topSpeed);
     const bounds = P.gearUpperBounds;
+    if (this.gear > bounds.length) this.gear = bounds.length;   // e.g. switched to 4-speed kapcai in 5th
     this.gearT += dt;
     if (this.state === 'stopped') { this.gear = 0; }
     else if (!S.gears) { this.gear = 1; }
@@ -622,10 +698,26 @@ const audio = {
       R.g.gain.setTargetAtTime(r.gain, t, 0.1);
     });
   },
+  // preset swap while running: fade out ~140 ms, swap voice at the trough, fade back in ~260 ms
+  swap: null,
+  switchPreset(id) {
+    if (!this.ready) return;
+    this.swap = { id, t0: performance.now(), applied: false };
+  },
   // 60Hz control update — PRD §6 state mapping, interpolated over load
   update(rpm, load, stopped) {
     if (!this.ready) return;
     const t = this.ctx.currentTime;
+    let fade = 1;
+    if (this.swap) {
+      const st = (performance.now() - this.swap.t0) / 1000;
+      if (st < 0.14) fade = 1 - st / 0.14;
+      else {
+        if (!this.swap.applied) { this.applyPreset(this.swap.id); this.swap.applied = true; }
+        fade = Math.min(1, (st - 0.14) / 0.26);
+        if (st >= 0.4) this.swap = null;
+      }
+    }
     const P = PRESETS[S.preset];
     const rough = 0.5 + S.rough / 100;            // 0.5..1.5 scaler
     this.node.port.postMessage({ rpm });
@@ -641,7 +733,7 @@ const audio = {
     const drv = mapv(0.15, 0.10, 0.35, 0.85) * (0.4 + P.driveBias) * rough;
     const noi = mapv(0.05, 0.18, 0.10, 0.25) * (P.noiseMix / 0.15) * rough;
     const jit = mapv(1.0, 1.4, 0.7, 1.0) * rough;
-    this.engGain.gain.setTargetAtTime(lvl * 0.9, t, 0.035);
+    this.engGain.gain.setTargetAtTime(lvl * 0.9 * fade, t, 0.035);
     this.tone.frequency.setTargetAtTime(Math.min(9000, lp), t, 0.035);
     this.driveIn.gain.setTargetAtTime(0.3 + drv * 3.2, t, 0.045);
     this.noiseGain.gain.setTargetAtTime(noi * 0.6, t, 0.045);
@@ -730,57 +822,300 @@ const trip = {
   },
   save() { return { dist: this.dist, rideTime: this.rideTime, top: this.top, climb: this.climb }; },
   restore(d) { Object.assign(this, d); },
+  reset() { this.dist = 0; this.rideTime = 0; this.top = 0; this.climb = 0; this.lastCounted = this.elevSmooth; },
 };
 // restore trip if under 30 minutes old
 try {
   const saved = JSON.parse(localStorage.getItem(SLUG) || '{}');
   if (saved.trip && saved.t && Date.now() - saved.t < 30 * 60000) trip.restore(saved.trip);
+  if (saved.trail && saved.t && Date.now() - saved.t < 30 * 60000) window.__pendingTrail = saved.trail;
 } catch (e) {}
 
 // ================================================================
-//  Trail map — self-contained canvas (no tiles, GPS never leaves the phone)
+//  Trail store — kept on the device; exported only when the rider taps
 // ================================================================
-const trail = { pts: [], last: null };
+const trail = { pts: [], last: null, ref: null };     // pts: {lat, lon, t, ele}
 function trailAdd(fix) {
-  if (fix.lat == null) return;
-  if (trail.last && hav(trail.last, fix) < 5) return;
-  trail.pts.push({ lat: fix.lat, lon: fix.lon });
+  if (fix.lat == null || !isFinite(fix.lat)) return;
+  if (!trail.ref) trail.ref = { lat: fix.lat, lon: fix.lon };
+  if (trail.last && hav(trail.last, fix) < 5) return;          // 5 m spacing
+  const ele = fix.altitude != null && isFinite(fix.altitude) ? Math.round(fix.altitude * 10) / 10 : null;
+  trail.pts.push({ lat: fix.lat, lon: fix.lon, t: fix.t || Date.now(), ele });
   trail.last = fix;
-  if (trail.pts.length > 2000) trail.pts.splice(0, 500);
+  if (trail.pts.length > 4000) {                                // thin the oldest half, keep the ride's shape
+    const half = trail.pts.length >> 1;
+    trail.pts = trail.pts.slice(0, half).filter((_, i) => i % 2 === 0).concat(trail.pts.slice(half));
+  }
 }
-function drawTrail() {
-  const cv = document.getElementById('trail');
-  const w = cv.clientWidth, h = cv.clientHeight;
-  if (cv.width !== w * 2) { cv.width = w * 2; cv.height = h * 2; }
+function trailSave() {
+  return trail.pts.map(p => [+p.lat.toFixed(6), +p.lon.toFixed(6), p.t, p.ele]);
+}
+function trailRestore(arr) {
+  trail.pts = (arr || []).map(a => ({ lat: a[0], lon: a[1], t: a[2], ele: a[3] }));
+  trail.last = trail.pts.length ? trail.pts[trail.pts.length - 1] : null;
+  trail.ref = trail.pts.length ? { lat: trail.pts[0].lat, lon: trail.pts[0].lon } : null;
+}
+function resetRide() {
+  trail.pts = []; trail.last = null; trail.ref = null;
+  trip.reset();
+  saveAll();
+  toast('ride reset — fresh trail');
+}
+// local metric projection around the ride's first point
+function enu(p) {
+  const r = trail.ref || p;
+  return { e: (p.lon - r.lon) * 111320 * Math.cos(r.lat * Math.PI / 180), n: (p.lat - r.lat) * 110540 };
+}
+function riderPos() {
+  if (filter.lastFix && filter.lastFix.lat != null) return filter.lastFix;
+  return trail.pts.length ? trail.pts[trail.pts.length - 1] : null;
+}
+function niceStep(m) {                 // grid / scale-bar step for a span in metres
+  const steps = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000];
+  for (const s of steps) if (m / s <= 7) return s;
+  return 50000;
+}
+function fmtDist(m) { return m >= 1000 ? (m / 1000).toFixed(m >= 10000 ? 0 : 1) + ' km' : Math.round(m) + ' m'; }
+
+// ---- minimap: game-style, rider fixed in the centre, heading-up, trail streams out behind ----
+const mm = { radiusM: 120 };
+function drawMinimap(dt) {
+  const cv = $('minimap');
+  const S2 = Math.round(cv.clientWidth * 2) || 236;
+  if (cv.width !== S2) { cv.width = S2; cv.height = S2; }
   const x = cv.getContext('2d');
-  x.clearRect(0, 0, cv.width, cv.height);
-  const pts = trail.pts;
-  if (pts.length < 2) {
-    x.fillStyle = '#2c2a44'; x.font = '20px Courier New'; x.textAlign = 'center';
-    x.fillText(pts.length ? '· start riding ·' : '· no fix yet ·', cv.width / 2, cv.height / 2);
-    return;
+  const c = S2 / 2, R = S2 / 2;
+  x.clearRect(0, 0, S2, S2);
+  // background
+  const bg = x.createRadialGradient(c, c, 0, c, c, R);
+  bg.addColorStop(0, '#15152a'); bg.addColorStop(1, '#0a0a14');
+  x.fillStyle = bg; x.fillRect(0, 0, S2, S2);
+  x.save();
+  x.beginPath(); x.arc(c, c, R - 1, 0, 6.2832); x.clip();
+  const me = riderPos();
+  // zoom out a little as speed rises (more road ahead), smoothed
+  const kmh = filter.v * KMH;
+  const want = Math.max(90, Math.min(320, 90 + kmh * 9));
+  mm.radiusM += (want - mm.radiusM) * Math.min(1, dt * 1.5);
+  const k = (R * 0.92) / mm.radiusM;
+  const hdg = (trip.heading || 0) * Math.PI / 180;
+  if (me) {
+    const m = enu(me);
+    x.translate(c, c);
+    x.rotate(-hdg);                       // heading-up: travel direction points to the top
+    // world grid, anchored to the ground so it scrolls under you
+    const step = niceStep(mm.radiusM * 2);
+    x.strokeStyle = 'rgba(77,195,255,0.10)'; x.lineWidth = 1.5;
+    const span = mm.radiusM * 1.5;
+    for (let gx = Math.floor((m.e - span) / step) * step; gx <= m.e + span; gx += step) {
+      x.beginPath(); x.moveTo((gx - m.e) * k, -span * k); x.lineTo((gx - m.e) * k, span * k); x.stroke();
+    }
+    for (let gy = Math.floor((m.n - span) / step) * step; gy <= m.n + span; gy += step) {
+      x.beginPath(); x.moveTo(-span * k, -(gy - m.n) * k); x.lineTo(span * k, -(gy - m.n) * k); x.stroke();
+    }
+    // trail — fades out with age, brightest right behind the rider
+    const pts = trail.pts;
+    const from = Math.max(0, pts.length - 900);
+    const nSeg = pts.length - from;
+    x.lineCap = 'round'; x.lineJoin = 'round';
+    for (let i = from + 1; i < pts.length; i++) {
+      const a = enu(pts[i - 1]), b = enu(pts[i]);
+      const age = (i - from) / Math.max(1, nSeg);
+      x.strokeStyle = 'rgba(0,229,255,' + (0.15 + 0.85 * age).toFixed(3) + ')';
+      x.lineWidth = 3 + 4 * age;
+      x.beginPath();
+      x.moveTo((a.e - m.e) * k, -(a.n - m.n) * k);
+      x.lineTo((b.e - m.e) * k, -(b.n - m.n) * k);
+      x.stroke();
+    }
+    // the last trail point to the live rider position
+    if (pts.length) {
+      const b = enu(pts[pts.length - 1]);
+      x.strokeStyle = 'rgba(0,229,255,1)'; x.lineWidth = 7;
+      x.beginPath(); x.moveTo((b.e - m.e) * k, -(b.n - m.n) * k); x.lineTo(0, 0); x.stroke();
+    }
+    // start flag
+    if (pts.length > 1) {
+      const s = enu(pts[0]);
+      x.fillStyle = '#00ff9c';
+      x.beginPath(); x.arc((s.e - m.e) * k, -(s.n - m.n) * k, 6, 0, 6.2832); x.fill();
+    }
+    x.setTransform(1, 0, 0, 1, 0, 0);
+  } else {
+    x.fillStyle = '#4a4866'; x.font = 'bold ' + Math.round(S2 * 0.085) + 'px Courier New';
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(running ? 'FINDING GPS' : 'NO RIDE YET', c, c + S2 * 0.2);
   }
-  let minLa = 90, maxLa = -90, minLo = 180, maxLo = -180;
-  for (const p of pts) { minLa = Math.min(minLa, p.lat); maxLa = Math.max(maxLa, p.lat); minLo = Math.min(minLo, p.lon); maxLo = Math.max(maxLo, p.lon); }
-  const latK = Math.cos((minLa + maxLa) / 2 * Math.PI / 180);
-  const spanX = Math.max(0.0005, (maxLo - minLo) * latK), spanY = Math.max(0.0005, maxLa - minLa);
-  const pad = 20, sc = Math.min((cv.width - pad * 2) / spanX, (cv.height - pad * 2) / spanY);
-  const px = p => pad + ((p.lon - minLo) * latK - (spanX - (maxLo - minLo) * latK) / 2) * sc + (cv.width - pad * 2 - spanX * sc) / 2;
-  const py = p => cv.height - pad - (p.lat - minLa) * sc - (cv.height - pad * 2 - spanY * sc) / 2;
-  x.strokeStyle = '#00e5ff'; x.lineWidth = 3; x.lineJoin = 'round'; x.shadowColor = '#00e5ff'; x.shadowBlur = 8;
-  x.beginPath();
-  pts.forEach((p, i) => i ? x.lineTo(px(p), py(p)) : x.moveTo(px(p), py(p)));
-  x.stroke(); x.shadowBlur = 0;
-  // rider dot + heading arrow
-  const me = pts[pts.length - 1];
+  x.restore();
+  // rider arrow — always centre, always pointing up
+  x.save();
+  x.translate(c, c);
+  x.shadowColor = '#ffd166'; x.shadowBlur = 14;
   x.fillStyle = '#ffd166';
-  x.beginPath(); x.arc(px(me), py(me), 7, 0, 6.29); x.fill();
-  if (trip.heading != null) {
-    const a = (trip.heading - 90) * Math.PI / 180;
-    x.strokeStyle = '#ffd166'; x.lineWidth = 4;
-    x.beginPath(); x.moveTo(px(me), py(me));
-    x.lineTo(px(me) + Math.cos(a) * 18, py(me) + Math.sin(a) * 18); x.stroke();
+  x.beginPath();
+  x.moveTo(0, -17); x.lineTo(12, 13); x.lineTo(0, 6); x.lineTo(-12, 13); x.closePath();
+  x.fill();
+  x.restore();
+  // rim + rotating north marker
+  x.strokeStyle = '#2c2a44'; x.lineWidth = 3;
+  x.beginPath(); x.arc(c, c, R - 2, 0, 6.2832); x.stroke();
+  const nx = c - Math.sin(hdg) * (R - 17), ny = c - Math.cos(hdg) * (R - 17);
+  x.fillStyle = '#0b0b14';
+  x.beginPath(); x.arc(nx, ny, 13, 0, 6.2832); x.fill();
+  x.fillStyle = '#ff5c8a'; x.font = 'bold 18px Courier New';
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText('N', nx, ny + 1);
+  // scale ring label
+  x.fillStyle = 'rgba(141,135,187,0.9)'; x.font = '15px Courier New';
+  x.fillText(fmtDist(mm.radiusM), c, S2 - 20);
+}
+
+// ---- big map: north-up, fit whole ride or follow, zoom ----
+const bm = { open: false, mode: 'fit', radiusM: 400 };
+function openBigMap() {
+  bm.open = true;
+  $('bigMap').classList.add('show');
+  setBmMode('fit');
+  drawBigMap();
+}
+function closeBigMap() { bm.open = false; $('bigMap').classList.remove('show'); }
+function setBmMode(m) {
+  bm.mode = m;
+  $('bmFit').classList.toggle('on', m === 'fit');
+  $('bmMe').classList.toggle('on', m === 'follow');
+}
+function drawBigMap() {
+  if (!bm.open) return;
+  const cv = $('bigCv');
+  const W = Math.round(cv.clientWidth * 2), H = Math.round(cv.clientHeight * 2);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const x = cv.getContext('2d');
+  x.fillStyle = '#0b0b14'; x.fillRect(0, 0, W, H);
+  const pts = trail.pts, me = riderPos();
+  // view: centre + metres-per-pixel
+  let ce = 0, cn = 0, mpp;
+  const usableH = H * 0.5, usableW = W * 0.84;
+  if (bm.mode === 'fit' && pts.length > 1) {
+    let e0 = Infinity, e1 = -Infinity, n0 = Infinity, n1 = -Infinity;
+    for (const p of pts) { const q = enu(p); e0 = Math.min(e0, q.e); e1 = Math.max(e1, q.e); n0 = Math.min(n0, q.n); n1 = Math.max(n1, q.n); }
+    if (me) { const q = enu(me); e0 = Math.min(e0, q.e); e1 = Math.max(e1, q.e); n0 = Math.min(n0, q.n); n1 = Math.max(n1, q.n); }
+    ce = (e0 + e1) / 2; cn = (n0 + n1) / 2;
+    mpp = Math.max(60 / Math.min(usableW, usableH), (e1 - e0) / usableW, (n1 - n0) / usableH);
+    bm.radiusM = mpp * Math.min(W, H) / 2;
+  } else {
+    if (me) { const q = enu(me); ce = q.e; cn = q.n; }
+    mpp = bm.radiusM / (Math.min(W, H) / 2);
   }
+  const cx = W / 2, cy = H * 0.47;
+  const sx = e => cx + (e - ce) / mpp, sy = n => cy - (n - cn) / mpp;
+  // grid
+  const step = niceStep(mpp * Math.min(W, H));
+  x.strokeStyle = 'rgba(77,195,255,0.08)'; x.lineWidth = 2;
+  const eMin = ce - cx * mpp, eMax = ce + (W - cx) * mpp, nMin = cn - (H - cy) * mpp, nMax = cn + cy * mpp;
+  for (let g = Math.floor(eMin / step) * step; g <= eMax; g += step) { x.beginPath(); x.moveTo(sx(g), 0); x.lineTo(sx(g), H); x.stroke(); }
+  for (let g = Math.floor(nMin / step) * step; g <= nMax; g += step) { x.beginPath(); x.moveTo(0, sy(g)); x.lineTo(W, sy(g)); x.stroke(); }
+  if (pts.length > 1) {
+    // glow pass + core pass
+    x.lineCap = 'round'; x.lineJoin = 'round';
+    for (const pass of [{ w: 16, c: 'rgba(0,229,255,0.18)' }, { w: 6, c: '#00e5ff' }]) {
+      x.strokeStyle = pass.c; x.lineWidth = pass.w;
+      x.beginPath();
+      pts.forEach((p, i) => { const q = enu(p); i ? x.lineTo(sx(q.e), sy(q.n)) : x.moveTo(sx(q.e), sy(q.n)); });
+      x.stroke();
+    }
+    const s = enu(pts[0]);
+    x.fillStyle = '#00ff9c';
+    x.beginPath(); x.arc(sx(s.e), sy(s.n), 11, 0, 6.2832); x.fill();
+    x.fillStyle = '#0b0b14'; x.font = 'bold 14px Courier New'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText('S', sx(s.e), sy(s.n) + 1);
+  } else {
+    x.fillStyle = '#4a4866'; x.font = 'bold 30px Courier New'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(pts.length ? 'START RIDING TO DRAW A TRAIL' : 'NO TRAIL YET — RIDE TO DRAW ONE', W / 2, cy);
+  }
+  if (me) {      // rider arrow, rotated to heading (north-up map)
+    const q = enu(me);
+    x.save();
+    x.translate(sx(q.e), sy(q.n));
+    x.rotate((trip.heading || 0) * Math.PI / 180);
+    x.shadowColor = '#ffd166'; x.shadowBlur = 18; x.fillStyle = '#ffd166';
+    x.beginPath(); x.moveTo(0, -24); x.lineTo(17, 18); x.lineTo(0, 8); x.lineTo(-17, 18); x.closePath(); x.fill();
+    x.restore();
+  }
+  // north arrow + scale bar
+  x.fillStyle = '#ff5c8a'; x.font = 'bold 26px Courier New'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText('N↑', 46, H * 0.16);
+  const target = mpp * W * 0.28;
+  const barM = [5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000].filter(v => v <= target).pop() || 5;
+  const barPx = barM / mpp;
+  const by = H * 0.79;
+  x.strokeStyle = '#e8e6ff'; x.lineWidth = 4;
+  x.beginPath(); x.moveTo(30, by); x.lineTo(30 + barPx, by); x.moveTo(30, by - 10); x.lineTo(30, by + 10);
+  x.moveTo(30 + barPx, by - 10); x.lineTo(30 + barPx, by + 10); x.stroke();
+  x.fillStyle = '#e8e6ff'; x.font = '22px Courier New'; x.textAlign = 'left';
+  x.fillText(fmtDist(barM), 30, by - 22);
+  const mins = Math.floor(trip.rideTime / 60);
+  $('bmStats').textContent = (trip.dist / 1000).toFixed(2) + ' km · ' + mins + ':' + String(Math.floor(trip.rideTime % 60)).padStart(2, '0') +
+    ' · top ' + trip.top.toFixed(1) + ' km/h · ' + pts.length + ' pts';
+}
+
+// ---- exports (rider-initiated only) ----
+function buildGPX() {
+  const esc = s => String(s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+  const t0 = trail.pts.length ? trail.pts[0].t : Date.now();
+  const name = 'VROOMETER ride ' + new Date(t0).toISOString().slice(0, 16).replace('T', ' ');
+  const out = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<gpx version="1.1" creator="VROOMETER - wizzed.github.io" xmlns="http://www.topografix.com/GPX/1/1">',
+    '  <metadata><name>' + esc(name) + '</name><time>' + new Date(t0).toISOString() + '</time></metadata>',
+    '  <trk>',
+    '    <name>' + esc(name) + '</name>',
+    '    <type>cycling</type>',
+    '    <trkseg>',
+  ];
+  for (const p of trail.pts) {
+    out.push('      <trkpt lat="' + p.lat.toFixed(6) + '" lon="' + p.lon.toFixed(6) + '">' +
+      (p.ele != null ? '<ele>' + p.ele.toFixed(1) + '</ele>' : '') +
+      '<time>' + new Date(p.t).toISOString() + '</time></trkpt>');
+  }
+  out.push('    </trkseg>', '  </trk>', '</gpx>', '');
+  return out.join('\n');
+}
+async function exportGPX() {
+  if (trail.pts.length < 2) { toast('no trail yet — ride a little first'); return; }
+  const stamp = new Date(trail.pts[0].t).toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  const fname = 'vroometer-ride-' + stamp + '.gpx';
+  const xml = buildGPX();
+  try {
+    const file = new File([xml], fname, { type: 'application/gpx+xml' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'VROOMETER ride' });
+      return;
+    }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  const a = document.createElement('a');
+  a.download = fname;
+  a.href = URL.createObjectURL(new Blob([xml], { type: 'application/gpx+xml' }));
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  toast('GPX saved — import it in Google My Maps, Strava or Komoot');
+}
+function gmapsUrl() {
+  const pts = trail.pts, n = pts.length;
+  // Maps URLs allow 3 waypoints in mobile browsers, 9 elsewhere — stay inside both limits
+  const maxWp = matchMedia('(pointer: coarse)').matches ? 3 : 8;
+  const f = p => p.lat.toFixed(6) + '%2C' + p.lon.toFixed(6);
+  const idx = [];
+  for (let i = 1; i <= maxWp; i++) {
+    const j = Math.round(i * (n - 1) / (maxWp + 1));
+    if (j > 0 && j < n - 1 && idx[idx.length - 1] !== j) idx.push(j);
+  }
+  return 'https://www.google.com/maps/dir/?api=1&origin=' + f(pts[0]) + '&destination=' + f(pts[n - 1]) +
+    '&travelmode=bicycling' + (idx.length ? '&waypoints=' + idx.map(j => f(pts[j])).join('%7C') : '');
+}
+function openGmaps() {
+  if (trail.pts.length < 2) { toast('no trail yet — ride a little first'); return; }
+  window.open(gmapsUrl(), '_blank', 'noopener');
+  toast('opening Google Maps with your ride as a cycling route');
 }
 
 // ================================================================
@@ -921,10 +1256,10 @@ function buildPresets() {
       b.className = 'pchip' + (S.preset === id ? ' on' : '');
       b.textContent = PRESETS[id].short;
       b.addEventListener('click', () => {
-        if (running && drive.state !== 'stopped') { toast('presets switch while stopped only'); return; }
+        if (S.preset === id) return;
         S.preset = id; saveAll(); buildPresets();
         $('presetLbl').textContent = PRESETS[id].name.toUpperCase();
-        if (audio.ready) audio.applyPreset(id);     // 300ms crossfade via setTargetAtTime
+        if (audio.ready) { if (running) audio.switchPreset(id); else audio.applyPreset(id); }   // crossfade, any speed
       });
       el.appendChild(b);
     }
@@ -954,12 +1289,10 @@ $('stopBtn').addEventListener('click', () => {
   ov.querySelector('.sub').innerHTML =
     (trip.dist / 1000).toFixed(2) + ' km · top ' + trip.top.toFixed(1) + ' km/h · climb ' + Math.round(trip.climb) + ' m<br>pick an engine and ride again:';
   $('startBtn').textContent = '▶ RESTART ENGINE';
+  $('doneExport').classList.toggle('hide', trail.pts.length < 2);
 });
-// settings drawer — locked while moving (mute & stop stay reachable)
-$('setBtn').addEventListener('click', () => {
-  if (running && drive.state !== 'stopped') { toast('settings open while stopped only'); return; }
-  $('settings').classList.add('show');
-});
+// settings sheet — open at any speed; the dial stays visible above it
+$('setBtn').addEventListener('click', () => { $('settings').classList.toggle('show'); });
 $('closeSet').addEventListener('click', () => { $('settings').classList.remove('show'); saveAll(); });
 function bindRange(id, key, suffix, lbl) {
   const el = $(id);
@@ -989,6 +1322,38 @@ $('startBtn').addEventListener('click', async () => {
   running = true;
 });
 $('retryBtn').addEventListener('click', () => location.reload());
+// restore a trail saved within the last 30 min
+if (window.__pendingTrail) { trailRestore(window.__pendingTrail); delete window.__pendingTrail; }
+// minimap + big map
+$('mmWrap').addEventListener('click', openBigMap);
+$('doneMap').addEventListener('click', openBigMap);
+$('bmClose').addEventListener('click', closeBigMap);
+$('bmFit').addEventListener('click', () => { setBmMode('fit'); drawBigMap(); });
+$('bmMe').addEventListener('click', () => { setBmMode('follow'); drawBigMap(); });
+$('bmIn').addEventListener('click', () => { bm.radiusM = Math.max(40, bm.radiusM * 0.6); setBmMode('follow'); drawBigMap(); });
+$('bmOut').addEventListener('click', () => { bm.radiusM = Math.min(60000, bm.radiusM / 0.6); setBmMode('follow'); drawBigMap(); });
+$('bigCv').addEventListener('wheel', e => {
+  e.preventDefault();
+  bm.radiusM = Math.max(40, Math.min(60000, bm.radiusM * Math.exp(e.deltaY * 0.0015)));
+  setBmMode('follow'); drawBigMap();
+}, { passive: false });
+$('bmGpx').addEventListener('click', exportGPX);
+$('doneGpx').addEventListener('click', exportGPX);
+$('bmGmaps').addEventListener('click', openGmaps);
+$('doneGmaps').addEventListener('click', openGmaps);
+function armReset(btn, label) {
+  if (btn.classList.contains('arm')) {
+    btn.classList.remove('arm'); btn.textContent = label;
+    clearTimeout(btn._t);
+    resetRide(); drawBigMap();
+    return;
+  }
+  btn.classList.add('arm'); btn.textContent = 'TAP AGAIN TO RESET';
+  clearTimeout(btn._t);
+  btn._t = setTimeout(() => { btn.classList.remove('arm'); btn.textContent = label; }, 3000);
+}
+$('bmReset').addEventListener('click', () => armReset($('bmReset'), '↺ RESET RIDE'));
+$('sReset').addEventListener('click', () => armReset($('sReset'), 'RESET'));
 
 // ================================================================
 //  Main 60 Hz loop — one rAF drives model, audio and dashboard
@@ -1009,10 +1374,8 @@ function frame(now) {
     const P = PRESETS[S.preset];
     if (drive.state === 'slow' && drive.load < -0.5 && drive.rpm > 0.45 * P.redlineRpm) audio.exhaustPops();
   }
-  // tach gauge every frame — same RPM the audio uses
-  const P = PRESETS[S.preset];
-  const rn = Math.max(0, Math.min(1, (drive.rpm - 0) / (P.redlineRpm * 1.02)));
-  drawTach(rn, dt);
+  // dial every frame — same RPM the audio uses
+  drawDial(dt);
   // text at ~8Hz (≥4Hz per PRD)
   uiT += dt;
   if (uiT >= 0.12) {
@@ -1053,116 +1416,119 @@ function frame(now) {
     if (DEV) devGraphs();
   }
   slowT += dt;
-  if (slowT >= 1) { slowT = 0; drawTrail(); }
+  if (slowT >= 0.2) { drawMinimap(slowT); if (bm.open) drawBigMap(); slowT = 0; }
   saveT += dt;
   if (saveT >= 5 && running) { saveT = 0; saveAll(); }
 }
 requestAnimationFrame(frame);
 
 // ================================================================
-//  Tachometer gauge — needle arc + a rotating cog holding the gear
+//  Rev dial — RPM scale around the speed; bicycle chainring gear in the bottom gap
 // ================================================================
 let cogAngle = 0;
-function drawTach(rn, dt) {
-  const cv = $('tach'), x = cv.getContext('2d');
-  const W = 300, cx = 150, cy = 150;
-  x.clearRect(0, 0, W, W);
-  const a0 = Math.PI * 0.75, sweep = Math.PI * 1.5;          // 270° dial
-  const R = 128;
-  // dial track
-  x.lineWidth = 16; x.lineCap = 'round';
-  x.strokeStyle = '#1d1b30';
+function drawDial(dt) {
+  const cv = $('dial');
+  const S2 = Math.round(cv.clientWidth * 2) || 600;
+  if (cv.width !== S2) { cv.width = S2; cv.height = S2; }
+  const x = cv.getContext('2d');
+  x.clearRect(0, 0, S2, S2);
+  const P = PRESETS[S.preset];
+  const red = P.redlineRpm;
+  const gaugeMax = Math.ceil(red / 1000 + 0.5) * 1000;          // sports 8k · v8 7k · sbk 15k · kapcai 10k
+  const rn = Math.max(0, Math.min(1, drive.rpm / gaugeMax));
+  const cx = S2 / 2, cy = S2 / 2, R = S2 * 0.43, lw = S2 * 0.04;
+  const a0 = Math.PI * 0.75, sweep = Math.PI * 1.5;             // 270° with the gap at the bottom
+  const ang = r => a0 + sweep * (r / gaugeMax);
+  // bezel
+  x.strokeStyle = '#17162a'; x.lineWidth = lw * 2.4;
   x.beginPath(); x.arc(cx, cy, R, a0, a0 + sweep); x.stroke();
-  // redline zone (last 12%)
-  x.strokeStyle = 'rgba(255,45,85,0.4)';
-  x.beginPath(); x.arc(cx, cy, R, a0 + sweep * 0.88, a0 + sweep); x.stroke();
-  // lit arc up to needle
-  if (rn > 0.005) {
-    const g = x.createConicGradient ? null : null;
-    x.strokeStyle = rn > 0.88 ? '#ff2d55' : rn > 0.6 ? '#ffd166' : '#00e5ff';
-    x.shadowColor = x.strokeStyle; x.shadowBlur = 14;
+  // track
+  x.lineCap = 'round';
+  x.strokeStyle = '#211f38'; x.lineWidth = lw;
+  x.beginPath(); x.arc(cx, cy, R, a0, a0 + sweep); x.stroke();
+  // redline zone
+  x.lineCap = 'butt';
+  x.strokeStyle = 'rgba(255,45,85,0.45)';
+  x.beginPath(); x.arc(cx, cy, R, ang(red), a0 + sweep); x.stroke();
+  // lit arc
+  if (rn > 0.003) {
+    const col = drive.rpm >= red * 0.97 ? '#ff2d55' : rn > 0.6 ? '#ffd166' : '#00e5ff';
+    x.lineCap = 'round';
+    x.strokeStyle = col; x.shadowColor = col; x.shadowBlur = lw * 0.9;
     x.beginPath(); x.arc(cx, cy, R, a0, a0 + sweep * rn); x.stroke();
     x.shadowBlur = 0;
   }
-  // ticks
-  x.lineWidth = 3; x.strokeStyle = '#3a3758';
-  for (let i = 0; i <= 10; i++) {
-    const a = a0 + sweep * i / 10;
-    x.beginPath();
-    x.moveTo(cx + Math.cos(a) * (R - 16), cy + Math.sin(a) * (R - 16));
-    x.lineTo(cx + Math.cos(a) * (R - 26), cy + Math.sin(a) * (R - 26));
-    x.stroke();
+  // ticks + x1000 labels
+  const labStep = red > 10000 ? 2000 : 1000;
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.font = 'bold ' + Math.round(S2 * 0.04) + 'px Courier New';
+  for (let r = 0; r <= gaugeMax + 1; r += 500) {
+    const a = ang(r), major = r % 1000 === 0;
+    const r1 = R - lw * 0.9, r2 = R - lw * (major ? 1.9 : 1.4);
+    x.strokeStyle = r >= red ? 'rgba(255,92,138,0.85)' : major ? '#5a5680' : '#34314f';
+    x.lineWidth = major ? S2 * 0.008 : S2 * 0.005;
+    x.beginPath(); x.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); x.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); x.stroke();
+    if (r % labStep === 0) {
+      const rl = R - lw * 2.7;
+      x.fillStyle = r >= red ? '#ff5c8a' : '#6e6a96';
+      x.fillText(String(r / 1000), cx + Math.cos(a) * rl, cy + Math.sin(a) * rl);
+    }
   }
-  // needle
+  // rim needle — crosses the arc so it never covers the speed digits
   const na = a0 + sweep * rn;
-  x.strokeStyle = '#fff'; x.lineWidth = 5; x.lineCap = 'round';
-  x.shadowColor = '#ffd166'; x.shadowBlur = 10;
+  x.strokeStyle = '#ffffff'; x.lineWidth = S2 * 0.011; x.lineCap = 'round';
+  x.shadowColor = '#ffd166'; x.shadowBlur = lw * 0.8;
   x.beginPath();
-  x.moveTo(cx + Math.cos(na) * 62, cy + Math.sin(na) * 62);
-  x.lineTo(cx + Math.cos(na) * (R - 10), cy + Math.sin(na) * (R - 10));
+  x.moveTo(cx + Math.cos(na) * (R - lw * 2.1), cy + Math.sin(na) * (R - lw * 2.1));
+  x.lineTo(cx + Math.cos(na) * (R + lw * 0.8), cy + Math.sin(na) * (R + lw * 0.8));
   x.stroke();
   x.shadowBlur = 0;
-  // the chainring — a bicycle sprocket spinning with the engine
+  // ---- the chainring gear, sitting in the dial's bottom gap ----
   cogAngle += (drive.rpm / 6000) * dt * 6.283;
-  const teeth = 16, rTip = 57, rRoot = 49;
+  const gcx = cx, gcy = cy + R * 0.8, gk = (R * 0.24) / 57;
   x.save();
-  x.translate(cx, cy); x.rotate(cogAngle);
-  // pointed bike-sprocket teeth
+  x.translate(gcx, gcy); x.scale(gk, gk);
+  x.save();
+  x.rotate(cogAngle);
+  const teeth = 16, rTip = 57, rRoot = 49;
   x.beginPath();
   for (let i = 0; i < teeth; i++) {
-    const a1 = i / teeth * 6.28318;
-    const a2 = (i + 0.5) / teeth * 6.28318;
-    const a3 = (i + 1) / teeth * 6.28318;
-    const am1 = (i + 0.18) / teeth * 6.28318, am2 = (i + 0.32) / teeth * 6.28318;
+    const a1 = i / teeth * 6.28318, a2 = (i + 0.5) / teeth * 6.28318, a3 = (i + 1) / teeth * 6.28318;
+    const am1 = (i + 0.18) / teeth * 6.28318, am2 = (i + 0.82) / teeth * 6.28318;
     if (i === 0) x.moveTo(Math.cos(a1) * rRoot, Math.sin(a1) * rRoot);
     x.lineTo(Math.cos(am1) * rRoot, Math.sin(am1) * rRoot);
-    x.lineTo(Math.cos(a2) * rTip, Math.sin(a2) * rTip);          // tooth tip
-    x.lineTo(Math.cos(am2 + 0.5 / teeth * 6.28318) * rRoot, Math.sin(am2 + 0.5 / teeth * 6.28318) * rRoot);
+    x.lineTo(Math.cos(a2) * rTip, Math.sin(a2) * rTip);
+    x.lineTo(Math.cos(am2) * rRoot, Math.sin(am2) * rRoot);
     x.lineTo(Math.cos(a3) * rRoot, Math.sin(a3) * rRoot);
   }
   x.closePath();
-  x.fillStyle = '#16152a';
-  x.strokeStyle = '#ffd166'; x.lineWidth = 2.5;
+  x.fillStyle = '#16152a'; x.strokeStyle = '#ffd166'; x.lineWidth = 2.5;
   x.shadowColor = 'rgba(255,209,102,0.5)'; x.shadowBlur = 8;
   x.fill(); x.stroke();
   x.shadowBlur = 0;
-  // chainring spoke cutouts (the 5 windows of a crank sprocket)
-  x.fillStyle = '#12121f';
+  x.fillStyle = '#0b0b14';
   for (let i = 0; i < 5; i++) {
     const a = i / 5 * 6.28318 + 0.6;
-    x.beginPath();
-    x.ellipse(Math.cos(a) * 40, Math.sin(a) * 40, 8.5, 5.5, a, 0, 6.29);
-    x.fill();
+    x.beginPath(); x.ellipse(Math.cos(a) * 40, Math.sin(a) * 40, 8.5, 5.5, a, 0, 6.29); x.fill();
   }
-  // bolt circle
   x.strokeStyle = '#2c2a44'; x.lineWidth = 1.5;
   x.beginPath(); x.arc(0, 0, 40, 0, 6.29); x.stroke();
-  // hub
   x.beginPath(); x.arc(0, 0, 30, 0, 6.29);
   x.fillStyle = '#0b0b14'; x.fill();
   x.strokeStyle = '#2c2a44'; x.lineWidth = 2; x.stroke();
   x.restore();
-  // the chain running over the sprocket (links travel with the revs)
-  x.save();
-  x.translate(cx, cy);
-  x.lineWidth = 7; x.lineCap = 'butt';
-  x.strokeStyle = '#8d87bb';
-  x.setLineDash([7, 5]);
-  x.lineDashOffset = -cogAngle * 60;
+  // chain over the top of the ring, links travelling with the revs
+  x.lineWidth = 7; x.lineCap = 'butt'; x.strokeStyle = '#8d87bb';
+  x.setLineDash([7, 5]); x.lineDashOffset = -cogAngle * 60;
   x.beginPath(); x.arc(0, 0, 60, -Math.PI * 0.85, -Math.PI * 0.15); x.stroke();
   x.setLineDash([]);
-  x.strokeStyle = 'rgba(141,135,187,0.35)'; x.lineWidth = 2;
-  x.beginPath(); x.arc(0, 0, 60, -Math.PI * 0.85, -Math.PI * 0.15); x.stroke();
-  x.restore();
-  // gear digit (upright)
-  const gearTxt = drive.gear === 0 ? 'N' : String(drive.gear);
+  // gear digit, upright in the hub
   x.fillStyle = '#ffd166'; x.textAlign = 'center'; x.textBaseline = 'middle';
-  x.font = 'bold 44px Courier New';
+  x.font = 'bold 46px Courier New';
   x.shadowColor = '#ffd166'; x.shadowBlur = 12;
-  x.fillText(gearTxt, cx, cy - 2);
+  x.fillText(drive.gear === 0 ? 'N' : String(drive.gear), 0, 0);
   x.shadowBlur = 0;
-  x.fillStyle = '#8d87bb'; x.font = '11px Courier New';
-  x.fillText('GEAR', cx, cy + 26);
+  x.restore();
 }
 
 // debug handle for tests + dev graphs
@@ -1172,6 +1538,10 @@ window.__VR = {
   get rpm() { return drive.rpm; }, get load() { return drive.load; },
   get audioState() { return audio.ctx ? audio.ctx.state : 'none'; },
   get preset() { return S.preset; },
+  get trailLen() { return trail.pts.length; },
+  get mapOpen() { return bm.open; },
+  gpx: () => buildGPX(),
+  gmaps: () => gmapsUrl(),
   rms() {
     if (!audio.analyser) return 0;
     const d = new Float32Array(audio.analyser.fftSize);

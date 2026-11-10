@@ -333,7 +333,7 @@ Every entry is a single standalone HTML file — no build step, no dependencies 
 | 🎬 **Visualizer Studio** `NEW` | Music Video | [`tools/visualizer-studio.html`](tools/visualizer-studio.html) | Load a song or MP4, pick a visualizer, time the lyrics, export the video. |
 | 🎤 **Vocal Remover** `NEW` | Karaoke | [`tools/vocal-remover.html`](tools/vocal-remover.html) | Cancel center-mixed vocals for karaoke, or isolate them instead. |
 | 🎙️ **Voice Recorder** `NEW` | Recorder | [`tools/audio-recorder.html`](tools/audio-recorder.html) | One-tap mic recording with waveform trim and WAV download. |
-| 🛵 **VROOMETER** `NEW` | 📱 GPS Engine | [`tools/vroometer.html`](tools/vroometer.html) | Turn your bicycle into a motorbike: real GPS speed revs a live synthesized engine — gears, burble, exhaust pops, full ride dashboard. |
+| 🛵 **VROOMETER** `NEW` | 📱 GPS Engine | [`tools/vroometer.html`](tools/vroometer.html) | Turn your bicycle into a motorbike: real GPS speed revs a live synthesized engine — gears, exhaust pops, game minimap, GPX + Google Maps export. |
 
 ### Data & Utilities  (15)
 
@@ -389,7 +389,7 @@ The original eleven, preserved exactly as they were. Reachable from [`old.html`]
 - The **Massively Multiplayer** games (`mega-tag`, `mp-draw`, `mp-clicker`, `mp-plaza`, `mp-race`, `mp-snake`, `mp-quiz`) run serverless over public MQTT-over-WebSocket brokers (no accounts — see `private.md` for infrastructure notes and how to point any of them at your own broker via `?broker=`); AI bots fill the world when humans are scarce, every bot is badged 🤖, and the live online count always shows humans vs AI. **Late joiners get the current shared state** (the drawing canvas, the global click total, chat history, eaten food) via MQTT retained snapshots — the world persists even after everyone leaves.
 - The **📱 Camera** pages (`games/air-slice.html`, `games/statue-freeze.html`, `games/color-quest.html`, `tools/light-writer.html`, `tools/color-lens.html`) use the camera as a *controller* — motion detection by frame differencing, hue matching, and brightest-point tracking, all computed live in the browser. Nothing is recorded or uploaded; built for phones, work with any webcam.
 - **Character Forge** (`games/character-forge-3d.html`) exports standard **`.glb`** model files; **Groove Dancer** (`tools/groove-dancer.html`) reuses your saved Forge hero.
-- **VROOMETER** (`tools/vroometer.html`) turns real GPS speed into a live synthesized engine sound (AudioWorklet pulse synthesis, virtual gearbox, four presets); all GPS stays on the device — no tiles, no server, trail map drawn locally.
+- **VROOMETER** (`tools/vroometer.html`) turns real GPS speed into a live synthesized engine sound (AudioWorklet pulse synthesis, virtual gearbox, four presets); all GPS stays on the device — no tiles, no server, trail drawn locally as a heading-up game minimap. Rides export only on tap: GPX 1.1 (Google My Maps, Strava, Komoot, Garmin) or a Google Maps cycling-directions link.
 - **PolyForge** (`tools/polyforge.html`) is a full 3D modeling studio: primitive kit-bashing with move/rotate/scale gizmos, PBR colors, undo/redo, and a keyframe timeline; exports **`.glb`** (nodes + materials + animations, for games/web/engines) and binary **`.stl`** (merged world-space mesh, slicer-ready for 3D printing), plus its own JSON project files.
 - **Visualizer Studio** (`tools/visualizer-studio.html`) exports MP4/WEBM music videos at 720p/1080p/4K/square/vertical; the audio tools (cutter, slowed+reverb, vocal remover) export 16-bit WAV.
 
